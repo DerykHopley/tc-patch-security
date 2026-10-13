@@ -1,0 +1,62 @@
+[
+  {
+    "workflow": "staged",
+    "stage": "planning",
+    "session": "982051eb-9428-40c6-bcf2-8584d05dd0e2",
+    "tests": "none",
+    "step_ins": 0,
+    "notes": "Chose factory shape, stack, report; added superpowers arm",
+    "transcripts": "/home/Deryk/.claude/projects/-var-home-Deryk-development-TuringCollege-sprint2-project",
+    "logged": "2026-10-12T15:01:08"
+  },
+  {
+    "workflow": "staged",
+    "stage": "build-backend",
+    "session": "68b29412-cfa9-4002-b5d2-3d28e4969587",
+    "tests": "pass",
+    "step_ins": 0,
+    "notes": "Backend done in one pass: 104 tests green, Q1-Q8 scripted, openrouter.py written untested; embedder dim 512->4096",
+    "transcripts": "/home/Deryk/.claude/projects/-var-home-Deryk-development-TuringCollege-sprint2-project",
+    "logged": "2026-10-12T15:22:43"
+  },
+  {
+    "workflow": "staged",
+    "stage": "spec-plan",
+    "session": "d2313411-9b56-437a-869e-b876c55bbe92",
+    "tests": "none",
+    "step_ins": 0,
+    "notes": "SPEC.md and PLAN.md written after 4 grilling questions; logged from stage 2 session",
+    "transcripts": "/home/Deryk/.claude/projects/-var-home-Deryk-development-TuringCollege-sprint2-project",
+    "logged": "2026-10-12T15:26:10"
+  },
+  {
+    "workflow": "staged",
+    "stage": "build-frontend",
+    "session": "eb1efc2d-4553-4f62-9f5b-7e68a659df50",
+    "tests": "pass",
+    "step_ins": 0,
+    "notes": "Frontend in one pass: U1-U9 checked headless (Playwright), all 8 examples; build+lint clean; backend on 8001 (8000 taken)",
+    "transcripts": "/home/Deryk/.claude/projects/-var-home-Deryk-development-TuringCollege-sprint2-project",
+    "logged": "2026-10-12T15:35:10"
+  },
+  {
+    "workflow": "staged",
+    "stage": "review",
+    "session": "66e079ca-e90b-4602-b255-1581be8a3848",
+    "tests": "pass",
+    "step_ins": 0,
+    "notes": "Review vs SPEC: 3 bugs fixed test-first (delimiter spoofing, LLM error in search tool, injection in history) + frontend .env ignore; 107 tests green; 9 items listed",
+    "transcripts": "/home/Deryk/.claude/projects/-var-home-Deryk-development-TuringCollege-sprint2-project",
+    "logged": "2026-10-12T15:38:05"
+  },
+  {
+    "workflow": "superpowers",
+    "stage": "build",
+    "session": "a71e368d-5a92-48b6-93ef-3925a79093fb",
+    "tests": "92/92",
+    "step_ins": 0,
+    "notes": "Full superpowers run in one session: spec (questions skipped) -> plan -> inline execution of 12 tasks -> opus whole-branch review -> 4 fixes. 3 approval gates (skip questions, write plan, carry on), no corrections. 92 pytest pass, tsc build clean, UI checked in headless Firefox. Missing: live OpenRouter check (no key).",
+    "transcripts": "/home/Deryk/.claude/projects/-var-home-Deryk-development-TuringCollege-sprint2-superpowers",
+    "logged": "2026-10-12T15:52:07"
+  }
+]

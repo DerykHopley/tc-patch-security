@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factory Run Report</title>
+<style>
+:root { --bg:#fff; --fg:#1d1d1f; --muted:#666; --line:#ddd; --head:#f4f4f6; }
+@media (prefers-color-scheme: dark) { :root { --bg:#16161a; --fg:#e8e8ea; --muted:#9a9aa2; --line:#33333a; --head:#222228; } }
+body { background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, sans-serif; margin:0 auto; max-width:1100px; padding:24px 16px; }
+h1 { font-size:1.4rem; margin:0 0 4px; }
+p, li { color:var(--muted); }
+.wrap { overflow-x:auto; }
+table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
+th, td { border-bottom:1px solid var(--line); padding:6px 8px; text-align:right; white-space:nowrap; }
+th:first-child, td:first-child, th:last-child, td:last-child { text-align:left; }
+td:last-child { white-space:normal; min-width:200px; }
+thead th { background:var(--head); }
+</style></head><body>
+<h1>Factory run report</h1>
+<p>Generated 2026-10-12 15:57. 6 stages. Models: claude-opus-5-5.</p>
+<p><strong>Totals:</strong> $16.44 API-equivalent, ~1014.3 Wh estimated (≈67.6 phone charges), 99 active minutes.</p>
+<div class="wrap"><table>
+<thead><tr><th>Stage</th><th>Started</th><th>Min (wall / active)</th><th>Input</th><th>Output</th>
+<th>Cache read</th><th>Cache write</th><th>Cost</th><th>Wh</th><th>Prompts</th><th>Step-ins</th><th>Tests</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>staged: planning</td><td>2026-10-12 14:47</td><td>19 / 19</td><td>54</td><td>29.0k</td><td>2.56M</td><td>97.5k</td><td>$1.87</td><td>104.7</td><td>5</td><td>0</td><td>none</td><td>Chose factory shape, stack, report; added superpowers arm</td></tr>
+<tr><td>staged: spec-plan</td><td>2026-10-12 15:09</td><td>3 / 3</td><td>12</td><td>15.3k</td><td>266.2k</td><td>31.1k</td><td>$0.61</td><td>28.4</td><td>1</td><td>0</td><td>none</td><td>SPEC.md and PLAN.md written after 4 grilling questions; logged from stage 2 session</td></tr>
+<tr><td>staged: build-backend</td><td>2026-10-12 15:14</td><td>12 / 12</td><td>52</td><td>60.2k</td><td>2.10M</td><td>93.0k</td><td>$2.37</td><td>125.4</td><td>3</td><td>0</td><td>pass</td><td>Backend done in one pass: 104 tests green, Q1-Q8 scripted, openrouter.py written untested; embedder dim 512-&gt;4096</td></tr>
+<tr><td>superpowers: build</td><td>2026-10-12 15:21</td><td>35 / 35</td><td>246</td><td>129.2k</td><td>16.10M</td><td>311.1k</td><td>$7.95</td><td>529.0</td><td>5</td><td>0</td><td>92/92</td><td>Full superpowers run in one session: spec (questions skipped) -&gt; plan -&gt; inline execution of 12 tasks -&gt; opus whole-branch review -&gt; 4 fixes. 3 approval gates (skip questions, write plan, carry on), no corrections. 92 pytest pass, tsc build clean, UI checked in headless Firefox. Missing: live OpenRouter check (no key).</td></tr>
+<tr><td>staged: build-frontend</td><td>2026-10-12 15:26</td><td>9 / 9</td><td>72</td><td>23.7k</td><td>2.52M</td><td>63.2k</td><td>$1.48</td><td>89.9</td><td>3</td><td>0</td><td>pass</td><td>Frontend in one pass: U1-U9 checked headless (Playwright), all 8 examples; build+lint clean; backend on 8001 (8000 taken)</td></tr>
+<tr><td>staged: review</td><td>2026-10-12 15:35</td><td>21 / 21</td><td>90</td><td>25.1k</td><td>4.36M</td><td>97.9k</td><td>$2.16</td><td>136.9</td><td>8</td><td>0</td><td>pass</td><td>Review vs SPEC: 3 bugs fixed test-first (delimiter spoofing, LLM error in search tool, injection in history) + frontend .env ignore; 107 tests green; 9 items listed</td></tr>
+</tbody><tfoot><tr><th>Total</th><th></th><th>100 / 99</th><th>526</th><th>282.5k</th><th>27.91M</th><th>693.9k</th><th>$16.44</th><th>1014.3</th><th>25</th><th>0</th><th></th><th></th></tr></tfoot></table></div>
+<h2>By workflow</h2>
+<p>Compare like with like: leave out the "planning" stage when comparing the build cost of two workflows.</p>
+<div class="wrap"><table>
+<thead><tr><th>Workflow</th><th>Started</th><th>Min (wall / active)</th><th>Input</th><th>Output</th>
+<th>Cache read</th><th>Cache write</th><th>Cost</th><th>Wh</th><th>Prompts</th><th>Step-ins</th><th>Tests</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>staged (5 stages)</td><td></td><td>65 / 64</td><td>280</td><td>153.3k</td><td>11.81M</td><td>382.8k</td><td>$8.49</td><td>485.3</td><td>20</td><td>0</td><td></td><td></td></tr>
+<tr><td>superpowers (1 stages)</td><td></td><td>35 / 35</td><td>246</td><td>129.2k</td><td>16.10M</td><td>311.1k</td><td>$7.95</td><td>529.0</td><td>5</td><td>0</td><td></td><td></td></tr>
+</tbody></table></div>
+<h2>How to read this</h2>
+<ul>
+<li><strong>Cost</strong> is tokens × Anthropic list price (cached 2026-10-06), with cache writes at 1.25× (5 min) or 2× (1 h) input. A subscription isn't billed per token, so treat this as "what it would cost on the API".</li>
+<li><strong>Wh</strong> uses the same per-token assumptions as the status line (~/.claude/statusline-energy.py). Unverified: Anthropic publishes no energy figures. Order of magnitude only.</li>
+<li><strong>Cache read</strong> usually dominates the token count but is cheap in both money and energy. Look at output tokens for the real work.</li>
+<li><strong>Active minutes</strong> cap each gap between events at 5 minutes, so lunch breaks don't count.</li>
+<li><strong>Prompts</strong> counts messages you typed (approximate). <strong>Step-ins</strong> is your own count of corrections or unblocking, logged at the end of each stage.</li>
+<li>A long single-session workflow (like superpowers) shows as one row; its subagents are counted inside it.</li>
+<li>Includes subagent transcripts when Claude Code stores them beside the session.</li>
+</ul>
+</body></html>

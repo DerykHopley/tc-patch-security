@@ -1,0 +1,74 @@
+[
+ {
+  "cveID": "CVE-2025-3248",
+  "vulnerabilityName": "Langflow Missing Authentication Vulnerability",
+  "dateAdded": "2025-05-05",
+  "dueDate": "2025-05-26",
+  "knownRansomwareCampaignUse": "Known",
+  "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable."
+ },
+ {
+  "cveID": "CVE-2025-34291",
+  "vulnerabilityName": "Langflow Origin Validation Error Vulnerability",
+  "dateAdded": "2026-05-21",
+  "dueDate": "2026-06-04",
+  "knownRansomwareCampaignUse": "Unknown",
+  "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable."
+ },
+ {
+  "cveID": "CVE-2026-0770",
+  "vulnerabilityName": "Langflow Inclusion of Functionality from Untrusted Control Sphere Vulnerability",
+  "dateAdded": "2026-07-21",
+  "dueDate": "2026-07-24",
+  "knownRansomwareCampaignUse": "Unknown",
+  "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines."
+ },
+ {
+  "cveID": "CVE-2026-33017",
+  "vulnerabilityName": "Langflow Code Injection Vulnerability",
+  "dateAdded": "2026-03-25",
+  "dueDate": "2026-04-08",
+  "knownRansomwareCampaignUse": "Unknown",
+  "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable."
+ },
+ {
+  "cveID": "CVE-2026-55255",
+  "vulnerabilityName": "Langflow Authorization Bypass Through User-Controlled Key Vulnerability",
+  "dateAdded": "2026-07-07",
+  "dueDate": "2026-07-10",
+  "knownRansomwareCampaignUse": "Unknown",
+  "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines."
+ },
+ {
+  "cveID": "CVE-2026-9198",
+  "vulnerabilityName": "IBM Langflow Code Injection Vulnerability",
+  "dateAdded": "2026-08-04",
+  "dueDate": "2026-08-07",
+  "knownRansomwareCampaignUse": "Unknown",
+  "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines."
+ },
+ {
+  "cveID": "CVE-2026-42208",
+  "vulnerabilityName": "BerriAI LiteLLM SQL Injection Vulnerability",
+  "dateAdded": "2026-05-08",
+  "dueDate": "2026-05-11",
+  "knownRansomwareCampaignUse": "Unknown",
+  "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable."
+ },
+ {
+  "cveID": "CVE-2026-42271",
+  "vulnerabilityName": "BerriAI LiteLLM Command Injection Vulnerability",
+  "dateAdded": "2026-06-08",
+  "dueDate": "2026-06-22",
+  "knownRansomwareCampaignUse": "Unknown",
+  "requiredAction": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable."
+ },
+ {
+  "cveID": "CVE-2026-59822",
+  "vulnerabilityName": "BerriAI LiteLLM Improper Authentication Vulnerability",
+  "dateAdded": "2026-09-02",
+  "dueDate": "2026-09-16",
+  "knownRansomwareCampaignUse": "Unknown",
+  "requiredAction": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA\u2019s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA\u2019s \u201cForensics Triage Requirements\u201d (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines."
+ }
+]
