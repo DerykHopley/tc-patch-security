@@ -163,8 +163,9 @@ def test_a02_4_collapsed_rail_keeps_names_and_is_remembered(open_app):
     page.wait_for_function("document.querySelector('.sidenav').getBoundingClientRect().width === 78")
     expect(page.locator(".side-card")).to_be_hidden()
     expect(page.get_by_text("LLM Security", exact=True)).to_be_hidden()
+    side = page.get_by_role("complementary", name="Main")  # Patch's own button is also "Ask Patch" (A06)
     for name in ("Dashboard", "Settings", "Dev", "Ask Patch"):
-        expect(page.get_by_role("button", name=name, exact=True)).to_be_visible()
+        expect(side.get_by_role("button", name=name, exact=True)).to_be_visible()
     page.reload()
     expect(page.get_by_role("button", name="Expand the sidebar")).to_be_visible()
     assert sidebar_width(page) == 78
@@ -197,10 +198,11 @@ def test_a02_5_dev_page_hidden_when_the_backend_disallows_it(open_app):
     expect(page.get_by_role("button", name="Dev", exact=True)).to_have_count(0)
 
 
-def test_a02_5_ask_patch_is_named_and_reachable_but_a_placeholder(open_app):
+def test_a02_5_ask_patch_is_named_and_reachable(open_app):
+    # A02 left it a placeholder; the chat (A06) wires it up: test_chat.py checks that it opens the chat.
     page = open_app()
-    ask = page.get_by_role("button", name="Ask Patch")
-    expect(ask).to_have_attribute("aria-disabled", "true")
+    ask = page.get_by_role("complementary", name="Main").get_by_role("button", name="Ask Patch")
+    expect(ask).to_have_attribute("aria-expanded", "false")
     ask.focus()
     expect(ask).to_be_focused()
 
@@ -264,8 +266,9 @@ def test_a02_8_bottom_tab_bar_on_phones(open_app):
     bar = page.locator(".sidenav").bounding_box()
     assert bar is not None
     assert bar["x"] == 0 and bar["width"] == PHONE and bar["y"] + bar["height"] == 900
-    expect(page.get_by_role("button", name="Ask Patch")).to_be_visible()
-    assert page.get_by_role("button", name="Ask Patch").locator(".side-label").inner_text().strip() == "Ask"
+    ask = page.locator(".sidenav").get_by_role("button", name="Ask Patch")  # not Patch's own button (A06)
+    expect(ask).to_be_visible()
+    assert ask.locator(".side-label").inner_text().strip() == "Ask"
     for hidden in (".brand", ".side-section", ".side-card", ".collapse-btn"):
         expect(page.locator(hidden).first).to_be_hidden()
     icon = page.get_by_role("button", name="Settings").locator(".side-icon").bounding_box()
@@ -353,7 +356,8 @@ def test_a02_11_every_control_reachable_by_keyboard_with_visible_focus(open_app,
     page = open_app()
     if collapsed:
         page.get_by_role("button", name="Collapse the sidebar").click()
-    page.locator("body").click(position={"x": 700, "y": 600})
+    # Start before the sidebar: from the page content, Tab now reaches Patch's button (last) and leaves the page.
+    page.locator("body").click(position={"x": 5, "y": 5})
     order = tab_order(page)
     expected = ["Dashboard", "Settings", "Dev", "Ask Patch",
                 "Expand the sidebar" if collapsed else "Collapse the sidebar", "Switch to dark mode"]
