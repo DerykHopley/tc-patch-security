@@ -93,6 +93,7 @@ export interface ChatReply {
   flags: string[] // "injection_phrasing": flagged, still answered
   bad_citations: number[] // [n] removed from the answer: no source n
   no_citations: boolean // has sources but cites none of them
+  explain_level: ExplainLevel // the level this answer was pitched at (A19)
 }
 
 export interface Example {
@@ -100,11 +101,21 @@ export interface Example {
   question: string
 }
 
-export const chat = (message: string, history: Turn[]) =>
+// How Patch pitches an answer (A19). Same facts and sources at every level; only the wording changes.
+export type ExplainLevel = 'simple' | 'normal' | 'deep_dive'
+
+export const EXPLAIN_LEVELS: { id: ExplainLevel; label: string; what: string }[] = [
+  { id: 'simple', label: 'Simple', what: 'Plain words and everyday comparisons.' },
+  { id: 'normal', label: 'Normal', what: 'Clear and direct, for developers.' },
+  { id: 'deep_dive', label: 'Deep dive', what: 'The technical detail: CWE, attack path, CVSS vector.' },
+]
+
+// explainLevel: this message only; left out, the backend uses the saved level.
+export const chat = (message: string, history: Turn[], explainLevel?: ExplainLevel) =>
   request<ChatReply>('/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, history }),
+    body: JSON.stringify({ message, history, ...(explainLevel && { explain_level: explainLevel }) }),
   })
 
 export const examples = () => request<Example[]>('/examples')
@@ -237,6 +248,7 @@ export interface AlertSettings {
 
 export interface AppSettings {
   alerts: AlertSettings
+  explain_level: ExplainLevel
 }
 
 export interface ChannelStatus {

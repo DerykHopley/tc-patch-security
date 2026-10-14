@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   alertsLog,
+  EXPLAIN_LEVELS,
   resetState,
   testAlert,
   type AlertLogEntry,
@@ -271,6 +272,24 @@ export function SettingsPage({ asOf, onOpenDashboard }: { asOf: string | null; o
           <button type="button" onClick={onOpenDashboard}>
             Edit on the dashboard
           </button>
+        </Card>
+
+        <Card title="Patch's answers" kind="live" why="Patch uses it on your next question">
+          <p className="meta">
+            How Patch pitches an answer. The facts and sources stay the same at every level; only the wording changes.
+            The chat header can switch it for one question.
+          </p>
+          <fieldset>
+            <legend>Explain level</legend>
+            {EXPLAIN_LEVELS.map((lv) => (
+              <label key={lv.id} className="check-row">
+                <input type="radio" name="explain-level" value={lv.id} checked={s.draft?.explain_level === lv.id}
+                  onChange={() => s.setValue('explain_level', lv.id)} />
+                <strong>{lv.label}</strong>
+                <span className="meta inline">{lv.what}</span>
+              </label>
+            ))}
+          </fieldset>
         </Card>
 
         <Card title="Data" kind="live" why="The snapshot the app reads">

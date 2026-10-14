@@ -245,7 +245,7 @@ def test_a06_5_greeting_with_suggestions_and_folded_more_examples(open_app):
     expect(more.locator("summary")).to_have_text("More examples")
     expect(more).not_to_have_attribute("open", "")
     more.locator("summary").click()
-    expect(more.get_by_role("button")).to_have_count(11)
+    expect(more.get_by_role("button")).to_have_count(12)  # Q1-Q12 (Q12: explain levels, A19)
     suggestions.first.click()
     expect(chat.locator(".message.assistant")).to_have_count(1, timeout=10_000)
     expect(chat.locator(".greeting")).to_have_count(0)

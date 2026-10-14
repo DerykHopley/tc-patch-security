@@ -68,7 +68,7 @@ export default function App() {
   // "Ask about this" and an alert's "Explain it": open the chat where it is and ask about one CVE (DESIGN.md §6.4).
   function askAbout(cveId: string) {
     openChat()
-    void chat.send(`Explain ${cveId} and how to defend against it.`)
+    void chat.send(`Explain ${cveId} and how to defend against it.`, { savedLevel: true }) // A19: the saved level
   }
 
   function closeChat() {

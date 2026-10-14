@@ -154,6 +154,97 @@
   line-height: 1;
 }
 
+/* The explain-level switch (A19): its own row under the header's buttons, three pills like the buttons (§5.3).
+   The picked pill: --text on --accent-soft with an --accent edge (--accent on --accent-soft is just under 4.5:1). */
+.chat-head {
+  flex-wrap: wrap;
+}
+
+.level-switch {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.level-switch legend {
+  float: left; /* a legend sits in the row like a label */
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.level-pills {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.level-pills label {
+  position: relative;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.level-pills label:hover {
+  border-color: var(--accent);
+}
+
+.level-pills label:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.level-pills label:has(input:focus-visible) {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.level-pills input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0; /* the pill is the radio's face; the input stays for keyboard and screen readers */
+  cursor: pointer;
+}
+
+.level-hint {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-style: italic;
+}
+
+/* Under each answer: the level it was pitched at, then the usage line. */
+.answer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.4rem;
+}
+
+.level-used {
+  display: inline-block;
+  padding: 0 0.45rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 /* ---------- Conversation ---------- */
 
 .conversation {

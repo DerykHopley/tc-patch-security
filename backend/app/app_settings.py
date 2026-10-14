@@ -1,7 +1,8 @@
 """What the Settings page saves (A13): alert rules and channels, validated.
 
 Defaults come from the environment (`.env`); saved values override them. Later tickets add their own parts
-(policy, explain level, dev) next to `alerts`; the state file keeps parts it doesn't know.
+(policy, dev) next to `alerts`, or single values like `explain_level` (A19); the state file keeps parts it doesn't
+know.
 """
 from typing import Literal
 

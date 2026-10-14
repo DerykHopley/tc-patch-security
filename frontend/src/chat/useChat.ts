@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { chat, type ChatReply, type Turn } from '../api.ts'
+import { chat, type ChatReply, type ExplainLevel, type Turn } from '../api.ts'
 
 export interface Message {
   id: number // unique for the page's lifetime: a new chat never reuses one
@@ -27,14 +27,19 @@ function toHistory(messages: Message[]): Turn[] {
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [pending, setPending] = useState(false)
+  // A level picked in the chat header for the next question only (A19); null = the saved level.
+  const [nextLevel, setNextLevel] = useState<ExplainLevel | null>(null)
 
-  async function send(text: string) {
+  /** savedLevel: ignore a level picked for the next question ("Explain it" and "Ask about this" use the saved one). */
+  async function send(text: string, { savedLevel = false } = {}) {
     if (pending) return
     const history = toHistory(messages)
+    const level = savedLevel ? undefined : (nextLevel ?? undefined)
+    if (!savedLevel) setNextLevel(null)
     setMessages((ms) => [...ms, { id: nextId++, role: 'user', content: text }])
     setPending(true)
     try {
-      const reply = await chat(text, history)
+      const reply = await chat(text, history, level)
       setMessages((ms) => [...ms, { id: nextId++, role: 'assistant', content: reply.answer, reply }])
     } catch (e) {
       const error = e instanceof Error ? e.message : 'Something went wrong. Try again.'
@@ -44,7 +49,7 @@ export function useChat() {
     }
   }
 
-  return { messages, pending, send, newChat: () => setMessages([]) }
+  return { messages, pending, send, nextLevel, setNextLevel, newChat: () => setMessages([]) }
 }
 
 export type ChatState = ReturnType<typeof useChat>

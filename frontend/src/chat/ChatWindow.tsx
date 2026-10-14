@@ -4,12 +4,14 @@ import { PinIcon } from '../components/Icons.tsx'
 import { Robot, type Mood } from '../components/Robot.tsx'
 import '../styles/chat.css'
 import { Conversation } from './Conversation.tsx'
+import { LevelSwitch } from './LevelSwitch.tsx'
+import { useSavedLevel } from './savedLevel.ts'
 import type { ChatState } from './useChat.ts'
 import type { ChatLayout } from './useChatLayout.ts'
 
 // The chat window (DESIGN.md §6.2, §6.3): the bubble above Patch's button (opens with a pop), the enlarged bubble,
 // or pinned beside the page. Header: Patch with his mood, the page underneath, New chat, Pin (enlarged or pinned
-// only), Make larger (not when pinned), close. Empty: Patch waving behind a speech bubble, with suggested questions.
+// only), Make larger (not when pinned), close; under them the explain-level switch (A19). Empty: Patch waving behind a speech bubble, with suggested questions.
 // The same element in every layout, so pinning never loses the conversation's scroll.
 export function ChatWindow({ chat, mood, pageTitle, suggestions, examples, layout, onClose }: {
   chat: ChatState
@@ -21,6 +23,7 @@ export function ChatWindow({ chat, mood, pageTitle, suggestions, examples, layou
   onClose: () => void
 }) {
   const { expanded, pinned } = layout
+  const savedLevel = useSavedLevel()
   const greeting = (
     <div className="greeting">
       <div className="robot-slot">
@@ -76,6 +79,7 @@ export function ChatWindow({ chat, mood, pageTitle, suggestions, examples, layou
         <button type="button" className="icon-btn" aria-label="Close the chat" title="Close" onClick={onClose}>
           <span aria-hidden="true">✕</span>
         </button>
+        <LevelSwitch saved={savedLevel} next={chat.nextLevel} onPick={chat.setNextLevel} />
       </header>
       <Conversation
         messages={chat.messages}

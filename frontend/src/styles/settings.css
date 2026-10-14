@@ -103,7 +103,8 @@
   clear: both;
 }
 
-.check-row input[type='checkbox'] {
+.check-row input[type='checkbox'],
+.check-row input[type='radio'] {
   flex: none;
   margin-top: 0.2rem;
 }

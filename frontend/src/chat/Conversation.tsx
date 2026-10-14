@@ -11,7 +11,7 @@ import {
 } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { ChatReply, Example } from '../api.ts'
+import { EXPLAIN_LEVELS, type ChatReply, type Example, type ExplainLevel } from '../api.ts'
 import { AnswerDetails, firstTab, sourceId, type DetailTab } from './AnswerDetails.tsx'
 import type { Message } from './useChat.ts'
 
@@ -22,6 +22,9 @@ const scrollTo = (el: Element | null, block: ScrollLogicalPosition) =>
 // "[2]" becomes a link to source 2 when the answer has that source; anything else stays plain text.
 const linkCitations = (text: string, ns: Set<number>) =>
   text.replace(/\[(\d+)\](?!\()/g, (whole, n: string) => (ns.has(Number(n)) ? `[[${n}]](#source-${n})` : whole))
+
+// The explain level the answer was pitched at (A19), as the switch names it.
+const levelLabel = (id: ExplainLevel) => EXPLAIN_LEVELS.find((lv) => lv.id === id)?.label ?? id
 
 // Two significant figures: $0.00061, $0.012, $1.2; a free answer shows $0.
 const dollars = (cost: number) => `$${Number(cost.toPrecision(2))}`
@@ -120,7 +123,15 @@ function Answer({ reply }: { reply: ChatReply }) {
         <p className="flag-note">This message looks like an injection attempt. It was answered, and logged.</p>
       )}
       <CitationNote reply={reply} />
-      <Usage reply={reply} />
+      <div className="answer-meta">
+        {reply.explain_level && (
+          <span className="level-used" title="The explain level this answer was pitched at">
+            <span className="visually-hidden">Explain level: </span>
+            {levelLabel(reply.explain_level)}
+          </span>
+        )}
+        <Usage reply={reply} />
+      </div>
       {hasDetails && (
         <>
           <button type="button" className="details-toggle" aria-expanded={open} onClick={toggle}>

@@ -413,6 +413,8 @@ def test_a07_8_reduced_motion_nothing_in_the_chat_layout_moves(open_app):
     page.keyboard.press("Control+k")
     expect(window(page)).to_be_visible()
     assert still()  # no pop
+    window(page).get_by_role("group", name="Explain level").get_by_role("radio", name="Deep dive").check()
+    assert still()  # A19.6: the explain-level switch's pills
     head_button(page, "Make larger").click()
     assert still()
     head_button(page, PIN).click()

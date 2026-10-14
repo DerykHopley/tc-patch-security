@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getSettings, saveSettings, type AppSettings, type SettingsReply } from '../api.ts'
+import { announceSavedLevel } from '../chat/savedLevel.ts'
+
+// The settings that are groups of values (alerts; later policy), as opposed to single values (explain_level).
+type Part = { [K in keyof AppSettings]: AppSettings[K] extends object ? K : never }[keyof AppSettings]
 
 // Load the saved settings, edit a draft, then save or discard. Shared by Settings and (later) the Dev panel.
 export function useSettings() {
@@ -15,6 +19,7 @@ export function useSettings() {
         setReply(r)
         setDraft(r.settings)
         setError(null)
+        announceSavedLevel(r.settings.explain_level) // e.g. after a reset
       },
       (e: Error) => setError(e.message),
     )
@@ -32,6 +37,7 @@ export function useSettings() {
       setReply({ ...reply, settings: r.settings })
       setDraft(r.settings)
       setSaved(true)
+      announceSavedLevel(r.settings.explain_level) // the chat header's switch follows (A19)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -39,8 +45,14 @@ export function useSettings() {
     }
   }
 
-  function patch<K extends keyof AppSettings>(part: K, values: Partial<AppSettings[K]>) {
+  function patch<K extends Part>(part: K, values: Partial<AppSettings[K]>) {
     setDraft((d) => (d ? { ...d, [part]: { ...d[part], ...values } } : d))
+    setSaved(false)
+  }
+
+  // A part that is a single value, like the explain level.
+  function setValue<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
+    setDraft((d) => (d ? { ...d, [key]: value } : d))
     setSaved(false)
   }
 
@@ -49,5 +61,5 @@ export function useSettings() {
     setError(null)
   }
 
-  return { reply, draft, dirty, saving, saved, error, save, discard, patch, reload: load }
+  return { reply, draft, dirty, saving, saved, error, save, discard, patch, setValue, reload: load }
 }
