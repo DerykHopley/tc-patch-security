@@ -1,19 +1,26 @@
+import type { CSSProperties } from 'react'
 import type { Example } from '../api.ts'
+import { PinIcon } from '../components/Icons.tsx'
 import { Robot, type Mood } from '../components/Robot.tsx'
 import '../styles/chat.css'
 import { Conversation } from './Conversation.tsx'
 import type { ChatState } from './useChat.ts'
+import type { ChatLayout } from './useChatLayout.ts'
 
-// The bubble window (DESIGN.md §6.2): opens above Patch's button with a pop. Header: Patch with his mood, the page
-// underneath, New chat, Make larger, close. Empty: Patch waving behind a speech bubble, with suggested questions.
-export function ChatWindow({ chat, mood, pageTitle, suggestions, examples, onClose }: {
+// The chat window (DESIGN.md §6.2, §6.3): the bubble above Patch's button (opens with a pop), the enlarged bubble,
+// or pinned beside the page. Header: Patch with his mood, the page underneath, New chat, Pin (enlarged or pinned
+// only), Make larger (not when pinned), close. Empty: Patch waving behind a speech bubble, with suggested questions.
+// The same element in every layout, so pinning never loses the conversation's scroll.
+export function ChatWindow({ chat, mood, pageTitle, suggestions, examples, layout, onClose }: {
   chat: ChatState
   mood: Mood
   pageTitle: string
   suggestions: string[]
   examples: Example[]
+  layout: ChatLayout
   onClose: () => void
 }) {
+  const { expanded, pinned } = layout
   const greeting = (
     <div className="greeting">
       <div className="robot-slot">
@@ -26,7 +33,11 @@ export function ChatWindow({ chat, mood, pageTitle, suggestions, examples, onClo
     </div>
   )
   return (
-    <aside className="chat-window" aria-label="Chat with Patch">
+    <aside
+      className={`chat-window${pinned ? ' pinned' : expanded ? ' expanded' : ''}`}
+      aria-label="Chat with Patch"
+      style={{ '--pin-width': `${layout.width}px` } as CSSProperties}
+    >
       <header className="chat-head">
         <div className="chat-title">
           <Robot mood={mood} size={34} />
@@ -38,20 +49,30 @@ export function ChatWindow({ chat, mood, pageTitle, suggestions, examples, onClo
         <button type="button" onClick={chat.newChat} disabled={chat.pending || chat.messages.length === 0}>
           New chat
         </button>
-        {/* Enlarging (and pinning) arrive with the chat layout ticket (A07): named and reachable, does nothing yet. */}
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Make larger"
-          aria-disabled="true"
-          aria-describedby="larger-soon"
-          title="Make larger: coming soon"
-        >
-          <span aria-hidden="true">⤢</span>
-          <span id="larger-soon" className="visually-hidden">
-            Coming soon
-          </span>
-        </button>
+        {(expanded || pinned) && (
+          <button
+            type="button"
+            className="pin-btn"
+            aria-pressed={pinned}
+            aria-label={pinned ? 'Unpin: float the chat over the page' : 'Pin: dock the chat beside the page'}
+            title={pinned ? 'Unpin: float over the page' : 'Pin beside the page'}
+            onClick={() => layout.setPinned(!pinned)}
+          >
+            <PinIcon />
+            {pinned ? 'Unpin' : 'Pin'}
+          </button>
+        )}
+        {!pinned && (
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={expanded ? 'Make smaller' : 'Make larger'}
+            title={expanded ? 'Make smaller' : 'Make larger'}
+            onClick={layout.toggleExpanded}
+          >
+            <span aria-hidden="true">{expanded ? '⤡' : '⤢'}</span>
+          </button>
+        )}
         <button type="button" className="icon-btn" aria-label="Close the chat" title="Close" onClick={onClose}>
           <span aria-hidden="true">✕</span>
         </button>

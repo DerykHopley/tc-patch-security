@@ -32,3 +32,8 @@ export const WarningIcon = () => (
 export const MoonIcon = () => (
   <svg {...base}><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
 );
+// A drawing pin (filled); the chat header tilts it 35° until the chat is pinned (DESIGN.md §7.1).
+export const PinIcon = () => (
+  <svg width={14} height={14} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <path d="M5 1.5h6l-1 4.5 2.5 2.5v1.5H8.75V15h-1.5v-5H3.5V8.5L6 6z" /></svg>
+);

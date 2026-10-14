@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { examples as fetchExamples, health, type Example, type Health } from './api.ts'
+import { AlertBanner, useAlertLink } from './chat/AlertBanner.tsx'
+import { ChatDivider } from './chat/ChatDivider.tsx'
 import { ChatWindow } from './chat/ChatWindow.tsx'
 import { PatchButton } from './chat/PatchButton.tsx'
 import { useChat } from './chat/useChat.ts'
+import { useChatLayout } from './chat/useChatLayout.ts'
 import { usePatch } from './chat/usePatch.ts'
 import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, MoonIcon, ShieldIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
@@ -39,7 +42,9 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(() => store.get('sidenavCollapsed') === '1')
   const [page, setPage] = useState<Page>('dashboard')
   const chat = useChat()
-  const [chatOpen, setChatOpen] = useState(false)
+  const layout = useChatLayout()
+  const [alertCve, alertDone] = useAlertLink()
+  const chatOpen = layout.open
   const [examples, setExamples] = useState<Example[]>([])
   const patch = usePatch(chat, chatOpen) // one mood for the button and the chat header
   const patchButton = useRef<HTMLButtonElement>(null)
@@ -49,10 +54,38 @@ export default function App() {
     fetchExamples().then(setExamples, () => setExamples([]))
   }, [])
 
-  function closeChat() {
-    setChatOpen(false)
-    patchButton.current?.focus() // keyboard users land back on the button that opened it
+  function openChat() {
+    // A chat that opens focuses its message box itself; one already open gets the focus back here.
+    if (layout.open) document.querySelector<HTMLTextAreaElement>('.chat-window textarea')?.focus()
+    else layout.setOpen(true)
   }
+
+  // "Ask about this" and an alert's "Explain it": open the chat where it is and ask about one CVE (DESIGN.md §6.4).
+  function askAbout(cveId: string) {
+    openChat()
+    void chat.send(`Explain ${cveId} and how to defend against it.`)
+  }
+
+  function closeChat() {
+    layout.setOpen(false)
+    // Keyboard users land back on the button that opened it (it reappears once a pinned chat closes).
+    setTimeout(() => patchButton.current?.focus())
+  }
+
+  // Ctrl/Cmd+K opens the chat on any page; Esc closes the bubble, never a pinned chat (DESIGN.md §6.4).
+  // Bound on every render, so it always sees the current layout.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault() // Firefox and Chrome would focus their own search box
+        openChat()
+      } else if (e.key === 'Escape' && layout.open && !layout.pinned) {
+        closeChat()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 
   function toggleCollapsed() {
     const next = !collapsed
@@ -66,7 +99,7 @@ export default function App() {
   const dark = theme === 'dark'
 
   return (
-    <div className={`app${collapsed ? ' collapsed' : ''}`}>
+    <div className={`app${collapsed ? ' collapsed' : ''}${layout.docked ? ' docked' : ''}`}>
       <aside className="sidenav" aria-label="Main">
         <div className="brand">
           <span className="brand-mark">
@@ -104,7 +137,7 @@ export default function App() {
             aria-label="Ask Patch"
             aria-expanded={chatOpen}
             aria-describedby={patch.unread ? 'patch-unread' : undefined}
-            onClick={() => (chatOpen ? closeChat() : setChatOpen(true))}
+            onClick={() => (chatOpen ? closeChat() : openChat())}
             title={collapsed ? 'Ask Patch' : undefined}
           >
             <span className="side-icon">
@@ -149,9 +182,19 @@ export default function App() {
             {dark ? <SunIcon /> : <MoonIcon />}
           </button>
         </header>
+        {alertCve && (
+          <AlertBanner
+            cve={alertCve}
+            onExplain={() => {
+              alertDone()
+              askAbout(alertCve)
+            }}
+            onDismiss={alertDone}
+          />
+        )}
         <main>
           {page === 'dashboard' ? (
-            <DashboardPage onAskPatch={() => setChatOpen(true)} />
+            <DashboardPage onAsk={askAbout} onAskPatch={openChat} />
           ) : page === 'settings' ? (
             <SettingsPage asOf={status?.as_of ?? null} onOpenDashboard={() => setPage('dashboard')} />
           ) : (
@@ -160,6 +203,8 @@ export default function App() {
         </main>
       </div>
 
+      {/* Same places in the tree in every layout: pinning or unpinning never rebuilds the page or the chat. */}
+      {layout.docked && <ChatDivider layout={layout} />}
       {chatOpen && (
         <ChatWindow
           chat={chat}
@@ -167,16 +212,20 @@ export default function App() {
           pageTitle={current.title}
           suggestions={SUGGESTIONS[page]}
           examples={examples}
+          layout={layout}
           onClose={closeChat}
         />
       )}
-      <PatchButton
-        ref={patchButton}
-        open={chatOpen}
-        mood={patch.mood}
-        unread={patch.unread}
-        onClick={() => (chatOpen ? setChatOpen(false) : setChatOpen(true))}
-      />
+      {/* Hidden while the chat is pinned beside the page (DESIGN.md §6.3). */}
+      {!layout.docked && (
+        <PatchButton
+          ref={patchButton}
+          open={chatOpen}
+          mood={patch.mood}
+          unread={patch.unread}
+          onClick={() => (chatOpen ? layout.setOpen(false) : openChat())}
+        />
+      )}
     </div>
   )
 }

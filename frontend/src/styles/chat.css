@@ -549,3 +549,129 @@
     --chat-bottom: calc(7.35rem + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* ---------- Enlarged bubble (§6.3): 640px wide, full height minus 5rem ---------- */
+
+.chat-window.expanded {
+  width: min(640px, calc(100vw - 2.5rem));
+  height: min(calc(100vh - 5rem), calc(100vh - var(--chat-bottom) - 1.25rem)); /* never above the screen */
+}
+
+/* ---------- Pinned beside the page (§6.3): page | 6px divider | chat ---------- */
+
+/* The tab bar layout (≤ 800px) stacks the shell; a docked chat keeps page and chat side by side. */
+.app.docked {
+  flex-direction: row;
+}
+
+.chat-window.pinned {
+  position: sticky;
+  top: 1rem;
+  right: auto;
+  bottom: auto;
+  flex: none;
+  align-self: flex-start;
+  width: var(--pin-width);
+  height: calc(100vh - 2rem);
+  margin: 1rem 1rem 1rem 0;
+  box-shadow: var(--shadow-pinned);
+  animation: none; /* the pop is for opening the bubble */
+}
+
+.chat-divider {
+  position: sticky;
+  top: 1rem;
+  flex: none;
+  align-self: flex-start;
+  width: 6px;
+  height: calc(100vh - 2rem);
+  margin: 1rem 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+  transition: background-color 0.15s;
+}
+
+/* Hover and focus: the divider turns purple (its focus ring, §10); it stays purple while dragged. */
+.chat-divider:hover,
+.chat-divider:focus,
+.chat-divider:focus-visible {
+  background: var(--accent);
+  outline: none;
+}
+
+/* Pin: the icon tilts 35° until the chat is pinned (§7.1); Unpin shows the pressed state in purple. */
+.chat-head .pin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pin-btn svg {
+  rotate: 35deg;
+  transition: rotate 0.15s ease;
+}
+
+.chat-head .pin-btn[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--surface); /* --accent on --accent-soft is 4.48:1 in light mode: just short of 4.5 */
+  color: var(--accent);
+}
+
+.pin-btn[aria-pressed='true'] svg {
+  rotate: 0deg;
+}
+
+/* ---------- Alert link banner (§6.4): over the page, "Explain it" asks Patch ---------- */
+
+.alert-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  width: calc(100% - 2rem);
+  max-width: calc(1280px - 2rem);
+  margin: 0.8rem auto 0;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-input);
+  background: var(--warn-soft);
+  box-shadow: var(--shadow-card);
+}
+
+.alert-banner > svg {
+  flex: none;
+  color: var(--warn);
+}
+
+.alert-banner p {
+  flex: 1;
+  min-width: 12rem;
+  margin: 0;
+}
+
+/* ---------- Phones (§6.5, ≤ 700px): every layout is a full-screen sheet; no pin, no divider ---------- */
+
+@media (max-width: 700px) {
+  .app.docked {
+    flex-direction: column; /* the page stays as it is under the sheet */
+  }
+
+  .chat-window,
+  .chat-window.expanded,
+  .chat-window.pinned {
+    position: fixed;
+    inset: 0;
+    z-index: 30; /* over the tab bar */
+    align-self: auto; /* flex-start would shrink it inside its insets (box alignment for fixed boxes) */
+    width: auto;
+    height: auto;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .chat-divider,
+  .chat-head .pin-btn {
+    display: none;
+  }
+}
