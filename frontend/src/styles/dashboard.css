@@ -243,7 +243,7 @@ table.cves .summary {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
-  max-width: 19rem;
+  max-width: 16rem; /* 19rem before the EPSS column (A14) */
   margin-top: 0.15rem;
   color: var(--muted);
   font-size: 0.78rem;
@@ -288,6 +288,28 @@ table.cves .actions button {
   margin-left: 0.35rem;
   background: var(--error-soft);
   color: var(--error);
+}
+
+/* "Possible match" (A14): text in --text on the warn fill, the warn colour as an edge (DESIGN.md §5:
+   --warn on --warn-soft is under 4.5:1 for small text). Shared with the lookup_cve card. */
+.chip.possible {
+  margin-left: 0.35rem;
+  background: var(--warn-soft);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--warn);
+  white-space: nowrap;
+}
+
+/* The percentile may wrap ("98th / percentile"): the column stays narrow, so the row actions stay in view. */
+table.cves .epss .meta {
+  display: block;
+  font-size: 0.72rem;
+  white-space: normal;
+}
+
+.epss-credit {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
 }
 
 /* Severity: text plus a swatch on the one-hue ramp (DESIGN.md §3.2). */

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import type { Severity, ToolCallRecord } from '../api.ts'
+import type { Epss, Severity, ToolCallRecord } from '../api.ts'
+import { epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { SeverityBadge } from './SeverityBadge.tsx'
 
 // One card per tool call: name, arguments, status, time, and the result drawn for its tool. Errors in red.
@@ -16,6 +17,8 @@ interface CveResult {
   url: string
   kev: { date_added: string; due: string } | null
   watch_status: 'open' | 'fixed' | 'not_affected' | 'not_watched'
+  epss: Epss | null
+  possible_match: boolean
 }
 
 interface WeaknessResult {
@@ -54,7 +57,13 @@ function CveCard({ r }: { r: CveResult }) {
         <SeverityBadge severity={r.severity} cvss={r.cvss} />
         {r.kev && <span className="chip kev">CISA KEV · due {r.kev.due}</span>}
         <span className="chip">{STATUS_LABEL[r.watch_status]}</span>
+        {r.possible_match && <PossibleMatch />}
       </div>
+      {r.epss && (
+        <p className="meta">
+          EPSS {epssScore(r.epss)} · {epssPercentile(r.epss)} · EPSS by FIRST, {r.epss.date}
+        </p>
+      )}
       <p className="meta">
         Published {r.published} · {r.cwes.join(', ') || 'no CWE'}
         {r.owasp && (

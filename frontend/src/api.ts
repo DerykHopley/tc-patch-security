@@ -145,11 +145,22 @@ export interface Incident {
 }
 
 export interface Source {
+  id: string // owasp_llm, owasp_web, atlas, nvd, kev, osv, epss
   name: string
   licence: string
+  attribution: string // the credit line shown in the freshness panel
+  notice?: string // NVD's required notice
   url: string
   retrieved: string
+  as_of?: string // when the data is dated, if not the retrieval day (OSV, EPSS)
   count: number
+}
+
+// EPSS by FIRST: the chance of exploitation in the next 30 days (0-1) and its percentile, frozen with the snapshot.
+export interface Epss {
+  score: number
+  percentile: number
+  date: string
 }
 
 export interface CveRow {
@@ -166,6 +177,8 @@ export interface CveRow {
   status: CveStatus
   summary: string
   url: string
+  epss: Epss | null
+  possible_match: boolean // product guessed from the description and not confirmed by OSV
 }
 
 export interface CveQuery {
