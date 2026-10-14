@@ -6,6 +6,75 @@
   font-weight: 700;
 }
 
+/* ---------- Patch's welcome banner (DESIGN.md §5.8, §8.2) ---------- */
+
+.hello {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  margin-top: 2.2rem; /* room for Patch's head above the banner */
+  padding: 0.9rem 3.2rem 0.9rem 1.4rem;
+  border-radius: var(--radius-banner);
+  background: linear-gradient(120deg, var(--surface) 40%, var(--accent-soft));
+  box-shadow: var(--shadow-banner);
+}
+
+.hello .robot {
+  align-self: flex-start;
+  margin: -2.4rem 0 -0.6rem; /* his head rises over the banner's top edge */
+}
+
+.hello h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.hello p {
+  margin: 0 0 0.6rem;
+  max-width: 48rem;
+  color: var(--muted);
+}
+
+/* A quiet round ✕ in the top right. */
+.hello-close {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.9rem;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-color: transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.hello-close:hover:not(:disabled),
+.hello-close:focus-visible {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .hello {
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.9rem 1.2rem;
+    text-align: center;
+  }
+
+  .hello .robot {
+    align-self: center;
+  }
+}
+
 /* ---------- Stat tiles: four candy tiles ---------- */
 
 .tiles {
@@ -287,6 +356,28 @@ table.cves .actions button {
   margin-top: 0.5rem;
 }
 
+/* ---------- Side panels: latest ATLAS incidents, data freshness ---------- */
+
+.side-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.86rem;
+}
+
+.side-list a {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.side-list .meta {
+  display: block;
+  font-size: 0.78rem;
+}
+
 /* ---------- Motion (DESIGN.md §7.1). The global reduced-motion rule in tokens.css stops all of it. ---------- */
 
 .tile,
@@ -311,7 +402,8 @@ table.cves .actions button {
   animation-delay: 0.12s;
 }
 
-.dashboard .dash-main > :nth-child(3) {
+/* DESIGN.md §7.1 lists delays up to the 3rd card; the 4th (the CVE table) keeps the 3rd card's. */
+.dashboard .dash-main > :nth-child(n + 3) {
   animation-delay: 0.24s;
 }
 
