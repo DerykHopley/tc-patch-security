@@ -10,35 +10,12 @@ import {
   type TestAlertReply,
 } from '../api.ts'
 import { SaveBar } from '../components/SaveBar.tsx'
+import { Card } from '../components/StatusCard.tsx'
 import { useSettings } from '../components/useSettings.ts'
 import '../styles/settings.css'
 
 // The Settings page (DESIGN.md §5.7): alert rules saved for spec B's refresh, delivery channels with real test
 // sends, the watchlist link, the data and a safe reset. Each card says what it really does today.
-
-type Kind = 'live' | 'saved' | 'mock'
-const KIND_LABEL: Record<Kind, string> = { live: 'Live', saved: 'Saved for later', mock: 'Mock' }
-
-function Status({ kind, why }: { kind: Kind; why: string }) {
-  return (
-    <span className={`status-chip ${kind}`} title={why}>
-      {KIND_LABEL[kind]}
-    </span>
-  )
-}
-
-function Card({ title, kind, why, children }: { title: string; kind: Kind; why: string; children: ReactNode }) {
-  const id = `card-${title.toLowerCase()}`
-  return (
-    <section className="card settings-card" aria-labelledby={id}>
-      <div className="card-head">
-        <h2 id={id}>{title}</h2>
-        <Status kind={kind} why={why} />
-      </div>
-      {children}
-    </section>
-  )
-}
 
 const SEVERITIES: { value: Severity; label: string }[] = [
   { value: 'LOW', label: 'Low' },

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import { examples as fetchExamples, health, type Example, type Health } from './api.ts'
 import { AlertBanner, useAlertLink } from './chat/AlertBanner.tsx'
 import { ChatDivider } from './chat/ChatDivider.tsx'
@@ -10,7 +10,7 @@ import { usePatch } from './chat/usePatch.ts'
 import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, MoonIcon, ShieldIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
 import { DashboardPage } from './pages/Dashboard.tsx'
-import { EmptyPage } from './pages/EmptyPage.tsx'
+import { DevPage } from './pages/DevPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
 import { store } from './storage.ts'
 import { useTheme } from './theme.ts'
@@ -19,10 +19,10 @@ import { useTheme } from './theme.ts'
 // phones), a top bar with breadcrumb, page title and the light/dark toggle, then the page.
 type Page = 'dashboard' | 'settings' | 'dev'
 
-const PAGES: Record<Page, { title: string; nav: string; Icon: () => JSX.Element; comingWith: string }> = {
-  dashboard: { title: 'Dashboard', nav: 'Dashboard', Icon: DashboardIcon, comingWith: 'the CVE dashboard tickets' },
-  settings: { title: 'Settings', nav: 'Settings', Icon: BellIcon, comingWith: 'the settings and alerts ticket' },
-  dev: { title: 'Dev panel', nav: 'Dev', Icon: CodeIcon, comingWith: 'the dev panel ticket' },
+const PAGES: Record<Page, { title: string; nav: string; Icon: () => JSX.Element }> = {
+  dashboard: { title: 'Dashboard', nav: 'Dashboard', Icon: DashboardIcon },
+  settings: { title: 'Settings', nav: 'Settings', Icon: BellIcon },
+  dev: { title: 'Dev panel', nav: 'Dev', Icon: CodeIcon },
 }
 
 // Questions that fit the page under the chat (1–2, DESIGN.md §6.2). FakeLLM answers each one.
@@ -49,10 +49,15 @@ export default function App() {
   const patch = usePatch(chat, chatOpen) // one mood for the button and the chat header
   const patchButton = useRef<HTMLButtonElement>(null)
 
-  useEffect(() => {
+  // After the Dev page saves a model choice, the snapshot card shows the new model.
+  const refreshHealth = useCallback(() => {
     health().then(setStatus, () => setOffline(true))
-    fetchExamples().then(setExamples, () => setExamples([]))
   }, [])
+
+  useEffect(() => {
+    refreshHealth()
+    fetchExamples().then(setExamples, () => setExamples([]))
+  }, [refreshHealth])
 
   function openChat() {
     // A chat that opens focuses its message box itself; one already open gets the focus back here.
@@ -197,9 +202,9 @@ export default function App() {
             <DashboardPage onAsk={askAbout} onAskPatch={openChat} />
           ) : page === 'settings' ? (
             <SettingsPage asOf={status?.as_of ?? null} onOpenDashboard={() => setPage('dashboard')} />
-          ) : (
-            <EmptyPage title={current.title} comingWith={current.comingWith} />
-          )}
+          ) : status?.dev_panel ? (
+            <DevPage onSaved={refreshHealth} />
+          ) : null}
         </main>
       </div>
 

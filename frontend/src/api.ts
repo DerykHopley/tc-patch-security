@@ -279,3 +279,83 @@ export const testAlert = (channel: Channel | 'preview') =>
   request<TestAlertReply>('/alerts/test', json('POST', { channel }))
 export const resetState = () =>
   request<{ reset: boolean; watchlist: string[] }>('/state/reset', json('POST', { confirm: 'reset' }))
+
+// --- Dev panel (A11): only when the backend allows it (Health.dev_panel); off, every /dev route is a 404
+
+export type Provider = 'fake' | 'openrouter' | 'local'
+
+export interface DevSettings {
+  provider: Provider
+  openrouter_model: string
+  local_url: string // checked by the backend's SSRF guard: this machine only
+  local_model: string
+  temperature: number
+  max_steps: number
+  top_n: number
+  per_query_k: number
+  per_doc_cap: number
+  rrf_k: number
+  keyword_weight: number // 0 = vector only, 1 = keyword (BM25) only
+  use_rewrites: boolean
+  use_filters: boolean
+}
+
+export interface DevSettingsReply {
+  settings: DevSettings
+  defaults: DevSettings // from the backend's .env
+  openrouter_key: boolean // whether OPENROUTER_API_KEY is set; the key itself never leaves the server
+}
+
+export interface DevInfo {
+  chunks: number
+  by_doc_type: Record<string, number>
+  embedder: string
+  dim: number
+  min_score: number
+  as_of: string
+  local_hosts: string[]
+}
+
+export interface Hit {
+  chunk_id: string
+  title: string
+  doc_type: DocType
+  score: number
+}
+
+export type SearchOptions = Pick<
+  DevSettings,
+  'top_n' | 'per_query_k' | 'per_doc_cap' | 'rrf_k' | 'keyword_weight' | 'use_rewrites' | 'use_filters'
+>
+
+export interface DevSearch {
+  query: QueryInfo
+  options: SearchOptions
+  lists: { retriever: 'vector' | 'keyword'; query: string; hits: Hit[] }[] // each query on each retriever, before fusion
+  fused: { chunk_id: string; title: string; doc_type: DocType; rrf: number }[]
+  final: { n: number; chunk_id: string; title: string; section: string | null; doc_type: DocType }[]
+  map: { query: string; x: number; y: number }[] // the semantic query, then each rewrite
+}
+
+export interface MapPoint {
+  id: string
+  doc_id: string
+  title: string
+  type: DocType
+  x: number
+  y: number
+}
+
+export interface EmbeddingMapData {
+  embedder: string
+  dim: number
+  explained: [number, number]
+  points: MapPoint[]
+}
+
+export const getDevSettings = () => request<DevSettingsReply>('/dev/settings')
+export const saveDevSettings = (s: DevSettings) => request<{ settings: DevSettings }>('/dev/settings', json('PUT', s))
+export const devInfo = () => request<DevInfo>('/dev/info')
+export const devModels = (url: string) => request<{ models: string[] }>(`/dev/models?${new URLSearchParams({ url })}`)
+export const devSearch = (query: string) => request<DevSearch>('/dev/search', json('POST', { query }))
+export const devMap = () => request<EmbeddingMapData>('/dev/map')

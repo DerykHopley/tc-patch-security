@@ -47,6 +47,100 @@ input[type='radio'] {
   margin: 0;
 }
 
+/* Sliders (DESIGN.md §5.3, A11): a 6px --accent-soft track with the filled part in --accent, a 16px purple handle
+   with a 3px surface ring and a purple shadow, and a purple focus ring (2px, 4px offset). Firefox draws the filled
+   part with ::-moz-range-progress; Chromium has no such part, so the track is a gradient up to --fill (set inline). */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+}
+
+input[type='range']::-moz-range-progress {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 2px 6px rgba(108, 76, 245, 0.4);
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(to right, var(--accent) var(--fill, 0%), var(--accent-soft) var(--fill, 0%));
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  box-sizing: border-box;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 2px 6px rgba(108, 76, 245, 0.4);
+}
+
+input[type='range']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-pill);
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr) 2.8rem;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.35rem 0;
+  font-size: 0.9rem;
+}
+
+.slider-row label {
+  display: flex;
+  flex-direction: column;
+}
+
+.slider-row label .meta {
+  margin: 0;
+}
+
+.slider-row output {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ≤ 520px: the label goes above the slider (DESIGN.md §4.2). */
+@media (max-width: 520px) {
+  .slider-row {
+    grid-template-columns: minmax(0, 1fr) 2.8rem;
+  }
+
+  .slider-row label {
+    grid-column: 1 / -1;
+  }
+}
+
 /* Secondary text in cards and forms. */
 .meta {
   margin: 0.2rem 0;
