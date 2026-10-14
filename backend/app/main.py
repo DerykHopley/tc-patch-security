@@ -4,16 +4,29 @@ Run: `uv run uvicorn app.main:app --port 8000` (settings from the environment, s
 """
 import logging
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
+from app import dashboard
 from app.config import Settings
 from app.deps import Deps, build_deps
 from app.errors import InputError
+from app.knowledge import SEVERITY_ORDER
 
 log = logging.getLogger(__name__)
+
+CVE_STATUS_FILTERS = ("open", "fixed", "not_affected", "all")
+
+
+class StatusUpdate(BaseModel):
+    status: str
+
+
+class WatchlistUpdate(BaseModel):
+    products: list[str]
 
 
 def _error(status: int, code: str, message: str) -> JSONResponse:
@@ -49,6 +62,43 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def health():
         return {"status": "ok", "llm": deps.llm.name, "model": deps.llm.label(), "as_of": deps.settings.as_of,
                 "dev_panel": deps.settings.dev_panel}
+
+    # --- Dashboard (A04). Reads and writes deps.state, the same state the chat's tools use.
+
+    @app.get("/dashboard")
+    def get_dashboard():
+        return dashboard.summary(deps.knowledge, deps.state.snapshot(), deps.settings.as_of)
+
+    @app.get("/cves")
+    def get_cves(product: str | None = None, severity_min: str | None = None, status: str = "open",
+                 limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
+        pid = None
+        if product:
+            pid = deps.knowledge.resolve_product(product)
+            if not pid:
+                raise InputError(f"{product!r} isn't a product I track.")
+        severity = severity_min.upper() if severity_min else None
+        if severity and severity not in SEVERITY_ORDER:
+            raise InputError("severity_min must be LOW, MEDIUM, HIGH or CRITICAL.")
+        if status not in CVE_STATUS_FILTERS:
+            raise InputError("status must be open, fixed, not_affected or all.")
+        return dashboard.list_cves(deps.knowledge, deps.state.snapshot(), pid, severity, status, limit, offset)
+
+    @app.patch("/cves/{cve_id}")
+    def patch_cve(cve_id: str, body: StatusUpdate):
+        try:
+            cve = deps.state.set_status(cve_id, body.status)
+        except KeyError:
+            return _error(404, "not_found", f"{cve_id} isn't in the snapshot.")
+        return {"id": cve["id"], "status": body.status}
+
+    @app.get("/watchlist")
+    def get_watchlist():
+        return {"watchlist": deps.state.snapshot()["watchlist"]}
+
+    @app.put("/watchlist")
+    def put_watchlist(body: WatchlistUpdate):
+        return {"watchlist": deps.state.set_watchlist(body.products)}
 
     return app
 
