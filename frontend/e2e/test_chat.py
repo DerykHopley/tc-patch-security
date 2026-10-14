@@ -236,7 +236,11 @@ def test_a06_5_header_names_the_page_and_has_new_chat_make_larger_and_close(open
     expect(head.locator(".context-chip")).to_have_text("on Settings")
 
 
-def test_a06_5_greeting_with_suggestions_and_folded_more_examples(open_app):
+def test_a06_5_greeting_with_suggestions_and_folded_more_examples(open_app, api_url):
+    import json
+    import urllib.request
+
+    n_examples = len(json.load(urllib.request.urlopen(api_url + "/examples")))  # later tickets add questions
     page = open_app()
     chat = open_chat(page)
     suggestions = chat.locator(".suggestions > button")
@@ -245,7 +249,7 @@ def test_a06_5_greeting_with_suggestions_and_folded_more_examples(open_app):
     expect(more.locator("summary")).to_have_text("More examples")
     expect(more).not_to_have_attribute("open", "")
     more.locator("summary").click()
-    expect(more.get_by_role("button")).to_have_count(11)
+    expect(more.get_by_role("button")).to_have_count(n_examples)
     suggestions.first.click()
     expect(chat.locator(".message.assistant")).to_have_count(1, timeout=10_000)
     expect(chat.locator(".greeting")).to_have_count(0)

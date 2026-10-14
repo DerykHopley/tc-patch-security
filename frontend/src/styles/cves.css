@@ -141,6 +141,7 @@ table.cves .epss .meta {
   align-items: center;
   justify-content: flex-end;
   margin-top: 0.6rem;
+  margin-right: 96px; /* clear of Patch's button at the bottom right, like the save bar (DESIGN.md §5.7) */
 }
 
 /* ---------- Verdict (A15): the chip, its reason, the fixed version, who acts, and the suggestion ---------- */
