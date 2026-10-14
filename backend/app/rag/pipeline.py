@@ -5,7 +5,7 @@ from app import guard
 from app.llm.base import LLM, LLMReply
 from app.rag.chunking import Chunk
 from app.rag.fusion import rrf
-from app.rag.index import Filters, Hit, VectorIndex
+from app.rag.index import Filters, Hit, Retriever
 from app.schemas import QueryInfo, Source
 
 PER_DOC_CAP = 2  # R5
@@ -42,11 +42,11 @@ def to_source(n: int, c: Chunk, score: float | None) -> Source:
     )
 
 
-def _search_all(index: VectorIndex, queries: list[str], filters: Filters, k: int) -> list[list[Hit]]:
+def _search_all(index: Retriever, queries: list[str], filters: Filters, k: int) -> list[list[Hit]]:
     return [index.search(q, k, None if filters.is_empty() else filters) for q in queries]
 
 
-def search_security(query: str, llm: LLM, index: VectorIndex, resolve_product, top_n: int | None = None,
+def search_security(query: str, llm: LLM, index: Retriever, resolve_product, top_n: int | None = None,
                     start_n: int = 1, opts: SearchOptions | None = None) -> SearchResult:
     opts = opts or SearchOptions()
     top_n = top_n or opts.top_n

@@ -13,6 +13,9 @@ STOP_WORDS = set(
 
 
 class Embedder(Protocol):
+    name: str  # recorded in the index: the same model must embed chunks and queries
+    min_score: float  # default cosine threshold below which a hit is "no match" (R6); tunable by SEARCH_MIN_SCORE
+
     def embed(self, texts: list[str]) -> np.ndarray:
         """Shape (n, dim), unit-length rows (zero rows for texts with no tokens)."""
 
@@ -22,11 +25,16 @@ def tokens(text: str) -> list[str]:
 
 
 class HashEmbedder:
-    # PLAN.md said dim=512. With ~1,000 distinct words in the fixtures, 512 buckets collide a lot,
-    # so unrelated words still score > 0 and R5 ("no shared words → no sources") breaks. 4096 keeps
-    # collisions rare; the index also has a minimum score.
+    """The test fake: matches shared words only. Free, offline, deterministic."""
+
+    # 4096 buckets keep collisions rare. The ~9,000 distinct words (every CVE id is one) still collide, so a
+    # nonsense query scores a little against some chunk; MIN_SCORE sits above those collisions.
+    MIN_SCORE = 0.15
+
     def __init__(self, dim: int = 4096):
         self.dim = dim
+        self.name = f"hash-{dim}"
+        self.min_score = self.MIN_SCORE
 
     def _bucket(self, token: str) -> int:
         # hashlib, not hash(): Python's hash() is salted per process, so vectors would change between runs.
@@ -41,3 +49,49 @@ class HashEmbedder:
             if norm:
                 out[row] /= norm
         return out
+
+
+def _unit_rows(m: np.ndarray) -> np.ndarray:
+    norms = np.linalg.norm(m, axis=1, keepdims=True)
+    return np.divide(m, norms, out=np.zeros_like(m), where=norms > 0)
+
+
+class OpenAICompatibleEmbedder:
+    """Any OpenAI-compatible /embeddings endpoint, through LangChain's OpenAIEmbeddings: OpenRouter or a local Ollama.
+
+    Token-length checking is off: with it on, LangChain sends tiktoken ids, which only OpenAI itself accepts.
+    """
+
+    def __init__(self, provider: str, model: str, base_url: str, api_key: str, min_score: float,
+                 http_client=None):
+        from langchain_openai import OpenAIEmbeddings  # imported here: the hash-only path doesn't load it
+
+        self.name = f"{provider}/{model}"
+        self.min_score = min_score
+        self._client = OpenAIEmbeddings(model=model, base_url=base_url, api_key=api_key,
+                                        check_embedding_ctx_length=False, http_client=http_client)
+
+    def embed(self, texts: list[str]) -> np.ndarray:
+        return _unit_rows(np.asarray(self._client.embed_documents(texts), dtype=np.float32))
+
+
+# Defaults per embedder: (model, threshold). The thresholds are first guesses, tuned for real in
+# "First real model runs"; SEARCH_MIN_SCORE overrides them. The Ollama model is a placeholder until A20 picks one.
+REAL_EMBEDDERS = {
+    "openrouter": ("openai/text-embedding-3-small", 0.25),
+    "ollama": ("nomic-embed-text", 0.4),
+}
+OPENROUTER_URL = "https://openrouter.ai/api/v1"
+
+
+def make_embedder(settings, http_client=None) -> Embedder:
+    """The embedder EMBEDDER names. `http_client` lets tests answer the HTTP calls in memory."""
+    if settings.embedder == "hash":
+        return HashEmbedder()
+    model, min_score = REAL_EMBEDDERS[settings.embedder]
+    model = settings.embed_model or model
+    if settings.embedder == "openrouter":
+        return OpenAICompatibleEmbedder("openrouter", model, OPENROUTER_URL, settings.openrouter_api_key,
+                                        min_score, http_client)
+    # Ollama ignores the key, but the OpenAI client needs one.
+    return OpenAICompatibleEmbedder("ollama", model, f"{settings.ollama_url}/v1", "ollama", min_score, http_client)
