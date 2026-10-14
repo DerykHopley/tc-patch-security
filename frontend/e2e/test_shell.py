@@ -275,6 +275,7 @@ def test_a02_8_bottom_tab_bar_on_phones(open_app):
 
 def test_a02_8_nothing_hidden_behind_the_tab_bar(open_app):
     page = open_app(width=PHONE)
+    page.wait_for_load_state("networkidle")  # the page's content has loaded: the page is as long as it gets
     page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
     last = page.locator("main > :last-child").bounding_box()
     bar = page.locator(".sidenav").bounding_box()
@@ -353,7 +354,7 @@ def test_a02_11_every_control_reachable_by_keyboard_with_visible_focus(open_app,
     page = open_app()
     if collapsed:
         page.get_by_role("button", name="Collapse the sidebar").click()
-    page.locator("body").click(position={"x": 700, "y": 600})
+    page.locator(".brand").click()  # a start point before the first nav button (the dashboard has controls below)
     order = tab_order(page)
     expected = ["Dashboard", "Settings", "Dev", "Ask Patch",
                 "Expand the sidebar" if collapsed else "Collapse the sidebar", "Switch to dark mode"]

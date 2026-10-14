@@ -7,8 +7,15 @@ import os
 import pytest
 
 UI_URL = os.environ.get("UI_URL", "http://localhost:5174")
+API_URL = os.environ.get("API_URL", "http://localhost:8001")
 
 
 @pytest.fixture
 def ui_url() -> str:
     return UI_URL
+
+
+@pytest.fixture
+def api_url() -> str:
+    """The throwaway backend, for reading expected values and putting state back after a test."""
+    return API_URL
