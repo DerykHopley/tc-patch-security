@@ -7,6 +7,7 @@ import {
   type AlertLogEntry,
   type AlertSettings,
   type Channel,
+  type PolicySettings,
   type Severity,
   type TestAlertReply,
 } from '../api.ts'
@@ -30,6 +31,15 @@ const CHANNELS: { id: Channel; label: string; what: string }[] = [
   { id: 'email', label: 'Email', what: 'A plain-text email with a link back to the CVE.' },
   { id: 'ntfy', label: 'Phone push (ntfy)', what: 'A push to the ntfy app on your phone; self-hostable.' },
 ]
+
+// Your policy (A16): days per priority level. The rules set the level; the policy only sets the due date.
+const POLICY_DAYS: { key: keyof PolicySettings & `${string}_days`; label: string }[] = [
+  { key: 'urgent_days', label: 'Urgent' },
+  { key: 'high_days', label: 'High' },
+  { key: 'normal_days', label: 'Normal' },
+  { key: 'low_days', label: 'Low' },
+]
+const clampDays = (v: string) => Math.max(1, Math.min(730, Math.round(Number(v)) || 1))
 
 function when(iso: string): string {
   return iso.replace('T', ' ').replace(/(:\d\d)?\+00:00$/, ' UTC')
@@ -73,6 +83,9 @@ export function SettingsPage({ asOf, onOpenDashboard }: { asOf: string | null; o
   const a = s.draft.alerts
   const channels = s.reply.channels
   const set = (v: Partial<AlertSettings>) => s.patch('alerts', v)
+  const policy = s.draft.policy
+  const daysInOrder = policy.urgent_days <= policy.high_days && policy.high_days <= policy.normal_days &&
+    policy.normal_days <= policy.low_days
 
   async function sendTest(channel: Channel | 'preview') {
     setAlertError(null)
@@ -289,6 +302,53 @@ export function SettingsPage({ asOf, onOpenDashboard }: { asOf: string | null; o
                 <span className="meta inline">{lv.what}</span>
               </label>
             ))}
+          </fieldset>
+        </Card>
+
+        <Card title="Priority and due dates" kind="live" why="The CVEs page and the dashboard use it at once">
+          <p className="meta">
+            Fixed rules set each open CVE's priority from CISA KEV, EPSS, severity, the version check and whether the
+            product is internet-facing. Your policy turns the priority into a due date: the publication date (or the
+            day it was added to KEV) plus the days below.
+          </p>
+          <fieldset className="policy-days">
+            <legend>Days allowed per priority</legend>
+            {POLICY_DAYS.map(({ key, label }) => (
+              <div key={key} className="field-row">
+                <label htmlFor={`policy-${key}`}>{label}</label>
+                <input id={`policy-${key}`} type="number" min={1} max={730} value={policy[key]}
+                  onChange={(e) => s.patch('policy', { [key]: clampDays(e.target.value) })} />
+                <span className="meta inline">days</span>
+              </div>
+            ))}
+            {!daysInOrder && (
+              <p role="alert" className="form-error">
+                A more urgent priority can't get more days than a less urgent one: urgent ≤ high ≤ normal ≤ low.
+              </p>
+            )}
+          </fieldset>
+          <label className="check-row">
+            <input type="checkbox" checked={policy.adopt_kev_deadline}
+              onChange={(e) => s.patch('policy', { adopt_kev_deadline: e.target.checked })} />
+            <span>
+              Use CISA's KEV deadline as the due date for CVEs in KEV
+              <span className="meta inline"> (set for US federal agencies; always shown as its own fact)</span>
+            </span>
+          </label>
+          <fieldset>
+            <legend>Rule threshold</legend>
+            <div className="field-row">
+              <label htmlFor="priority-epss">EPSS percentile for high priority</label>
+              <input id="priority-epss" type="number" min={50} max={99} value={s.draft.priority.epss_percentile}
+                aria-describedby="priority-epss-why"
+                onChange={(e) => s.patch('priority', {
+                  epss_percentile: Math.max(50, Math.min(99, Math.round(Number(e.target.value)) || 90)),
+                })} />
+              <span className="meta inline">th or above</span>
+            </div>
+            <p id="priority-epss-why" className="meta">
+              On an internet-facing product, a CVE at or above this EPSS percentile is high priority.
+            </p>
           </fieldset>
         </Card>
 

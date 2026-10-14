@@ -239,6 +239,48 @@ a.tile {
   box-shadow: inset 0 0 0 1px var(--border);
 }
 
+/* Priority (A16): the word in --text on a soft fill with a coloured edge, like the verdict: urgent on the error fill,
+   high with the warn edge, normal with the accent edge, low with a hairline. The word carries the meaning. */
+.chip.priority {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.chip.priority.urgent {
+  background: var(--error-soft);
+  box-shadow: inset 0 0 0 1px var(--error);
+}
+
+.chip.priority.high {
+  background: var(--warn-soft);
+  box-shadow: inset 0 0 0 1px var(--warn);
+}
+
+.chip.priority.normal {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.chip.priority.low {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* "Overdue": the word in --text, the warning icon in --error (the icon is decorative; the word carries it). */
+.overdue {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.3rem;
+  color: var(--text);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.overdue svg {
+  color: var(--error);
+}
+
 /* Severity: text plus a swatch on the one-hue ramp (DESIGN.md §3.2). */
 .sev {
   display: inline-flex;
@@ -308,6 +350,18 @@ a.tile {
 .top-cves .top-product {
   flex: 1;
   min-width: 7rem;
+}
+
+.top-cves .top-due {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+/* The reasons on their own line under the row's facts. */
+.top-cves .priority-reasons {
+  flex: 1 0 100%;
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 .see-all {

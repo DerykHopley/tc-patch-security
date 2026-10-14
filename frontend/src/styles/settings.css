@@ -354,3 +354,8 @@
     margin-bottom: calc(5rem + 66px + 0.6rem - 4.4rem);
   }
 }
+
+/* The policy's days (A16): the four inputs line up under each other. */
+.policy-days .field-row > label:first-child {
+  min-width: 4.5rem;
+}

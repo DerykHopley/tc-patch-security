@@ -13,6 +13,7 @@ import {
 import { SeverityBadge } from '../chat/SeverityBadge.tsx'
 import { Bars, ChartCard, Columns, SeverityLegend, StackedBars, Tooltip, type Tip } from '../components/charts.tsx'
 import { WarningIcon } from '../components/Icons.tsx'
+import { OverdueMark, PriorityChip, PriorityReasons } from '../components/Priority.tsx'
 import { PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { USAGE_LABEL, USAGES } from '../components/Verdict.tsx'
 import { WelcomeBanner } from '../components/WelcomeBanner.tsx'
@@ -228,7 +229,7 @@ export function DashboardPage({ onNavigate, onAskPatch }: {
 // Each tile links to the CVEs page with the tile's filter (A04b), so the number leads to its rows.
 function Tiles({ data, onNavigate }: { data: DashboardData; onNavigate: (href: string) => void }) {
   const k = data.kpis
-  const overdue = k.kev_next_due !== null && k.kev_next_due.due < data.as_of
+  const overdue = k.kev_next_due?.overdue ?? false // against your due date (A16), not CISA's deadline
   const go = (e: MouseEvent<HTMLAnchorElement>) => followLink(e, onNavigate)
   return (
     <section className="tiles" aria-label="Summary">
@@ -277,14 +278,20 @@ function TopCves({ rows, onNavigate }: { rows: CveRow[] | null; onNavigate: (hre
                   {r.id}
                 </a>
                 {r.kev && (
-                  <span className="chip kev" title={`CISA KEV, remediation due ${r.kev_due}`}>
+                  <span className="chip kev" title={`In CISA KEV: known exploited. KEV deadline ${r.kev_deadline}`}>
                     KEV
                   </span>
                 )}
                 {r.possible_match && <PossibleMatch />}
               </span>
+              <PriorityChip level={r.priority} />
               <span className="top-product">{r.product_name}</span>
               <SeverityBadge severity={r.severity} cvss={r.cvss} />
+              <span className="top-due" title={`Your due date: ${r.due_from}`}>
+                Due <span className="num">{r.due_date}</span>
+                {r.overdue && <OverdueMark />}
+              </span>
+              <PriorityReasons reasons={r.priority_reasons} />
             </li>
           ))}
         </ol>

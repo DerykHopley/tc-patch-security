@@ -138,7 +138,10 @@ export interface Dashboard {
     open: number
     critical: number
     kev: number
-    kev_next_due: { cve: string; due: string } | null
+    // The open KEV CVE with the earliest due date (A16: your due date, which may be CISA's KEV deadline)
+    kev_next_due: { cve: string; due: string; overdue: boolean } | null
+    kev_overdue: number // open KEV CVEs past their due date
+    overdue: number // open CVEs past their due date
     new_30d: number
     new_since: string // the first of those 30 days, YYYY-MM-DD: the tile's link filters on it
   }
@@ -189,7 +192,7 @@ export interface CveRow {
   owasp: string | null
   owasp_title: string | null
   kev: boolean
-  kev_due: string | null
+  kev_deadline: string | null // CISA's remediation date: a fact, not your due date
   status: CveStatus
   summary: string
   url: string
@@ -203,7 +206,17 @@ export interface CveRow {
   usage: ProductUsage
   version: string | null
   internet_facing: boolean
+  // Priority by rules (A16): the level, its reasons, and your due date from your policy. Rules decide the order.
+  priority: PriorityLevel
+  priority_reasons: string[] // e.g. ["in KEV", "EPSS 99th percentile", "internet-facing"]
+  priority_rule: number // the rule table's row that matched
+  alert_priority: 5 | 4 | 3 | 2 // the level as an alert priority (spec B)
+  due_date: string
+  due_from: string // "KEV deadline", "published + 90 days", "added to KEV + 7 days"
+  overdue: boolean // open and past the due date at the as-of date
 }
+
+export type PriorityLevel = 'urgent' | 'high' | 'normal' | 'low'
 
 export type Verdict = 'affected' | 'not_affected' | 'unknown'
 export type WhoActs = 'you' | 'upstream' | 'vendor'
@@ -288,9 +301,20 @@ export interface AlertSettings {
   channels: Channel[]
 }
 
+/** Your policy (A16): days per priority level, and whether KEV CVEs take CISA's KEV deadline. */
+export interface PolicySettings {
+  urgent_days: number
+  high_days: number
+  normal_days: number
+  low_days: number
+  adopt_kev_deadline: boolean
+}
+
 export interface AppSettings {
   alerts: AlertSettings
   explain_level: ExplainLevel
+  policy: PolicySettings
+  priority: { epss_percentile: number } // the rule table's threshold (row 2), 50-99
 }
 
 export interface ChannelStatus {

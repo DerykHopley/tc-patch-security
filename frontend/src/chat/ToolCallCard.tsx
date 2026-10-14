@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import type { Epss, Severity, ToolCallRecord, Verdict, WhoActs } from '../api.ts'
+import type { Epss, PriorityLevel, Severity, ToolCallRecord, Verdict, WhoActs } from '../api.ts'
+import { OverdueMark, PriorityChip } from '../components/Priority.tsx'
 import { epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { VERDICT_LABEL, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { SeverityBadge } from './SeverityBadge.tsx'
@@ -16,7 +17,7 @@ interface CveResult {
   cwes: string[]
   owasp: { code: string; title: string; url: string } | null
   url: string
-  kev: { date_added: string; due: string } | null
+  kev: { date_added: string; deadline: string } | null
   watch_status: 'open' | 'fixed' | 'not_affected' | 'not_watched'
   epss: Epss | null
   possible_match: boolean
@@ -24,6 +25,14 @@ interface CveResult {
   verdict_reason: string
   fixed_version: string | null
   who_acts: WhoActs
+  priority: {
+    level: PriorityLevel
+    reasons: string[]
+    due_date: string
+    due_from: string
+    overdue: boolean
+    alert_priority: number
+  } | null // A16; null off the watchlist
 }
 
 // check_affected (A15): one CVE's verdict, or a product's open CVEs by verdict.
@@ -83,11 +92,18 @@ function CveCard({ r }: { r: CveResult }) {
       </p>
       <div className="chips">
         <SeverityBadge severity={r.severity} cvss={r.cvss} />
-        {r.kev && <span className="chip kev">CISA KEV · due {r.kev.due}</span>}
+        {r.kev && <span className="chip kev">CISA KEV · KEV deadline {r.kev.deadline}</span>}
+        {r.priority && <PriorityChip level={r.priority.level} />}
         <span className="chip">{STATUS_LABEL[r.watch_status]}</span>
         {r.possible_match && <PossibleMatch />}
         {r.verdict && <VerdictChip verdict={r.verdict} />}
       </div>
+      {r.priority && (
+        <p className="meta">
+          Priority: {r.priority.reasons.join(' · ')} · due {r.priority.due_date} ({r.priority.due_from})
+          {r.priority.overdue && <OverdueMark />}
+        </p>
+      )}
       {r.verdict_reason && <p className="meta">Verdict: {r.verdict_reason}</p>}
       {r.epss && (
         <p className="meta">

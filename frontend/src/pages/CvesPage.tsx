@@ -12,6 +12,7 @@ import {
 } from '../api.ts'
 import { SeverityBadge } from '../chat/SeverityBadge.tsx'
 import { EPSS_URL, epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
+import { DueFacts, PriorityChip, PriorityReasons } from '../components/Priority.tsx'
 import { VERDICT_LABEL, VERDICTS, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { SEVERITIES, sevLabel } from '../severity.ts'
 import '../styles/cves.css'
@@ -195,7 +196,7 @@ export function CvesPage({ search, onAsk }: { search: string; onAsk: (cveId: str
             </span>
           )}
           <span className="meta" aria-live="polite">
-            {page ? `${page.total} CVEs · KEV first, then highest score, then newest` : 'Loading…'}
+            {page ? `${page.total} CVEs · by priority, then due date` : 'Loading…'}
           </span>
         </div>
         <CveTable page={page} busy={busy} onMark={mark} onAsk={onAsk} />
@@ -247,6 +248,12 @@ function CveTable({ page, busy, onMark, onAsk }: {
         <thead>
           <tr>
             <th scope="col">CVE</th>
+            <th scope="col">
+              <abbr title="Set by fixed rules from KEV, EPSS, severity, the verdict and internet-facing">Priority</abbr>
+            </th>
+            <th scope="col">
+              <abbr title="Your due date, from your policy (Settings)">Due</abbr>
+            </th>
             <th scope="col">Product</th>
             <th scope="col">Severity</th>
             <th scope="col">Published</th>
@@ -270,12 +277,19 @@ function CveTable({ page, busy, onMark, onAsk }: {
                   {r.id}
                 </a>
                 {r.kev && (
-                  <span className="chip kev" title={`CISA KEV, remediation due ${r.kev_due}`}>
+                  <span className="chip kev" title={`In CISA KEV: known exploited. KEV deadline ${r.kev_deadline}`}>
                     KEV
                   </span>
                 )}
                 {r.possible_match && <PossibleMatch />}
                 <div className="summary">{r.summary}</div>
+              </td>
+              <td data-label="Priority" className="priority-cell">
+                <PriorityChip level={r.priority} />
+                <PriorityReasons reasons={r.priority_reasons} />
+              </td>
+              <td data-label="Due" className="due-cell">
+                <DueFacts due={r.due_date} from={r.due_from} overdue={r.overdue} kevDeadline={r.kev_deadline} />
               </td>
               <td data-label="Product">{r.product_name}</td>
               <td data-label="Severity">
@@ -357,7 +371,7 @@ function CveTable({ page, busy, onMark, onAsk }: {
           ))}
           {page?.rows.length === 0 && (
             <tr className="empty">
-              <td colSpan={8} className="meta">
+              <td colSpan={10} className="meta">
                 No CVEs match these filters.
               </td>
             </tr>

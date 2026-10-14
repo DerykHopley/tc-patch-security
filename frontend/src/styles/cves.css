@@ -174,6 +174,52 @@ table.cves .verdict-cell .suggest {
   border-color: var(--ok);
 }
 
+/* ---------- Priority and due date (A16) ---------- */
+
+table.cves .priority-cell {
+  min-width: 7rem;
+  max-width: 11rem;
+}
+
+table.cves .priority-cell .priority-reasons,
+table.cves .due-cell .due-from,
+table.cves .due-cell .kev-deadline {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+}
+
+table.cves .due-cell .nowrap {
+  white-space: nowrap;
+}
+
+/* Narrow: the date, then "Overdue" on its own line, then where the date came from and the KEV deadline. */
+table.cves .due-cell {
+  min-width: 6.5rem;
+  max-width: 8rem;
+}
+
+table.cves .due-cell .due-date {
+  display: block;
+  white-space: nowrap;
+}
+
+table.cves .due-cell .overdue {
+  display: flex;
+  margin: 0.1rem 0 0;
+}
+
+table.cves .due-cell .due-from,
+table.cves .due-cell .kev-deadline {
+  color: var(--muted);
+  white-space: normal;
+}
+
+table.cves .due-cell .due-date {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- Narrow: each row a stacked card (phones, or the chat pinned beside the page) ---------- */
 
 @container (max-width: 760px) {
@@ -210,6 +256,7 @@ table.cves .verdict-cell .suggest {
 
   /* The id and summary, and the status with its actions, take the card's whole width. */
   table.cves .cve-cell,
+  table.cves .priority-cell,
   table.cves .verdict-cell,
   table.cves .status-cell,
   table.cves tr.empty td {
@@ -227,6 +274,8 @@ table.cves .verdict-cell .suggest {
   }
 
   table.cves .summary,
+  table.cves .priority-cell,
+  table.cves .due-cell,
   table.cves .verdict-cell {
     max-width: none;
   }
