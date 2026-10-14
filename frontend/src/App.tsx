@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { examples as fetchExamples, health, type Example, type Health } from './api.ts'
+import { ChatDivider } from './chat/ChatDivider.tsx'
 import { ChatWindow } from './chat/ChatWindow.tsx'
 import { PatchButton } from './chat/PatchButton.tsx'
 import { useChat } from './chat/useChat.ts'
+import { useChatLayout } from './chat/useChatLayout.ts'
 import { usePatch } from './chat/usePatch.ts'
 import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, MoonIcon, ShieldIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
@@ -39,7 +41,8 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(() => store.get('sidenavCollapsed') === '1')
   const [page, setPage] = useState<Page>('dashboard')
   const chat = useChat()
-  const [chatOpen, setChatOpen] = useState(false)
+  const layout = useChatLayout()
+  const chatOpen = layout.open
   const [examples, setExamples] = useState<Example[]>([])
   const patch = usePatch(chat, chatOpen) // one mood for the button and the chat header
   const patchButton = useRef<HTMLButtonElement>(null)
@@ -49,9 +52,12 @@ export default function App() {
     fetchExamples().then(setExamples, () => setExamples([]))
   }, [])
 
+  const openChat = () => layout.setOpen(true)
+
   function closeChat() {
-    setChatOpen(false)
-    patchButton.current?.focus() // keyboard users land back on the button that opened it
+    layout.setOpen(false)
+    // Keyboard users land back on the button that opened it (it reappears once a pinned chat closes).
+    setTimeout(() => patchButton.current?.focus())
   }
 
   function toggleCollapsed() {
@@ -66,7 +72,7 @@ export default function App() {
   const dark = theme === 'dark'
 
   return (
-    <div className={`app${collapsed ? ' collapsed' : ''}`}>
+    <div className={`app${collapsed ? ' collapsed' : ''}${layout.docked ? ' docked' : ''}`}>
       <aside className="sidenav" aria-label="Main">
         <div className="brand">
           <span className="brand-mark">
@@ -104,7 +110,7 @@ export default function App() {
             aria-label="Ask Patch"
             aria-expanded={chatOpen}
             aria-describedby={patch.unread ? 'patch-unread' : undefined}
-            onClick={() => (chatOpen ? closeChat() : setChatOpen(true))}
+            onClick={() => (chatOpen ? closeChat() : openChat())}
             title={collapsed ? 'Ask Patch' : undefined}
           >
             <span className="side-icon">
@@ -160,6 +166,8 @@ export default function App() {
         </main>
       </div>
 
+      {/* Same places in the tree in every layout: pinning or unpinning never rebuilds the page or the chat. */}
+      {layout.docked && <ChatDivider layout={layout} />}
       {chatOpen && (
         <ChatWindow
           chat={chat}
@@ -167,16 +175,20 @@ export default function App() {
           pageTitle={current.title}
           suggestions={SUGGESTIONS[page]}
           examples={examples}
+          layout={layout}
           onClose={closeChat}
         />
       )}
-      <PatchButton
-        ref={patchButton}
-        open={chatOpen}
-        mood={patch.mood}
-        unread={patch.unread}
-        onClick={() => (chatOpen ? setChatOpen(false) : setChatOpen(true))}
-      />
+      {/* Hidden while the chat is pinned beside the page (DESIGN.md §6.3). */}
+      {!layout.docked && (
+        <PatchButton
+          ref={patchButton}
+          open={chatOpen}
+          mood={patch.mood}
+          unread={patch.unread}
+          onClick={() => (chatOpen ? layout.setOpen(false) : openChat())}
+        />
+      )}
     </div>
   )
 }
