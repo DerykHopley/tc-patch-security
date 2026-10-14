@@ -5,14 +5,25 @@ Mounted only when DEV_PANEL is on (they show internals): off, every /dev route i
 import httpx
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
 from app.app_settings import DevSettings
 from app.errors import InputError
 from app.llm.urls import local_url_allowed
+from app.rag.pipeline import search_security
 
+FUSED_SHOWN = 15  # the fused column: enough to see what the per-document cap and top-n cut
 MODELS_TIMEOUT = 5  # seconds: listing models is quick even when loading one is slow
 NOT_LOCAL = ("The local model URL must be on this machine, for example http://localhost:11434/v1. "
              "Other hosts need LOCAL_LLM_HOSTS in backend/.env.")
+
+
+class SearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=500)
+
+
+def _hit(chunk, score: float) -> dict:
+    return {"chunk_id": chunk.chunk_id, "title": chunk.title, "doc_type": chunk.doc_type, "score": round(score, 4)}
 
 
 def _unreachable(message: str) -> JSONResponse:
@@ -59,5 +70,24 @@ def dev_router(deps) -> APIRouter:
                 client.close()
         items = data.get("data") if isinstance(data, dict) else None
         return {"models": sorted(str(m["id"]) for m in items or [] if isinstance(m, dict) and m.get("id"))}
+
+    @r.post("/search")
+    def playground(body: SearchRequest):
+        """search_security with the saved settings, every step shown: the plan, each retriever's list per query
+        (before fusion), the fused ranking and the final sources (after the per-document cap and top-n)."""
+        dev = deps.dev()
+        res = search_security(body.query, deps.llm, deps.retrievers, deps.knowledge.resolve_product,
+                              opts=deps.search_options())
+        chunks = {h.chunk.chunk_id: h.chunk for _, _, hits in res.lists for h in hits}
+        return {
+            "query": res.query.model_dump(),
+            "options": dev.model_dump(include={"top_n", "per_query_k", "per_doc_cap", "rrf_k", "keyword_weight",
+                                               "use_rewrites", "use_filters"}),
+            "lists": [{"retriever": name, "query": q, "hits": [_hit(h.chunk, h.score) for h in hits]}
+                      for name, q, hits in res.lists],
+            "fused": [{"chunk_id": cid, "title": chunks[cid].title, "doc_type": chunks[cid].doc_type,
+                       "rrf": round(score, 5)} for cid, score in res.fused[:FUSED_SHOWN]],
+            "final": [s.model_dump() for s in res.sources],
+        }
 
     return r

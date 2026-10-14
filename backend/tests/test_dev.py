@@ -177,3 +177,89 @@ def test_a11_1_max_steps_applies_to_the_next_chat(client):
     client.put("/dev/settings", json=dev_body(client, max_steps=1))
     r = client.post("/chat", json={"message": "Explain CVE-2024-8309"}).json()
     assert r["steps"] == 1 and "I stopped after 1 steps" in r["answer"]
+
+
+# --- A11.2: search tuning: the chat's search_security uses the saved values -----------------------------------------
+
+Q1 = "Which critical Langflow vulnerabilities were published in 2026?"
+Q5 = "How do I protect a RAG app from indirect prompt injection?"
+
+
+def chat_query(client, message):
+    r = client.post("/chat", json={"message": message}).json()
+    return r["query"], r["sources"]
+
+
+def test_a11_2_top_n_and_rewrites_apply_to_the_chat(client):
+    query, sources = chat_query(client, Q5)
+    assert len(query["rewrites"]) == 3 and len(sources) == 5  # the spec's defaults
+    client.put("/dev/settings", json=dev_body(client, top_n=2, use_rewrites=False))
+    query, sources = chat_query(client, Q5)
+    assert query["rewrites"] == [] and len(sources) == 2
+
+
+def test_a11_2_filters_off_are_listed_as_dropped(client):
+    query, _ = chat_query(client, Q1)
+    assert query["filters"]["product"] == "langflow" and query["dropped_filters"] == []
+    client.put("/dev/settings", json=dev_body(client, use_filters=False))
+    query, _ = chat_query(client, Q1)
+    assert query["filters"] == {}
+    assert "product=langflow (filters off)" in query["dropped_filters"]
+
+
+def test_a11_2_per_document_cap_applies(client):
+    client.put("/dev/settings", json=dev_body(client, per_doc_cap=1, top_n=10))
+    _, sources = chat_query(client, Q5)
+    docs = [s["doc_id"] for s in sources]
+    assert len(docs) == len(set(docs))  # at most one chunk per document
+
+
+@pytest.mark.parametrize("weight,found_by", [(0, {"vector"}), (1, {"keyword"})])
+def test_a11_2_keyword_weight_at_either_end_uses_one_retriever(client, weight, found_by):
+    client.put("/dev/settings", json=dev_body(client, keyword_weight=weight))
+    query, sources = chat_query(client, Q5)
+    assert sources and {r for rs in query["found_by"].values() for r in rs} == found_by
+
+
+# --- A11.3: the playground: plan, each BM25 and vector list per query, the fused ranking, the final sources ----------
+
+def test_a11_3_playground_shows_every_step(client):
+    r = client.post("/dev/search", json={"query": Q5})
+    assert r.status_code == 200
+    body = r.json()
+    plan = body["query"]
+    assert plan["semantic_query"] == "protect RAG application from indirect prompt injection"
+    queries = [plan["semantic_query"], *plan["rewrites"]]
+    # Each query on each retriever, before fusion: BM25 and vector lists shown separately.
+    assert [(l["retriever"], l["query"]) for l in body["lists"]] == [
+        (ret, q) for q in queries for ret in ("vector", "keyword")]
+    for l in body["lists"]:
+        assert 0 < len(l["hits"]) <= 10
+        assert set(l["hits"][0]) == {"chunk_id", "title", "doc_type", "score"}
+    fused = [f["rrf"] for f in body["fused"]]
+    assert fused == sorted(fused, reverse=True) and len(fused) <= 15
+    listed = {h["chunk_id"] for l in body["lists"] for h in l["hits"]}
+    assert {f["chunk_id"] for f in body["fused"]} <= listed
+    # The final sources are what the chat would cite for the same question.
+    _, chat_sources = chat_query(client, Q5)
+    assert [s["chunk_id"] for s in body["final"]] == [s["chunk_id"] for s in chat_sources]
+    assert body["options"]["rrf_k"] == 60
+
+
+def test_a11_3_playground_uses_the_saved_settings(client):
+    client.put("/dev/settings", json=dev_body(client, keyword_weight=0, use_rewrites=False, per_query_k=3, top_n=2))
+    body = client.post("/dev/search", json={"query": Q5}).json()
+    assert [l["retriever"] for l in body["lists"]] == ["vector"]  # rewrites off, keyword side not run
+    assert len(body["lists"][0]["hits"]) <= 3 and len(body["final"]) == 2
+    assert body["options"]["keyword_weight"] == 0
+
+
+def test_a11_3_playground_lists_filters_and_dropped_filters(client):
+    client.put("/dev/settings", json=dev_body(client, use_filters=False))
+    plan = client.post("/dev/search", json={"query": Q1}).json()["query"]
+    assert plan["filters"] == {} and "severity_min=CRITICAL (filters off)" in plan["dropped_filters"]
+
+
+@pytest.mark.parametrize("bad", [{"query": ""}, {"query": "x" * 501}, {}])
+def test_a11_3_playground_query_is_validated(client, bad):
+    assert client.post("/dev/search", json=bad).status_code == 400
