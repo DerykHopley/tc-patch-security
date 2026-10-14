@@ -164,10 +164,14 @@ def test_a07_2_old_layout_split_link_pins_the_chat(open_app):
     expect(head_button(page, UNPIN)).to_be_visible()
 
 
+def severity_filter(page: Page) -> Locator:
+    return page.get_by_role("region", name="CVEs on your watchlist").get_by_label("Severity")
+
+
 def test_a07_2_page_keeps_its_scroll_and_filters_when_pinning_and_unpinning(open_app):
     page = open_app()
     expect(page.locator("table.cves tbody tr").first).to_be_visible()
-    page.get_by_label("Severity").select_option("HIGH")
+    severity_filter(page).select_option("HIGH")
     expect(page.locator("table.cves tbody tr").first).to_be_visible()
     page.evaluate("document.querySelector('main').dataset.probe = 'kept'")  # gone if the page were rebuilt
     page.evaluate("window.scrollTo(0, 300)")
@@ -175,11 +179,11 @@ def test_a07_2_page_keeps_its_scroll_and_filters_when_pinning_and_unpinning(open
     assert scroll > 0
     pin(page)
     assert page.evaluate("document.querySelector('main').dataset.probe") == "kept"
-    expect(page.get_by_label("Severity")).to_have_value("HIGH")
+    expect(severity_filter(page)).to_have_value("HIGH")
     assert page.evaluate("window.scrollY") == pytest.approx(scroll, abs=2)
     head_button(page, UNPIN).click()
     assert page.evaluate("document.querySelector('main').dataset.probe") == "kept"
-    expect(page.get_by_label("Severity")).to_have_value("HIGH")
+    expect(severity_filter(page)).to_have_value("HIGH")
     assert page.evaluate("window.scrollY") == pytest.approx(scroll, abs=2)
 
 
