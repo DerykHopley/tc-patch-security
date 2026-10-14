@@ -9,9 +9,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app import agent, guard
 from app.config import Settings
 from app.deps import Deps, build_deps
-from app.errors import InputError
+from app.errors import InputError, LLMError
+from app.schemas import ChatReply, ChatRequest
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +42,11 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     async def input_error(request: Request, exc: InputError):
         return _error(400, exc.code, exc.message)
 
+    @app.exception_handler(LLMError)
+    async def llm_error(request: Request, exc: LLMError):
+        log.warning("LLM error: %s", exc.message)
+        return _error(502, "llm_error", exc.public or "The language model didn't respond properly. Try again in a moment.")
+
     @app.exception_handler(Exception)
     async def internal_error(request: Request, exc: Exception):
         log.exception("unhandled error")  # stack trace in the server log only
@@ -49,6 +56,18 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def health():
         return {"status": "ok", "llm": deps.llm.name, "model": deps.llm.label(), "as_of": deps.settings.as_of,
                 "dev_panel": deps.settings.dev_panel}
+
+    # --- Chat (A06)
+
+    @app.post("/chat", response_model=ChatReply)
+    def chat(req: ChatRequest):
+        history = [t.model_dump() for t in req.history]
+        message, flags = guard.check_message(req.message, history)  # limits and flags, before any LLM call
+        return agent.answer(message, history, deps, flags=flags)
+
+    @app.get("/examples")
+    def examples():
+        return agent.examples()
 
     return app
 
