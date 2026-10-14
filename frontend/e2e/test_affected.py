@@ -14,7 +14,7 @@ from playwright.sync_api import Locator, Page, expect
 from test_chat import ask
 from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cves, params, pin, visible_focus, window  # noqa: F401
 from test_dashboard import (  # noqa: F401 (fixtures)
-    DEFAULT_WATCHLIST, DESKTOP, PHONE, SHOTS, api, clean_state, contrast, expect_rows, open_dash, rgb_list, rows,
+    DEFAULT_WATCHLIST, DESKTOP, PHONE, SHOTS, api, clean_state, confirm, contrast, expect_rows, open_dash, rgb_list, rows,
 )
 
 LANGFLOW_KEV = "CVE-2025-3248"  # Langflow, critical, in KEV; fixed in 1.3.0
@@ -84,7 +84,11 @@ def test_a15_5_mark_not_affected_is_a_suggestion_only_the_user_clicks(open_cves,
     expect(button).to_be_visible()
     expect(button).to_have_text("Mark not affected?")
     expect(page.get_by_role("button", name=f"Mark {first} not affected", exact=True)).to_have_count(0)  # one way
-    button.click()
+    button.click()  # A16b: the dialog opens with "vulnerable code not present" and the verdict's reason; the user confirms
+    d = page.get_by_role("dialog")
+    expect(d.get_by_role("radio", name="Vulnerable code not present")).to_be_checked()
+    expect(d.get_by_role("textbox", name="Note (optional)")).to_have_value(re.compile(r"at or after the fixed version"))
+    confirm(page)
     expect(page.get_by_role("link", name=first, exact=True)).to_have_count(0)
     assert [r["id"] for r in api(api_url, "/cves?status=not_affected&limit=200")["rows"]] == [first]
     unknown = open_cves("?verdict=unknown")
@@ -225,6 +229,11 @@ def test_a15_11_keyboard_reaches_the_verdict_filter_and_the_suggestion(open_cves
     assert any(s.startswith("Verdict") for s in seen), seen  # a label's text includes its options
     assert seen[-1].startswith(f"Mark {first} not affected?"), seen
     assert visible_focus(page)
+    page.keyboard.press("Enter")  # opens the dialog on the pre-selected justification (A16b)
+    expect(page.get_by_role("dialog")).to_be_visible()
+    for _ in range(3):  # the radio group, the note, Cancel, then the submit button
+        page.keyboard.press("Tab")
+    assert focused(page) == "Mark not affected"
     page.keyboard.press("Enter")
     expect(page.get_by_role("link", name=first, exact=True)).to_have_count(0)
 

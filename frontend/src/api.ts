@@ -123,7 +123,33 @@ export const examples = () => request<Example[]>('/examples')
 // --- Dashboard (A04)
 
 export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
-export type CveStatus = 'open' | 'fixed' | 'not_affected'
+export type CveStatus = 'open' | 'fixed' | 'not_affected' | 'accepted'
+
+// Not affected needs one of these VEX justifications (A16b); OpenVEX uses the same names.
+export type Justification =
+  | 'component_not_present'
+  | 'vulnerable_code_not_present'
+  | 'vulnerable_code_not_in_execute_path'
+  | 'vulnerable_code_cannot_be_controlled_by_adversary'
+  | 'inline_mitigations_already_exist'
+
+/** One decision record (A16b): what, why, when and who. Appended to the CVE's history, never edited. */
+export interface Decision {
+  status: CveStatus
+  justification: Justification | null // not affected
+  reason: string | null // accepted
+  note: string | null // fixed, reopen, not affected; "recorded before decision records" for an old status
+  review_date: string | null // accepted
+  compensating_control: string | null // accepted, optional
+  decided_at: string | null // ISO date and time (UTC); null for a status saved before decision records
+  decided_by: string | null // "owner" until there are users
+  via: 'page' | 'chat' | null
+}
+
+/** What the user enters when changing a status. Which fields a status takes is checked by the backend. */
+export type DecisionInput = { status: CveStatus } & Partial<
+  Pick<Decision, 'justification' | 'reason' | 'note' | 'review_date' | 'compensating_control'>
+>
 
 export interface Product {
   id: string
@@ -139,9 +165,12 @@ export interface Dashboard {
     critical: number
     kev: number
     // The open KEV CVE with the earliest due date (A16: your due date, which may be CISA's KEV deadline)
-    kev_next_due: { cve: string; due: string; overdue: boolean } | null
+    kev_next_due: { cve: string; due: string; overdue: boolean; no_fix: boolean } | null
     kev_overdue: number // open KEV CVEs past their due date
-    overdue: number // open CVEs past their due date
+    overdue: number // open CVEs past their due date that have a fix (A16b)
+    no_fix: number // open CVEs with no fixed version in OSV: "no fix yet" (A16b)
+    review_due: number // accepted CVEs whose review date has come: back in open (A16b)
+    accepted: number // accepted and not yet due for review
     new_30d: number
     new_since: string // the first of those 30 days, YYYY-MM-DD: the tile's link filters on it
   }
@@ -213,7 +242,16 @@ export interface CveRow {
   alert_priority: 5 | 4 | 3 | 2 // the level as an alert priority (spec B)
   due_date: string
   due_from: string // "KEV deadline", "published + 90 days", "added to KEV + 7 days"
-  overdue: boolean // open and past the due date at the as-of date
+  overdue: boolean // open, a fix exists, and past the due date at the as-of date (A16b)
+  // Your decision (A16b). `open`: status open, or accepted with its review due. "No fix yet": OSV lists no fixed
+  // version, so it can't be overdue; the due date is the "decide by" date.
+  open: boolean
+  review_due: boolean
+  review_date: string | null
+  decision: Decision | null // the newest record; null when never decided
+  history: Decision[] // oldest first
+  no_fix: boolean
+  open_days: number // since publication, at the as-of date
 }
 
 export type PriorityLevel = 'urgent' | 'high' | 'normal' | 'low'
@@ -274,8 +312,8 @@ export function cves(q: CveQuery): Promise<CvePage> {
   return request<CvePage>(`/cves?${params}`)
 }
 
-export const setStatus = (id: string, status: CveStatus) =>
-  request<{ id: string; status: CveStatus }>(`/cves/${encodeURIComponent(id)}`, json('PATCH', { status }))
+export const setStatus = (id: string, body: DecisionInput) =>
+  request<{ id: string; status: CveStatus; decision: Decision }>(`/cves/${encodeURIComponent(id)}`, json('PATCH', body))
 
 export const getWatchlist = () => request<Watchlist>('/watchlist')
 

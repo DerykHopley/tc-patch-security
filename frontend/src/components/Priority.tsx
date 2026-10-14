@@ -1,4 +1,5 @@
 import type { PriorityLevel } from '../api.ts'
+import { NoFixMark } from './Decision.tsx'
 import { WarningIcon } from './Icons.tsx'
 
 // Priority by rules (A16): the level, its reasons and your due date, shown the same way on the CVEs page, the
@@ -30,20 +31,27 @@ export function OverdueMark() {
   )
 }
 
-/** Your due date (with where it came from), the overdue mark, and CISA's KEV deadline as a separate fact. */
-export function DueFacts({ due, from, overdue, kevDeadline }: {
+/** Your due date (with where it came from), the overdue mark, and CISA's KEV deadline as a separate fact. An open
+ *  CVE with no fix yet (A16b) shows "No fix yet · open N days" instead, and its due date is the "decide by" date:
+ *  accept, mitigate or replace. */
+export function DueFacts({ due, from, overdue, kevDeadline, noFix = null }: {
   due: string
   from: string
   overdue: boolean
   kevDeadline: string | null
+  noFix?: { days: number } | null
 }) {
   return (
     <>
+      {noFix && <span className="due-label">Decide by</span>}
       <span className="due-date num" title={`Your due date, from your policy: ${from}`}>
         {due}
       </span>
       {overdue && <OverdueMark />}
-      <span className="due-from">by your policy: {from}</span>
+      {noFix && <NoFixMark days={noFix.days} />}
+      <span className="due-from">
+        {noFix ? 'accept, mitigate or replace · ' : ''}by your policy: {from}
+      </span>
       {kevDeadline && (
         <span className="kev-deadline" title="CISA's remediation date for US federal agencies: a fact, not your due date">
           CISA KEV deadline <span className="nowrap">{kevDeadline}</span>

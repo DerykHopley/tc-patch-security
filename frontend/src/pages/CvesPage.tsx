@@ -5,7 +5,8 @@ import {
   setStatus,
   type CvePage,
   type CveQuery,
-  type CveStatus,
+  type CveRow,
+  type DecisionInput,
   type Product,
   type Severity,
   type Verdict,
@@ -13,6 +14,13 @@ import {
 import { SeverityBadge } from '../chat/SeverityBadge.tsx'
 import { EPSS_URL, epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { DueFacts, PriorityChip, PriorityReasons } from '../components/Priority.tsx'
+import {
+  DecisionDialog,
+  DecisionHistory,
+  DecisionSummary,
+  STATUS_LABEL,
+  type DecisionRequest,
+} from '../components/Decision.tsx'
 import { VERDICT_LABEL, VERDICTS, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { SEVERITIES, sevLabel } from '../severity.ts'
 import '../styles/cves.css'
@@ -24,8 +32,7 @@ import '../styles/cves.css'
 // pinned beside it) the rows become stacked cards: the row actions never need sideways scrolling.
 
 const PAGE_SIZE = 25
-const STATUSES = ['open', 'fixed', 'not_affected', 'all'] as const
-const STATUS_LABEL: Record<CveStatus, string> = { open: 'Open', fixed: 'Fixed', not_affected: 'Not affected' }
+const STATUSES = ['open', 'fixed', 'not_affected', 'accepted', 'all'] as const
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
 
 type Filters = Omit<CveQuery, 'limit' | 'offset'>
@@ -68,7 +75,8 @@ export function CvesPage({ search, onAsk }: { search: string; onAsk: (cveId: str
   const [page, setPage] = useState<CvePage | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState<string | null>(null)
+  const [asOf, setAsOf] = useState<string | null>(null)
+  const [deciding, setDeciding] = useState<DecisionRequest | null>(null) // the open decision dialog (A16b)
 
   const loadRows = useCallback(
     () => fetchCves({ ...filters, limit: PAGE_SIZE, offset }).then(setPage),
@@ -77,7 +85,10 @@ export function CvesPage({ search, onAsk }: { search: string; onAsk: (cveId: str
 
   useEffect(() => {
     fetchDashboard().then(
-      (d) => setProducts(d.products.filter((p) => d.watchlist.includes(p.id))),
+      (d) => {
+        setProducts(d.products.filter((p) => d.watchlist.includes(p.id)))
+        setAsOf(d.as_of)
+      },
       (e: unknown) => setError(message(e)),
     )
   }, [])
@@ -96,16 +107,10 @@ export function CvesPage({ search, onAsk }: { search: string; onAsk: (cveId: str
     history.replaceState(null, '', window.location.pathname + searchFromFilters(next) + window.location.hash)
   }
 
-  async function mark(id: string, status: CveStatus) {
-    setBusy(id)
-    try {
-      await setStatus(id, status)
-      await loadRows()
-    } catch (e) {
-      setError(message(e))
-    } finally {
-      setBusy(null)
-    }
+  // Every status change goes through the dialog and becomes a decision record (A16b). Its errors show in the dialog.
+  async function decide(id: string, body: DecisionInput) {
+    await setStatus(id, body)
+    await loadRows().catch((e: unknown) => setError(message(e)))
   }
 
   // A product from a link that isn't on the watchlist still shows in the list, so the select says what's filtered.
@@ -157,6 +162,7 @@ export function CvesPage({ search, onAsk }: { search: string; onAsk: (cveId: str
               <option value="open">Open</option>
               <option value="fixed">Fixed</option>
               <option value="not_affected">Not affected</option>
+              <option value="accepted">Accepted</option>
               <option value="all">All</option>
             </select>
           </label>
@@ -199,7 +205,16 @@ export function CvesPage({ search, onAsk }: { search: string; onAsk: (cveId: str
             {page ? `${page.total} CVEs · by priority, then due date` : 'Loading…'}
           </span>
         </div>
-        <CveTable page={page} busy={busy} onMark={mark} onAsk={onAsk} />
+        <CveTable page={page} onDecide={asOf ? setDeciding : undefined} onAsk={onAsk} />
+        {deciding && asOf && (
+          <DecisionDialog
+            key={`${deciding.cve}-${deciding.status}`}
+            request={deciding}
+            asOf={asOf}
+            onSubmit={(body) => decide(deciding.cve, body)}
+            onClose={() => setDeciding(null)}
+          />
+        )}
         <p className="meta epss-credit">
           EPSS by{' '}
           <a href={EPSS_URL} target="_blank" rel="noreferrer">
@@ -236,10 +251,9 @@ export function CvesPage({ search, onAsk }: { search: string; onAsk: (cveId: str
 }
 
 // data-label names each cell when the rows are stacked cards (the header row is hidden then).
-function CveTable({ page, busy, onMark, onAsk }: {
+function CveTable({ page, onDecide, onAsk }: {
   page: CvePage | null
-  busy: string | null
-  onMark: (id: string, status: CveStatus) => void
+  onDecide?: (r: DecisionRequest) => void // undefined until the as-of date is known (the review date needs it)
   onAsk: (id: string) => void
 }) {
   return (
@@ -289,7 +303,13 @@ function CveTable({ page, busy, onMark, onAsk }: {
                 <PriorityReasons reasons={r.priority_reasons} />
               </td>
               <td data-label="Due" className="due-cell">
-                <DueFacts due={r.due_date} from={r.due_from} overdue={r.overdue} kevDeadline={r.kev_deadline} />
+                <DueFacts
+                  due={r.due_date}
+                  from={r.due_from}
+                  overdue={r.overdue}
+                  kevDeadline={r.kev_deadline}
+                  noFix={r.no_fix && r.open ? { days: r.open_days } : null}
+                />
               </td>
               <td data-label="Product">{r.product_name}</td>
               <td data-label="Severity">
@@ -319,9 +339,15 @@ function CveTable({ page, busy, onMark, onAsk }: {
                   <button
                     type="button"
                     className="suggest"
-                    disabled={busy === r.id}
+                    disabled={!onDecide}
                     aria-label={`Mark ${r.id} not affected? Suggested by the version check`}
-                    onClick={() => onMark(r.id, 'not_affected')}
+                    onClick={() =>
+                      onDecide?.({
+                        cve: r.id,
+                        status: 'not_affected',
+                        preset: { justification: 'vulnerable_code_not_present', note: r.verdict_reason },
+                      })
+                    }
                   >
                     Mark not affected?
                   </button>
@@ -329,43 +355,18 @@ function CveTable({ page, busy, onMark, onAsk }: {
               </td>
               <td data-label="Status" className="status-cell">
                 {/* Status and its actions share a column: the table stays narrow enough for the pinned chat. */}
-                <span className="status">{STATUS_LABEL[r.status]}</span>
+                <span className="status">
+                  {STATUS_LABEL[r.status]}
+                  {r.review_due && <span className="chip review-due">Review due</span>}
+                </span>
+                <DecisionSummary row={r} />
                 <div className="actions">
-                  {r.status === 'open' ? (
-                    <>
-                      <button
-                        type="button"
-                        disabled={busy === r.id}
-                        aria-label={`Mark ${r.id} fixed`}
-                        onClick={() => onMark(r.id, 'fixed')}
-                      >
-                        Mark fixed
-                      </button>
-                      {r.verdict !== 'not_affected' && (
-                        <button
-                          type="button"
-                          disabled={busy === r.id}
-                          aria-label={`Mark ${r.id} not affected`}
-                          onClick={() => onMark(r.id, 'not_affected')}
-                        >
-                          Not affected
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={busy === r.id}
-                      aria-label={`Reopen ${r.id}`}
-                      onClick={() => onMark(r.id, 'open')}
-                    >
-                      Reopen
-                    </button>
-                  )}
+                  <RowActions row={r} onDecide={onDecide} />
                   <button type="button" aria-label={`Ask about this: ${r.id}`} onClick={() => onAsk(r.id)}>
                     Ask about this
                   </button>
                 </div>
+                <DecisionHistory row={r} />
               </td>
             </tr>
           ))}
@@ -380,4 +381,49 @@ function CveTable({ page, busy, onMark, onAsk }: {
       </table>
     </div>
   )
+}
+
+/** The status actions a row offers (A16b). Open: fixed, not affected (unless the verdict suggests it), accept.
+ *  Accepted with its review due: accept again, fixed, not affected, reopen. Accepted: fixed, reopen. Fixed or not
+ *  affected: reopen. Each opens the decision dialog. */
+function RowActions({ row: r, onDecide }: { row: CveRow; onDecide?: (req: DecisionRequest) => void }) {
+  const action = (label: string, name: string, req: Omit<DecisionRequest, 'cve'>) => (
+    <button
+      key={name}
+      type="button"
+      disabled={!onDecide}
+      aria-label={name}
+      onClick={() => onDecide?.({ cve: r.id, ...req })}
+    >
+      {label}
+    </button>
+  )
+  const fixed = action('Mark fixed', `Mark ${r.id} fixed`, { status: 'fixed' })
+  const notAffected = action('Not affected', `Mark ${r.id} not affected`, { status: 'not_affected' })
+  const reopen = action('Reopen', `Reopen ${r.id}`, { status: 'open' })
+  if (r.status === 'open') {
+    return (
+      <>
+        {fixed}
+        {r.verdict !== 'not_affected' && notAffected}
+        {action('Accept risk', `Accept the risk of ${r.id}`, { status: 'accepted' })}
+      </>
+    )
+  }
+  if (r.status === 'accepted') {
+    return r.review_due ? (
+      <>
+        {action('Accept again', `Accept the risk of ${r.id} again`, { status: 'accepted', again: true })}
+        {fixed}
+        {notAffected}
+        {reopen}
+      </>
+    ) : (
+      <>
+        {fixed}
+        {reopen}
+      </>
+    )
+  }
+  return reopen
 }

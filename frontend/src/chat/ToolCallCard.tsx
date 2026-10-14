@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import type { Epss, PriorityLevel, Severity, ToolCallRecord, Verdict, WhoActs } from '../api.ts'
+import type { Decision, Epss, PriorityLevel, Severity, ToolCallRecord, Verdict, WhoActs } from '../api.ts'
 import { OverdueMark, PriorityChip } from '../components/Priority.tsx'
+import { NoFixMark, STATUS_LABEL as CVE_STATUS_LABEL } from '../components/Decision.tsx'
 import { epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { VERDICT_LABEL, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { SeverityBadge } from './SeverityBadge.tsx'
@@ -18,7 +19,11 @@ interface CveResult {
   owasp: { code: string; title: string; url: string } | null
   url: string
   kev: { date_added: string; deadline: string } | null
-  watch_status: 'open' | 'fixed' | 'not_affected' | 'not_watched'
+  watch_status: 'open' | 'fixed' | 'not_affected' | 'accepted' | 'not_watched'
+  no_fix: boolean // A16b: no fixed version in OSV, so not overdue
+  decision: Decision | null
+  review_due: boolean
+  open_days: number
   epss: Epss | null
   possible_match: boolean
   verdict: Verdict
@@ -76,7 +81,7 @@ interface WatchlistResult {
   watchlist: string[]
 }
 
-const STATUS_LABEL = { open: 'Open', fixed: 'Fixed', not_affected: 'Not affected', not_watched: 'Not watched' }
+const STATUS_LABEL = { ...CVE_STATUS_LABEL, not_watched: 'Not watched' }
 
 const External = ({ href, children }: { href: string; children: ReactNode }) => (
   <a href={href} target="_blank" rel="noreferrer">
@@ -94,14 +99,25 @@ function CveCard({ r }: { r: CveResult }) {
         <SeverityBadge severity={r.severity} cvss={r.cvss} />
         {r.kev && <span className="chip kev">CISA KEV · KEV deadline {r.kev.deadline}</span>}
         {r.priority && <PriorityChip level={r.priority.level} />}
-        <span className="chip">{STATUS_LABEL[r.watch_status]}</span>
+        <span className="chip">
+          {STATUS_LABEL[r.watch_status]}
+          {r.review_due ? ' · review due' : ''}
+        </span>
         {r.possible_match && <PossibleMatch />}
         {r.verdict && <VerdictChip verdict={r.verdict} />}
       </div>
       {r.priority && (
         <p className="meta">
-          Priority: {r.priority.reasons.join(' · ')} · due {r.priority.due_date} ({r.priority.due_from})
+          Priority: {r.priority.reasons.join(' · ')} · {r.no_fix ? 'decide by' : 'due'} {r.priority.due_date}{' '}
+          ({r.priority.due_from})
           {r.priority.overdue && <OverdueMark />}
+          {r.no_fix && r.watch_status === 'open' && <NoFixMark days={r.open_days} />}
+        </p>
+      )}
+      {r.watch_status === 'accepted' && r.decision?.reason && (
+        <p className="meta">
+          Accepted: {r.decision.reason}
+          {r.decision.review_date ? ` · review ${r.decision.review_date}` : ''}
         </p>
       )}
       {r.verdict_reason && <p className="meta">Verdict: {r.verdict_reason}</p>}

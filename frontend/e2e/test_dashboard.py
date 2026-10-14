@@ -39,7 +39,7 @@ def clean_state(api_url: str):
     def reset():
         products = [p["id"] for p in api(api_url, "/dashboard")["products"]]
         api(api_url, "/watchlist", "PUT", {"products": [{"product": p} for p in products]})  # A15: default fields
-        for status in ("fixed", "not_affected"):
+        for status in ("fixed", "not_affected", "accepted"):
             for r in api(api_url, f"/cves?status={status}&limit=200")["rows"]:
                 api(api_url, f"/cves/{r['id']}", "PATCH", {"status": "open"})
         api(api_url, "/watchlist", "PUT", {"products": DEFAULT_WATCHLIST})
@@ -47,6 +47,16 @@ def clean_state(api_url: str):
     reset()
     yield
     reset()
+
+
+def confirm(page: Page, justification: str | None = None) -> None:
+    """Every status change opens the decision dialog (A16b): pick a justification if asked, then submit it."""
+    d = page.get_by_role("dialog")
+    expect(d).to_be_visible()
+    if justification:
+        d.get_by_role("radio", name=justification).check()
+    d.locator("button[type=submit]").click()
+    expect(d).to_have_count(0)
 
 
 @pytest.fixture

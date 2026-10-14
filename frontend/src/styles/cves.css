@@ -308,3 +308,176 @@ table.cves .due-cell .due-date {
     font-weight: 700;
   }
 }
+
+/* ---------- Decisions (A16b): the current decision, the history, "no fix yet", the decision dialog ---------- */
+
+table.cves .status .chip.review-due {
+  margin-left: 0.3rem;
+}
+
+/* "Review due" and "No fix yet": the words in --text on the warn fill with a warn edge (DESIGN.md §5.7: --warn on
+   --warn-soft is under 4.5:1 for small text, so the colour is only the edge). */
+.chip.review-due,
+.chip.no-fix {
+  color: var(--text);
+  background: var(--warn-soft);
+  box-shadow: inset 0 0 0 1px var(--warn);
+  white-space: nowrap;
+}
+
+/* In the narrow due column the mark wraps: a rounded box rather than a pill, so its lines stay inside. */
+table.cves .due-cell .chip.no-fix {
+  display: inline-block;
+  margin: 0.15rem 0 0;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-input);
+  line-height: 1.35;
+  white-space: normal;
+}
+
+table.cves .due-cell .due-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+table.cves .decision {
+  max-width: 12rem;
+  margin-bottom: 0.3rem;
+}
+
+table.cves .decision .review-date,
+table.cves .decision .decision-fact {
+  display: block;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+table.cves .decision .decision-fact {
+  color: var(--muted);
+}
+
+table.cves .history {
+  max-width: 14rem;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+}
+
+table.cves .history summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+table.cves .history ol {
+  margin: 0.3rem 0 0;
+  padding-left: 1.1rem;
+}
+
+table.cves .history li {
+  margin-bottom: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+table.cves .history .history-when {
+  display: block;
+  color: var(--muted);
+}
+
+table.cves .history .history-who {
+  color: var(--muted);
+}
+
+/* The decision dialog: a card over a dimmed page. No animation, so nothing moves with reduced motion either. */
+.decision-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 1.1rem 1.3rem;
+  border: none;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-bubble);
+}
+
+.decision-dialog::backdrop {
+  background: color-mix(in srgb, var(--text) 45%, transparent);
+}
+
+.decision-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.decision-dialog h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.decision-dialog .meta {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.decision-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.decision-dialog fieldset {
+  margin: 0;
+  padding: 0.6rem 0.9rem 0.7rem;
+  border: none;
+  border-radius: var(--radius-nested);
+  background: var(--nested-fill);
+}
+
+.decision-dialog legend {
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.decision-dialog fieldset label {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+  font-weight: 400;
+}
+
+.decision-dialog .dialog-error {
+  margin: 0;
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-input);
+  background: var(--error-soft);
+  box-shadow: inset 0 0 0 1px var(--error);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.decision-dialog .dialog-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+@container (max-width: 760px) {
+  table.cves .decision,
+  table.cves .history {
+    flex-basis: 100%;
+    max-width: none;
+  }
+}
+
+/* Chromium tabs through a date input's parts (month, day, year, the calendar button): ring it while any has focus. */
+.decision-dialog input[type='date']:focus-within {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}

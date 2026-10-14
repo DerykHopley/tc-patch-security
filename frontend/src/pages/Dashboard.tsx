@@ -14,6 +14,7 @@ import { SeverityBadge } from '../chat/SeverityBadge.tsx'
 import { Bars, ChartCard, Columns, SeverityLegend, StackedBars, Tooltip, type Tip } from '../components/charts.tsx'
 import { WarningIcon } from '../components/Icons.tsx'
 import { OverdueMark, PriorityChip, PriorityReasons } from '../components/Priority.tsx'
+import { NoFixMark } from '../components/Decision.tsx'
 import { PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { USAGE_LABEL, USAGES } from '../components/Verdict.tsx'
 import { WelcomeBanner } from '../components/WelcomeBanner.tsx'
@@ -248,7 +249,8 @@ function Tiles({ data, onNavigate }: { data: DashboardData; onNavigate: (href: s
         {k.kev_next_due && (
           <span className="tile-note">
             {overdue && <WarningIcon />}
-            {overdue ? 'Overdue since' : 'Next due'} {k.kev_next_due.due} ({k.kev_next_due.cve})
+            {overdue ? 'Overdue since' : k.kev_next_due.no_fix ? 'No fix yet, decide by' : 'Next due'}{' '}
+            {k.kev_next_due.due} ({k.kev_next_due.cve})
           </span>
         )}
       </a>
@@ -288,8 +290,9 @@ function TopCves({ rows, onNavigate }: { rows: CveRow[] | null; onNavigate: (hre
               <span className="top-product">{r.product_name}</span>
               <SeverityBadge severity={r.severity} cvss={r.cvss} />
               <span className="top-due" title={`Your due date: ${r.due_from}`}>
-                Due <span className="num">{r.due_date}</span>
+                {r.no_fix ? 'Decide by' : 'Due'} <span className="num">{r.due_date}</span>
                 {r.overdue && <OverdueMark />}
+                {r.no_fix && <NoFixMark days={r.open_days} />}
               </span>
               <PriorityReasons reasons={r.priority_reasons} />
             </li>

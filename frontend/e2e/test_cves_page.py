@@ -13,7 +13,7 @@ import pytest
 from playwright.sync_api import Browser, Locator, Page, expect
 
 from test_dashboard import (  # noqa: F401 (fixtures)
-    DESKTOP, PHONE, SHOTS, TILES, api, clean_state, expect_rows, open_dash, rows, tile, tile_value,
+    DESKTOP, PHONE, SHOTS, TILES, api, clean_state, confirm, expect_rows, open_dash, rows, tile, tile_value,
 )
 
 HEIGHT = 900
@@ -151,15 +151,18 @@ def test_a04_7_row_actions_reload_the_table_and_the_tiles(open_cves, api_url):
     open_before = api(api_url, "/dashboard")["kpis"]["open"]
     top = rows(page)[0]
     page.get_by_role("button", name=f"Mark {top} fixed").click()
+    confirm(page)
     expect(page.get_by_role("link", name=top, exact=True)).to_have_count(0)
     second = rows(page)[0]
     page.get_by_role("button", name=f"Mark {second} not affected").click()
+    confirm(page, "Component not present")
     expect(page.get_by_role("link", name=second, exact=True)).to_have_count(0)
     expect(page.get_by_text(f"{open_before - 2} CVEs")).to_be_visible()
 
     page.get_by_role("combobox", name="Status").select_option(label="Fixed")
     expect(page.get_by_role("link", name=top, exact=True)).to_be_visible()
     page.get_by_role("button", name=f"Reopen {top}").click()
+    confirm(page)
     expect(page.get_by_text("No CVEs match these filters.")).to_be_visible()
     assert api(api_url, "/cves?status=not_affected")["rows"][0]["id"] == second
     page.get_by_role("button", name="Dashboard", exact=True).click()
@@ -327,6 +330,7 @@ def test_a04b_9_reduced_motion_nothing_on_the_cves_page_moves(open_cves):
     assert page.evaluate("document.getAnimations().length") == 0
     page.get_by_role("combobox", name="Severity").select_option("HIGH")
     page.get_by_role("button", name=f"Mark {rows(page)[0]} fixed").click()
+    confirm(page)
     expect(page.locator("table.cves tbody tr").first).to_be_visible()
     assert page.evaluate("document.getAnimations().length") == 0
     phone = open_cves(width=PHONE, reduced=True)
@@ -384,6 +388,11 @@ def test_a04_11_keyboard_reaches_filters_actions_and_paging(open_cves):
         assert any(s.startswith(name) for s in seen), (name, seen)
     page.get_by_role("button", name=f"Mark {top} fixed").focus()
     assert visible_focus(page)
+    page.keyboard.press("Enter")  # opens the dialog on its note (A16b); Tab, Tab reaches its submit button
+    expect(page.get_by_role("dialog")).to_be_visible()
+    page.keyboard.press("Tab")
+    page.keyboard.press("Tab")
+    assert focused(page) == "Mark fixed"
     page.keyboard.press("Enter")
     expect(page.get_by_role("link", name=top, exact=True)).to_have_count(0)
 
