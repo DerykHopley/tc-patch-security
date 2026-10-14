@@ -59,6 +59,32 @@ def _cve_card(c: dict) -> str:
     return "\n".join(lines)
 
 
+WHO_ACTS = {"you": "you: upgrade it", "upstream": "upstream: the package that brings it in has to update",
+            "vendor": "the vendor: they run it for you"}
+VERDICT_WORD = {"affected": "affected", "not_affected": "not affected", "unknown": "unknown"}
+
+
+def _verdict_line(v: dict) -> str:
+    """One CVE's verdict from check_affected (A15). Advice: the status is the user's to change."""
+    fixed = f" Fixed in {v['fixed_version']}." if v["fixed_version"] else ""
+    line = (f"**{v['id']}** in {v['product']} [{v['n']}]: **{VERDICT_WORD[v['verdict']]}** by the version check. "
+            f"{v['reason'][0].upper()}{v['reason'][1:]}.{fixed} Who acts: {WHO_ACTS[v['who_acts']]}.")
+    if v["verdict"] == "not_affected" and v["watch_status"] == "open":
+        line += " It stays open until you mark it: the CVEs page offers \"Mark not affected?\"."
+    elif v["reason"] == "no version given":
+        line += " Add your version in the watchlist editor and I can check."
+    return line
+
+
+def _verdict_counts(p: dict) -> str:
+    c = p["counts"]
+    head = (f"{p['product']} ({p['usage']}, {'version ' + p['version'] if p['version'] else 'no version given'}): "
+            f"{p['open']} open CVEs, {c['affected']} affected, {c['unknown']} unknown, {c['not_affected']} not "
+            f"affected by the version check.")
+    rows = [f"- {x['id']}: {VERDICT_WORD[x['verdict']]}, {x['reason']}" for x in p["cves"][:5]]
+    return "\n".join([head, *rows])
+
+
 def _weakness(w: dict) -> str:
     if w["kind"] == "cwe":
         cat = w["category"]
@@ -156,6 +182,10 @@ class FakeLLM:
                 fields["error"] = data["error"]["message"]
             elif "sources" in data:
                 sources += data["sources"]
+            elif "verdict" in data and "reason" in data:  # check_affected, one CVE (A15)
+                fields["affected"] = _verdict_line(data)
+            elif "counts" in data:  # check_affected, one product
+                fields["affected"] = _verdict_counts(data)
             elif "watch_status" in data:
                 fields["cve"] = _cve_card(data)
             elif data.get("kind") in ("cwe", "atlas_technique"):
@@ -164,7 +194,7 @@ class FakeLLM:
                 fields["watch"] = data["message"] + " Watching: " + ", ".join(data["watchlist"]) + "."
 
         if script is None:
-            parts = [fields[k] for k in ("error", "cve", "weakness") if k in fields]
+            parts = [fields[k] for k in ("error", "cve", "affected", "weakness") if k in fields]
             if sources:
                 head = "How to prevent this kind of bug:" if "cve" in fields else "From the knowledge base:"
                 parts.append(f"{head}\n\n{_bullets(sources, 3 if 'cve' in fields else 2)}")

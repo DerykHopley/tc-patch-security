@@ -330,6 +330,34 @@
      "does not"
     ]
    }
+  },
+  {
+   "id": "Q-affected",
+   "question": "Am I affected by CVE-2025-3248?",
+   "keywords": [
+    "affected",
+    "cve-2025-3248"
+   ],
+   "tool_calls": [
+    {
+     "name": "check_affected",
+     "args": {
+      "cve_id": "CVE-2025-3248"
+     }
+    }
+   ],
+   "answer": "{affected}\n\nThe verdict is the version check's advice; the CVE's status stays your decision.",
+   "expect": {
+    "tools": [
+     "check_affected"
+    ],
+    "verdict": true,
+    "status_unchanged": true,
+    "contains_any": [
+     "CVE-2025-3248"
+    ],
+    "cites": true
+   }
   }
  ]
 }

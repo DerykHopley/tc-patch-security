@@ -21,6 +21,8 @@ export const CHECK_LABEL: Record<string, string> = {
   cites: 'Cites sources',
   flagged: 'Flagged',
   no_exploit_code: 'No exploit code',
+  verdict: "Rules' verdict",
+  status_unchanged: 'Status unchanged',
 }
 
 const POLL_MS = 600

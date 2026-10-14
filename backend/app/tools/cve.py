@@ -3,6 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, StringConstraints
 
+from app.dashboard import affected
 from app.errors import ToolError
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
@@ -21,7 +22,9 @@ def run(args: CveArgs, deps, ctx) -> dict:
         raise ToolError(f"{args.cve_id} isn't in my snapshot ({len(k.cves.all())} CVEs for "
                         f"{len(k.products)} LLM products, as of {deps.settings.as_of}).", "cve_not_in_snapshot")
     kev = k.cves.kev.get(cve["id"])
-    status = State.status_of(cve, deps.state.snapshot())
+    data = deps.state.snapshot()
+    status = State.status_of(cve, data)
+    v = affected(k, cve, data)  # the version check (A15): advice, never the status
     source = to_source(len(ctx.sources) + 1, chunk_cve(cve, k.products[cve["product"]])[0], None)
     ctx.sources.append(source)
     return {
@@ -36,6 +39,8 @@ def run(args: CveArgs, deps, ctx) -> dict:
         "epss": k.epss_of(cve["id"]),  # EPSS by FIRST, as of the snapshot date
         "product_match": k.product_match(cve["id"]),  # None when the product came from the CPE
         "possible_match": k.possible_match(cve["id"]),
+        "verdict": v["verdict"], "verdict_reason": v["verdict_reason"], "fixed_version": v["fixed_version"],
+        "who_acts": v["who_acts"],
     }
 
 
@@ -43,7 +48,8 @@ register(ToolSpec(
     name="lookup_cve",
     description="Look up one CVE by id (e.g. CVE-2024-8309): severity, CWEs, OWASP category, CISA KEV status, "
                 "EPSS score and percentile, whether the product is only a possible match (guessed from the "
-                "description), and whether it's open on the user's watchlist.",
+                "description), whether it's open on the user's watchlist, and the version check's verdict "
+                "(affected, not affected, unknown) with its reason, the fixed version and who acts.",
     args_model=CveArgs,
     run=run,
 ))

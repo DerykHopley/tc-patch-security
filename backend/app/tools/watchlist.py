@@ -5,18 +5,23 @@ from pydantic import BaseModel, StringConstraints, model_validator
 
 from app.errors import InputError, ToolError
 from app.tools.registry import ToolSpec, register
+from app.verdict import USAGE_LABELS, USAGES
 
 
 class WatchArgs(BaseModel):
-    action: Literal["watch", "unwatch", "set_status"]
+    action: Literal["watch", "unwatch", "set_status", "set_details"]
     product: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)] | None = None
     cve_id: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True,
                                              pattern=r"(?i)^CVE-\d{4}-\d{4,}$")] | None = None
     status: Literal["open", "fixed", "not_affected"] | None = None
+    # set_details (A15): how the user runs the product. Only what's given changes; version "" clears it.
+    usage: Literal[USAGES] | None = None  # type: ignore[valid-type]
+    version: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)] | None = None
+    internet_facing: bool | None = None
 
     @model_validator(mode="after")
     def needs(self):
-        if self.action in ("watch", "unwatch") and not self.product:
+        if self.action in ("watch", "unwatch", "set_details") and not self.product:
             raise ValueError(f"'{self.action}' needs a product")
         if self.action == "set_status" and not (self.cve_id and self.status):
             raise ValueError("'set_status' needs cve_id and status")
@@ -37,6 +42,13 @@ def run(args: WatchArgs, deps, ctx) -> dict:
             if not watched:
                 msg += f" {k.products[cve['product']]} isn't on your watchlist, so the dashboard won't show it."
             return {"message": msg, "watchlist": names(state.snapshot()["watchlist"])}
+        if args.action == "set_details":
+            f = state.set_fields(args.product, usage=args.usage, version=args.version,
+                                 internet_facing=args.internet_facing)
+            name = k.products[k.resolve_product(args.product)]
+            parts = [USAGE_LABELS[f["usage"]], f"version {f['version']}" if f["version"] else "no version given",
+                     "internet-facing" if f["internet_facing"] else "not internet-facing"]
+            return {"message": f"{name}: {', '.join(parts)}.", "watchlist": names(state.snapshot()["watchlist"])}
         fn = state.watch if args.action == "watch" else state.unwatch
         pids, changed = fn(args.product)
         name = k.products[k.resolve_product(args.product)]
@@ -52,7 +64,9 @@ def run(args: WatchArgs, deps, ctx) -> dict:
 register(ToolSpec(
     name="update_watchlist",
     description="Change the user's watchlist: action 'watch' or 'unwatch' with a product (e.g. Ollama), "
-                "or 'set_status' with cve_id and status (open, fixed, not_affected).",
+                "'set_status' with cve_id and status (open, fixed, not_affected) only when the user asks for it, "
+                "or 'set_details' with a product and any of usage (self_hosted, library, transitive, hosted), "
+                "version, internet_facing.",
     args_model=WatchArgs,
     run=run,
 ))
