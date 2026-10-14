@@ -169,7 +169,7 @@ def severity_filter(page: Page) -> Locator:
 
 
 def test_a07_2_page_keeps_its_scroll_and_filters_when_pinning_and_unpinning(open_app):
-    page = open_app()
+    page = open_app(query="/cves", width=DESKTOP)  # the table lives on the CVEs page since A04b
     expect(page.locator("table.cves tbody tr").first).to_be_visible()
     severity_filter(page).select_option("HIGH")
     expect(page.locator("table.cves tbody tr").first).to_be_visible()
@@ -206,7 +206,7 @@ def message_box(page: Page) -> Locator:
     return window(page).get_by_role("textbox", name="Message")
 
 
-@pytest.mark.parametrize("page_name", ["Dashboard", "Settings", "Dev"])
+@pytest.mark.parametrize("page_name", ["Dashboard", "CVEs", "Settings", "Dev"])
 @pytest.mark.parametrize("key", ["Control+k", "Meta+k"])
 def test_a07_3_ctrl_or_cmd_k_opens_the_chat_on_any_page(open_app, page_name, key):
     page = open_app()
@@ -305,8 +305,8 @@ def first_row_cve(page: Page) -> str:
     return row.locator("td").first.get_by_role("link").inner_text()
 
 
-def test_a07_5_ask_about_this_opens_the_chat_over_the_dashboard_and_asks(open_app):
-    page = open_app()
+def test_a07_5_ask_about_this_opens_the_chat_over_the_cves_page_and_asks(open_app):
+    page = open_app(query="/cves")  # the table moved to the CVEs page (A04b)
     cve = first_row_cve(page)
     button = page.get_by_role("button", name=f"Ask about this: {cve}")
     expect(button).to_have_text("Ask about this")
@@ -314,8 +314,8 @@ def test_a07_5_ask_about_this_opens_the_chat_over_the_dashboard_and_asks(open_ap
     page.keyboard.press("Enter")  # reachable by keyboard
     chat = window(page)
     expect(chat).to_be_visible()
-    expect(page.locator("h1")).to_have_text("Dashboard")  # over the dashboard: the page stays
-    expect(chat.locator(".context-chip")).to_have_text("on Dashboard")
+    expect(page.locator("h1")).to_have_text("CVEs")  # over the CVEs page: the page stays
+    expect(chat.locator(".context-chip")).to_have_text("on CVEs")
     expect(chat.locator(".message.user")).to_have_text(f"Explain {cve} and how to defend against it.")
     answer = chat.locator(".message.assistant")
     expect(answer).to_have_count(1, timeout=10_000)
@@ -325,7 +325,7 @@ def test_a07_5_ask_about_this_opens_the_chat_over_the_dashboard_and_asks(open_ap
 
 
 def test_a07_5_ask_about_this_uses_a_pinned_chat_when_pinned(open_app):
-    page = open_app(init_script="localStorage.setItem('pinned', '1')")
+    page = open_app(init_script="localStorage.setItem('pinned', '1')", query="/cves")
     cve = first_row_cve(page)
     head_button(page, "Close the chat").click()
     page.get_by_role("button", name=f"Ask about this: {cve}").click()

@@ -127,6 +127,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Each tile is a link to the CVEs page (A04b): white text, no underline; the global focus ring shows by keyboard. */
+a.tile {
+  text-decoration: none;
+}
+
 .tile > * {
   position: relative; /* above the circles */
 }
@@ -186,94 +191,6 @@
   margin-bottom: 0.5rem;
 }
 
-/* ---------- CVE table ---------- */
-
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-  margin-bottom: 0.5rem;
-  font-size: 0.85rem;
-}
-
-.filters label {
-  display: flex;
-  gap: 0.35rem;
-  align-items: center;
-  color: var(--muted);
-  font-weight: 700;
-}
-
-.table-scroll {
-  overflow-x: auto;
-}
-
-table.cves {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-
-table.cves th,
-table.cves td {
-  text-align: left;
-  padding: 0.45rem 0.5rem;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-
-table.cves th {
-  color: var(--muted);
-  font-weight: 700;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-table.cves a {
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-/* Two lines of the description: the row stays short and the actions column stays in view. */
-table.cves .summary {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  max-width: 16rem; /* 19rem before the EPSS column (A14) */
-  margin-top: 0.15rem;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-table.cves .num {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-table.cves .status {
-  display: block;
-  margin-bottom: 0.25rem;
-  white-space: nowrap;
-}
-
-/* Stacked, so the column stays narrow beside the side column. */
-table.cves .actions {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.25rem;
-}
-
-table.cves .actions button {
-  padding: 0.15rem 0.55rem;
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
-
 .chip {
   display: inline-block;
   padding: 0 0.45rem;
@@ -298,18 +215,6 @@ table.cves .actions button {
   color: var(--text);
   box-shadow: inset 0 0 0 1px var(--warn);
   white-space: nowrap;
-}
-
-/* The percentile may wrap ("98th / percentile"): the column stays narrow, so the row actions stay in view. */
-table.cves .epss .meta {
-  display: block;
-  font-size: 0.72rem;
-  white-space: normal;
-}
-
-.epss-credit {
-  margin: 0.5rem 0 0;
-  font-size: 0.78rem;
 }
 
 /* Severity: text plus a swatch on the one-hue ramp (DESIGN.md §3.2). */
@@ -349,12 +254,42 @@ table.cves .epss .meta {
   background: var(--sev-low);
 }
 
-.pager {
+/* ---------- Top 5 open CVEs (A04b): the CVEs page's first rows, and a link to the rest ---------- */
+
+.top-cves ol {
   display: flex;
-  gap: 0.6rem;
+  flex-direction: column;
+  margin: 0 0 0.7rem;
+  padding: 0;
+  list-style: none;
+}
+
+.top-cves li {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  margin-top: 0.6rem;
+  gap: 0.3rem 0.9rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+
+.top-cves .top-id {
+  flex: 0 0 13rem;
+}
+
+.top-cves .cve-id {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.top-cves .top-product {
+  flex: 1;
+  min-width: 7rem;
+}
+
+.see-all {
+  font-weight: 700;
 }
 
 /* ---------- Watchlist editor ---------- */
@@ -424,7 +359,7 @@ table.cves .epss .meta {
   animation-delay: 0.12s;
 }
 
-/* DESIGN.md §7.1 lists delays up to the 3rd card; the 4th (the CVE table) keeps the 3rd card's. */
+/* DESIGN.md §7.1 lists delays up to the 3rd card; the 4th (the top 5 CVEs) keeps the 3rd card's. */
 .dashboard .dash-main > :nth-child(n + 3) {
   animation-delay: 0.24s;
 }

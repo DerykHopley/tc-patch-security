@@ -1,5 +1,6 @@
 """Browser check (seam 3) for the snapshot additions: the EPSS column, the "possible match" badge (table and
 lookup_cve card) and the sources' licences in the freshness panel. Check ids: A14.n, from ticket #16.
+The table's checks run on the CVEs page since A04b (#26); the freshness panel stays on the dashboard.
 
 Runs in Firefox and Chromium (run.sh). Expected values come from the backend's API (tested in
 backend/tests/test_dashboard.py and test_tools.py); expected looks from docs/design/DESIGN.md.
@@ -10,6 +11,7 @@ import pytest
 from playwright.sync_api import Page, Route, expect
 
 from test_chat import Q2, ask, open_chat
+from test_cves_page import open_cves  # noqa: F401 (fixture)
 from test_dashboard import DESKTOP, PHONE, SHOTS, api, clean_state, contrast, open_dash, rgb_list  # noqa: F401 (fixtures)
 
 
@@ -30,8 +32,8 @@ def row(page: Page, cve_id: str):
 
 # --- EPSS column ---------------------------------------------------------------------------------------------------
 
-def test_a14_9_epss_column_with_score_percentile_and_credit(open_dash, api_url):
-    page = open_dash()
+def test_a14_9_epss_column_with_score_percentile_and_credit(open_cves, api_url):
+    page = open_cves()
     expect(table(page).get_by_role("columnheader", name=re.compile("EPSS"))).to_be_visible()
     for r in api(api_url, "/cves?limit=25")["rows"][:5]:
         score, pct = epss_text(r["epss"])
@@ -45,8 +47,8 @@ def test_a14_9_epss_column_with_score_percentile_and_credit(open_dash, api_url):
 
 # --- Possible match --------------------------------------------------------------------------------------------------
 
-def test_a14_10_possible_match_badge_only_on_unconfirmed_guesses(open_dash, api_url):
-    page = open_dash()
+def test_a14_10_possible_match_badge_only_on_unconfirmed_guesses(open_cves, api_url):
+    page = open_cves()
     page.get_by_role("combobox", name="Product").select_option(label="Langflow")
     rows = api(api_url, "/cves?product=langflow&limit=25")["rows"]
     expect(table(page).locator("tbody tr td:first-child a")).to_have_text([r["id"] for r in rows])
@@ -103,8 +105,8 @@ def test_a14_11_freshness_lists_every_licence_attribution_and_the_nvd_notice(ope
 
 # --- Motion, themes, widths, keyboard ----------------------------------------------------------------------------------
 
-def test_a14_12_reduced_motion_nothing_new_moves(open_dash, api_url):
-    page = open_dash(reduced=True)
+def test_a14_12_reduced_motion_nothing_new_moves(open_cves, api_url):
+    page = open_cves(reduced=True)
     page.get_by_role("combobox", name="Product").select_option(label="Langflow")
     expect(table(page).locator(".chip.possible").first).to_be_visible()
     expect(page.locator(".epss-credit")).to_be_visible()
@@ -118,8 +120,8 @@ def test_a14_12_reduced_motion_nothing_new_moves(open_dash, api_url):
 
 @pytest.mark.parametrize("width", [PHONE, DESKTOP])
 @pytest.mark.parametrize("scheme", ["light", "dark"])
-def test_a14_13_light_dark_phone_and_desktop(open_dash, browser_name, width, scheme):
-    page = open_dash(width=width, scheme=scheme, reduced=True)
+def test_a14_13_light_dark_phone_and_desktop(open_cves, browser_name, width, scheme):
+    page = open_cves(width=width, scheme=scheme, reduced=True)
     page.get_by_role("combobox", name="Product").select_option(label="Langflow")
     badge = table(page).locator(".chip.possible").first
     expect(badge).to_be_visible()
@@ -131,25 +133,30 @@ def test_a14_13_light_dark_phone_and_desktop(open_dash, browser_name, width, sch
     assert contrast(fg, bg) >= 4.5, colours  # small text on a soft fill (DESIGN.md §5)
     for cell in (page.locator("td.epss").first, page.locator(".epss-credit")):
         c = cell.evaluate("el => getComputedStyle(el).color")
-        card = page.locator(".dash-main > .card").last.evaluate("el => getComputedStyle(el).backgroundColor")
+        card = page.get_by_role("region", name="CVEs on your watchlist").evaluate("el => getComputedStyle(el).backgroundColor")
         assert contrast(rgb_list(c)[0], rgb_list(card)[0]) >= 4.5
-    if width == DESKTOP:  # the new column doesn't push the row actions out of view
-        action = page.get_by_role("button", name=re.compile(r"^Mark .* fixed$")).first.bounding_box()
-        box = page.locator(".table-scroll").bounding_box()
-        assert action and box and action["x"] + action["width"] <= box["x"] + box["width"]
+    # The new column doesn't push the row actions out of view: test_cves_page.py checks it (A04b.2, A04b.8).
 
 
-def test_a14_14_keyboard_reaches_the_epss_credit_and_the_source_links(open_dash):
-    page = open_dash()
-    page.get_by_role("link", name="FIRST").focus()
-    outline = page.evaluate("(() => { const s = getComputedStyle(document.activeElement);"
-                            " return [s.outlineStyle, s.outlineWidth] })()")
-    assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
+def test_a14_14_keyboard_reaches_the_epss_credit_and_the_source_links(open_cves, open_dash):
+    page = open_cves()
     page.get_by_role("combobox", name="Status").focus()
     seen = []
     for _ in range(200):
         page.keyboard.press("Tab")
         seen.append(page.evaluate("document.activeElement.textContent.trim()"))
-        if seen[-1] == "EPSS":
+        if seen[-1] == "FIRST":
             break
-    assert "FIRST" in seen and "EPSS" in seen, seen
+    assert seen[-1] == "FIRST", seen
+    outline = page.evaluate("(() => { const s = getComputedStyle(document.activeElement);"
+                            " return [s.outlineStyle, s.outlineWidth] })()")
+    assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
+    dash = open_dash()  # the freshness panel's EPSS source link, on the dashboard
+    dash.get_by_role("region", name="Watchlist", exact=True).get_by_label("vLLM").focus()
+    seen = []
+    for _ in range(40):
+        dash.keyboard.press("Tab")
+        seen.append(dash.evaluate("document.activeElement.textContent.trim()"))
+        if seen[-1].startswith("EPSS"):
+            break
+    assert seen[-1].startswith("EPSS"), seen

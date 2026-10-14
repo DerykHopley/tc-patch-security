@@ -140,6 +140,7 @@ export interface Dashboard {
     kev: number
     kev_next_due: { cve: string; due: string } | null
     new_30d: number
+    new_since: string // the first of those 30 days, YYYY-MM-DD: the tile's link filters on it
   }
   by_product: ProductCounts[] // open CVEs per watched product, in watchlist order
   per_month: { month: string; count: number }[] // all statuses, by publication month (YYYY-MM)
@@ -200,6 +201,8 @@ export interface CveQuery {
   product?: string
   severity_min?: Severity
   status: CveStatus | 'all'
+  kev?: boolean // only CVEs in CISA KEV (A04b: the KEV tile's link)
+  published_since?: string // YYYY-MM-DD, inclusive (A04b: the "new in 30 days" tile's link)
   limit: number
   offset: number
 }
@@ -219,6 +222,8 @@ export function cves(q: CveQuery): Promise<CvePage> {
   const params = new URLSearchParams({ status: q.status, limit: String(q.limit), offset: String(q.offset) })
   if (q.product) params.set('product', q.product)
   if (q.severity_min) params.set('severity_min', q.severity_min)
+  if (q.kev !== undefined) params.set('kev', String(q.kev))
+  if (q.published_since) params.set('published_since', q.published_since)
   return request<CvePage>(`/cves?${params}`)
 }
 
