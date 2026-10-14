@@ -113,6 +113,10 @@ def test_a14_11_freshness_lists_every_licence_attribution_and_the_nvd_notice(ope
 def test_a14_12_reduced_motion_nothing_new_moves(open_cves, api_url):
     page = open_cves(RECENT, reduced=True)
     page.get_by_role("combobox", name="Product").select_option(label="Langflow")
+    # Wait for Langflow's rows: the page opens on every product's recent CVEs, which have possible matches too, and
+    # styles read from rows React is replacing come back empty.
+    rows = api(api_url, "/cves?product=langflow&published_since=2026-09-14&limit=25")["rows"]
+    expect(table(page).locator("tbody tr td:first-child a")).to_have_text([r["id"] for r in rows])
     expect(table(page).locator(".chip.possible").first).to_be_visible()
     expect(page.locator(".epss-credit")).to_be_visible()
     assert page.evaluate("document.getAnimations().length") == 0

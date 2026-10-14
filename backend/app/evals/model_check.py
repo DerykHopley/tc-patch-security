@@ -116,6 +116,7 @@ def summarise(rows: list[dict]) -> dict:
 
 def _run(run: dict, qs: list[dict], deps, store: RunStore) -> None:
     tmp = tempfile.TemporaryDirectory()
+    status = "done"
     try:
         state = State(Path(tmp.name) / "state.json", deps.knowledge, deps.state.defaults, deps.state.dev_defaults)
         state._save(deps.state.snapshot())  # a copy: the watchlist questions write here
@@ -127,14 +128,14 @@ def _run(run: dict, qs: list[dict], deps, store: RunStore) -> None:
             if row["error"] and any(p in row["error"] for p in FATAL):
                 run["error"] = row["error"]
                 break
-        run["status"] = "done"
     except Exception as e:  # noqa: BLE001
-        run["status"], run["error"] = "failed", f"{type(e).__name__}: {e}"
+        status, run["error"] = "failed", f"{type(e).__name__}: {e}"
     finally:
         tmp.cleanup()
-        with _lock:
+        with _lock:  # the status changes last, with the summary: a poller never sees "done" without one
             run["finished"] = now()
             run["summary"] = summarise(run["results"])
+            run["status"] = status
             store.save(KIND, run)
             _live.pop(run["id"], None)
 
