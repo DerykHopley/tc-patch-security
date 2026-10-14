@@ -59,6 +59,31 @@ cd proto/frontend && npx tsc -b && npx oxlint src      # types and lint
 
 The browser checks (`proto/frontend/e2e/check_ui.py`, Playwright, 35 checks) change data, so run them against a second pair of servers with a throwaway state file. The commands are in [STATUS.md](./STATUS.md#how-to-test-it).
 
+## The real build (in progress)
+
+Spec A rebuilds the app in `backend/` and `frontend/`, beside the frozen `proto/`. So far it's a walking skeleton: the snapshot, the state file, a `/health` route and a bare page showing the as-of date.
+
+```bash
+# Backend: FakeLLM, no key, no network. State in backend/data/state.json
+cd backend && uv sync && uv run uvicorn app.main:app --reload --port 8000
+
+# Frontend: http://localhost:5173
+cd frontend && npm install && npm run dev
+```
+
+- It uses the same ports as the prototype: stop one before starting the other, or pass other ports (`--port`, and `VITE_API_URL` for the frontend).
+- Settings come from the environment. Every one is listed in `backend/.env.example` and `frontend/.env.example`; copy to `.env` (git-ignored) and run the backend with `uv run --env-file .env ...`.
+- Tests, the same ones CI runs on every push and pull request ([.github/workflows/ci.yml](./.github/workflows/ci.yml)):
+
+```bash
+cd backend && uv run pytest                            # no key, no network
+cd frontend && npx tsc -b && npm run lint              # types and lint (oxlint)
+frontend/e2e/run.sh                                    # browser check, Firefox and Chromium
+```
+
+- `frontend/e2e/run.sh` starts its own servers on 8001/5174 with FakeLLM and a throwaway state file, so it never touches an app on 8000/5173. First time: `uv run --project frontend/e2e playwright install firefox chromium`.
+- Review rules that lint can't check: [CODING_STANDARDS.md](./CODING_STANDARDS.md).
+
 ## Stack
 
 - **Backend:** Python, FastAPI, Pydantic, numpy, the `openai` SDK (one client for OpenRouter and local servers).
@@ -138,7 +163,9 @@ flowchart TD
 
 ### Code and data
 
-- `proto/`: the prototype (FastAPI backend, React frontend).
+- `proto/`: the prototype (FastAPI backend, React frontend). Frozen as the reference.
+- `backend/`, `frontend/`: the real build (spec A), in progress. `frontend/e2e/` holds the browser check.
+- [CODING_STANDARDS.md](./CODING_STANDARDS.md): judgement rules for review.
 - `feasibility/`: `fetch.py` downloads the source data, `analyse.py` summarises it. The downloaded data isn't committed.
 
 ## Decisions
