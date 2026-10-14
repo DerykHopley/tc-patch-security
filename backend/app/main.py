@@ -2,6 +2,7 @@
 
 Run: `uv run uvicorn app.main:app --port 8000` (settings from the environment, see .env.example).
 """
+import datetime as dt
 import logging
 
 from fastapi import FastAPI, Query, Request
@@ -96,7 +97,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     @app.get("/cves")
     def get_cves(product: str | None = None, severity_min: str | None = None, status: str = "open",
-                 limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
+                 limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), kev: bool | None = None,
+                 published_since: str | None = None):
         pid = None
         if product:
             pid = deps.knowledge.resolve_product(product)
@@ -107,7 +109,13 @@ def create_app(deps: Deps | None = None) -> FastAPI:
             raise InputError("severity_min must be LOW, MEDIUM, HIGH or CRITICAL.")
         if status not in CVE_STATUS_FILTERS:
             raise InputError("status must be open, fixed, not_affected or all.")
-        return dashboard.list_cves(deps.knowledge, deps.state.snapshot(), pid, severity, status, limit, offset)
+        if published_since:
+            try:
+                published_since = dt.date.fromisoformat(published_since).isoformat()
+            except ValueError:
+                raise InputError("published_since must be a date, YYYY-MM-DD.") from None
+        return dashboard.list_cves(deps.knowledge, deps.state.snapshot(), pid, severity, status, limit, offset,
+                                   kev, published_since)
 
     @app.patch("/cves/{cve_id}")
     def patch_cve(cve_id: str, body: StatusUpdate):

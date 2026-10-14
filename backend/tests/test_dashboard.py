@@ -4,7 +4,7 @@
 def test_a04_1_dashboard_tiles_watchlist_and_products(client):
     d = client.get("/dashboard").json()
     assert d["as_of"] == "2026-10-13"
-    assert set(d["kpis"]) == {"open", "critical", "kev", "kev_next_due", "new_30d"}
+    assert set(d["kpis"]) == {"open", "critical", "kev", "kev_next_due", "new_30d", "new_since"}
     assert d["kpis"]["open"] == sum(p["total"] for p in d["by_product"])
     assert d["kpis"]["kev"] == 9 and d["kpis"]["kev_next_due"]["due"]
     assert d["watchlist"] == ["langchain", "langflow", "litellm", "ollama", "open-webui"]
@@ -132,3 +132,25 @@ def test_a04_5_one_state_shared_with_what_the_chat_uses(client, deps):
     client.patch("/cves/CVE-2025-1975", json={"status": "not_affected"})
     snap = deps.state.snapshot()
     assert snap["watchlist"] == ["ollama"] and snap["statuses"]["CVE-2025-1975"] == "not_affected"
+
+
+# --- A04b (#26): the tiles link to the CVEs page with their filter, so the API needs two more ---------------------
+
+def test_a04b_1_kev_filter_matches_the_kev_tile(client):
+    body = client.get("/cves?kev=true&limit=200").json()
+    assert body["total"] == 9  # the KEV tile (A04.1)
+    assert all(r["kev"] and r["status"] == "open" for r in body["rows"])
+    assert client.get("/cves?kev=false&limit=1").json()["total"] == client.get("/cves?limit=1").json()["total"] - 9
+
+
+def test_a04b_2_published_since_filter_matches_the_new_tile(client):
+    kpis = client.get("/dashboard").json()["kpis"]
+    assert kpis["new_since"] == "2026-09-14"  # the first of the 30 days up to the as-of date, 2026-10-13
+    body = client.get("/cves?status=all&published_since=2026-09-14&limit=200").json()
+    assert body["total"] == kpis["new_30d"] > 0
+    assert all(r["published"] >= "2026-09-14" for r in body["rows"])
+
+
+def test_a04b_2_bad_published_since_gets_a_plain_400(client):
+    r = client.get("/cves?published_since=last-week")
+    assert r.status_code == 400 and "published_since must be a date" in r.json()["error"]["message"]

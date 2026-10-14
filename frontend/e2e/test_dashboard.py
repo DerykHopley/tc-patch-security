@@ -1,4 +1,5 @@
-"""Browser check (seam 3) for the dashboard: tiles, CVE table, row actions, watchlist editor. Check ids: A04.n (#6).
+"""Browser check (seam 3) for the dashboard: tiles and the watchlist editor. Check ids: A04.n (#6).
+The CVE table moved to its own page (A04b, #26): its checks are in test_cves_page.py, with their A04.n ids.
 
 Runs in Firefox and Chromium (run.sh). Expected numbers come from the backend's API (tested on its own in
 backend/tests/test_dashboard.py); expected looks come from docs/design/DESIGN.md §5.1 and §7.1.
@@ -50,7 +51,7 @@ def clean_state(api_url: str):
 
 @pytest.fixture
 def open_dash(browser: Browser, ui_url: str, clean_state):
-    """Opens the dashboard in a fresh context and waits for the tiles and the table."""
+    """Opens the dashboard in a fresh context and waits for the tiles and the "Top 5 open CVEs" card."""
     contexts = []
 
     def _open(width=DESKTOP, scheme="light", reduced=False, before=None) -> Page:
@@ -62,7 +63,7 @@ def open_dash(browser: Browser, ui_url: str, clean_state):
             before(page)
         page.goto(ui_url)
         expect(page.locator(".tile")).to_have_count(4)
-        expect(page.locator("table.cves tbody tr").first).to_be_visible()
+        expect(page.locator(".top-cves li").first).to_be_visible()
         return page
 
     yield _open
@@ -154,46 +155,6 @@ def test_a04_6_kev_tile_wiggles_every_4s_only_with_open_kev(open_dash):
     expect(tile(calm, TILES[2][0]).locator(".tile-note")).to_have_count(0)
 
 
-# --- CVE table, filters and paging --------------------------------------------------------------------------------
-
-def test_a04_7_table_sorted_filtered_and_paged(open_dash, api_url):
-    page = open_dash()
-    first = api(api_url, "/cves?limit=25")
-    expect_rows(page, [r["id"] for r in first["rows"]])
-    expect(page.get_by_text(f"{first['total']} CVEs")).to_be_visible()
-    page.get_by_role("button", name="Next page").click()
-    expect(page.get_by_text(f"26–50 of {first['total']}")).to_be_visible()
-    expect_rows(page, [r["id"] for r in api(api_url, "/cves?limit=25&offset=25")["rows"]])
-
-    page.get_by_role("combobox", name="Product").select_option(label="Open WebUI")
-    page.get_by_role("combobox", name="Severity").select_option(label="High or worse")
-    filtered = api(api_url, "/cves?product=open-webui&severity_min=HIGH&limit=25")
-    expect(page.get_by_text(f"{filtered['total']} CVEs")).to_be_visible()
-    expect_rows(page, [r["id"] for r in filtered["rows"]])  # filters go back to page 1
-    sev = page.locator("table.cves tbody tr td:nth-child(3)").all_inner_texts()
-    assert all(s.startswith(("High", "Critical")) for s in sev)
-
-
-def test_a04_7_row_actions_reload_tiles_and_table(open_dash, api_url):
-    page = open_dash()
-    open_before = tile_value(page, "Open CVEs")
-    top = rows(page)[0]
-    page.get_by_role("button", name=f"Mark {top} fixed").click()
-    expect(tile(page, "Open CVEs").locator(".tile-value")).to_have_text(str(open_before - 1))
-    expect(page.get_by_role("link", name=top, exact=True)).to_have_count(0)
-
-    second = rows(page)[0]
-    page.get_by_role("button", name=f"Mark {second} not affected").click()
-    expect(tile(page, "Open CVEs").locator(".tile-value")).to_have_text(str(open_before - 2))
-
-    page.get_by_role("combobox", name="Status").select_option(label="Fixed")
-    expect(page.get_by_role("link", name=top, exact=True)).to_be_visible()
-    page.get_by_role("button", name=f"Reopen {top}").click()
-    expect(page.get_by_text("No CVEs match these filters.")).to_be_visible()
-    expect(tile(page, "Open CVEs").locator(".tile-value")).to_have_text(str(open_before - 1))
-    assert api(api_url, "/cves?status=not_affected")["rows"][0]["id"] == second
-
-
 # --- Watchlist editor ---------------------------------------------------------------------------------------------
 
 def test_a04_8_watchlist_add_and_remove(open_dash, api_url):
@@ -208,8 +169,10 @@ def test_a04_8_watchlist_add_and_remove(open_dash, api_url):
     watchlist = api(api_url, "/watchlist")["watchlist"]
     assert "vllm" in watchlist and "langchain" not in watchlist
     expect(tile(page, "Open CVEs").locator(".tile-value")).to_have_text(str(api(api_url, "/dashboard")["kpis"]["open"]))
-    options = page.get_by_role("combobox", name="Product").locator("option").all_inner_texts()
-    assert "vLLM" in options and "LangChain" not in options
+    page.get_by_role("button", name="CVEs", exact=True).click()  # the CVEs page filters on the new watchlist
+    product = page.get_by_role("combobox", name="Product")
+    expect(product.locator("option", has_text="vLLM")).to_have_count(1)
+    expect(product.locator("option", has_text="LangChain")).to_have_count(0)
 
 
 def test_a04_8_unknown_product_rejected_with_a_plain_message(open_dash):
@@ -241,8 +204,10 @@ def test_a04_9_tiles_and_cards_fade_up_with_the_listed_delays(open_dash):
 
 def test_a04_9_reduced_motion_nothing_on_the_dashboard_moves(open_dash):
     page = open_dash(reduced=True)
-    page.get_by_role("button", name=f"Mark {rows(page)[0]} fixed").click()  # a reload must not animate either
-    expect(page.locator(".tile").first).to_be_visible()
+    editor = page.get_by_role("region", name="Watchlist", exact=True)
+    editor.get_by_label("vLLM").check()
+    editor.get_by_role("button", name="Save watchlist").click()  # a reload must not animate either
+    expect(editor.get_by_text("Saved.")).to_be_visible()
     assert page.evaluate("document.getAnimations().length") == 0
     transforms = tile(page, TILES[2][0]).evaluate("""async el => { const seen = new Set();
         for (let i = 0; i < 10; i++) { seen.add(getComputedStyle(el).transform); await new Promise(r => setTimeout(r, 50)) }
@@ -263,27 +228,20 @@ def test_a04_10_light_dark_phone_and_desktop(open_dash, browser_name, width, sch
     assert columns == (2 if width == PHONE else 4)
     surface = page.locator(".dash-main > .card").first.evaluate("el => getComputedStyle(el).backgroundColor")
     assert surface == ("rgb(255, 255, 255)" if scheme == "light" else "rgb(26, 26, 46)")
-    if width == DESKTOP:  # the row actions are in view without scrolling the table sideways
-        action = page.get_by_role("button", name=re.compile(r"^Mark .* fixed$")).first.bounding_box()
-        box = page.locator(".table-scroll").bounding_box()
-        assert action and box and action["x"] + action["width"] <= box["x"] + box["width"]
+    # The row actions' check (with and without the pinned chat) moved to the CVEs page: test_cves_page.py.
 
 
-def test_a04_11_keyboard_reaches_filters_actions_and_watchlist(open_dash):
+def test_a04_11_keyboard_reaches_the_watchlist(open_dash):
+    # The filters, row actions and paging moved to the CVEs page (test_cves_page.py keeps A04.11 for them).
     page = open_dash()
-    top = rows(page)[0]
-    page.get_by_role("combobox", name="Product").focus()
+    page.get_by_role("link", name="See all CVEs").focus()
     seen = []
-    for _ in range(150):
+    for _ in range(40):
         page.keyboard.press("Tab")
         seen.append(page.evaluate("(() => { const a = document.activeElement;"
-                                  " return a.getAttribute('aria-label') || a.labels?.[0]?.textContent.trim() || a.textContent.trim() })()"))
+                                  " return a.labels?.[0]?.textContent.trim() || a.textContent.trim() })()"))
         if seen[-1] == "LangChain":
             break
-    for name in ("Severity", "Status", top, f"Mark {top} fixed", f"Mark {top} not affected", "Next page", "LangChain"):
-        assert any(s.startswith(name) for s in seen), (name, seen)
-    page.get_by_role("button", name=f"Mark {top} fixed").focus()
+    assert seen[-1] == "LangChain", seen
     outline = page.evaluate("(() => { const s = getComputedStyle(document.activeElement); return [s.outlineStyle, s.outlineWidth] })()")
     assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
-    page.keyboard.press("Enter")
-    expect(page.get_by_role("link", name=top, exact=True)).to_have_count(0)

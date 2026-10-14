@@ -146,7 +146,7 @@ def test_a02_4_sidebar_has_brand_sections_snapshot_card_and_collapse(open_app):
     expect(side.get_by_text("assistant", exact=True)).to_be_visible()
     expect(side.get_by_text("Monitor", exact=True)).to_be_visible()
     expect(side.get_by_text("Assistant", exact=True)).to_be_visible()
-    for name in ("Dashboard", "Settings", "Dev", "Ask Patch"):
+    for name in ("Dashboard", "CVEs", "Settings", "Dev", "Ask Patch"):
         expect(side.get_by_role("button", name=name, exact=True)).to_be_visible()
     card = side.locator(".side-card")
     expect(card.get_by_text("Snapshot")).to_be_visible()
@@ -164,7 +164,7 @@ def test_a02_4_collapsed_rail_keeps_names_and_is_remembered(open_app):
     expect(page.locator(".side-card")).to_be_hidden()
     expect(page.get_by_text("LLM Security", exact=True)).to_be_hidden()
     side = page.get_by_role("complementary", name="Main")  # Patch's own button is also "Ask Patch" (A06)
-    for name in ("Dashboard", "Settings", "Dev", "Ask Patch"):
+    for name in ("Dashboard", "CVEs", "Settings", "Dev", "Ask Patch"):
         expect(side.get_by_role("button", name=name, exact=True)).to_be_visible()
     page.reload()
     expect(page.get_by_role("button", name="Expand the sidebar")).to_be_visible()
@@ -175,7 +175,7 @@ def test_a02_4_collapsed_rail_keeps_names_and_is_remembered(open_app):
 
 def test_a02_5_pages_reachable_and_active_page_shown_everywhere(open_app):
     page = open_app()
-    for name, title in (("Settings", "Settings"), ("Dev", "Dev panel"), ("Dashboard", "Dashboard")):
+    for name, title in (("CVEs", "CVEs"), ("Settings", "Settings"), ("Dev", "Dev panel"), ("Dashboard", "Dashboard")):
         page.get_by_role("button", name=name, exact=True).click()
         expect(page.get_by_role("heading", level=1)).to_have_text(title)
         expect(page.locator(".crumb-path")).to_have_text(f"Pages / {title}")
@@ -291,8 +291,9 @@ def test_a02_8_nothing_hidden_behind_the_tab_bar(open_app):
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 def test_a02_8_no_sideways_scroll(open_app, width, scheme):
     page = open_app(width=width, scheme=scheme)
-    for name in ("Dashboard", "Settings", "Dev"):
+    for name in ("Dashboard", "CVEs", "Settings", "Dev"):
         page.get_by_role("button", name=name, exact=True).click()
+        page.wait_for_load_state("networkidle")  # the page's content (the CVE table) has loaded
         assert no_sideways_scroll(page), name
 
 
@@ -360,8 +361,8 @@ def test_a02_11_every_control_reachable_by_keyboard_with_visible_focus(open_app,
     if collapsed:
         page.get_by_role("button", name="Collapse the sidebar").click()
     page.locator(".brand").click()  # a start point before the first nav button (the dashboard has controls below)
-    order = tab_order(page)
-    expected = ["Dashboard", "Settings", "Dev", "Ask Patch",
+    order = tab_order(page, 16)
+    expected = ["Dashboard", "CVEs", "Settings", "Dev", "Ask Patch",
                 "Expand the sidebar" if collapsed else "Collapse the sidebar", "Switch to dark mode"]
     found = [n for n in expected if any(o.startswith(n) for o in order)]
     assert found == expected, order
