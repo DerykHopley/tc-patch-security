@@ -1,0 +1,60 @@
+"""FastAPI app: routes, error handlers, CORS.
+
+Run: `uv run uvicorn app.main:app --port 8000` (settings from the environment, see .env.example).
+"""
+import logging
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.config import Settings
+from app.deps import Deps, build_deps
+from app.errors import InputError
+
+log = logging.getLogger(__name__)
+
+
+def _error(status: int, code: str, message: str) -> JSONResponse:
+    return JSONResponse(status_code=status, content={"error": {"code": code, "message": message}})
+
+
+def create_app(deps: Deps | None = None) -> FastAPI:
+    deps = deps or build_deps(Settings.from_env())  # a bad setting fails here, with a plain message
+
+    app = FastAPI(title="Patch, the LLM-security assistant")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=deps.settings.cors_origins,
+        allow_methods=["GET", "POST", "PUT", "PATCH"],
+        allow_headers=["Content-Type"],
+    )
+
+    @app.exception_handler(RequestValidationError)
+    async def bad_request(request: Request, exc: RequestValidationError):
+        problems = "; ".join(f"{'.'.join(map(str, e['loc'][1:])) or 'body'}: {e['msg']}" for e in exc.errors())
+        return _error(400, "invalid_request", f"The request isn't in the expected shape. {problems}")
+
+    @app.exception_handler(InputError)
+    async def input_error(request: Request, exc: InputError):
+        return _error(400, exc.code, exc.message)
+
+    @app.exception_handler(Exception)
+    async def internal_error(request: Request, exc: Exception):
+        log.exception("unhandled error")  # stack trace in the server log only
+        return _error(500, "internal_error", "Something went wrong on the server.")
+
+    @app.get("/health")
+    def health():
+        return {"status": "ok", "llm": deps.llm.name, "model": deps.llm.label(), "as_of": deps.settings.as_of}
+
+    return app
+
+
+def __getattr__(name: str):
+    # `uvicorn app.main:app` builds the app on first access, so importing this module in tests is free.
+    if name == "app":
+        globals()["app"] = create_app()
+        return globals()["app"]
+    raise AttributeError(name)
