@@ -1,6 +1,5 @@
-"""Watchlist and CVE statuses in one JSON file, shared by the chat tools and the dashboard.
-
-Moved from proto. Settings and the alerts log join this file with the Settings page (A13).
+"""Watchlist, CVE statuses, settings and the alerts log in one JSON file, shared by the chat tools, the dashboard
+and the Settings page. Moved from proto; settings and the alerts log came with the Settings page (A13).
 """
 import json
 import os
@@ -9,15 +8,18 @@ import threading
 from pathlib import Path
 
 from app.config import DEFAULT_WATCHLIST
+from app.app_settings import AppSettings
 from app.errors import InputError
 
 STATUSES = ("open", "fixed", "not_affected")
+ALERTS_LOG_MAX = 50  # kept in the file; the Settings page shows the newest 20
 
 
 class State:
-    def __init__(self, path: Path, knowledge):
+    def __init__(self, path: Path, knowledge, defaults: AppSettings | None = None):
         self.path = path
         self.k = knowledge
+        self.defaults = defaults or AppSettings()  # from the environment; saved settings override them
         self._lock = threading.Lock()  # FastAPI runs sync routes in a thread pool
 
     def _load(self) -> dict:
@@ -90,8 +92,35 @@ class State:
             self._save(data)
         return cve
 
+    # --- Settings and the alerts log (A13)
+
+    def settings(self) -> AppSettings:
+        """Saved settings over the defaults, field by field, so a file saved before a field existed still loads."""
+        saved = self.snapshot().get("settings", {})
+        merged = self.defaults.model_dump()
+        for part, values in merged.items():
+            values |= saved.get(part, {})
+        return AppSettings.model_validate(merged)
+
+    def save_settings(self, new: AppSettings) -> AppSettings:
+        with self._lock:
+            data = self._load()
+            data["settings"] = {**data.get("settings", {}), **new.model_dump()}  # keeps parts other pages saved
+            self._save(data)
+        return new
+
+    def log_alert(self, entry: dict) -> None:
+        with self._lock:
+            data = self._load()
+            data["alerts_log"] = ([entry] + data.get("alerts_log", []))[:ALERTS_LOG_MAX]
+            self._save(data)
+
+    def alerts_log(self) -> list[dict]:
+        """Newest first."""
+        return self.snapshot().get("alerts_log", [])
+
     def reset(self) -> None:
-        """Back to the default watchlist and no statuses."""
+        """Back to the default watchlist, no statuses, default settings and an empty alerts log."""
         with self._lock:
             self.path.unlink(missing_ok=True)
 
