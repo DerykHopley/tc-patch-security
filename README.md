@@ -65,6 +65,51 @@ The browser checks (`proto/frontend/e2e/check_ui.py`, Playwright, 35 checks) cha
 - **Frontend:** React, TypeScript, Vite, plain SVG charts.
 - **RAG:** every stage hand-written behind small interfaces: section-aware chunking, a mock hash embedder (real embeddings next), an in-memory index with filters, multi-query + RRF, an agent loop with citations. No LangChain yet; where it would fit is in the process map.
 
+## Build plan: spec A
+
+The real build's first half, due 2026-10-26: [spec A (#2)](https://github.com/DerykHopley/tc-patch-security/issues/2) split into 21 tickets. An arrow means "must finish before". Orange tickets need a person: two review gates and the first real model run.
+
+```mermaid
+flowchart TD
+    A01["#3 A01 Walking skeleton and CI"]
+    A02["#4 A02 Design tokens and app shell"]
+    A03["#5 A03 Gate A: design review"]
+    A04["#6 A04 Dashboard: tiles, table, watchlist"]
+    A05["#7 A05 Dashboard: charts, side panels"]
+    A06["#8 A06 Chat on FakeLLM: bubble and Patch"]
+    A07["#9 A07 Chat layout: enlarge, pin, keyboard"]
+    A08["#10 A08 Real model via LangChain + citation check"]
+    A09["#11 A09 Chroma and real embeddings"]
+    A10["#12 A10 Hybrid search: BM25 + RRF"]
+    A11["#13 A11 Dev panel and embedding map"]
+    A12["#14 A12 Model check, metrics, report"]
+    A13["#15 A13 Settings page"]
+    A14["#16 A14 Snapshot: OSV, EPSS, licences"]
+    A15["#17 A15 Am I affected?"]
+    A16["#18 A16 Priority, policy, due dates"]
+    A17["#19 A17 Gate B: rules review"]
+    A18["#20 A18 What should I fix first?"]
+    A19["#21 A19 Explain levels"]
+    A20["#22 A20 Real model runs + report on Pages"]
+    A21["#23 A21 README and STATUS"]
+
+    A01 --> A02 --> A03
+    A03 --> A04 & A06 & A13
+    A04 --> A05
+    A04 & A06 --> A07
+    A06 --> A08 & A09
+    A09 --> A10
+    A08 & A10 --> A11 --> A12
+    A04 & A05 --> A14
+    A07 & A12 & A14 --> A15
+    A13 & A15 --> A16 --> A17 --> A18
+    A07 & A12 & A13 --> A19
+    A12 & A15 & A18 & A19 --> A20 --> A21
+
+    classDef human fill:#fff1de,stroke:#b8640a,color:#2a2559
+    class A03,A17,A20 human
+```
+
 ## Documents
 
 ### Read these to build the spec (in this order)
@@ -96,14 +141,17 @@ The browser checks (`proto/frontend/e2e/check_ui.py`, Playwright, 35 checks) cha
 - `proto/`: the prototype (FastAPI backend, React frontend).
 - `feasibility/`: `fetch.py` downloads the source data, `analyse.py` summarises it. The downloaded data isn't committed.
 
-## Open decisions
+## Decisions
 
-See [DECISIONS.md](./DECISIONS.md#open-questions). In short:
+All decided on 2026-10-14; the full list with reasons is in [DECISIONS.md](./DECISIONS.md). In short:
 
-- Framework: LangChain or not (the prototype has none). Vector store and real embeddings.
-- The first real model run, and which local model.
-- Which further optional course tasks.
-- Facts to verify before building the shortlist: OSV.dev, EPSS, Tavily, the TiSAX catalogue licence.
+- **Framework:** LangChain only at the model seam ([ADR 0001](./docs/adr/0001-thin-langchain.md)); our own retrieval, filter checks and agent loop stay.
+- **Search:** Chroma running in-process, OpenRouter `text-embedding-3-small` embeddings, plus our own BM25 keyword search merged by reciprocal rank fusion (hybrid search).
+- **Models:** OpenRouter first (`gpt-oss-120b`, then `claude-haiku-5.5`), then local models through Ollama; compared in the model check and an evaluation report on GitHub Pages.
+- **Course tasks committed:** hybrid search and evaluation on real models (hard); multi-model, prompt-injection protection, token usage and cost, tool-result visualisation (medium).
+- **Facts checked** against official sources: OSV.dev, EPSS, Tavily, NVD, KEV, Chroma, hosting, OpenRouter, Clerk ([docs/SOURCE-CHECKS.md](./docs/SOURCE-CHECKS.md)).
+- **Words** used throughout: [GLOSSARY.md](./GLOSSARY.md).
+- **Later (spec B, to 2026-11-02):** the live refresh and alerts, web research through Tavily, deployment to Cloud Run, sign-in with Clerk.
 - Decided on 2026-10-13: the layout (a chat bubble, pinnable) and the design (Playful, with Patch).
 
 ## Licence
