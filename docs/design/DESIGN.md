@@ -309,6 +309,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - **Header**: Patch (34px, showing the mood), "Patch", a chip "on Dashboard" (the page underneath), New chat, **Make larger**, ✕.
 - **Empty chat**: Patch (92px, waving) tucked behind a soft purple speech bubble: "Hi, I'm Patch! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack. What shall we look at?" Below: 1–2 suggested questions for the current page, and "More examples" (folded).
 - **Messages**: user on the right in `--user`, assistant on the left on the surface. Each answer can open "Show N sources · N tool calls": tabs (Sources, Tool calls, Query plan) inline under the answer. Citations `[1]` open those details and scroll to the source.
+- **Under each answer** (A08): the citation check's note, quiet (`--muted`, italic, no fill; unlike the warning-coloured flag note): "No sources cited." when a sourced answer cites none, "Removed citation [9]: no matching source." when the check took one out. Then the usage line: tokens in and out, LLM calls, steps, and the cost in dollars to two significant figures ("$0.00061"; "$0" for local models and FakeLLM).
 
 ![Enlarged bubble, with the Pin button](img/chat-enlarged.png)
 

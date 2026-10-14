@@ -79,6 +79,7 @@ export interface Usage {
   output_tokens: number
   llm_calls: number
   estimated: boolean
+  cost: number // USD, OpenRouter's usage.cost summed over the answer; 0 for local models and FakeLLM
 }
 
 export interface ChatReply {
@@ -89,6 +90,8 @@ export interface ChatReply {
   usage: Usage
   steps: number
   flags: string[] // "injection_phrasing": flagged, still answered
+  bad_citations: number[] // [n] removed from the answer: no source n
+  no_citations: boolean // has sources but cites none of them
 }
 
 export interface Example {
