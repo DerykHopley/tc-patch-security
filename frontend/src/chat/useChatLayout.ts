@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { store } from '../storage.ts'
 
 export const PIN_WIDTH = { default: 440, min: 320, step: 24, maxShare: 0.6 } // DESIGN.md §6.3
 
 /** The widest the pinned chat may be: 60% of the window. */
-export const maxPinWidth = () => Math.floor(window.innerWidth * PIN_WIDTH.maxShare)
-export const clampPinWidth = (w: number) => Math.round(Math.min(Math.max(w, PIN_WIDTH.min), maxPinWidth()))
+export const maxPinWidth = (windowWidth = window.innerWidth) => Math.floor(windowWidth * PIN_WIDTH.maxShare)
+export const clampPinWidth = (w: number, windowWidth = window.innerWidth) =>
+  Math.round(Math.min(Math.max(w, PIN_WIDTH.min), maxPinWidth(windowWidth)))
 
 // Old links: `?layout=split` pins the chat; other `?layout=` values are ignored (DESIGN.md §11).
 function startPinned(): boolean {
@@ -26,7 +27,15 @@ export function useChatLayout() {
   const [pinned, setPinnedState] = useState(startPinned)
   const [open, setOpen] = useState(pinned) // a pinned chat starts open
   const [expanded, setExpanded] = useState(false)
-  const [width, setWidthState] = useState(startWidth)
+  const [wanted, setWanted] = useState(startWidth) // the width chosen; shown no wider than the window allows
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth)
+
+  useEffect(() => {
+    const onResize = () => setWindowWidth(window.innerWidth)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  const width = clampPinWidth(wanted, windowWidth)
 
   // Pin docks the chat beside the page; Unpin floats it back as the enlarged bubble. The chat stays open.
   function setPinned(p: boolean) {
@@ -38,7 +47,7 @@ export function useChatLayout() {
 
   function setWidth(w: number) {
     const next = clampPinWidth(w)
-    setWidthState(next)
+    setWanted(next)
     store.set('splitWidth', String(next))
   }
 

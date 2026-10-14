@@ -136,3 +136,60 @@ def test_a07_1_divider_turns_purple_on_hover_and_focus(open_app):
     page.keyboard.press("ArrowLeft")  # by keyboard, so :focus-visible applies
     page.wait_for_timeout(250)
     assert bg() == accent
+
+
+# --- A07.2: remembered; the page underneath is not rebuilt (DESIGN.md §6.3, §11) ---------------------------------
+
+def test_a07_2_pinned_and_its_width_are_remembered_and_a_pinned_chat_opens_pinned(open_app):
+    page = open_app()
+    pin(page)
+    divider(page).focus()
+    page.keyboard.press("ArrowLeft")
+    page.keyboard.press("ArrowLeft")
+    assert page.evaluate("[localStorage.pinned, localStorage.splitWidth]") == ["1", "488"]
+    page.reload()
+    expect(head_button(page, UNPIN)).to_be_visible()  # opens pinned
+    assert round(box(window(page))["width"]) == 488
+    expect(fab(page)).to_be_hidden()
+    head_button(page, UNPIN).click()
+    page.reload()
+    expect(page.get_by_role("heading", level=1)).to_be_visible()
+    expect(window(page)).to_have_count(0)  # unpinned: the chat starts closed again
+    assert page.evaluate("localStorage.pinned") == "0"
+
+
+def test_a07_2_old_layout_split_link_pins_the_chat(open_app):
+    page = open_app(query="?layout=split")
+    expect(head_button(page, UNPIN)).to_be_visible()
+
+
+def test_a07_2_page_keeps_its_scroll_and_filters_when_pinning_and_unpinning(open_app):
+    page = open_app()
+    expect(page.locator("table.cves tbody tr").first).to_be_visible()
+    page.get_by_label("Severity").select_option("HIGH")
+    expect(page.locator("table.cves tbody tr").first).to_be_visible()
+    page.evaluate("document.querySelector('main').dataset.probe = 'kept'")  # gone if the page were rebuilt
+    page.evaluate("window.scrollTo(0, 300)")
+    scroll = page.evaluate("window.scrollY")
+    assert scroll > 0
+    pin(page)
+    assert page.evaluate("document.querySelector('main').dataset.probe") == "kept"
+    expect(page.get_by_label("Severity")).to_have_value("HIGH")
+    assert page.evaluate("window.scrollY") == pytest.approx(scroll, abs=2)
+    head_button(page, UNPIN).click()
+    assert page.evaluate("document.querySelector('main').dataset.probe") == "kept"
+    expect(page.get_by_label("Severity")).to_have_value("HIGH")
+    assert page.evaluate("window.scrollY") == pytest.approx(scroll, abs=2)
+
+
+def test_a07_1_pinned_chat_stays_within_60_percent_when_the_window_narrows(open_app):
+    page = open_app()
+    chat = pin(page)
+    divider(page).focus()
+    for _ in range(20):
+        page.keyboard.press("ArrowLeft")
+    assert round(box(chat)["width"]) == 840
+    page.set_viewport_size({"width": 1000, "height": HEIGHT})
+    expect(divider(page)).to_have_attribute("aria-valuenow", "600")
+    assert round(box(chat)["width"]) == 600
+    assert no_sideways_scroll(page)
