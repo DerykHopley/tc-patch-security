@@ -113,3 +113,25 @@ def test_a15_2_every_snapshot_version_parses_in_its_ecosystem(knowledge):
                 for v in (r["introduced"], r["fixed"], r["last_affected"]):
                     if v and v != "0":
                         parse_version(e["ecosystem"], v)
+
+
+# --- A16b.2: "no fix yet": OSV lists the CVE for the product's packages, but no fixed version -------------------
+
+def _e(*ranges):
+    return {"ecosystem": "PyPI", "package": "p", "fixed": [f for _, f, _ in ranges if f],
+            "ranges": [{"introduced": i, "fixed": f, "last_affected": la} for i, f, la in ranges]}
+
+
+@pytest.mark.parametrize("coverage,entries,want", [
+    ("package", [_e(("0", None, None))], True),  # an open range
+    ("package", [_e(("0", None, "1.2"))], True),  # last affected only
+    ("package", [_e(("0", "1.3", None))], False),  # a fix exists
+    ("package", [_e(("0", None, None)), _e(("0", "2.0", None))], False),  # one package has a fix
+    ("package", [], False),  # no OSV record for this CVE: unknown, not "no fix"
+    ("commits", [_e(("0", None, None))], False),  # commit ranges only: unknown
+    ("none", [], False),
+])
+def test_a16b_2_no_fix_table(coverage, entries, want):
+    from app.verdict import no_fix
+
+    assert no_fix(coverage, entries) is want

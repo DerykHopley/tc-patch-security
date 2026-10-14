@@ -26,11 +26,19 @@ from app.verdict import USAGES, VERDICTS
 
 log = logging.getLogger(__name__)
 
-CVE_STATUS_FILTERS = ("open", "fixed", "not_affected", "all")
+CVE_STATUS_FILTERS = ("open", "fixed", "not_affected", "accepted", "all")
+Text = Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)]
 
 
 class StatusUpdate(BaseModel):
+    """A status change and its decision record (A16b). Which fields a status needs is checked by app.status."""
+    model_config = ConfigDict(extra="forbid")
     status: str
+    justification: Text | None = None  # not affected: a VEX justification
+    reason: Text | None = None  # accepted
+    review_date: str | None = None  # accepted, YYYY-MM-DD
+    compensating_control: Text | None = None  # accepted, optional
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] | None = None
 
 
 class WatchedProduct(BaseModel):
@@ -121,7 +129,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         if severity and severity not in SEVERITY_ORDER:
             raise InputError("severity_min must be LOW, MEDIUM, HIGH or CRITICAL.")
         if status not in CVE_STATUS_FILTERS:
-            raise InputError("status must be open, fixed, not_affected or all.")
+            raise InputError("status must be open, fixed, not_affected, accepted or all.")
         if published_since:
             try:
                 published_since = dt.date.fromisoformat(published_since).isoformat()
@@ -135,10 +143,11 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.patch("/cves/{cve_id}")
     def patch_cve(cve_id: str, body: StatusUpdate):
         try:
-            cve = deps.state.set_status(cve_id, body.status)
+            cve, record = deps.state.set_status(cve_id, body.status, deps.settings.as_of, "page",
+                                                **body.model_dump(exclude={"status"}))
         except KeyError:
             return _error(404, "not_found", f"{cve_id} isn't in the snapshot.")
-        return {"id": cve["id"], "status": body.status}
+        return {"id": cve["id"], "status": body.status, "decision": record}
 
     def watchlist_body():
         """The watchlist, and every product with its fields (watched first, in watchlist order), so the editor

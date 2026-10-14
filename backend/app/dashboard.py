@@ -5,7 +5,8 @@ from collections import Counter
 from app.app_settings import PolicySettings, PrioritySettings
 from app.knowledge import SEVERITY_ORDER
 from app.priority import CveFacts, priority, sort_key
-from app.verdict import verdict
+from app.status import is_open, review_due
+from app.verdict import no_fix, verdict
 
 SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
 
@@ -20,17 +21,29 @@ def affected(k, cve: dict, data: dict) -> dict:
     v = verdict(coverage, entries, f["usage"], f["version"])
     return {"verdict": v.verdict, "verdict_reason": v.reason, "fixed_version": v.fixed_version,
             "who_acts": v.who_acts, "usage": f["usage"], "version": f["version"],
-            "internet_facing": f["internet_facing"]}
+            "internet_facing": f["internet_facing"], "no_fix": no_fix(coverage, entries)}
 
 
-def prioritised(k, cve: dict, status: str, v: dict, data: dict, as_of: str) -> dict:
+def decided(cve: dict, status: str, data: dict, as_of: str) -> dict:
+    """Your decision on one CVE (A16b): the current record, the history, and whether it's open or its review due."""
+    from app.state import State
+
+    d = State.decision_of(cve["id"], data)
+    review_date = d["review_date"] if d and status == "accepted" else None
+    return {"open": is_open(status, review_date, as_of), "review_due": review_due(status, review_date, as_of),
+            "review_date": review_date, "decision": d, "history": State.history_of(cve["id"], data),
+            "open_days": (dt.date.fromisoformat(as_of) - dt.date.fromisoformat(cve["published"])).days}
+
+
+def prioritised(k, cve: dict, status: str, v: dict, data: dict, as_of: str, review_date: str | None = None) -> dict:
     """The priority rules' output for one watched CVE (A16), from the saved policy and threshold."""
     saved = data.get("settings", {})
     kev, epss = k.cves.kev.get(cve["id"]), k.epss_of(cve["id"])
     p = priority(CveFacts(severity=cve["severity"], kev=bool(kev), epss_percentile=epss["percentile"] if epss else None,
                           verdict=v["verdict"], internet_facing=v["internet_facing"], status=status,
                           published=cve["published"], kev_added=kev["dateAdded"] if kev else None,
-                          kev_deadline=kev["dueDate"] if kev else None),
+                          kev_deadline=kev["dueDate"] if kev else None, review_date=review_date,
+                          no_fix=v["no_fix"]),
                  PolicySettings.model_validate(saved.get("policy", {})), as_of,
                  PrioritySettings.model_validate(saved.get("priority", {})).epss_percentile)
     return {"priority": p.level, "priority_reasons": list(p.reasons), "priority_rule": p.rule,
@@ -41,6 +54,7 @@ def _row(cve: dict, status: str, k, data: dict, as_of: str) -> dict:
     kev = k.cves.kev.get(cve["id"])
     cat = k.category(cve["owasp"])
     v = affected(k, cve, data)
+    d = decided(cve, status, data, as_of)
     return {
         "id": cve["id"], "product": cve["product"], "product_name": k.products[cve["product"]],
         "severity": cve["severity"], "cvss": cve["cvss"], "published": cve["published"],
@@ -48,7 +62,7 @@ def _row(cve: dict, status: str, k, data: dict, as_of: str) -> dict:
         "kev": bool(kev), "kev_deadline": kev["dueDate"] if kev else None,  # CISA's, a fact; not your due date
         "status": status, "summary": cve["description"][:220], "url": cve["url"],
         "epss": k.epss_of(cve["id"]), "possible_match": k.possible_match(cve["id"]),
-        **v, **prioritised(k, cve, status, v, data, as_of),
+        **v, **d, **prioritised(k, cve, status, v, data, as_of, d["review_date"]),
     }
 
 
@@ -81,7 +95,9 @@ def list_cves(k, data: dict, as_of: str, product=None, severity_min=None, status
         rows = [r for r in rows if r["product"] == product]
     if severity_min:
         rows = [r for r in rows if SEVERITY_ORDER.get(r["severity"] or "", 0) >= SEVERITY_ORDER[severity_min]]
-    if status != "all":
+    if status == "open":  # open, or accepted with its review due (A16b)
+        rows = [r for r in rows if r["open"]]
+    elif status != "all":
         rows = [r for r in rows if r["status"] == status]
     if verdict:
         rows = [r for r in rows if r["verdict"] == verdict]
@@ -99,7 +115,7 @@ def _months(start: str, end: str) -> list[str]:
 
 def summary(k, data: dict, as_of: str) -> dict:
     rows = watched_rows(k, data, as_of)
-    open_rows = [r for r in rows if r["status"] == "open"]
+    open_rows = [r for r in rows if r["open"]]
     since = (dt.date.fromisoformat(as_of) - dt.timedelta(days=30)).isoformat()
     first_new_day = (dt.date.fromisoformat(as_of) - dt.timedelta(days=29)).isoformat()
     kev_open = sorted((r for r in open_rows if r["kev"]), key=lambda r: r["due_date"])  # your due date (A16)
@@ -131,7 +147,10 @@ def summary(k, data: dict, as_of: str) -> dict:
             "kev_next_due": {"cve": kev_open[0]["id"], "due": kev_open[0]["due_date"],
                              "overdue": kev_open[0]["overdue"]} if kev_open else None,
             "kev_overdue": sum(r["overdue"] for r in kev_open),
-            "overdue": sum(r["overdue"] for r in open_rows),
+            "overdue": sum(r["overdue"] for r in open_rows),  # a fix exists and the due date has passed (A16b)
+            "no_fix": sum(r["no_fix"] for r in open_rows),
+            "review_due": sum(r["review_due"] for r in open_rows),
+            "accepted": sum(r["status"] == "accepted" and not r["review_due"] for r in rows),
             "new_30d": sum(since < r["published"] <= as_of for r in rows),
             "new_since": first_new_day,  # the first of those 30 days: the tile's link filters on it
         },

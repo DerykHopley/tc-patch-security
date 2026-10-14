@@ -5,6 +5,7 @@ from pydantic import BaseModel, StringConstraints, model_validator
 
 from app.errors import InputError, ToolError
 from app.tools.registry import ToolSpec, register
+from app.status import JUSTIFICATIONS
 from app.verdict import USAGE_LABELS, USAGES
 
 
@@ -13,7 +14,10 @@ class WatchArgs(BaseModel):
     product: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)] | None = None
     cve_id: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True,
                                              pattern=r"(?i)^CVE-\d{4}-\d{4,}$")] | None = None
+    # Never "accepted": accepting a risk is the user's alone, on the CVEs page (A16b). Patch may only suggest it.
     status: Literal["open", "fixed", "not_affected"] | None = None
+    justification: Literal[JUSTIFICATIONS] | None = None  # type: ignore[valid-type]  # needed for not_affected
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] | None = None
     # set_details (A15): how the user runs the product. Only what's given changes; version "" clears it.
     usage: Literal[USAGES] | None = None  # type: ignore[valid-type]
     version: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)] | None = None
@@ -34,7 +38,8 @@ def run(args: WatchArgs, deps, ctx) -> dict:
     try:
         if args.action == "set_status":
             try:
-                cve = state.set_status(args.cve_id, args.status)
+                cve, _ = state.set_status(args.cve_id, args.status, deps.settings.as_of, "chat",
+                                          justification=args.justification, note=args.note)
             except KeyError:
                 raise ToolError(f"{args.cve_id} isn't in my snapshot, so I can't track it.", "cve_not_in_snapshot")
             watched = cve["product"] in state.snapshot()["watchlist"]
@@ -64,9 +69,11 @@ def run(args: WatchArgs, deps, ctx) -> dict:
 register(ToolSpec(
     name="update_watchlist",
     description="Change the user's watchlist: action 'watch' or 'unwatch' with a product (e.g. Ollama), "
-                "'set_status' with cve_id and status (open, fixed, not_affected) only when the user asks for it, "
+                "'set_status' with cve_id and status (open, fixed, not_affected) only when the user asks for it "
+                "(not_affected needs a justification: " + ", ".join(JUSTIFICATIONS) + "; an optional note), "
                 "or 'set_details' with a product and any of usage (self_hosted, library, transitive, hosted), "
                 "version, internet_facing.",
     args_model=WatchArgs,
+    # Accepting a risk isn't offered here: the user does it on the CVEs page with a reason and a review date.
     run=run,
 ))

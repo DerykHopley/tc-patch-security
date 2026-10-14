@@ -71,7 +71,7 @@ def most_urgent_open(knowledge, data: dict, as_of: str) -> dict | None:
     page's first row."""
     from app.dashboard import watched_rows
 
-    top = next((r for r in watched_rows(knowledge, data, as_of) if r["status"] == "open"), None)
+    top = next((r for r in watched_rows(knowledge, data, as_of) if r["open"]), None)
     return knowledge.cves.get(top["id"]) if top else None
 
 

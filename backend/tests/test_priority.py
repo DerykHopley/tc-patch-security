@@ -15,10 +15,10 @@ NO_KEV_DEADLINE = PolicySettings(adopt_kev_deadline=False)
 
 
 def facts(severity="HIGH", kev=False, epss=None, verdict="unknown", internet_facing=False, status="open",
-          published="2026-10-01", kev_added=None, kev_deadline=None):
+          published="2026-10-01", kev_added=None, kev_deadline=None, review_date=None, no_fix=False):
     return CveFacts(severity=severity, kev=kev, epss_percentile=epss, verdict=verdict,
                     internet_facing=internet_facing, status=status, published=published,
-                    kev_added=kev_added, kev_deadline=kev_deadline)
+                    kev_added=kev_added, kev_deadline=kev_deadline, review_date=review_date, no_fix=no_fix)
 
 
 KEV = {"kev": True, "kev_added": "2025-05-05", "kev_deadline": "2025-05-26"}  # CVE-2025-3248's dates
@@ -138,6 +138,29 @@ DUE = [
 def test_a16_3_due_date_and_overdue(case, f, policy, due, overdue):
     p = priority(f, policy, AS_OF)
     assert (p.due_date, p.overdue) == (due, overdue)
+
+
+# --- A16b.3: overdue only when a fix exists and the CVE is open (review due counts as open) ---------------------
+
+OVERDUE = [
+    # case, facts, overdue
+    ("open, a fix exists, past due", facts(severity="MEDIUM", published="2024-01-01"), True),
+    ("open, no fix yet, past due: not overdue", facts(severity="MEDIUM", published="2024-01-01", no_fix=True), False),
+    ("accepted before its review date", facts(severity="MEDIUM", published="2024-01-01", status="accepted",
+                                              review_date="2027-01-01"), False),
+    ("accepted, review due, a fix exists", facts(severity="MEDIUM", published="2024-01-01", status="accepted",
+                                                 review_date="2026-10-13"), True),
+    ("accepted, review due, no fix yet", facts(severity="MEDIUM", published="2024-01-01", status="accepted",
+                                               review_date="2026-10-01", no_fix=True), False),
+    ("KEV, no fix yet: not overdue either", facts(no_fix=True, **KEV), False),
+]
+
+
+@pytest.mark.parametrize("case,f,overdue", OVERDUE, ids=[row[0] for row in OVERDUE])
+def test_a16b_3_overdue_only_when_a_fix_exists(case, f, overdue):
+    p = priority(f, DEFAULT, AS_OF)
+    assert p.overdue is overdue
+    assert p.due_date  # a no-fix CVE keeps its due date: the "decide by" date
 
 
 def test_a16_3_the_due_date_says_where_it_came_from():

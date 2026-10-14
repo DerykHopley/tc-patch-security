@@ -22,7 +22,8 @@ present (high EPSS, internet-facing). A step-down adds its own reason.
 
 Due date (your policy): the publication date, or for a KEV CVE the date it was added to KEV, plus the policy's days
 for the level. With "adopt the KEV deadline" on, a KEV CVE's due date is CISA's KEV deadline instead. Overdue = the
-CVE is open and the as-of date is after the due date.
+CVE is open (app.status: an accepted CVE whose review is due counts), a fix exists (not "no fix yet", A16b) and the
+as-of date is after the due date. A no-fix CVE keeps its due date: the "decide by" date.
 
 Levels map to alert priorities 5/4/3/2 (ntfy's scale; spec B's alerts use it).
 """
@@ -31,6 +32,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.app_settings import PolicySettings
+from app.status import is_open
 
 LEVELS = ("urgent", "high", "normal", "low")  # most urgent first: the sort order
 ALERT_PRIORITY = {"urgent": 5, "high": 4, "normal": 3, "low": 2}
@@ -45,10 +47,12 @@ class CveFacts:
     epss_percentile: float | None  # 0-1, EPSS by FIRST
     verdict: str  # affected, not_affected, unknown (A15)
     internet_facing: bool  # your mark on the product
-    status: str  # your CVE status: open, fixed, not_affected
+    status: str  # your CVE status: open, fixed, not_affected, accepted
     published: str  # YYYY-MM-DD
     kev_added: str | None = None
     kev_deadline: str | None = None
+    review_date: str | None = None  # an accepted CVE's review date (A16b)
+    no_fix: bool = False  # OSV has no fixed version for it (A16b)
 
 
 @dataclass(frozen=True)
@@ -135,8 +139,8 @@ def priority(f: CveFacts, policy: PolicySettings, as_of: str, epss_percentile: i
         start, label = (f.kev_added, "added to KEV") if f.kev and f.kev_added else (f.published, "published")
         due, due_from = _add_days(start, days), f"{label} + {days} days"
 
-    return Priority(level, tuple(reasons), row, due, due_from, f.status == "open" and as_of > due,
-                    ALERT_PRIORITY[level])
+    overdue = is_open(f.status, f.review_date, as_of) and not f.no_fix and as_of > due
+    return Priority(level, tuple(reasons), row, due, due_from, overdue, ALERT_PRIORITY[level])
 
 
 def sort_key(level: str, due_date: str) -> tuple[int, str]:

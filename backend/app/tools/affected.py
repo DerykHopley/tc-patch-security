@@ -64,7 +64,7 @@ def run(args: AffectedArgs, deps, ctx) -> dict:
     if pid not in data["watchlist"]:
         raise ToolError(f"{k.products[pid]} isn't on the user's watchlist, so none of its CVEs are open.",
                         "not_watched")
-    rows = [r for r in watched_rows(k, data, deps.settings.as_of) if r["product"] == pid and r["status"] == "open"]
+    rows = [r for r in watched_rows(k, data, deps.settings.as_of) if r["product"] == pid and r["open"]]
     rows.sort(key=lambda r: ORDER.index(r["verdict"]))  # stable: keeps the table's order inside each verdict
     f = State.fields_of(pid, data)
     return {

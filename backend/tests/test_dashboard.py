@@ -4,7 +4,8 @@
 def test_a04_1_dashboard_tiles_watchlist_and_products(client):
     d = client.get("/dashboard").json()
     assert d["as_of"] == "2026-10-13"
-    assert set(d["kpis"]) == {"open", "critical", "kev", "kev_next_due", "kev_overdue", "overdue", "new_30d", "new_since"}
+    assert set(d["kpis"]) == {"open", "critical", "kev", "kev_next_due", "kev_overdue", "overdue", "new_30d", "new_since",
+                             "no_fix", "review_due", "accepted"}  # the last three: A16b
     assert d["kpis"]["open"] == sum(p["total"] for p in d["by_product"])
     assert d["kpis"]["kev"] == 9 and d["kpis"]["kev_next_due"]["due"]
     assert d["watchlist"] == ["langchain", "langflow", "litellm", "ollama", "open-webui"]
@@ -42,7 +43,7 @@ def test_a04_2_cves_filtered_by_product_severity_and_status(client):
     body = client.get("/cves?product=Open WebUI&severity_min=high&limit=5").json()
     assert body["total"] > 5 and len(body["rows"]) == 5
     assert all(r["product"] == "open-webui" and r["severity"] in ("HIGH", "CRITICAL") for r in body["rows"])
-    client.patch("/cves/CVE-2024-8309", json={"status": "not_affected"})
+    client.patch("/cves/CVE-2024-8309", json={"status": "not_affected", "justification": "component_not_present"})
     rows = client.get("/cves?status=not_affected").json()["rows"]
     assert [(r["id"], r["status"]) for r in rows] == [("CVE-2024-8309", "not_affected")]
 
@@ -68,9 +69,10 @@ def test_a04_3_row_actions_mark_fixed_not_affected_and_reopen(client):
     def status():
         return client.get("/cves?status=all&product=langchain&limit=200").json()["rows"]
 
-    assert client.patch("/cves/CVE-2024-8309", json={"status": "fixed"}).json() == {"id": "CVE-2024-8309", "status": "fixed"}
+    r = client.patch("/cves/CVE-2024-8309", json={"status": "fixed"}).json()
+    assert (r["id"], r["status"], r["decision"]["status"]) == ("CVE-2024-8309", "fixed", "fixed")
     assert next(r for r in status() if r["id"] == "CVE-2024-8309")["status"] == "fixed"
-    client.patch("/cves/CVE-2024-8309", json={"status": "not_affected"})
+    client.patch("/cves/CVE-2024-8309", json={"status": "not_affected", "justification": "component_not_present"})
     assert next(r for r in status() if r["id"] == "CVE-2024-8309")["status"] == "not_affected"
     client.patch("/cves/CVE-2024-8309", json={"status": "open"})
     assert next(r for r in status() if r["id"] == "CVE-2024-8309")["status"] == "open"
@@ -125,7 +127,7 @@ def test_a04_5_one_state_shared_with_what_the_chat_uses(client, deps):
     assert "vllm" in client.get("/dashboard").json()["watchlist"]
     assert [r["id"] for r in client.get("/cves?status=fixed").json()["rows"]] == ["CVE-2024-8309"]
     client.put("/watchlist", json={"products": ["ollama"]})
-    client.patch("/cves/CVE-2025-1975", json={"status": "not_affected"})
+    client.patch("/cves/CVE-2025-1975", json={"status": "not_affected", "justification": "component_not_present"})
     snap = deps.state.snapshot()
     assert snap["watchlist"] == ["ollama"] and snap["statuses"]["CVE-2025-1975"] == "not_affected"
 

@@ -91,6 +91,14 @@ def _newest_fix(entries: list[dict]):
     return max(fixes)[1] if fixes else None
 
 
+def no_fix(coverage: str, entries: list[dict]) -> bool:
+    """"No fix yet" (A16b): OSV lists the CVE for the product's packages and none of them has a fixed version
+    (open ranges or last-affected only). No record, or commit ranges only, is unknown: False."""
+    if coverage != "package" or not entries:
+        return False
+    return not any(e["fixed"] or any(r["fixed"] for r in e["ranges"]) for e in entries)
+
+
 def verdict(coverage: str, entries: list[dict], usage: str, version: str | None) -> Verdict:
     """`coverage`: the product's OSV coverage (package, commits, none). `entries`: the CVE's OSV entries for the
     product, each {ecosystem, package, ranges: [{introduced, fixed, last_affected}], fixed: [...]}."""

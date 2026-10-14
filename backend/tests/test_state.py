@@ -15,7 +15,7 @@ def state(deps):
 
 def test_a01_2_default_watchlist_without_file(state):
     assert not state.path.exists()
-    assert state.snapshot() == {"watchlist": DEFAULT_WATCHLIST, "statuses": {}}
+    assert state.snapshot() == {"watchlist": DEFAULT_WATCHLIST, "statuses": {}, "history": {}}
 
 
 def test_a01_2_open_removes_stored_status(state):
@@ -33,7 +33,7 @@ def test_a01_2_watch_and_unwatch_round_trip(state):
 def test_a01_2_reset_returns_to_defaults(state):
     state.set_watchlist(["ollama"])
     state.reset()
-    assert state.snapshot() == {"watchlist": DEFAULT_WATCHLIST, "statuses": {}}
+    assert state.snapshot() == {"watchlist": DEFAULT_WATCHLIST, "statuses": {}, "history": {}}
 
 
 def test_a01_2_status_of_a_cve(state, knowledge):
@@ -70,7 +70,7 @@ def test_a01_3_concurrent_writes_lose_nothing(state, knowledge):
 def test_a01_4_errors_have_plain_messages(state):
     with pytest.raises(InputError, match="isn't a product I track. Choose from: .*LangChain"):
         state.watch("Notion")
-    with pytest.raises(InputError, match="Status must be one of open, fixed, not_affected, not 'done'"):
+    with pytest.raises(InputError, match="Status must be one of open, fixed, not_affected, accepted, not 'done'"):
         state.set_status("CVE-2024-8309", "done")
     with pytest.raises(KeyError):
         state.set_status("CVE-1999-0001", "fixed")

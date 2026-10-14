@@ -1,6 +1,7 @@
 """Watchlist, CVE statuses, settings and the alerts log in one JSON file, shared by the chat tools, the dashboard
 and the Settings page. Moved from proto; settings and the alerts log came with the Settings page (A13).
 """
+import datetime as dt
 import json
 import os
 import tempfile
@@ -10,9 +11,8 @@ from pathlib import Path
 from app.config import DEFAULT_WATCHLIST, LIBRARY_PRODUCTS
 from app.app_settings import AppSettings, DevSettings
 from app.errors import InputError
+from app.status import DECIDED_BY, LEGACY_NOTE, decision
 from app.verdict import USAGES, check_version
-
-STATUSES = ("open", "fixed", "not_affected")
 ALERTS_LOG_MAX = 50  # kept in the file; the Settings page shows the newest 20
 
 
@@ -27,11 +27,17 @@ class State:
 
     def _load(self) -> dict:
         if not self.path.exists():
-            return {"watchlist": list(DEFAULT_WATCHLIST), "statuses": {}}
+            return {"watchlist": list(DEFAULT_WATCHLIST), "statuses": {}, "history": {}}
         data = json.loads(self.path.read_text())
-        out = {"watchlist": data.get("watchlist", []), "statuses": data.get("statuses", {})}
+        out = {"watchlist": data.get("watchlist", []), "statuses": data.get("statuses", {}),
+               "history": data.get("history", {})}
         for key, value in data.items():  # keep parts saved by later tickets (settings, alerts log)
             out.setdefault(key, value)
+        for cve_id, status in out["statuses"].items():  # a status saved before decision records (A16b)
+            if not out["history"].get(cve_id):
+                out["history"][cve_id] = [{"status": status, "justification": None, "reason": None,
+                                           "note": LEGACY_NOTE, "review_date": None, "compensating_control": None,
+                                           "decided_at": None, "decided_by": None, "via": None}]
         return out
 
     def _save(self, data: dict) -> None:
@@ -118,20 +124,26 @@ class State:
             self._save(data)
             return new
 
-    def set_status(self, cve_id: str, status: str) -> dict:
-        if status not in STATUSES:
-            raise InputError(f"Status must be one of {', '.join(STATUSES)}, not {status!r}.")
+    def set_status(self, cve_id: str, status: str, as_of: str | None = None, via: str = "page",
+                   **fields) -> tuple[dict, dict]:
+        """The user's decision (A16b): the status plus its record, appended to the CVE's history. Only the user
+        decides: the CVEs page, or the chat tool after the user's yes (`via` says which). Returns the CVE and the
+        record. Fields per status are checked by app.status.decision."""
+        record = decision(status, fields, as_of or dt.date.today().isoformat())
         cve = self.k.cves.get(cve_id)
         if cve is None:
             raise KeyError(cve_id)
+        record |= {"decided_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), "decided_by": DECIDED_BY,
+                   "via": via}
         with self._lock:
             data = self._load()
             if status == "open":
                 data["statuses"].pop(cve["id"], None)
             else:
                 data["statuses"][cve["id"]] = status
+            data["history"].setdefault(cve["id"], []).append(record)  # append only: never edited or removed
             self._save(data)
-        return cve
+        return cve, record
 
     # --- Settings and the alerts log (A13)
 
@@ -187,3 +199,13 @@ class State:
         if cve["product"] not in data["watchlist"]:
             return "not_watched"
         return data["statuses"].get(cve["id"], "open")
+
+    @staticmethod
+    def history_of(cve_id: str, data: dict) -> list[dict]:
+        """Oldest first. The last record is the current decision."""
+        return data.get("history", {}).get(cve_id, [])
+
+    @classmethod
+    def decision_of(cls, cve_id: str, data: dict) -> dict | None:
+        h = cls.history_of(cve_id, data)
+        return h[-1] if h else None

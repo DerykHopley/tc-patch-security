@@ -58,8 +58,15 @@ def _cve_card(c: dict) -> str:
                      f"(KEV deadline {c['kev']['deadline']}). {c['kev']['required_action']}")
     status = {"open": "It's **open** on your watchlist.", "fixed": "You marked it **fixed**.",
               "not_affected": "You marked it **not affected**.",
-              "not_watched": "Its product isn't on your watchlist."}[c["watch_status"]]
+              "accepted": "You **accepted** the risk", "not_watched": "Its product isn't on your watchlist."
+              }[c["watch_status"]]
+    d = c.get("decision")
+    if c["watch_status"] == "accepted" and d:
+        status += f" ({d['reason']}); review {'due now' if c['review_due'] else 'on ' + str(d['review_date'])}."
     lines.append(f"\n{status}")
+    if c.get("no_fix") and c["watch_status"] == "open":
+        lines.append("\nOSV lists **no fixed version** yet, so it isn't overdue: decide by its due date whether to "
+                     "mitigate, replace the product, or accept the risk on the CVEs page.")
     return "\n".join(lines)
 
 

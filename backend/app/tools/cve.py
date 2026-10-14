@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, StringConstraints
 
-from app.dashboard import affected, prioritised
+from app.dashboard import affected, decided, prioritised
 from app.errors import ToolError
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
@@ -25,7 +25,9 @@ def run(args: CveArgs, deps, ctx) -> dict:
     data = deps.state.snapshot()
     status = State.status_of(cve, data)
     v = affected(k, cve, data)  # the version check (A15): advice, never the status
-    p = prioritised(k, cve, status, v, data, deps.settings.as_of) if status != "not_watched" else None  # A16
+    d = decided(cve, status, data, deps.settings.as_of)  # your decision record (A16b)
+    p = (prioritised(k, cve, status, v, data, deps.settings.as_of, d["review_date"])
+         if status != "not_watched" else None)  # A16
     source = to_source(len(ctx.sources) + 1, chunk_cve(cve, k.products[cve["product"]])[0], None)
     ctx.sources.append(source)
     return {
@@ -42,6 +44,8 @@ def run(args: CveArgs, deps, ctx) -> dict:
         "possible_match": k.possible_match(cve["id"]),
         "verdict": v["verdict"], "verdict_reason": v["verdict_reason"], "fixed_version": v["fixed_version"],
         "who_acts": v["who_acts"],
+        "no_fix": v["no_fix"],  # OSV lists no fixed version: "no fix yet", not overdue (A16b)
+        "decision": d["decision"], "review_due": d["review_due"],
         # The rules' priority and your due date (A16); None off the watchlist. The KEV deadline is under "kev".
         "priority": None if p is None else {
             "level": p["priority"], "reasons": p["priority_reasons"], "due_date": p["due_date"],
@@ -57,7 +61,9 @@ register(ToolSpec(
                 "(affected, not affected, unknown) with its reason, the fixed version and who acts. For a watched CVE, "
                 "also the priority set by the rules (urgent, high, normal, low) with its reasons, the user's due "
                 "date and whether it's overdue; the KEV deadline is CISA's date, separate from the due date. "
-                "Explain the priority from its reasons; never change it.",
+                "Explain the priority from its reasons; never change it. Also the user's decision (status, reason or "
+                "justification, review date) and no_fix: true when no fixed version exists yet, so it isn't overdue; "
+                "the user may accept the risk on the CVEs page. You may suggest that, never set it.",
     args_model=CveArgs,
     run=run,
 ))
