@@ -1,5 +1,9 @@
-import { useEffect, useState, type JSX } from 'react'
-import { health, type Health } from './api.ts'
+import { useEffect, useRef, useState, type JSX } from 'react'
+import { examples as fetchExamples, health, type Example, type Health } from './api.ts'
+import { ChatWindow } from './chat/ChatWindow.tsx'
+import { PatchButton } from './chat/PatchButton.tsx'
+import { useChat } from './chat/useChat.ts'
+import { usePatch } from './chat/usePatch.ts'
 import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, MoonIcon, ShieldIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
 import { EmptyPage } from './pages/EmptyPage.tsx'
@@ -16,16 +20,37 @@ const PAGES: Record<Page, { title: string; nav: string; Icon: () => JSX.Element;
   dev: { title: 'Dev panel', nav: 'Dev', Icon: CodeIcon, comingWith: 'the dev panel ticket' },
 }
 
+// Questions that fit the page under the chat (1–2, DESIGN.md §6.2). FakeLLM answers each one.
+const SUGGESTIONS: Record<Page, string[]> = {
+  dashboard: [
+    'Explain CVE-2025-3248 and how to defend against it.',
+    'Which critical Langflow vulnerabilities were published in 2026?',
+  ],
+  settings: ['How do I protect a RAG app from indirect prompt injection?'],
+  dev: ['What does an "ignore previous instructions" attack look like?'],
+}
+
 export default function App() {
   const [status, setStatus] = useState<Health | null>(null)
   const [offline, setOffline] = useState(false)
   const [theme, toggleTheme] = useTheme()
   const [collapsed, setCollapsed] = useState(() => store.get('sidenavCollapsed') === '1')
   const [page, setPage] = useState<Page>('dashboard')
+  const chat = useChat()
+  const [chatOpen, setChatOpen] = useState(false)
+  const [examples, setExamples] = useState<Example[]>([])
+  const patch = usePatch(chat, chatOpen) // one mood for the button and the chat header
+  const patchButton = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     health().then(setStatus, () => setOffline(true))
+    fetchExamples().then(setExamples, () => setExamples([]))
   }, [])
+
+  function closeChat() {
+    setChatOpen(false)
+    patchButton.current?.focus() // keyboard users land back on the button that opened it
+  }
 
   function toggleCollapsed() {
     const next = !collapsed
@@ -71,14 +96,14 @@ export default function App() {
             )
           })}
           <span className="side-section">Assistant</span>
-          {/* A placeholder until the chat ticket (A06): reachable and named, but it does nothing yet. */}
           <button
             type="button"
             className="side-link side-ask"
             aria-label="Ask Patch"
-            aria-disabled="true"
-            aria-describedby="ask-soon"
-            title="Ask Patch: the chat is coming soon"
+            aria-expanded={chatOpen}
+            aria-describedby={patch.unread ? 'patch-unread' : undefined}
+            onClick={() => (chatOpen ? closeChat() : setChatOpen(true))}
+            title={collapsed ? 'Ask Patch' : undefined}
           >
             <span className="side-icon">
               <ChatIcon />
@@ -86,9 +111,7 @@ export default function App() {
             <span className="side-label">
               Ask<span className="long"> Patch</span>
             </span>
-            <span id="ask-soon" className="visually-hidden">
-              Coming soon
-            </span>
+            {patch.unread && <span className="unread-dot" aria-hidden="true" />}
           </button>
         </nav>
         <div className="side-card">
@@ -128,6 +151,24 @@ export default function App() {
           <EmptyPage title={current.title} comingWith={current.comingWith} />
         </main>
       </div>
+
+      {chatOpen && (
+        <ChatWindow
+          chat={chat}
+          mood={patch.mood}
+          pageTitle={current.title}
+          suggestions={SUGGESTIONS[page]}
+          examples={examples}
+          onClose={closeChat}
+        />
+      )}
+      <PatchButton
+        ref={patchButton}
+        open={chatOpen}
+        mood={patch.mood}
+        unread={patch.unread}
+        onClick={() => (chatOpen ? setChatOpen(false) : setChatOpen(true))}
+      />
     </div>
   )
 }
