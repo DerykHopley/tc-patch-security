@@ -10,13 +10,18 @@ def knowledge():
 
 
 @pytest.fixture(scope="session")
-def index(knowledge):
-    """The in-memory index over the snapshot with the hash embedder (the test fake), built once per run."""
+def index_dir(tmp_path_factory):
+    return tmp_path_factory.mktemp("chroma")
+
+
+@pytest.fixture(scope="session")
+def index(knowledge, index_dir):
+    """Real Chroma in a temp folder, over the snapshot, with hash vectors (the test fake). Built once per run."""
     from app.rag.chunking import build_chunks
     from app.rag.embed import HashEmbedder
-    from app.rag.index import VectorIndex
+    from app.rag.vector import build_index
 
-    return VectorIndex(build_chunks(knowledge), HashEmbedder())
+    return build_index(build_chunks(knowledge), HashEmbedder(), index_dir)
 
 
 @pytest.fixture(scope="session")
@@ -25,11 +30,11 @@ def shared(knowledge, index):
 
 
 @pytest.fixture
-def settings(tmp_path):
-    """FakeLLM, state in a temp folder per test."""
+def settings(tmp_path, index_dir, index):
+    """FakeLLM, state in a temp folder per test, the run's hash index (never backend/data)."""
     from app.config import Settings
 
-    return Settings(llm_provider="fake", state_path=tmp_path / "state.json")
+    return Settings(llm_provider="fake", state_path=tmp_path / "state.json", index_path=index_dir)
 
 
 @pytest.fixture

@@ -1,14 +1,13 @@
-"""A tiny in-memory vector index: a numpy matrix plus chunk metadata. No vector database."""
-from dataclasses import dataclass
+"""What every retriever shares: validated filters, hits, and the Retriever seam.
 
-import numpy as np
+The vector retriever (Chroma, app/rag/vector.py) turns Filters into a Chroma `where`; a keyword retriever
+(BM25, A10) applies `Filters.matches` in Python. Both must return only chunks inside the filter.
+"""
+from dataclasses import dataclass
+from typing import Protocol
 
 from app.knowledge import SEVERITY_ORDER
 from app.rag.chunking import Chunk
-from app.rag.embed import Embedder, tokens
-
-# Hash collisions give unrelated text tiny scores. Below this a hit counts as "no match" (R6).
-MIN_SCORE = 0.05
 
 
 @dataclass(frozen=True)
@@ -48,26 +47,50 @@ class Hit:
     score: float
 
 
-class VectorIndex:
-    def __init__(self, chunks: list[Chunk], embedder: Embedder, word_gate: bool = True):
-        self.chunks = chunks
-        self.embedder = embedder
-        texts = [f"{c.title}\n{c.section or ''}\n{c.text}" for c in chunks]
-        self.matrix = embedder.embed(texts)
-        # Mock-only: every CVE id is a distinct word, so ~9,000 distinct words share 4,096 hash buckets and a nonsense
-        # query always collides with something. The gate keeps R6 literal: a hit must share a real word.
-        # With real embeddings, turn it off and use a score threshold instead.
-        self.words = [set(tokens(t)) for t in texts] if word_gate else None
-
+class Retriever(Protocol):
     def search(self, query: str, k: int = 10, filters: Filters | None = None) -> list[Hit]:
-        # Filter first, then score only what's left (S2).
-        rows = [i for i, c in enumerate(self.chunks) if filters is None or filters.matches(c)]
-        if self.words is not None:
-            q_words = set(tokens(query))
-            rows = [i for i in rows if self.words[i] & q_words]
-        if not rows:
-            return []
-        q = self.embedder.embed([query])[0]
-        scores = self.matrix[rows] @ q
-        order = np.argsort(-scores, kind="stable")[:k]
-        return [Hit(self.chunks[rows[i]], float(scores[i])) for i in order if scores[i] >= MIN_SCORE]
+        """Up to k hits, best first, all inside the filters."""
+
+
+def day(date: str) -> int:
+    """'2026-09-14' or '2026-09-14T10:00:00' → 20260914. Chroma compares numbers only, so dates are stored as ints."""
+    return int(date[:10].replace("-", ""))
+
+
+def where(f: Filters) -> dict | None:
+    """Validated filters → a Chroma `where`: single conditions joined by `$and` (Chroma wants 2+ inside an `$and`).
+
+    Same meaning as Filters.matches. A chunk without a date has no `date` key, so a date range excludes it.
+    """
+    conds: list[dict] = []
+    if f.doc_type or f.product or f.severity_min or f.kev:
+        conds.append({"doc_type": f.doc_type or "cve"})  # CVE-only filters imply CVEs (S2)
+    if f.product:
+        conds.append({"product": f.product})
+    if f.severity_min:
+        conds.append({"severity_rank": {"$gte": SEVERITY_ORDER[f.severity_min]}})
+    if f.owasp:
+        conds.append({"$or": [{"owasp": f.owasp}, {"doc_id": f.owasp}]})
+    if f.kev:
+        conds.append({"kev": True})
+    if f.date_from:
+        conds.append({"date": {"$gte": day(f.date_from)}})
+    if f.date_to:
+        conds.append({"date": {"$lte": day(f.date_to)}})
+    if not conds:
+        return None
+    return conds[0] if len(conds) == 1 else {"$and": conds}
+
+
+def metadata(c: Chunk) -> dict:
+    """What Chroma stores per chunk for filtering. None values are left out (Chroma doesn't store them)."""
+    m: dict = {"doc_id": c.doc_id, "doc_type": c.doc_type}
+    if c.date:
+        m["date"] = day(c.date)
+    if c.doc_type == "cve":
+        m["kev"] = c.kev
+        m["severity_rank"] = SEVERITY_ORDER.get(c.severity or "", 0)
+        for key in ("product", "owasp"):
+            if getattr(c, key):
+                m[key] = getattr(c, key)
+    return m

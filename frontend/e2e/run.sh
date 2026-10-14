@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# The browser check, end to end: start a throwaway backend (FakeLLM, temp state file) on 8001 and
-# the frontend on 5174, run the checks in Firefox and Chromium, stop both servers.
+# The browser check, end to end: start a throwaway backend (FakeLLM, hash embedder, temp state file and
+# index) on 8001 and the frontend on 5174, run the checks in Firefox and Chromium, stop both servers.
 # Never touches the user's app on 8000/5173. Used locally and in CI.
 #
 #   frontend/e2e/run.sh                      # both browsers
@@ -34,6 +34,7 @@ cleanup() {
 trap cleanup EXIT
 
 (cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/state.json" AS_OF= \
+  EMBEDDER=hash INDEX_PATH="$STATE_DIR/index" SEARCH_MIN_SCORE= \
   CORS_ORIGINS="http://localhost:$UI_PORT,http://127.0.0.1:$UI_PORT" \
   exec uv run uvicorn app.main:app --port "$API_PORT") >"$LOG_DIR/backend.log" 2>&1 &
 PIDS+=($!)
