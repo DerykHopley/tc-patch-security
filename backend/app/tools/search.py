@@ -13,7 +13,7 @@ class SearchArgs(BaseModel):
 
 def run(args: SearchArgs, deps, ctx) -> dict:
     opts = SearchOptions()  # the defaults; the dev panel's search tuning arrives with A11
-    res = search_security(args.query, deps.llm, deps.index, deps.knowledge.resolve_product,
+    res = search_security(args.query, deps.llm, deps.retrievers, deps.knowledge.resolve_product,
                           start_n=len(ctx.sources) + 1, opts=opts)
     ctx.add_usage(res.reply)
     ctx.sources.extend(res.sources)

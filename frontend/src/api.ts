@@ -48,7 +48,7 @@ export interface Source {
   date: string | null
   url: string
   snippet: string
-  score: number | null // null for a CVE added by lookup_cve
+  score: number | null // fused RRF score; null for a CVE added by lookup_cve
   product: string | null
   severity: Severity | null
   cvss: number | null
@@ -62,6 +62,7 @@ export interface QueryInfo {
   filters: Record<string, string>
   dropped_filters: string[]
   relaxed: boolean
+  found_by: Record<string, string[]> // source n → the retrievers that found it: "keyword" (BM25), "vector"
 }
 
 export interface ToolCallRecord {

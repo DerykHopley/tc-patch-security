@@ -9,6 +9,8 @@ from app.llm.providers import make_llm
 from app.notify import Transports
 from app.rag.chunking import build_chunks
 from app.rag.embed import make_embedder
+from app.rag.index import Retriever
+from app.rag.keyword import BM25Index
 from app.rag.vector import ChromaIndex, build_index, open_index
 from app.state import State
 
@@ -19,8 +21,18 @@ class Deps:
     llm: LLM
     knowledge: Knowledge
     state: State
-    index: ChromaIndex  # the vector retriever; BM25 joins it in A10
+    index: ChromaIndex  # the vector retriever
     transports: Transports = field(default_factory=Transports)  # how alerts leave the machine; tests pass fakes
+    keyword: BM25Index | None = None  # the keyword retriever (A10); built from the index's chunks when not given
+
+    def __post_init__(self):
+        if self.keyword is None:
+            self.keyword = BM25Index(self.index.chunks)  # the same chunks as Chroma: both search one corpus
+
+    @property
+    def retrievers(self) -> dict[str, Retriever]:
+        """Hybrid search: every query runs on both, fused by RRF."""
+        return {"vector": self.index, "keyword": self.keyword}
 
 
 def load_index(settings: Settings, knowledge: Knowledge) -> ChromaIndex:

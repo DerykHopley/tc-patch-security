@@ -24,7 +24,7 @@ class Source(BaseModel):
     date: str | None = None
     url: str
     snippet: str
-    score: float | None = None  # similarity; None for a source added by lookup_cve
+    score: float | None = None  # fused RRF score (A10); None for a source added by lookup_cve
     # CVE only
     product: str | None = None
     severity: str | None = None
@@ -39,6 +39,7 @@ class QueryInfo(BaseModel):
     filters: dict[str, str]
     dropped_filters: list[str]
     relaxed: bool
+    found_by: dict[int, list[str]] = Field(default_factory=dict)  # source n → ["keyword", "vector"] (A10)
 
 
 class ToolCallRecord(BaseModel):

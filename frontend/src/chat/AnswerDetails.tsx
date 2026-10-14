@@ -54,6 +54,7 @@ function Sources({ sources, prefix }: { sources: Source[]; prefix: string }) {
 
 function QueryPlan({ query }: { query: QueryInfo }) {
   const filters = Object.entries(query.filters)
+  const foundBy = Object.entries(query.found_by ?? {}) // which retriever (keyword, vector) found each source
   return (
     <div className="query-plan">
       <dl>
@@ -90,6 +91,18 @@ function QueryPlan({ query }: { query: QueryInfo }) {
               {query.dropped_filters.map((f) => (
                 <span key={f} className="chip warn">
                   {f}
+                </span>
+              ))}
+            </dd>
+          </>
+        )}
+        {foundBy.length > 0 && (
+          <>
+            <dt>Found by</dt>
+            <dd>
+              {foundBy.map(([n, by]) => (
+                <span key={n} className="chip">
+                  [{n}] {by.join(' + ')}
                 </span>
               ))}
             </dd>
