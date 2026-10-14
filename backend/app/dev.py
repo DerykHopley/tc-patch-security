@@ -5,13 +5,13 @@ Mounted only when DEV_PANEL is on (they show internals): off, every /dev route i
 from collections import Counter
 
 import httpx
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Query
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from app.app_settings import DevSettings
 from app.errors import InputError
-from app.evals import model_check, retrieval
+from app.evals import model_check, report, retrieval
 from app.llm.urls import local_url_allowed
 from app.rag.pipeline import search_security
 from app.rag.projection import projection_for
@@ -44,6 +44,10 @@ class ModelCheckRequest(BaseModel):
 
 def _unreachable(message: str) -> JSONResponse:
     return JSONResponse(status_code=502, content={"error": {"code": "unreachable", "message": message}})
+
+
+def _ids(csv: str) -> list[str] | None:
+    return [x.strip() for x in csv.split(",") if x.strip()] or None
 
 
 def _not_found(message: str) -> JSONResponse:
@@ -157,5 +161,12 @@ def dev_router(deps) -> APIRouter:
     @r.get("/retrieval-checks")
     def list_retrieval_checks():
         return {"runs": retrieval.listing(deps)}
+
+    @r.get("/report", response_class=HTMLResponse)
+    def evaluation_report(model_ids: str = Query("", alias="models"), retrieval_ids: str = Query("", alias="retrieval")):
+        """The report page from saved runs: the ones named (comma-separated ids), else the latest per model and
+        per embedder. Findings are written later, for the published copy (python -m app.evals report)."""
+        return HTMLResponse(report.from_store(report.store_of(deps.settings), deps.settings.as_of,
+                                              _ids(model_ids), _ids(retrieval_ids)))
 
     return r
