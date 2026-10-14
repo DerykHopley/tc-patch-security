@@ -45,7 +45,7 @@ def run(args: CveArgs, deps, ctx) -> dict:
         "verdict": v["verdict"], "verdict_reason": v["verdict_reason"], "fixed_version": v["fixed_version"],
         "who_acts": v["who_acts"],
         "no_fix": v["no_fix"],  # OSV lists no fixed version: "no fix yet", not overdue (A16b)
-        "decision": d["decision"], "review_due": d["review_due"],
+        "decision": d["decision"], "review_due": d["review_due"], "open_days": d["open_days"],
         # The rules' priority and your due date (A16); None off the watchlist. The KEV deadline is under "kev".
         "priority": None if p is None else {
             "level": p["priority"], "reasons": p["priority_reasons"], "due_date": p["due_date"],

@@ -113,14 +113,16 @@ def test_a16_5_marked_fixed_is_never_overdue(client):
 
 def test_a16_6_kev_tile_next_due_is_the_earliest_due_date(client):
     k = client.get("/dashboard").json()["kpis"]
-    assert k["kev_next_due"] == {"cve": "CVE-2025-3248", "due": "2025-05-26", "overdue": True}
+    assert k["kev_next_due"] == {"cve": "CVE-2025-3248", "due": "2025-05-26", "overdue": True,
+                                 "no_fix": False}
     assert k["kev_overdue"] == 8  # every KEV deadline is before 2026-10-13; CVE-2026-0770 has no fix yet (A16b)
 
 
 def test_a16_6_kev_tile_follows_the_policy(client):
     _policy(client, adopt_kev_deadline=False)
     k = client.get("/dashboard").json()["kpis"]
-    assert k["kev_next_due"] == {"cve": "CVE-2025-3248", "due": "2025-05-12", "overdue": True}
+    assert k["kev_next_due"] == {"cve": "CVE-2025-3248", "due": "2025-05-12", "overdue": True,
+                                 "no_fix": False}
 
 
 def test_a16_6_overdue_count_on_the_tiles(client):

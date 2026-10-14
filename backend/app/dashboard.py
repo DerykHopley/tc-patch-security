@@ -145,7 +145,7 @@ def summary(k, data: dict, as_of: str) -> dict:
             "critical": sum(r["severity"] == "CRITICAL" for r in open_rows),
             "kev": len(kev_open),
             "kev_next_due": {"cve": kev_open[0]["id"], "due": kev_open[0]["due_date"],
-                             "overdue": kev_open[0]["overdue"]} if kev_open else None,
+                             "overdue": kev_open[0]["overdue"], "no_fix": kev_open[0]["no_fix"]} if kev_open else None,
             "kev_overdue": sum(r["overdue"] for r in kev_open),
             "overdue": sum(r["overdue"] for r in open_rows),  # a fix exists and the due date has passed (A16b)
             "no_fix": sum(r["no_fix"] for r in open_rows),

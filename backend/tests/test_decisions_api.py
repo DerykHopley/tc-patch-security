@@ -231,7 +231,7 @@ def test_a16b_8_lookup_cve_returns_the_decision_and_no_fix(client, deps):
     client.patch(f"/cves/{NO_FIX}", json=ACCEPT)
     rec = run_tool(ToolCall(id="1", name="lookup_cve", args={"cve_id": NO_FIX}), deps, Context())
     r = rec.result
-    assert (r["watch_status"], r["no_fix"], r["review_due"]) == ("accepted", True, False)
+    assert (r["watch_status"], r["no_fix"], r["review_due"], r["open_days"]) == ("accepted", True, False, 263)
     assert r["decision"]["reason"] == ACCEPT["reason"]
     assert r["priority"]["overdue"] is False
 
