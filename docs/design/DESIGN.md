@@ -56,7 +56,7 @@ Tokens are CSS custom properties on `<html data-design="playful">`. Dark values 
 | `--bg` | `#dfe5fd` | `#0f0f1c` | page background (under the gradients, 3.3) |
 | `--surface` | `#ffffff` | `#1a1a2e` | cards, sidebar, chat, inputs |
 | `--text` | `#2a2559` | `#ecebff` | body text |
-| `--muted` | `#6f6c9c` | `#a9a8cc` | secondary text, axis labels |
+| `--muted` | `#605d8c` (was `#6f6c9c`, fault 12.1) | `#a9a8cc` | secondary text, axis labels |
 | `--border` | `#e4e5f8` | `#2c2b48` | hairlines |
 | `--accent` | `#6c4cf5` | `#a28dff` | links, focus, active, page title |
 | `--accent-soft` | `#efeaff` | `#2a2550` | soft fills: hover, chips, nested cards |
@@ -71,18 +71,21 @@ Tokens are CSS custom properties on `<html data-design="playful">`. Dark values 
 
 Fixed colours (same in both modes):
 
-- **Primary gradient** (primary buttons, active sidebar item, brand mark): `linear-gradient(135deg, #8b6cff, #5a3ff0)`.
+- **Primary gradient** `--gradient-primary` (primary buttons, active sidebar item, brand mark): `linear-gradient(135deg, #7454f7, #5a3ff0)`. Started at `#8b6cff` in the prototype (fault 12.1). Text on it is `--on-primary` (`#ffffff`).
 - **Purple shadow** used everywhere: `rgba(108, 76, 245, α)`, α between 0.09 and 0.4 (values per component below).
 
-Contrast (*checked*, measured 2026-10-13):
+Contrast (*checked*: WCAG 2 formula, 2026-10-14, after the fixes; the browser check A02.3 re-measures muted and the gradient):
 
 | Pair | Light | Dark |
 |---|---|---|
 | text on surface | 13.9:1 | 14.5:1 |
-| muted on surface | 4.9:1 | 7.4:1 |
+| text on page background | 11.1:1 | 16.2:1 |
+| muted on surface | 6.1:1 | 7.4:1 |
+| **muted on page background** | **4.9:1** (was 3.9:1) | 8.3:1 |
+| **muted on `--accent-soft`** (chips, nested fills, snapshot card) | **5.2:1** (was 4.2:1) | 6.2:1 |
 | accent on surface | 5.3:1 | 6.3:1 |
-| text on page background | 11.1:1 | — |
-| **muted on page background** | **3.9:1 (below 4.5, open issue 12.1)** | — |
+| accent on page background (the page title: 1.5rem bold, large text, needs 3:1) | 4.2:1 | 7.1:1 |
+| **white on the primary gradient**, light end / deep end | **4.8:1 / 6.2:1** (was 3.7 / 6.2) | same (fixed colours) |
 
 ### 3.2 Chart colours (validated, *checked*)
 
@@ -122,6 +125,7 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 
 ### 3.3 Page background
 
+- Token `--page-glow` (the glows), drawn over `--bg` on `body` with `background-attachment: fixed`.
 - Light: three soft glows over `#dfe5fd`, fixed (they don't scroll):
   `radial-gradient(520px 520px at 8% 12%, rgba(255,255,255,.55), transparent 70%)`, `radial-gradient(640px 640px at 96% 88%, rgba(123,92,255,.16), transparent 70%)`, `radial-gradient(360px 360px at 70% 8%, rgba(255,181,71,.16), transparent 70%)`.
 - Dark: one faint purple glow over `#0f0f1c`: `radial-gradient(640px 640px at 96% 88%, rgba(123,92,255,.10), transparent 70%)`.
@@ -130,25 +134,31 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 
 - **Fredoka** (500, 600, 700) for headings, tile numbers, the brand name, the page title. **Nunito** (400, 600, 700, 800) for everything else. Base size 15px.
 - Load both in `index.html` (with `preconnect`), not from JavaScript, so the first frame already has the right font.
+- Tokens: `--font-display` (Fredoka), `--font-body` (Nunito), `--font-mono` (system monospace).
 - Sizes: page title 1.5rem Fredoka in `--accent`; card titles 1.1rem Fredoka 600; tile numbers 2.1rem Fredoka; nested titles (playground columns, "Recent alerts") 0.95rem Fredoka 600; body 15px; meta text 0.82rem `--muted`; code in the system monospace.
 - Offline, the fonts fall back to the system sans-serif. *Unverified* how that looks.
 
 ### 3.5 Shape and elevation
 
+Token names chosen in A02 (DESIGN.md gave none); values unchanged from the prototype.
+
 | Element | Radius | Shadow |
 |---|---|---|
-| Sidebar (floating card) | 28px | `0 16px 40px rgba(108,76,245,.12)` |
-| Cards (`.panel`) | 26px | `0 12px 30px rgba(108,76,245,.09)` |
-| Chat bubble window, pinned chat | 26px | (bubble) `0 16px 48px rgba(0,0,0,.24)`; (pinned) `0 12px 30px rgba(108,76,245,.12)` |
-| Stat tiles | 24px | `0 12px 26px <tile colour at .3>` |
-| Welcome banner | 28px | `0 12px 30px rgba(108,76,245,.1)` |
-| Save bar (floating) | 20px | `0 10px 28px rgba(108,76,245,.16)` |
-| Chat messages | 20px, with the corner nearest the speaker at 6px | — |
-| Nested cards: fieldsets, delivery channels, playground columns, map box, model-check numbers | 18–20px | none |
-| Inputs, selects, textareas | 14px | — |
-| Buttons | 999px (pill) | primary: `0 6px 14px rgba(108,76,245,.3)` |
+| Sidebar (floating card) | `--radius-sidebar` 28px | `--shadow-sidebar` `0 16px 40px rgba(108,76,245,.12)` |
+| Sidebar items (pill rows) | `--radius-item` 16px | active: `--shadow-active` `0 8px 18px rgba(108,76,245,.35)` |
+| Brand mark | `--radius-input` 14px | `--shadow-brand` `0 6px 14px rgba(108,76,245,.35)` |
+| Snapshot card | `--radius-snapshot-card` 22px | — |
+| Cards (`.card`, `.panel` in the prototype) | `--radius-card` 26px | `--shadow-card` `0 12px 30px rgba(108,76,245,.09)` |
+| Chat bubble window, pinned chat | `--radius-card` 26px | (bubble) `--shadow-bubble` `0 16px 48px rgba(0,0,0,.24)`; (pinned) `--shadow-pinned` `0 12px 30px rgba(108,76,245,.12)` |
+| Stat tiles | `--radius-tile` 24px | `0 12px 26px <tile colour at .3>` |
+| Welcome banner | `--radius-banner` 28px | `--shadow-banner` `0 12px 30px rgba(108,76,245,.1)` |
+| Save bar (floating) | `--radius-save-bar` 20px | `--shadow-save-bar` `0 10px 28px rgba(108,76,245,.16)` |
+| Chat messages | `--radius-message` 20px, with the corner nearest the speaker at `--radius-message-tail` 6px | — |
+| Nested cards: fieldsets, delivery channels, playground columns, map box, model-check numbers | `--radius-nested` 18px (the prototype used 18–20px) | none |
+| Inputs, selects, textareas | `--radius-input` 14px | — |
+| Buttons | `--radius-pill` 999px | primary: `--shadow-primary` `0 6px 14px rgba(108,76,245,.3)` |
 
-- Nested cards have no border. Their fill is `color-mix(in srgb, var(--accent-soft) 35–45%, var(--surface))`.
+- Nested cards have no border. Their fill is `--nested-fill`: `color-mix(in srgb, var(--accent-soft) 40%, var(--surface))` (the prototype used 35–45%).
 
 ### Checklist: tokens
 
@@ -167,9 +177,9 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 
 - **Sidebar** (left), then the **main column**: top bar, then the page.
 - Sidebar, expanded: 250px wide, floating card with 1rem margin. Contents, top to bottom:
-  1. Brand: 36px purple-gradient rounded square with a shield icon, "LLM Security", "assistant · prototype". Dashed line under it.
+  1. Brand: 36px purple-gradient rounded square with a shield icon, "LLM Security", "assistant" ("prototype" dropped in the real build, 2026-10-14). Dashed line under it.
   2. Section label "MONITOR": Dashboard, Settings, Dev (Dev only when the backend allows the dev panel).
-  3. Section label "ASSISTANT": "Ask Patch" (opens and hides the chat; shows the unread dot).
+  3. Section label "ASSISTANT": "Ask Patch" (opens and hides the chat; shows the unread dot). Until the chat ticket (A06) it is a placeholder: named, reachable by keyboard, `aria-disabled`, described as "Coming soon".
   4. At the bottom, the **snapshot card**: Patch (64px) with his head over the card's top edge, "Snapshot", data date, model name.
   5. Collapse button (chevron).
 - Sidebar items: pill rows (radius 16px). Icon in a 32px soft-purple rounded square. **Active item**: primary gradient fill, white text, icon square at 22% white, purple shadow.
@@ -188,6 +198,7 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 | ≤ 640px | Stat tiles: 2 columns. Welcome banner stacks (robot over text, centred). |
 | ≤ 520px | Slider rows stack (label above the slider). |
 
+- The shell (A02) builds the ≤ 800px tab bar. The other rows belong to the dashboard, settings, dev and chat tickets, which build what they change.
 - At every width there is **no sideways scrolling** (*checked* at 1400px and 400px for every page, light and dark).
 
 ### Checklist: layout
@@ -333,7 +344,7 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 
 ## 7. Motion
 
-All motion is part of the spec. **It stops with `prefers-reduced-motion: reduce`** (*checked* in CSS; *unverified* by a browser test), except two small transitions listed in 12.1.
+All motion is part of the spec. **It stops with `prefers-reduced-motion: reduce`**: one global rule turns off every animation and transition (*checked* by the browser check A02.10: no running animations, cursor still, sidebar jumps to the rail). With normal motion, A02.9 checks that the cursor blinks and the sidebar width passes through in-between values.
 
 ### 7.1 Page motion
 
@@ -360,7 +371,7 @@ See section 8.3.
 - [ ] Every row of 7.1 and 8.3 is implemented with these timings.
 - [ ] Charts animate on first load of the page, not on hover or resize.
 - [ ] Stacked bars grow as one piece (no gaps opening between segments).
-- [ ] With reduced motion: nothing moves (tiles, cards, bars, cursor, KEV wiggle, bubble pop, Patch, sidebar width, pin icon). *Open issue in the prototype:* the last two still run (12.1).
+- [ ] With reduced motion: nothing moves (tiles, cards, bars, cursor, KEV wiggle, bubble pop, Patch, sidebar width, pin icon). Fixed in the real build (12.1).
 
 ---
 
@@ -464,15 +475,15 @@ He always **overlaps what he sits on**, so he looks like he's in the scene, not 
 
 ## 12. Known gaps
 
-### 12.1 Open issues (found 2026-10-13, not fixed yet)
+### 12.1 Faults found 2026-10-13 (fixed in the real build 2026-10-14, A02)
 
-- **Muted text on the page background is 3.9:1** (light mode), under 4.5:1. Affects the "Watching … · data as of …" line and the breadcrumb. Fix: darken `--muted` slightly, or put those lines on the surface.
-- **Primary button text** is 3.7:1 against the light end of the gradient (`#8b6cff`), 6.2:1 at the dark end. Fix: start the gradient deeper, like the tiles.
-- **Two transitions ignore reduced motion**: the sidebar width (0.2s) and the pin icon rotation (0.15s).
+- **Muted text on the page background is 3.9:1** (light mode), under 4.5:1. Affects the "Watching … · data as of …" line and the breadcrumb. **Fixed:** `--muted` is `#605d8c`: 4.9:1 on the page background, 5.2:1 on `--accent-soft`.
+- **Primary button text** is 3.7:1 against the light end of the gradient (`#8b6cff`), 6.2:1 at the dark end. **Fixed:** the gradient starts at `#7454f7`: 4.8:1 and 6.2:1.
+- **Two transitions ignore reduced motion**: the sidebar width (0.2s) and the pin icon rotation (0.15s). **Fixed:** the reduced-motion rule covers all transitions, so the pin icon (built with the chat) is covered too.
 
 ### 12.2 Unverified
 
-- Browser checks run in **Firefox only**. Chrome and Safari not checked (slider styling differs there).
+- The prototype's browser checks ran in Firefox only. The real build's run in **Firefox and Chromium** (`frontend/e2e/run.sh`). Safari not checked.
 - Offline font fallback not looked at.
 - Uses modern CSS (`:has()`, `color-mix()`): fine in current browsers, not in old ones.
 
@@ -483,4 +494,4 @@ He always **overlaps what he sits on**, so he looks like he's in the scene, not 
 - `proto/frontend/e2e/check_ui.py` (Playwright, Firefox): 35 checks, all passing on 2026-10-13. Covers the dashboard, settings, dev panel, chat (bubble, enlarge, pin, unpin, keyboard), light and dark, phone width, sidebar collapse, the welcome banner, Patch as the button.
 - Chart colours: the dataviz skill's validator (commands in 3.2).
 - Contrast: measured with the WCAG formula (values in 3.1 and 5.1).
-- It does **not** yet check animations or reduced motion. Worth adding in the real build: one test that the bars and Patch animate, one that nothing animates with reduced motion.
+- The real build's browser check (`frontend/e2e/test_shell.py`, Firefox and Chromium) covers tokens, contrast, the shell, both themes, 400px and 1400px, and motion with and without reduced motion. The prototype's check did **not** check animations or reduced motion. Worth adding in the real build: one test that the bars and Patch animate, one that nothing animates with reduced motion.
