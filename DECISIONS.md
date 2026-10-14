@@ -62,6 +62,7 @@ Every decision made so far, in one place, with why and where the detail lives. C
 | 2026-10-14 | **BM25 is our own**, about 60 lines in `backend/app/rag/keyword.py`, not `rank_bm25` or `bm25s`. Our tokeniser keeps CVE, CWE and ATLAS ids whole (`cve-2024-8309`, `aml.t0051.001`) | `rank_bm25` has had no release since 2022 and can't filter; `bm25s` adds scipy. Our own code applies the same filters as Chroma and scores 1,680 chunks in a few ms | #12 |
 | 2026-10-14 | **A source's score is the fused RRF score**, not cosine similarity | BM25 and cosine scores aren't on the same scale, so only the fused rank means the same for every source | #12 |
 | 2026-10-14 | **Open: off-topic refusal and BM25.** BM25 has no score threshold, so a keyword hit can bring sources for an off-topic question. The refusal threshold, tuned with the real embedder in A20, must account for keyword hits too | R6 (no sources for off-topic questions) depends on it | #12, #22 |
+| 2026-10-14 | **Dev panel choices (A11) are their own part of the state**, saved by `PUT /dev/settings`, not inside `/settings`. They apply on the next call (an LLM router reads them per call). With `DEV_PANEL` off, every `/dev` route is a 404 and the env defaults apply, even if choices were saved. Model discovery uses the same local-URL guard as the model and never follows a redirect | The Settings page and the Dev page save separately (two save bars); a deployment with the dev panel off can't be steered by a saved local URL; a local server can't bounce the request elsewhere | #13 |
 
 ## UI and design
 

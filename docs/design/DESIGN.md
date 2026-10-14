@@ -238,7 +238,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - All buttons are pills (999px), weight 700. **Primary** (`type="submit"`): primary gradient, white text, purple shadow. Others: surface fill, 1px border, border turns purple on hover.
 - Inputs, selects, textareas: radius 14px. The playground search box is a full pill.
 - Checkboxes and radios: purple (`accent-color: var(--accent)`).
-- **Sliders**: 6px track in `--accent-soft`, filled part in `--accent`, 16px purple handle with a 3px surface ring and a purple shadow. A purple focus ring (2px, 4px offset) for keyboards. Styled for both Firefox (`::-moz-range-*`) and Chrome/Safari (`::-webkit-slider-*`). Chrome/Safari has no "filled part" (*unverified* how it looks there).
+- **Sliders**: 6px track in `--accent-soft`, filled part in `--accent`, 16px purple handle with a 3px surface ring and a purple shadow. A purple focus ring (2px, 4px offset) for keyboards. Styled for both Firefox (`::-moz-range-*`) and Chrome/Safari (`::-webkit-slider-*`). Chrome/Safari has no "filled part": the track there is a gradient up to `--fill`, set inline by the slider (A11, *checked* by the browser check in Chromium).
 
 ### 5.4 Charts
 
@@ -254,7 +254,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 
 ![Search playground](img/playground-light.png)
 
-- In a soft round box (radius 20px, no border, nested-card fill). Legend chips are pills with counts.
+- In a soft round box (`--radius-nested` 18px since A11, as §3.5 lists the map box; no border, nested-card fill). Legend chips are pills with counts.
 - Points: circle (OWASP), square (ATLAS), triangle (CVE), in `--cat-1/2/3`, drawn at 90% opacity with a ring in the box colour.
 - When a search is shown, all non-result points dim to **40%** (light) or **60%** (dark: faded colour on dark goes muddy). The query is an ✕, rewrites are smaller ✕s, results are full-colour with a dark ring, joined to the query by dashed lines.
 
