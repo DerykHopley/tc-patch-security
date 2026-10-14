@@ -240,7 +240,7 @@ def test_a05_5_bars_grow_in_on_first_load_stacked_bars_as_one_piece(open_dash):
     page = open_dash()
     cards = page.locator(".dash-main > .card").evaluate_all(
         "els => els.map(el => [getComputedStyle(el).animationName, getComputedStyle(el).animationDelay])")
-    assert cards == [["fade-up", d] for d in ("0s", "0.12s", "0.24s", "0.24s")]  # 3 charts, then the CVE table
+    assert cards == [["fade-up", d] for d in ("0s", "0.12s", "0.24s", "0.24s")]  # 3 charts, then the top 5 CVEs
     stacked = chart(page, BY_PRODUCT).locator(".chart-box")
     for title in (BY_PRODUCT, PER_MONTH, BY_OWASP):
         expect(chart(page, title).locator(".fill").first).to_be_attached()
@@ -280,10 +280,6 @@ def test_a05_5_bars_do_not_grow_again_on_hover_resize_or_reload(open_dash, api_u
     chart(page, BY_PRODUCT).locator(".fill").first.hover()
     page.set_viewport_size({"width": 1100, "height": 900})
     page.wait_for_timeout(100)
-    assert dash.evaluate(GROWING) == []
-    top = page.locator("table.cves tbody tr td:first-child a").first.inner_text()
-    page.get_by_role("button", name=f"Mark {top} fixed").click()
-    expect(page.locator(".tile-value").first).to_have_text(str(api(api_url, "/dashboard")["kpis"]["open"]))
     assert dash.evaluate(GROWING) == []
     # A product added to the watchlist brings a new bar: it appears at full length too.
     rows_before = chart(page, BY_PRODUCT).locator(".bar-row").count()

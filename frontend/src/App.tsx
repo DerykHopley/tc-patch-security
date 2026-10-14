@@ -7,20 +7,22 @@ import { PatchButton } from './chat/PatchButton.tsx'
 import { useChat } from './chat/useChat.ts'
 import { useChatLayout } from './chat/useChatLayout.ts'
 import { usePatch } from './chat/usePatch.ts'
-import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, MoonIcon, ShieldIcon, SunIcon } from './components/Icons.tsx'
+import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, ListIcon, MoonIcon, ShieldIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
+import { CvesPage } from './pages/CvesPage.tsx'
 import { DashboardPage } from './pages/Dashboard.tsx'
 import { DevPage } from './pages/DevPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
+import { PATHS, useRoute, type Page } from './route.ts'
 import { store } from './storage.ts'
 import { useTheme } from './theme.ts'
 
 // The app shell (docs/design/DESIGN.md §4): a floating sidebar that collapses to an icon rail (a bottom tab bar on
-// phones), a top bar with breadcrumb, page title and the light/dark toggle, then the page.
-type Page = 'dashboard' | 'settings' | 'dev'
-
+// phones), a top bar with breadcrumb, page title and the light/dark toggle, then the page. Each page has a path
+// (route.ts), so links and reloads land on the right page.
 const PAGES: Record<Page, { title: string; nav: string; Icon: () => JSX.Element }> = {
   dashboard: { title: 'Dashboard', nav: 'Dashboard', Icon: DashboardIcon },
+  cves: { title: 'CVEs', nav: 'CVEs', Icon: ListIcon },
   settings: { title: 'Settings', nav: 'Settings', Icon: BellIcon },
   dev: { title: 'Dev panel', nav: 'Dev', Icon: CodeIcon },
 }
@@ -28,6 +30,10 @@ const PAGES: Record<Page, { title: string; nav: string; Icon: () => JSX.Element 
 // Questions that fit the page under the chat (1–2, DESIGN.md §6.2). FakeLLM answers each one.
 const SUGGESTIONS: Record<Page, string[]> = {
   dashboard: [
+    'Explain CVE-2025-3248 and how to defend against it.',
+    'Which critical Langflow vulnerabilities were published in 2026?',
+  ],
+  cves: [
     'Explain CVE-2025-3248 and how to defend against it.',
     'Which critical Langflow vulnerabilities were published in 2026?',
   ],
@@ -40,7 +46,8 @@ export default function App() {
   const [offline, setOffline] = useState(false)
   const [theme, toggleTheme] = useTheme()
   const [collapsed, setCollapsed] = useState(() => store.get('sidenavCollapsed') === '1')
-  const [page, setPage] = useState<Page>('dashboard')
+  const [route, navigate] = useRoute()
+  const page = route.page
   const chat = useChat()
   const layout = useChatLayout()
   const [alertCve, alertDone] = useAlertLink()
@@ -99,7 +106,7 @@ export default function App() {
   }
 
   // Dev only when the backend allows the dev panel (it exposes internals).
-  const pages: Page[] = status?.dev_panel ? ['dashboard', 'settings', 'dev'] : ['dashboard', 'settings']
+  const pages: Page[] = status?.dev_panel ? ['dashboard', 'cves', 'settings', 'dev'] : ['dashboard', 'cves', 'settings']
   const current = PAGES[page]
   const dark = theme === 'dark'
 
@@ -125,7 +132,7 @@ export default function App() {
                 type="button"
                 className="side-link"
                 aria-current={page === p ? 'page' : undefined}
-                onClick={() => setPage(p)}
+                onClick={() => navigate(PATHS[p])}
                 title={collapsed ? nav : undefined}
               >
                 <span className="side-icon">
@@ -199,9 +206,12 @@ export default function App() {
         )}
         <main>
           {page === 'dashboard' ? (
-            <DashboardPage onAsk={askAbout} onAskPatch={openChat} />
+            <DashboardPage onNavigate={navigate} onAskPatch={openChat} />
+          ) : page === 'cves' ? (
+            // keyed by the visit: a link followed again with other filters starts from them
+            <CvesPage key={route.visit} search={route.search} onAsk={askAbout} />
           ) : page === 'settings' ? (
-            <SettingsPage asOf={status?.as_of ?? null} onOpenDashboard={() => setPage('dashboard')} />
+            <SettingsPage asOf={status?.as_of ?? null} onOpenDashboard={() => navigate(PATHS.dashboard)} />
           ) : status?.dev_panel ? (
             <DevPage onSaved={refreshHealth} />
           ) : null}
