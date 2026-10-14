@@ -3,6 +3,7 @@ import { health, type Health } from './api.ts'
 import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, MoonIcon, ShieldIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
 import { EmptyPage } from './pages/EmptyPage.tsx'
+import { SettingsPage } from './pages/SettingsPage.tsx'
 import { store } from './storage.ts'
 import { useTheme } from './theme.ts'
 
@@ -125,7 +126,11 @@ export default function App() {
           </button>
         </header>
         <main>
-          <EmptyPage title={current.title} comingWith={current.comingWith} />
+          {page === 'settings' ? (
+            <SettingsPage asOf={status?.as_of ?? null} onOpenDashboard={() => setPage('dashboard')} />
+          ) : (
+            <EmptyPage title={current.title} comingWith={current.comingWith} />
+          )}
         </main>
       </div>
     </div>

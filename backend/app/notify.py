@@ -207,11 +207,11 @@ def notifier_for(channel: str, s, transports: Transports) -> Notifier:
 def deliver(channel: str, msg: dict, s, transports: Transports, state) -> dict:
     """Send on one channel and log the attempt either way: sent, recorded only, not set up, or failed."""
     entry = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), **msg,
-             "channel": channel, "sent": False, "error": None}
+             "channel": channel, "sent": False, "error": None, "error_code": None}
     try:
         notifier_for(channel, s, transports).send(**msg)
     except NotifyError as e:
-        entry["error"] = e.message
+        entry["error"], entry["error_code"] = e.message, e.code
         state.log_alert(entry)
         raise
     entry["sent"] = channel != "preview"

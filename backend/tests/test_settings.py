@@ -127,7 +127,7 @@ def test_a13_3_unconfigured_channel_is_not_configured_and_logged(settings, knowl
         assert r.status_code == 400 and r.json()["error"]["code"] == "not_configured", channel
     log = c.get("/alerts").json()["alerts"]
     assert [e["channel"] for e in log] == ["desktop", "ntfy", "email"]  # newest first
-    assert all(e["sent"] is False and e["error"] for e in log)
+    assert all(e["sent"] is False and e["error"] and e["error_code"] == "not_configured" for e in log)
 
 
 def test_a13_3_unknown_channel_is_400(client):
@@ -164,7 +164,7 @@ def test_a13_3_email_test_alert_is_sent_and_logged(settings, knowledge):
     assert body["sent"] is True and body["channel"] == "email" and "Check that it arrived" in body["note"]
     assert len(FakeSMTP.sent) == 1 and FakeSMTP.sent[0]["Subject"] == "[LLM security] Test · In CISA KEV: Langflow"
     log = c.get("/alerts").json()["alerts"][0]
-    assert (log["channel"], log["sent"], log["error"]) == ("email", True, None)
+    assert (log["channel"], log["sent"], log["error"], log["error_code"]) == ("email", True, None, None)
 
 
 def test_a13_3_ntfy_and_desktop_test_alerts_go_through_their_senders(settings, knowledge):
@@ -200,7 +200,7 @@ def test_a13_3_a_failed_send_is_502_and_logged(settings, knowledge):
     r = c.post("/alerts/test", json={"channel": "ntfy"})
     assert r.status_code == 502 and r.json()["error"]["code"] == "notify_failed"
     log = c.get("/alerts").json()["alerts"][0]
-    assert log["sent"] is False and "Couldn't reach ntfy" in log["error"]
+    assert log["sent"] is False and "Couldn't reach ntfy" in log["error"] and log["error_code"] == "notify_failed"
 
 
 def test_a13_3_the_log_shows_the_newest_20(client):
