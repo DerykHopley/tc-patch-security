@@ -4,6 +4,7 @@ import {
   devMap,
   devModels,
   devSearch,
+  reportUrl,
   type DevInfo,
   type DevSearch,
   type DevSettings,
@@ -15,6 +16,8 @@ import { SaveBar } from '../components/SaveBar.tsx'
 import { Card } from '../components/StatusCard.tsx'
 import { useDevSettings } from '../components/useDevSettings.ts'
 import { EmbeddingMap } from '../dev/EmbeddingMap.tsx'
+import { ModelCheck } from '../dev/ModelCheck.tsx'
+import { RetrievalCheck } from '../dev/RetrievalCheck.tsx'
 import '../styles/dev.css'
 
 // The Dev panel (A11, DESIGN.md §5.3, §5.5–5.7): who answers, the agent's limits and search tuning, saved and applied
@@ -38,6 +41,13 @@ const SEARCH_FIELDS: (keyof SearchOptions | 'max_steps')[] = [
 ]
 
 const RETRIEVER = { vector: 'Vector', keyword: 'Keyword (BM25)' }
+
+/** The saved model, named as the backend names it (LLMRouter.label). */
+function savedModel(d: DevSettings): string {
+  if (d.provider === 'openrouter') return `OpenRouter · ${d.openrouter_model}`
+  if (d.provider === 'local') return `Local · ${d.local_model || 'no model chosen'}`
+  return 'FakeLLM (scripted)'
+}
 
 function Slider({ id, label, hint, value, min, max, step = 1, format = String, onChange }: {
   id: string
@@ -212,6 +222,8 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
   const [models, setModels] = useState<string[] | null>(null)
   const [modelsError, setModelsError] = useState<string | null>(null)
   const [finding, setFinding] = useState(false)
+  const [comparedModels, setComparedModels] = useState<string[]>([])
+  const [comparedEmbedders, setComparedEmbedders] = useState<string[]>([])
 
   useEffect(() => {
     devInfo().then(setInfo, () => setInfo(null))
@@ -447,6 +459,28 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
         ) : (
           <p className="meta">{mapError ?? `Projecting ${info?.chunks.toLocaleString('en') ?? ''} chunks…`}</p>
         )}
+      </Card>
+
+      <ModelCheck modelLabel={savedModel(s.reply.settings)} dirty={s.dirty} compared={comparedModels}
+        onCompare={setComparedModels} />
+
+      <RetrievalCheck embedder={info?.embedder ?? 'the loaded embedder'} compared={comparedEmbedders}
+        onCompare={setComparedEmbedders} />
+
+      <Card title="Evaluation report" kind="live" why="One self-contained HTML page from the saved runs">
+        <p className="meta">
+          Models and embedders side by side, every failure, and room for the findings. With nothing ticked it shows the
+          latest run per model and per embedder. For the published copy with written findings, use{' '}
+          <code>python -m app.evals report</code>.
+        </p>
+        <a className="button-link" href={reportUrl(comparedModels, comparedEmbedders)} target="_blank"
+          rel="noreferrer">
+          Open the report
+          {comparedModels.length + comparedEmbedders.length > 0
+            ? ` (${comparedModels.length + comparedEmbedders.length} runs ticked)`
+            : ''}
+          <span className="visually-hidden"> (opens in a new tab)</span>
+        </a>
       </Card>
 
       <SaveBar dirty={s.dirty} saving={s.saving} saved={s.saved} error={s.error} onSave={s.save} onDiscard={s.discard} />

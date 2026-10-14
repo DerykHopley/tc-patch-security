@@ -348,5 +348,8 @@
   .save-bar {
     bottom: calc(5rem + 66px + 0.6rem);
     padding-right: 1rem;
+    /* Room under the bar at the end of the page (the page keeps 4.4rem for the tab bar), so at the bottom it sits
+       at its sticky height instead of floating over the last card (A12: the report link was hidden). */
+    margin-bottom: calc(5rem + 66px + 0.6rem - 4.4rem);
   }
 }

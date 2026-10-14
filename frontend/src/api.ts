@@ -359,3 +359,103 @@ export const devInfo = () => request<DevInfo>('/dev/info')
 export const devModels = (url: string) => request<{ models: string[] }>(`/dev/models?${new URLSearchParams({ url })}`)
 export const devSearch = (query: string) => request<DevSearch>('/dev/search', json('POST', { query }))
 export const devMap = () => request<EmbeddingMapData>('/dev/map')
+
+// --- The model check (A12): exact checks per question, retrieval metrics per embedder, the report
+
+export interface CheckFailure {
+  name: string // a check id, e.g. "tools"
+  passed: boolean
+  expected: string
+  got: string
+}
+
+export interface ModelCheckRow {
+  id: string
+  question: string
+  passed: boolean
+  checks: Record<string, boolean>
+  failures: CheckFailure[]
+  tools: string[]
+  answer: string
+  seconds: number
+  cost: number // USD
+  tokens_in: number
+  tokens_out: number
+  steps: number
+  error: string | null
+}
+
+export interface ModelCheckSummary {
+  questions: number
+  passed: number
+  errors: number
+  checks_passed: number
+  checks_total: number
+  by_check: Record<string, { passed: number; total: number }>
+  seconds_total: number
+  avg_seconds: number | null
+  cost_total: number
+  avg_cost: number | null
+  tokens_in: number
+  tokens_out: number
+  estimated: boolean
+  bad_citations: number
+  no_citations: number
+}
+
+export interface ModelCheckRun {
+  id: string
+  status: 'running' | 'done' | 'failed'
+  model: string
+  provider: Provider
+  started: string
+  finished: string | null
+  total: number
+  error: string | null
+  summary: ModelCheckSummary | null // null while running
+  results: ModelCheckRow[]
+}
+
+export type ModelCheckListed = Omit<ModelCheckRun, 'results'>
+
+export interface RetrievalMiss {
+  id: string
+  question: string
+  expected: string[]
+  got: string[] // the top 5 documents instead
+  rank: number | null // of the first right document, up to 10
+}
+
+export interface RetrievalMetrics {
+  questions: number
+  hits: number
+  hit_rate_at_5: number | null
+  mrr: number | null
+  misses: RetrievalMiss[]
+}
+
+export interface RetrievalRun {
+  id: string
+  embedder: string
+  dim: number
+  started: string
+  seconds: number
+  questions: number
+  modes: { vector: RetrievalMetrics; hybrid: RetrievalMetrics }
+}
+
+export const startModelCheck = (ids: string[] = []) =>
+  request<ModelCheckRun>('/dev/model-check', json('POST', { ids }))
+export const getModelCheck = (id: string) => request<ModelCheckRun>(`/dev/model-check/${encodeURIComponent(id)}`)
+export const listModelChecks = () => request<{ runs: ModelCheckListed[] }>('/dev/model-checks')
+export const runRetrievalCheck = () => request<RetrievalRun>('/dev/retrieval-check', { method: 'POST' })
+export const listRetrievalChecks = () => request<{ runs: RetrievalRun[] }>('/dev/retrieval-checks')
+
+/** The report page for these runs; none named = the latest run per model and per embedder. */
+export function reportUrl(models: string[], retrieval: string[]): string {
+  const q = new URLSearchParams()
+  if (models.length) q.set('models', models.join(','))
+  if (retrieval.length) q.set('retrieval', retrieval.join(','))
+  const s = q.toString()
+  return `${API_URL}/dev/report${s ? `?${s}` : ''}`
+}

@@ -309,3 +309,166 @@
 .emap .qmark .hit-area {
   fill: transparent;
 }
+
+/* ---------- The model check, the retrieval check and the report (A12) ----------
+   Pass and fail are --text with a ✓ or ✕ and a coloured edge: --ok and --error alone are under 4.5:1 for small
+   text on the surface (DESIGN.md §5.7). Nothing here moves. */
+
+.dev-page .table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.eval-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.4rem 0;
+}
+
+.eval-run progress {
+  flex: 1 1 8rem;
+  max-width: 14rem;
+  height: 8px;
+  accent-color: var(--accent);
+}
+
+.eval-numbers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.6rem;
+  margin: 0.5rem 0;
+}
+
+.eval-numbers > div {
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-nested);
+  background: var(--nested-fill);
+}
+
+.eval-numbers strong {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dev-page table.data th[scope='row'] {
+  font-weight: 600;
+}
+
+.dev-page table.data .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dev-page table.data td,
+.dev-page table.data th {
+  vertical-align: top;
+}
+
+.eval-question {
+  font-weight: 400;
+}
+
+.check,
+.verdict {
+  display: inline-block;
+  margin: 0 0.25rem 0.2rem 0;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.check.ok,
+.verdict.pass {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--ok);
+}
+
+.check.no,
+.verdict.fail {
+  background: var(--error-soft);
+  box-shadow: inset 0 0 0 1px var(--error);
+}
+
+.eval-answer td {
+  background: var(--nested-fill);
+}
+
+.eval-answer-text {
+  margin: 0.3rem 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.eval-failures {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.15rem 0.8rem;
+  margin: 0.2rem 0 0.4rem;
+}
+
+.eval-failures dt {
+  font-weight: 700;
+}
+
+.eval-failures dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dev-page table.runs tr.current td {
+  background: var(--accent-soft);
+}
+
+.dev-page table.compare thead .meta {
+  display: block;
+  font-weight: 400;
+}
+
+.dev-page .model-check h4,
+.dev-page .retrieval-check h4 {
+  margin: 0.5rem 0 0.2rem;
+  font-size: 0.85rem;
+}
+
+.misses {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.82rem;
+}
+
+.misses .meta {
+  display: inline;
+  overflow-wrap: anywhere;
+}
+
+/* "Open the report": a link that looks like a button (DESIGN.md §5.3, a pill with a border). */
+.button-link {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.button-link:hover {
+  border-color: var(--accent);
+}
+
+@media (max-width: 520px) {
+  .eval-failures {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
