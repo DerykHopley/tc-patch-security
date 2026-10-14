@@ -4,7 +4,7 @@ Moved from proto (A06). Our own loop, not a LangChain agent (docs/adr/0001-thin-
 """
 import json
 
-from app import guard
+from app import guard, page_context
 from app.app_settings import ExplainLevel
 from app.citations import check_citations
 from app.config import FIXTURES
@@ -18,6 +18,11 @@ systems (MITRE ATLAS), and vulnerabilities in LLM products such as LangChain, La
   the numbers the tools give you. Never cite a number a tool didn't give.
 - Use lookup_cve for a specific CVE id, explain_weakness for a CWE or ATLAS technique id, and update_watchlist when
   the user wants to watch a product or mark a CVE as fixed, not affected or open.
+- Use prioritise when the user asks what to fix first. Its order comes from fixed priority rules, not from you.
+  Explain the order it gives and never change it: don't re-rank, skip or add CVEs, and don't set any status.
+  Name the CVEs in its order and explain each from its reasons, due date, overdue, no_fix and review_due.
+- The page the user is on may follow this prompt as checked fields (page, filters, a selected CVE). "This",
+  "these" or "here" mean that view. prioritise applies its filters by itself.
 - If nothing relevant is found, say so. Don't make anything up, especially versions, scores or dates.
 - Explain how attacks work and how to defend against them. Never write working exploit code, payloads, or
   step-by-step attack instructions against a named product or system. Offer the defence instead.
@@ -52,10 +57,14 @@ def examples() -> list[dict]:
 
 
 def answer(message: str, history: list[dict], deps, max_steps: int = MAX_STEPS,
-           flags: list[str] | None = None, level: ExplainLevel = "normal") -> ChatReply:
-    ctx = Context()
+           flags: list[str] | None = None, level: ExplainLevel = "normal", page: dict | None = None) -> ChatReply:
+    """`page`: the page context, already checked by app.page_context (A18). The tools read it from the Context."""
+    page = page or {}
+    ctx = Context(page=page)
     records = []
-    messages = [{"role": "system", "content": system_prompt(level)}, *history, {"role": "user", "content": message}]
+    # One system message: some local models' chat templates accept only one, and only first.
+    system = system_prompt(level) + (f"\n\n{page_context.for_model(page)}" if page else "")
+    messages = [{"role": "system", "content": system}, *history, {"role": "user", "content": message}]
     tools = tool_schemas()
     final = None
     steps = 0
@@ -91,4 +100,5 @@ def answer(message: str, history: list[dict], deps, max_steps: int = MAX_STEPS,
     checked = check_citations(final, {s.n for s in ctx.sources})
     return ChatReply(answer=checked.answer, sources=ctx.sources, tool_calls=records, query=ctx.query,
                      usage=ctx.usage, steps=steps, flags=flags or [], bad_citations=checked.bad,
-                     no_citations=bool(ctx.sources) and not checked.cited, explain_level=level)
+                     no_citations=bool(ctx.sources) and not checked.cited, explain_level=level,
+                     page_context=page)

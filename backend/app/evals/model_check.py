@@ -18,7 +18,7 @@ from pathlib import Path
 from app.agent import answer
 from app.config import FIXTURES
 from app.errors import InputError, LLMError
-from app.evals.checks import cited, score, score_levels
+from app.evals.checks import cited, fix_first_lists, score, score_levels
 from app.evals.readability import flesch_reading_ease
 from app.evals.runs import LISTED, RunStore, new_id, now
 from app.guard import check_message
@@ -82,6 +82,8 @@ def _ask(q: dict, deps) -> dict:
                 "no_citations": any(r.no_citations for r in every), "estimated": any(r.usage.estimated for r in every)}
         if len(replies) > 1:
             row["levels"] = {lv: _level_row(r) for lv, r in replies.items()}
+        if q["expect"].get("fix_first") and (lists := fix_first_lists(reply)):  # the report's "fix first" (A18)
+            row["fix_first"] = {"rules": lists[0], "answer": lists[1], "total_open": lists[2]}
     except LLMError as e:
         row["error"] = e.public or e.message
     except Exception as e:  # noqa: BLE001 - one bad question shouldn't stop the run

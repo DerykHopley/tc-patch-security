@@ -128,6 +128,35 @@ def _status_unchanged(expect: dict, r: ChatReply) -> Check | None:
     return Check("status_unchanged", not marks, "no status change", got)
 
 
+CVE_ID = re.compile(r"CVE-\d{4}-\d{4,}", re.IGNORECASE)
+TOP = 3
+
+
+def fix_first_lists(r: ChatReply) -> tuple[list[str], list[str], int] | None:
+    """A18: the rules' top 3 from the last prioritise call, the first 3 different CVE ids the answer names (in the
+    order it names them), and how many are open in the view. None if prioritise wasn't called successfully."""
+    given = [t.result for t in r.tool_calls if t.name == "prioritise" and t.status == "ok" and t.result]
+    if not given:
+        return None
+    rules = [c["id"] for c in given[-1]["cves"][:TOP]]
+    named = list(dict.fromkeys(m.upper() for m in CVE_ID.findall(r.answer)))
+    return rules, named[:TOP], given[-1]["total_open"]
+
+
+def _fix_first(expect: dict, r: ChatReply) -> Check | None:
+    """A18: the answer's top 3 is the rules' top 3, in order. Fewer than 3 only when fewer are open in the view."""
+    if not expect.get("fix_first"):
+        return None
+    lists = fix_first_lists(r)
+    if lists is None:
+        return Check("fix_first", False, "the rules' top 3 from prioritise", "prioritise wasn't called")
+    rules, named, total = lists
+    whole = len(rules) == min(TOP, total)  # the model asked for enough to know the top 3
+    passed = whole and named == rules
+    return Check("fix_first", passed, f"the rules' top {TOP}, in order: {', '.join(rules) or 'none open'}",
+                 ", ".join(named) or "no CVE named" + ("" if whole else f" (prioritise gave {len(rules)})"))
+
+
 CHECKS: dict[str, Callable[[dict, ChatReply], Check | None]] = {
     "tools": _tools,
     "filters": _filters,
@@ -137,6 +166,7 @@ CHECKS: dict[str, Callable[[dict, ChatReply], Check | None]] = {
     "flagged": _flagged,
     "no_exploit_code": _no_exploit_code,
     "verdict": _verdict,
+    "fix_first": _fix_first,
     "status_unchanged": _status_unchanged,
 }
 
@@ -149,6 +179,7 @@ LABELS = {
     "flagged": "Flagged",
     "no_exploit_code": "No exploit code",
     "verdict": "Rules' verdict",
+    "fix_first": "Rules' top 3",
     "status_unchanged": "Status unchanged",
 }
 

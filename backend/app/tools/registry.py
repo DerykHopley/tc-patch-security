@@ -15,10 +15,12 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class Context:
-    """Per-request state the tools add to: sources across search calls, the last query, usage."""
+    """Per-request state the tools add to: sources across search calls, the last query, usage. `page`: the checked
+    page context (A18), read by prioritise."""
     sources: list[Source] = field(default_factory=list)
     query: QueryInfo | None = None
     usage: Usage = field(default_factory=Usage)
+    page: dict = field(default_factory=dict)
 
     def add_usage(self, reply: LLMReply) -> None:
         self.usage.input_tokens += reply.input_tokens
@@ -84,4 +86,4 @@ def run_tool(call: ToolCall, deps, ctx: Context) -> ToolCallRecord:
 
 
 # Importing the tool modules registers them.
-from app.tools import affected, cve, search, watchlist, weakness  # noqa: E402,F401
+from app.tools import affected, cve, prioritise, search, watchlist, weakness  # noqa: E402,F401

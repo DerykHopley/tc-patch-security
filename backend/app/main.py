@@ -13,7 +13,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
-from app import agent, dashboard, guard
+from app import agent, dashboard, guard, page_context
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.config import Settings
 from app.deps import Deps, build_deps
@@ -104,7 +104,11 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         history = [t.model_dump() for t in req.history]
         message, flags = guard.check_message(req.message, history)  # limits and flags, before any LLM call
         level = req.explain_level or deps.state.settings().explain_level  # an override is for this message only
-        return agent.answer(message, history, deps, max_steps=deps.dev().max_steps, flags=flags, level=level)
+        page, dropped = page_context.validate(req.page, deps.knowledge.resolve_product)  # fixed fields only (A18)
+        reply = agent.answer(message, history, deps, max_steps=deps.dev().max_steps, flags=flags, level=level,
+                             page=page)
+        reply.dropped_context = dropped
+        return reply
 
     @app.get("/examples")
     def examples():

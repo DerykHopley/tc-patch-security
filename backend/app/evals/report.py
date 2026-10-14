@@ -257,6 +257,28 @@ def _explain_levels(runs: list[dict], placeholder: str) -> str:
     return out or placeholder
 
 
+def _fix_first(runs: list[dict], placeholder: str) -> str:
+    """Per model: the rules' top 3 against the answer's top 3, in order (A18), with the answer. A placeholder while
+    no run has asked the question."""
+    rows, answers = [], ""
+    for r in runs:
+        for row in (x for x in r["results"] if x.get("fix_first")):
+            f, ok = row["fix_first"], row["checks"].get("fix_first", False)
+            mark = f'<span class="{"pass" if ok else "fail"}">{"✓ Same order" if ok else "✕ Different"}</span>'
+            rows.append([_e(r["model"]), _e(", ".join(f["rules"]) or "none open"),
+                         _e(", ".join(f["answer"]) or "no CVE named"), mark, str(f["total_open"])])
+            answers += f'<dt>{_e(r["model"])}</dt><dd>{_e(row["answer"])}</dd>'
+        for row in (x for x in r["results"] if "fix_first" in x["checks"] and not x.get("fix_first")):
+            rows.append([_e(r["model"]), "–", "prioritise wasn't called", '<span class="fail">✕ Different</span>', "–"])
+    if not rows:
+        return placeholder
+    out = _table("What to fix first, per model", ["Model", "Rules' top 3", "Answer's top 3", "Result", "Open"],
+                 rows, text_cols=4)
+    if answers:
+        out += f'<details><summary>The answers</summary><dl class="failure">{answers}</dl></details>'
+    return out
+
+
 def _section(sid: str, title: str, body: str, intro: str = "") -> str:
     intro_html = f'<p class="meta">{intro}</p>' if intro else ""
     return f'<section id="{sid}" class="card" aria-labelledby="{sid}-h"><h2 id="{sid}-h">{title}</h2>{intro_html}{body}</section>'
@@ -284,8 +306,10 @@ def build(model_runs: list[dict], retrieval_runs: list[dict], as_of: str, findin
                  "One question asked at each explain level. Reading ease is Flesch's score (higher is easier; 60–70 "
                  "is plain English), computed by our own code. It must fall from simple to deep dive, with the same "
                  "key fact and the same cited sources at every level."),
-        _section("fix-first", "What to fix first", placeholder.format(
+        _section("fix-first", "What to fix first", _fix_first(model_runs, placeholder.format(
             what="A18 asks what to fix first: the top 3 must match the priority rules.")),
+                 "\"What should I fix first?\" The order comes from the priority rules (prioritise); the model "
+                 "only explains it. Its answer must name the rules' top 3 first, in the same order."),
         _section("findings", "Findings",
                  findings or '<p class="placeholder">To be written by a person after the real runs (A20): what '
                              'worked, what failed and why, the recommended default model and embedder with the '

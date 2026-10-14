@@ -1,5 +1,5 @@
 {
- "_note": "FakeLLM scripts. keywords: all must appear in the lowercased question. Answers are templates filled from real tool results. expect: what the model check (app/evals/checks.py) scores for a real model; tools null = not checked. answers: one template per explain level (simple, normal, deep_dive) in place of answer; expect.levels asks the question at each level and compares the answers (A19).",
+ "_note": "FakeLLM scripts. keywords: all must appear in the lowercased question. Answers are templates filled from real tool results. expect: what the model check (app/evals/checks.py) scores for a real model; tools null = not checked. answers: one template per explain level (simple, normal, deep_dive) in place of answer; expect.levels asks the question at each level and compares the answers (A19). expect.fix_first: the answer's top 3 CVEs must be prioritise's top 3, in order (A18).",
  "scripts": [
   {
    "id": "Q1",
@@ -401,6 +401,28 @@
     "contains_any": [
      "CVE-2025-3248"
     ],
+    "cites": true
+   }
+  },
+  {
+   "id": "Q-fix-first",
+   "question": "What should I fix first?",
+   "keywords": [
+    "fix first"
+   ],
+   "tool_calls": [
+    {
+     "name": "prioritise",
+     "args": {}
+    }
+   ],
+   "answer": "{fix_first}\n\nThat is the rules' order; I only explain it. Each CVE's status stays your decision.",
+   "expect": {
+    "tools": [
+     "prioritise"
+    ],
+    "fix_first": true,
+    "status_unchanged": true,
     "cites": true
    }
   }

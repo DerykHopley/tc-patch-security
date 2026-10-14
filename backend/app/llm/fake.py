@@ -96,6 +96,31 @@ def _verdict_counts(p: dict) -> str:
     return "\n".join([head, *rows])
 
 
+PRIORITY_WORD = {"urgent": "Urgent", "high": "High", "normal": "Normal", "low": "Low"}
+FILTER_WORDS = {"product": "{}", "severity": "{} or worse", "verdict": "verdict {}", "kev": "in CISA KEV",
+                "since": "published since {}"}
+
+
+def _fix_first(p: dict) -> str:
+    """prioritise's result (A18) in the rules' order: never re-ranked, only explained."""
+    words = {k: str(v).lower().replace("_", " ") for k, v in p["filters"].items()} | (
+        {"product": p["product"]} if p["product"] else {})
+    view = ", ".join(FILTER_WORDS[k].format(v) for k, v in words.items() if k in FILTER_WORDS)
+    where = f" in this view ({view})" if view else " on your watchlist"
+    if not p["cves"]:
+        return f"Nothing is open{where}, so there's nothing to fix first."
+    lines = [f"In the order the priority rules give, {p['total_open']} open{where}:", ""]
+    for c in p["cves"]:
+        if c["no_fix"]:
+            when = f"no fix yet, open {c['open_days']} days: decide by {c['due_date']} whether to accept, mitigate or replace"
+        else:
+            when = f"due {c['due_date']}" + (", **overdue**" if c["overdue"] else "")
+        review = "; accepted, review due" if c["review_due"] else ""
+        lines.append(f"{c['rank']}. **{c['id']}** in {c['product']}: {PRIORITY_WORD[c['priority']]}, because "
+                     f"{', '.join(c['reasons'])}; {when}{review} [{c['n']}]")
+    return "\n".join(lines)
+
+
 def _weakness(w: dict) -> str:
     if w["kind"] == "cwe":
         cat = w["category"]
@@ -203,6 +228,8 @@ class FakeLLM:
                 fields["affected"] = _verdict_line(data)
             elif "counts" in data:  # check_affected, one product
                 fields["affected"] = _verdict_counts(data)
+            elif "total_open" in data:  # prioritise (A18)
+                fields["fix_first"] = _fix_first(data)
             elif "watch_status" in data:
                 fields["cve"] = _cve_card(data)
             elif data.get("kind") in ("cwe", "atlas_technique"):
@@ -211,7 +238,7 @@ class FakeLLM:
                 fields["watch"] = data["message"] + " Watching: " + ", ".join(data["watchlist"]) + "."
 
         if script is None:
-            parts = [fields[k] for k in ("error", "cve", "affected", "weakness") if k in fields]
+            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness") if k in fields]
             if sources:
                 head = "How to prevent this kind of bug:" if "cve" in fields else "From the knowledge base:"
                 parts.append(f"{head}\n\n{_bullets(sources, 3 if 'cve' in fields else 2)}")
