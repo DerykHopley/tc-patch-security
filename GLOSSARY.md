@@ -45,12 +45,28 @@ The products you say you use. Only CVEs for watched products count as yours.
 _Avoid_: stack, subscriptions
 
 **CVE status**:
-Your mark on a CVE for a watched product: open, fixed or not affected. Open until you say otherwise.
+Your mark on a CVE for a watched product: open, fixed, not affected or accepted. Open until you say otherwise. Only you set it: never a rule, the verdict or Patch.
 _Avoid_: state, resolution
 
 **Open CVE**:
-A CVE for a product on your watchlist whose status is open. Only your status decides this, never the verdict.
+A CVE for a product on your watchlist whose status is open, or accepted with its review due. Only your status decides this, never the verdict.
 _Avoid_: active CVE, unresolved CVE
+
+**Accepted**:
+Your status for a CVE you've decided to live with for now (risk accepted), with a reason, a review date and optionally a compensating control. Not open, not overdue, not in the priority order until its review date.
+_Avoid_: ignored, waived, snoozed
+
+**Review due**:
+An accepted CVE whose review date has come (at the as-of date). It's back in the open list and counts, its acceptance shown, until you accept it again, fix it, mark it not affected or reopen it.
+_Avoid_: expired, lapsed
+
+**Decision record**:
+What you decided about one CVE and why: the status, its justification or reason, a note, the review date and compensating control, when, and who. Every status change appends one to the CVE's history; none is ever edited or removed (only the full reset clears them).
+_Avoid_: audit log, comment
+
+**Justification**:
+Why a CVE is not affected, one of the five VEX reasons: component not present, vulnerable code not present, vulnerable code not in execute path, vulnerable code cannot be controlled by adversary, inline mitigations already exist. Required for not affected.
+_Avoid_: excuse, reason (that's for accepted)
 
 **Usage**:
 How you run a watched product: self-hosted app, library, comes in through another package, or hosted service. Recorded with your version.
@@ -79,8 +95,12 @@ The date by which you mean to deal with an open CVE, from your policy.
 _Avoid_: deadline (say KEV deadline for CISA's)
 
 **Overdue**:
-An open CVE past its due date.
+An open CVE that has a fix, past its due date.
 _Avoid_: late, expired
+
+**No fix yet**:
+An open CVE for which OSV lists no fixed version for the product's packages (open range, or last-affected only). It's never overdue; its due date is the "decide by" date: accept, mitigate or replace. A CVE with no OSV record isn't "no fix yet": that's unknown.
+_Avoid_: unfixable, unpatched
 
 **Internet-facing**:
 Your mark on a watched product that people outside can reach. Raises priority.
