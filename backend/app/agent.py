@@ -5,6 +5,7 @@ Moved from proto (A06). Our own loop, not a LangChain agent (docs/adr/0001-thin-
 import json
 
 from app import guard
+from app.citations import check_citations
 from app.config import FIXTURES
 from app.schemas import ChatReply
 from app.tools.registry import Context, run_tool, tool_schemas
@@ -71,5 +72,7 @@ def answer(message: str, history: list[dict], deps, max_steps: int = MAX_STEPS,
         if found:
             final += f" Here is what I found so far:\n\n{found}"
 
-    return ChatReply(answer=final, sources=ctx.sources, tool_calls=records, query=ctx.query,
-                     usage=ctx.usage, steps=steps, flags=flags or [])
+    checked = check_citations(final, {s.n for s in ctx.sources})
+    return ChatReply(answer=checked.answer, sources=ctx.sources, tool_calls=records, query=ctx.query,
+                     usage=ctx.usage, steps=steps, flags=flags or [], bad_citations=checked.bad,
+                     no_citations=bool(ctx.sources) and not checked.cited)

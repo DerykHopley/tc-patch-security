@@ -24,6 +24,7 @@ class Context:
         self.usage.input_tokens += reply.input_tokens
         self.usage.output_tokens += reply.output_tokens
         self.usage.llm_calls += 1
+        self.usage.cost += reply.cost
         self.usage.estimated = self.usage.estimated or reply.estimated
 
 

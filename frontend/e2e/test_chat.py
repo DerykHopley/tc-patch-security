@@ -355,8 +355,8 @@ def test_a06_6_answers_render_markdown_but_never_raw_html(open_app):
     page.route("**/chat", lambda route: route.fulfill(
         status=200, headers={"Access-Control-Allow-Origin": "*"},
         json={"answer": "<img src=x onerror=\"window.pwned=1\"> plain", "sources": [], "tool_calls": [],
-              "query": None, "usage": {"input_tokens": 1, "output_tokens": 1, "llm_calls": 1, "estimated": True},
-              "steps": 1, "flags": []}))
+              "query": None, "usage": {"input_tokens": 1, "output_tokens": 1, "llm_calls": 1, "estimated": True,
+                                       "cost": 0}, "steps": 1, "flags": [], "bad_citations": [], "no_citations": False}))
     send(page, "hi")
     expect(window(page).locator(".message.assistant")).to_have_count(2)
     expect(last_answer(page).locator("img")).to_have_count(0)

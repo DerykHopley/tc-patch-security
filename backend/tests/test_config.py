@@ -32,7 +32,7 @@ def test_a01_6_relative_state_path_is_under_the_backend(monkeypatch):
 
 
 def test_a01_6_unknown_provider_fails_with_a_plain_message():
-    with pytest.raises(ConfigError, match="LLM_PROVIDER must be one of fake, not 'gpt'"):
+    with pytest.raises(ConfigError, match="LLM_PROVIDER must be one of fake, openrouter, local, not 'gpt'"):
         Settings(llm_provider="gpt").check()
 
 

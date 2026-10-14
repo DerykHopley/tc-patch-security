@@ -307,6 +307,14 @@
   font-weight: 700;
 }
 
+/* The citation check: quiet, muted text with no fill, unlike the warning-coloured flag note. */
+.cite-note {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
 .usage {
   margin: 0.45rem 0 0;
   color: var(--muted);

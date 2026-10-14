@@ -1792,7 +1792,7 @@ dev = [
 requires-dist = [
     { name = "chromadb", specifier = ">=1.5" },
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "langchain-openai", specifier = ">=1.0" },
+    { name = "langchain-openai", specifier = ">=1.7.1" },
     { name = "numpy", specifier = ">=2.5.4" },
     { name = "pydantic", specifier = ">=2.8" },
     { name = "uvicorn", specifier = ">=0.30" },

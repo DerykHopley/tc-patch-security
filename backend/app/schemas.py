@@ -57,6 +57,7 @@ class Usage(BaseModel):
     output_tokens: int = 0
     llm_calls: int = 0
     estimated: bool = False
+    cost: float = 0.0  # USD, summed over the answer's LLM calls (OpenRouter's usage.cost); 0 for local and FakeLLM
 
 
 class ChatReply(BaseModel):
@@ -67,3 +68,5 @@ class ChatReply(BaseModel):
     usage: Usage
     steps: int
     flags: list[str] = Field(default_factory=list)  # "injection_phrasing": flagged, still answered
+    bad_citations: list[int] = Field(default_factory=list)  # [n] removed from the answer: no source n (A08)
+    no_citations: bool = False  # the answer has sources but cites none of them: shown as a quiet note

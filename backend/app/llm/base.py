@@ -1,5 +1,5 @@
-"""The model seam. FakeLLM implements it now; the real model behind LangChain comes in A08
-(docs/adr/0001-thin-langchain.md). Moved from proto, plus label() from the skeleton.
+"""The model seam. FakeLLM (tests, no key) and ChatModelLLM (LangChain's ChatOpenAI, for OpenRouter or a local
+server) implement it (docs/adr/0001-thin-langchain.md). Moved from proto, plus label() and, from A08, cost.
 """
 from typing import Protocol
 
@@ -24,10 +24,11 @@ class LLMReply(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     estimated: bool = False
+    cost: float = 0.0  # USD, from OpenRouter's usage.cost; 0 for local models and FakeLLM
 
 
 class LLM(Protocol):
-    name: str  # provider id: "fake", later "openrouter", "local"
+    name: str  # provider id: "fake", "openrouter" or "local"
 
     def label(self) -> str:
         """The model in use, as shown to the user."""
