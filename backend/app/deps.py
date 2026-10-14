@@ -5,7 +5,7 @@ from app.app_settings import default_settings
 from app.config import Settings
 from app.knowledge import Knowledge, load_knowledge
 from app.llm.base import LLM
-from app.llm.fake import FakeLLM
+from app.llm.providers import make_llm
 from app.notify import Transports
 from app.rag.chunking import build_chunks
 from app.rag.embed import HashEmbedder
@@ -29,7 +29,7 @@ def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge 
     knowledge = knowledge or load_knowledge()
     return Deps(
         settings=settings,
-        llm=llm or FakeLLM(),
+        llm=llm or make_llm(settings),
         knowledge=knowledge,
         state=State(settings.state_path, knowledge, default_settings(settings)),
         index=index or VectorIndex(build_chunks(knowledge), HashEmbedder()),

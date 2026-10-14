@@ -24,6 +24,7 @@ class LLMReply(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     estimated: bool = False
+    cost: float = 0.0  # USD, from OpenRouter's usage.cost; 0 for local models and FakeLLM
 
 
 class LLM(Protocol):

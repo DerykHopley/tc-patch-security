@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn>=0.30",
     "pydantic>=2.8",
     "numpy>=2.5.4",
+    "langchain-openai>=1.7.1",
 ]
 
 [dependency-groups]
