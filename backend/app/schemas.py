@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.app_settings import ExplainLevel
+
 
 class Turn(BaseModel):
     role: str  # checked in guard.check_message, so the error message is plain (V1)
@@ -12,6 +14,7 @@ class Turn(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: list[Turn] = Field(default_factory=list)
+    explain_level: ExplainLevel | None = None  # this message only; none = the saved level (A19)
 
 
 class Source(BaseModel):
@@ -70,3 +73,4 @@ class ChatReply(BaseModel):
     flags: list[str] = Field(default_factory=list)  # "injection_phrasing": flagged, still answered
     bad_citations: list[int] = Field(default_factory=list)  # [n] removed from the answer: no source n (A08)
     no_citations: bool = False  # the answer has sources but cites none of them: shown as a quiet note
+    explain_level: ExplainLevel = "normal"  # the level this answer was pitched at (A19)

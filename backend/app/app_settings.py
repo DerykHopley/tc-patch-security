@@ -29,8 +29,12 @@ class AlertSettings(BaseModel):
     channels: list[Channel] = Field(default_factory=lambda: ["desktop"])
 
 
+ExplainLevel = Literal["simple", "normal", "deep_dive"]  # how Patch pitches an answer (A19)
+
+
 class AppSettings(BaseModel):
     alerts: AlertSettings = Field(default_factory=AlertSettings)
+    explain_level: ExplainLevel = "normal"
 
 
 def default_settings(env: Settings) -> AppSettings:

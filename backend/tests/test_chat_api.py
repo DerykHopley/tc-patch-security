@@ -24,6 +24,7 @@ Q = {
     "Q9": "Add Ollama to my watchlist",
     "Q10": "Mark CVE-2024-8309 as fixed",
     "Q11": "Look up CVE-1999-0001",
+    "Q12": "What is prompt injection and how do I prevent it?",  # explain levels (A19)
 }
 
 
@@ -40,7 +41,7 @@ def tools(body):
 def test_a06_1_reply_has_answer_sources_tool_calls_query_usage_steps_and_flags(client):
     body = chat(client, Q["Q1"]).json()
     assert set(body) == {"answer", "sources", "tool_calls", "query", "usage", "steps", "flags", "bad_citations",
-                         "no_citations"}
+                         "no_citations", "explain_level"}
     assert set(body["sources"][0]) == {"n", "chunk_id", "doc_id", "doc_type", "title", "section", "date", "url",
                                        "snippet", "score", "product", "severity", "cvss", "kev"}
     assert [s["n"] for s in body["sources"]] == list(range(1, len(body["sources"]) + 1))  # numbered from 1

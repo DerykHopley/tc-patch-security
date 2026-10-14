@@ -101,7 +101,10 @@ class State:
         saved = self.snapshot().get("settings", {})
         merged = self.defaults.model_dump()
         for part, values in merged.items():
-            values |= saved.get(part, {})
+            if isinstance(values, dict):
+                values |= saved.get(part, {})
+            elif part in saved:  # a single value, like the explain level (A19)
+                merged[part] = saved[part]
         return AppSettings.model_validate(merged)
 
     def save_settings(self, new: AppSettings) -> AppSettings:

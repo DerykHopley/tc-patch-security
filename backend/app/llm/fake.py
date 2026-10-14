@@ -6,6 +6,9 @@ real tool results in `messages`, so retrieval and tools are tested for real.
 Unscripted questions: a CVE id → lookup_cve, then search_security for how to prevent its OWASP
 category (what the dashboard's "Ask about this" sends). A CWE or ATLAS id → explain_weakness.
 Anything else → search_security with the question as is.
+
+Explain levels (A19): the level is read from the system prompt's level line, as a real model would read it. A script
+with `answers` has one template per level, with the same facts and citations.
 """
 import json
 import re
@@ -15,6 +18,7 @@ from app.config import FIXTURES
 from app.llm.base import LLMReply, QueryPlan, ToolCall
 
 NOTHING_FOUND = "I found nothing relevant in the knowledge base for that question."
+LEVEL_LINE = re.compile(r"^Explain level: (simple|normal|deep dive)\.", re.M)
 SEVERITY_WORD = {"CRITICAL": "critical", "HIGH": "high", "MEDIUM": "medium", "LOW": "low"}
 
 
@@ -77,6 +81,12 @@ def _weakness(w: dict) -> str:
                      + ", ".join(c["title"] for c in w["cited_by_llm_top10"]) + ".")
     lines.append(f"\nIt appears in {w['case_studies']} ATLAS case studies.")
     return "\n".join(lines)
+
+
+def _level(messages: list[dict]) -> str:
+    system = next((m["content"] or "" for m in messages if m["role"] == "system"), "")
+    found = LEVEL_LINE.search(system)
+    return found.group(1).replace(" ", "_") if found else "normal"
 
 
 class FakeLLM:
@@ -143,11 +153,11 @@ class FakeLLM:
             return LLMReply(tool_calls=tool_calls, input_tokens=n_input,
                             output_tokens=_tokens(json.dumps([t.model_dump() for t in tool_calls])), estimated=True)
 
-        content = self._answer(script, tool_msgs)
+        content = self._answer(script, tool_msgs, _level(messages))
         return LLMReply(content=content, input_tokens=n_input, output_tokens=_tokens(content), estimated=True)
 
     @staticmethod
-    def _answer(script: dict | None, tool_msgs: list[dict]) -> str:
+    def _answer(script: dict | None, tool_msgs: list[dict], level: str = "normal") -> str:
         fields: dict = {}
         sources: list[dict] = []
         for m in tool_msgs:
@@ -169,8 +179,11 @@ class FakeLLM:
                 head = "How to prevent this kind of bug:" if "cve" in fields else "From the knowledge base:"
                 parts.append(f"{head}\n\n{_bullets(sources, 3 if 'cve' in fields else 2)}")
             return "\n\n".join(parts) or NOTHING_FOUND
-        fields["sources"] = _bullets(sources, script.get("limit", 3))
+        limit = script.get("limit", 3)
+        fields["sources"] = _bullets(sources, limit)
+        fields["cites"] = " ".join(f"[{s['n']}]" for s in sources[:limit])
+        template = script["answers"][level] if "answers" in script else script["answer"]
         try:
-            return script["answer"].format(**fields)
+            return template.format(**fields)
         except KeyError:
             return f"Sorry, a tool didn't give me what I needed: {fields.get('error', 'no result')}"

@@ -1,5 +1,5 @@
 {
- "_note": "FakeLLM scripts. keywords: all must appear in the lowercased question. Answers are templates filled from real tool results. expect: what the model check (app/evals/checks.py) scores for a real model; tools null = not checked.",
+ "_note": "FakeLLM scripts. keywords: all must appear in the lowercased question. Answers are templates filled from real tool results. expect: what the model check (app/evals/checks.py) scores for a real model; tools null = not checked. answers: one template per explain level (simple, normal, deep_dive) in place of answer; expect.levels asks the question at each level and compares the answers (A19).",
  "scripts": [
   {
    "id": "Q1",
@@ -328,6 +328,51 @@
      "could not find",
      "doesn't",
      "does not"
+    ]
+   }
+  },
+  {
+   "id": "Q12",
+   "question": "What is prompt injection and how do I prevent it?",
+   "keywords": [
+    "what is prompt injection",
+    "prevent"
+   ],
+   "plan": {
+    "semantic_query": "prompt injection prevention and mitigation",
+    "rewrites": [
+     "what is prompt injection in LLM applications",
+     "constrain model behavior and validate output formats",
+     "least privilege and human approval for high-risk actions"
+    ],
+    "filters": {}
+   },
+   "tool_calls": [
+    {
+     "name": "search_security",
+     "args": {
+      "query": "What is prompt injection and how do I prevent it?"
+     }
+    }
+   ],
+   "limit": 3,
+   "answers": {
+    "simple": "Prompt injection is the top risk on the OWASP list for LLM apps (LLM01). It is when someone hides orders in the text a bot reads. Think of a note slipped in your mail that says \"do what I say\". The bot may do it. To stay safe, give the bot as few powers as you can. Check what it wants to do first. And treat all text from outside as a stranger's note. {cites}",
+    "normal": "Prompt injection (OWASP LLM01) happens when input changes the model's behaviour in ways the developer didn't intend, either directly from the user or indirectly through retrieved content. To prevent it, constrain the model's behaviour in the system prompt, validate expected output formats, filter input and output, enforce least privilege for tools, and require human approval for high-risk actions. {cites}",
+    "deep_dive": "Prompt injection, catalogued as OWASP LLM01:2025 and MITRE ATLAS AML.T0051, exploits the absence of separation between instructions and data within the model's context window: adversarial instructions, delivered directly or indirectly through retrieved documents, override intended behaviour and may trigger privileged tool invocations, data exfiltration or downstream injection. Mitigations combine privilege segregation, deterministic output validation against explicit schemas, semantic filtering of untrusted content, continuous adversarial testing, and human-in-the-loop authorisation for consequential operations. {cites}"
+   },
+   "expect": {
+    "tools": [
+     "search_security"
+    ],
+    "contains_any": [
+     "LLM01"
+    ],
+    "cites": true,
+    "levels": [
+     "simple",
+     "normal",
+     "deep_dive"
     ]
    }
   }

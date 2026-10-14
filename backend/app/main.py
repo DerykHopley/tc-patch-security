@@ -82,7 +82,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def chat(req: ChatRequest):
         history = [t.model_dump() for t in req.history]
         message, flags = guard.check_message(req.message, history)  # limits and flags, before any LLM call
-        return agent.answer(message, history, deps, max_steps=deps.dev().max_steps, flags=flags)
+        level = req.explain_level or deps.state.settings().explain_level  # an override is for this message only
+        return agent.answer(message, history, deps, max_steps=deps.dev().max_steps, flags=flags, level=level)
 
     @app.get("/examples")
     def examples():
