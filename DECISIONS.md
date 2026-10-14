@@ -79,6 +79,8 @@ Every decision made so far, in one place, with why and where the detail lives. C
 | 2026-10-13 | Embedding map: candy purple, orange, coral, validated for colour-blind readers | Matches the tiles; shapes and a table back up colour | DESIGN.md §3.2 |
 | 2026-10-13 | Tinted stat tiles in a calm design: no | Looked pasted on | docs/design-examples |
 | 2026-10-13 | **The design is part of every UI ticket, animations included**; DESIGN.md checklists are acceptance criteria | On another project the design and animations arrived late or never | DESIGN.md §0 |
+| 2026-10-14 | **CVEs page (A04b, #26):** the CVE table moves off the dashboard to its own page, at full width. The dashboard keeps the tiles, charts and side panels, plus a "Top 5 open CVEs" card. Each tile links to the CVEs page with its filter. Filters live in the URL; each page has a path (`/`, `/cves`, `/settings`, `/dev`). Tabs inside the dashboard: no | The dashboard answers "how exposed am I?"; the table is the work list. The table was squeezed by the side column, and A15/A16 add columns. Tabs hide one job to show the other | DESIGN.md §4, §5.9, GitHub #26 |
+| 2026-10-14 | **Narrow CVE table = stacked cards, by the table's own width** (a container query at 760px), not the window's. Built in A04b | One rule covers phones and the chat pinned at 1400px (about 600px left for the table): the row actions never need sideways scrolling | DESIGN.md §5.9 |
 
 ## Next steps (planned, not built)
 

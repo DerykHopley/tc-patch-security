@@ -178,14 +178,15 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - **Sidebar** (left), then the **main column**: top bar, then the page.
 - Sidebar, expanded: 250px wide, floating card with 1rem margin. Contents, top to bottom:
   1. Brand: 36px purple-gradient rounded square with a shield icon, "LLM Security", "assistant" ("prototype" dropped in the real build, 2026-10-14). Dashed line under it.
-  2. Section label "MONITOR": Dashboard, Settings, Dev (Dev only when the backend allows the dev panel).
+  2. Section label "MONITOR": Dashboard, CVEs, Settings, Dev (Dev only when the backend allows the dev panel). CVEs added 2026-10-14 (A04b).
   3. Section label "ASSISTANT": "Ask Patch" (opens and hides the chat; shows the unread dot). Until the chat ticket (A06) it is a placeholder: named, reachable by keyboard, `aria-disabled`, described as "Coming soon".
   4. At the bottom, the **snapshot card**: Patch (64px) with his head over the card's top edge, "Snapshot", data date, model name.
   5. Collapse button (chevron).
 - Sidebar items: pill rows (radius 16px). Icon in a 32px soft-purple rounded square. **Active item**: primary gradient fill, white text, icon square at 22% white, purple shadow.
 - **Collapsed rail**: 78px wide, icons only, centred. Section labels become thin lines. Brand name and snapshot card hide. Labels stay in the accessibility tree (visually hidden), so the buttons keep their names. The chevron rotates 180°. Width animates over 0.2s. Remembered per browser.
 - **Top bar**: breadcrumb "Pages / Dashboard" (0.75rem muted) above the page title (1.5rem Fredoka, purple, with the blinking cursor, section 7). Right side: the light/dark toggle (36px round, sun in dark mode, moon in light).
-- **Content**: max 1280px wide, centred, 1rem padding, 1.2rem gap between cards. Settings and Dev use the same width and gap as the dashboard.
+- **Content**: max 1280px wide, centred, 1rem padding, 1.2rem gap between cards. CVEs, Settings and Dev use the same width and gap as the dashboard.
+- **Paths** (A04b): each page has one: `/` (Dashboard), `/cves`, `/settings`, `/dev`. A sidebar click is a new history entry, so Back returns; a reload stays on the page.
 
 ### 4.2 Breakpoints
 
@@ -193,7 +194,8 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 |---|---|
 | ≤ 1000px | Dashboard side column drops under the main column |
 | ≤ 900px | Settings and Dev: one column of cards |
-| ≤ 800px | Sidebar becomes a **bottom tab bar** (fixed, full width, icon over label, "Ask" short label). Page gets 4.4rem bottom padding. Patch's button moves up to 5rem from the bottom. |
+| ≤ 800px | Sidebar becomes a **bottom tab bar** (fixed, full width, icon over label, "Ask" short label): Dashboard, CVEs, Settings, Dev, Ask. Page gets 4.4rem bottom padding. Patch's button moves up to 5rem from the bottom. |
+| Table ≤ 760px | The CVE table's rows become **stacked cards**. Measured on the table's card (a container query), not the window: it covers phones and the chat pinned at 1400px (§5.9). |
 | ≤ 700px | Chat (bubble or pinned) becomes a **full-screen sheet**. The pin button hides. |
 | ≤ 640px | Stat tiles: 2 columns. Welcome banner stacks (robot over text, centred). |
 | ≤ 520px | Slider rows stack (label above the slider). |
@@ -227,6 +229,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 | New in the last 30 days | `#26265f 35%` → `#4a4aa8` | `rgba(38,38,95,.3)` | 13.8:1 |
 
 - The KEV tile, when there are open KEV CVEs, **wiggles** every 4 seconds (section 7) and shows "Overdue since …" with a warning icon.
+- Each tile is a **link to the CVEs page with its filter** (A04b): open → `/cves`; open and critical → `?severity=CRITICAL`; open and in KEV → `?kev=1`; new in 30 days → `?status=all&since=<first of the 30 days>`. No underline; the global focus ring shows by keyboard.
 
 ### 5.2 Cards (`.panel`)
 
@@ -279,6 +282,14 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - Above the dashboard: white-to-soft-purple card (radius 28px). Patch (110px, waving) on the left, his head rising over the top edge. Title "Hi there! I'm Patch, your security sidekick." (1.25rem Fredoka, purple), one line of help, an "Ask Patch" button.
 - A quiet ✕ in the top right (32px round, muted, soft purple on hover). Once closed, it stays closed in that browser.
 
+### 5.9 CVEs page and the "Top 5 open CVEs" card (A04b, 2026-10-14)
+
+- **CVEs page**: one card, "CVEs on your watchlist", at the page's full width (no side column). Filters (product, severity, status, "In CISA KEV only"), a "Published since …" chip with a ✕ when a tile set it, the count and sort order, the table, "EPSS by FIRST", paging.
+- **Filters in the URL**: `?product=langflow&severity=CRITICAL&status=open&kev=1&since=2026-09-14`. Defaults (all watched, any severity, open) add nothing. A filter change replaces the URL (Back doesn't step through filters); malformed values are ignored.
+- **Table columns**: CVE (id, KEV chip, possible-match chip, two-line summary), product, severity, published, OWASP, EPSS, status with the row actions stacked under it (Mark fixed, Not affected or Reopen, Ask about this).
+- **Narrow (table ≤ 760px)**: each row is a stacked card: radius 18px (`--radius-nested`), `--accent-soft` fill, 0.6rem apart. The id and summary on top, then a grid of labelled cells (product, severity, published, OWASP, EPSS; label 0.7rem muted uppercase), then status and the actions on one wrapping line. The header row hides; each cell names itself. *Checked* at 400px and with the chat pinned at 1400px: no sideways scroll, every action in view.
+- **Top 5 open CVEs** (dashboard, 4th card of the main column): the CVEs page's first 5 rows in its order (id, KEV chip, product, severity), then "See all CVEs →" to `/cves`. A16 switches both to priority order.
+
 ### Checklist: components
 
 - [ ] Tiles: gradients, circles, contrast as in the table; KEV tile wiggles only when KEV > 0.
@@ -287,6 +298,8 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - [ ] Buttons, inputs, checkboxes, radios and sliders are on-brand in both modes and in Firefox and Chrome.
 - [ ] Save bar never hidden behind Patch.
 - [ ] Welcome banner closes and stays closed.
+- [ ] Tiles link to the CVEs page with their filter; the count there matches the tile.
+- [ ] CVEs page: full width; filters in the URL survive a reload; stacked cards when narrow; row actions always in view.
 
 ---
 
@@ -327,7 +340,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 
 - **Ctrl/Cmd+K** opens the chat on any page. **Esc** closes the bubble (not a pinned chat).
 - "Ask Patch" in the sidebar and the welcome banner's button open it too.
-- "Ask about this" on a CVE row opens the chat over the dashboard and sends "Explain CVE-… and how to defend against it."
+- "Ask about this" on a CVE row opens the chat over the CVEs page (header chip "on CVEs") and sends "Explain CVE-… and how to defend against it."
 
 ### 6.5 Phones
 
@@ -352,7 +365,8 @@ All motion is part of the spec. **It stops with `prefers-reduced-motion: reduce`
 
 | What | Animation | Duration, easing | Delay | Repeats |
 |---|---|---|---|---|
-| Stat tiles, dashboard cards | fade up: from `opacity 0`, `translateY(6px)` | 0.45s, `cubic-bezier(0.2, 0.8, 0.2, 1)` | tiles 0 / 0.05 / 0.1 / 0.15s; main column 2nd card 0.12s, 3rd 0.24s; side column 0.12s | once, on load |
+| Stat tiles, dashboard cards | fade up: from `opacity 0`, `translateY(6px)` | 0.45s, `cubic-bezier(0.2, 0.8, 0.2, 1)` | tiles 0 / 0.05 / 0.1 / 0.15s; main column 2nd card 0.12s, 3rd and 4th (Top 5 open CVEs) 0.24s; side column 0.12s | once, on load |
+| CVEs page card | the same fade up | 0.45s, same curve | 0s | once, on load (not on a filter change) |
 | Horizontal bars | grow from `scaleX(0)`, origin = the chart's axis (`--x0`) | 0.9s, same curve | 0.2s | once |
 | Columns | grow from `scaleY(0)`, origin = bottom of each bar | 0.9s, same curve | 0.2s | once |
 | Page title cursor | an "_" after the title, blinks | 1.1s, `steps(1)` | — | forever |
@@ -472,6 +486,7 @@ He always **overlaps what he sits on**, so he looks like he's in the scene, not 
 
 - All reads and writes are wrapped so a blocked storage (private windows) never breaks the app.
 - URL: `?theme=light|dark`. Old links: `?layout=split` pins the chat; other `?layout=` and all `?design=` values are ignored.
+- Paths: `/`, `/cves`, `/settings`, `/dev` (A04b). The CVEs page's filters: `product`, `severity`, `status`, `kev=1`, `since=YYYY-MM-DD` (§5.9). Alert links stay `#cve=CVE-…` on any path.
 
 ---
 
@@ -498,3 +513,4 @@ He always **overlaps what he sits on**, so he looks like he's in the scene, not 
 - Contrast: measured with the WCAG formula (values in 3.1 and 5.1).
 - The real build's browser check (`frontend/e2e/test_shell.py`, Firefox and Chromium) covers tokens, contrast, the shell, both themes, 400px and 1400px, and motion with and without reduced motion.
 - `frontend/e2e/test_chat.py` (A06) covers Patch (drawing, unique gradient ids, placements and overlaps, the four moods and their triggers, the unread dot), the bubble window (position above the pill, pop, header, greeting, suggestions), inline details and citations, the flag notice, keyboard, both themes at 400px and 1400px, and that nothing in the chat moves with reduced motion. The open pill uses the primary gradient, not `--accent`: white on dark-mode `--accent` would be 2.6:1. The prototype's check did **not** check animations or reduced motion. Worth adding in the real build: one test that the bars and Patch animate, one that nothing animates with reduced motion.
+- `frontend/e2e/test_cves_page.py` (A04b) covers the CVEs page: navigation and paths, the table at full width (moved A04.7 and A04.11 checks), filters in the URL and reload, the tile links (count matches the tile), the "Top 5 open CVEs" card, the alert link on `/cves`, stacked cards at 400px, row actions in view with the chat pinned at 1400px, fade-up delays, reduced motion, light and dark.
