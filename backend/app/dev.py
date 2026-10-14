@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from app.app_settings import DevSettings
 from app.errors import InputError
-from app.evals import model_check
+from app.evals import model_check, retrieval
 from app.llm.urls import local_url_allowed
 from app.rag.pipeline import search_security
 from app.rag.projection import projection_for
@@ -143,5 +143,19 @@ def dev_router(deps) -> APIRouter:
     @r.get("/model-checks")
     def list_model_checks():
         return {"runs": model_check.listing(deps)}
+
+    # --- Retrieval metrics (A12) for the embedder the index was built with; another embedder = another index
+
+    @r.post("/retrieval-check")
+    def run_retrieval_check():
+        return retrieval.run(deps, deps.index, deps.keyword)
+
+    @r.get("/retrieval-check/{run_id}")
+    def get_retrieval_check(run_id: str):
+        return retrieval.get(deps, run_id) or _not_found("No retrieval check with that id.")
+
+    @r.get("/retrieval-checks")
+    def list_retrieval_checks():
+        return {"runs": retrieval.listing(deps)}
 
     return r
