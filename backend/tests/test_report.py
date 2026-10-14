@@ -97,7 +97,7 @@ def test_a12_4_the_latest_run_per_model_and_per_embedder_by_default(deps, runs):
 
 def test_a12_4_placeholders_for_later_tickets_and_a_findings_section(deps, runs):
     html = page(deps)
-    assert "Not run yet" in section(html, "explain-levels")  # A19 fills it
+    assert "Reading ease" in section(html, "explain-levels")  # A19 filled it (test_explain_levels.py)
     assert "Not run yet" in section(html, "fix-first")  # A18 fills it
     assert "To be written" in section(html, "findings")
     written = page(deps, findings="<p>gpt-oss-120b passed 10 of 11 (checked).</p>")

@@ -1,8 +1,8 @@
 """The evaluation report: one self-contained HTML page from saved runs, to read and discuss in the review.
 
 Models side by side (scores per check, cost, time, every failure with what the model did and what was expected),
-embedders side by side (hit rate at 5, MRR, misses), placeholders for the explain-level readability (A19) and
-"what to fix first" (A18) results, and a findings section a person writes (A20). Styled with the design tokens from
+embedders side by side (hit rate at 5, MRR, misses), the explain-level readability per model (A19), a placeholder
+for the "what to fix first" (A18) results, and a findings section a person writes (A20). Styled with the design tokens from
 frontend/src/styles/tokens.css, inlined: the page loads nothing from anywhere, so it can be opened from disk or
 published as one file. Everything from a model or the data is escaped: answers are untrusted text.
 """
@@ -20,6 +20,7 @@ MODES = {"vector": "vector only", "hybrid": "hybrid (vector + BM25)"}
 KIND_LABELS = {"cve": "CVE id → that CVE", "cwe": "CWE → its OWASP page", "llm_risk": "risk name → its LLM Top 10 page",
                "llm_to_atlas": "LLM risk → its ATLAS techniques"}
 MISSES_SHOWN = 15
+LEVEL_LABELS = {"simple": "Simple", "normal": "Normal", "deep_dive": "Deep dive"}
 
 STYLE = """
 body { padding: 1.5rem 1rem 3rem; }
@@ -232,6 +233,30 @@ def _embedders(runs: list[dict]) -> str:
     return out
 
 
+def _explain_levels(runs: list[dict], placeholder: str) -> str:
+    """Per model: the explain-level question's answers at each level (A19), with reading ease, length, citations
+    and the comparison checks. A placeholder while no run has asked it."""
+    out = ""
+    for r in runs:
+        for row in (x for x in r["results"] if x.get("levels")):
+            out += f'<h3>{_e(r["model"])} <span class="meta">{_e(row["id"])}: {_e(row["question"])}</span></h3>'
+            rows = [[_e(LEVEL_LABELS.get(lv, lv)), "–" if x["reading_ease"] is None else f'{x["reading_ease"]:.0f}',
+                     str(x["words"]), _e(" ".join(f"[{n}]" for n in x["cited"]) or "none")]
+                    for lv, x in row["levels"].items()]
+            out += _table(f"Explain levels, {r['model']}", ["Level", "Reading ease", "Words", "Cited"], rows)
+            marks = []
+            for name in ("readability", "same_citations", "key_fact"):
+                if name in row["checks"]:
+                    ok = row["checks"][name]
+                    marks.append(f'<span class="{"pass" if ok else "fail"}">{"✓" if ok else "✕"} '
+                                 f'{_e(LABELS.get(name, name))}</span>')
+            out += f'<p>{" · ".join(marks)}</p>'
+            answers = "".join(f'<dt>{_e(LEVEL_LABELS.get(lv, lv))}</dt><dd>{_e(x["answer"])}</dd>'
+                              for lv, x in row["levels"].items())
+            out += f'<details><summary>The three answers</summary><dl class="failure">{answers}</dl></details>'
+    return out or placeholder
+
+
 def _section(sid: str, title: str, body: str, intro: str = "") -> str:
     intro_html = f'<p class="meta">{intro}</p>' if intro else ""
     return f'<section id="{sid}" class="card" aria-labelledby="{sid}-h"><h2 id="{sid}-h">{title}</h2>{intro_html}{body}</section>'
@@ -253,9 +278,12 @@ def build(model_runs: list[dict], retrieval_runs: list[dict], as_of: str, findin
         _section("embedders", "Embedders side by side", _embedders(retrieval_runs),
                  "Retrieval questions whose right source comes from structured fields. Hit rate at 5: share with a "
                  "right document in the top 5. MRR: mean of 1 / rank of the first right document (to rank 10)."),
-        _section("explain-levels", "Explain levels: readability", placeholder.format(
+        _section("explain-levels", "Explain levels: readability", _explain_levels(model_runs, placeholder.format(
             what="A19 asks one question at simple, normal and deep dive: the same key fact and citations, "
                  "readability easiest for simple and hardest for deep dive.")),
+                 "One question asked at each explain level. Reading ease is Flesch's score (higher is easier; 60–70 "
+                 "is plain English), computed by our own code. It must fall from simple to deep dive, with the same "
+                 "key fact and the same cited sources at every level."),
         _section("fix-first", "What to fix first", placeholder.format(
             what="A18 asks what to fix first: the top 3 must match the priority rules.")),
         _section("findings", "Findings",

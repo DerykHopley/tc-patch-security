@@ -4,13 +4,17 @@ Seams: the HTTP API (settings, chat), the readability score (a pure function), a
 """
 import json
 import re
+import time
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.evals import model_check, report
+from app.evals.checks import score_levels
 from app.evals.readability import flesch_reading_ease
 from app.llm.fake import FakeLLM
 from app.main import create_app
+from app.schemas import ChatReply, Source, Usage
 
 
 # --- A19.5: the readability score, on worked examples ------------------------------------------------------------
@@ -131,3 +135,109 @@ def test_a19_3_same_tools_sources_and_citations_at_every_level(client):
     assert cited["simple"] == cited["normal"] == cited["deep_dive"] and cited["normal"]
     assert len({r["answer"] for r in replies.values()}) == 3  # only the wording changes
     assert all(r["bad_citations"] == [] for r in replies.values())
+
+
+# --- A19.5: the model check asks one question at all three levels: exact checks, no LLM judge ----------------------
+
+def src(n: int) -> Source:
+    return Source(n=n, chunk_id=f"c{n}", doc_id=f"d{n}", doc_type="owasp_llm", title=f"T{n}", url="u", snippet="s")
+
+
+def reply(answer: str, sources=(1, 2)) -> ChatReply:
+    return ChatReply(answer=answer, sources=[src(n) for n in sources], tool_calls=[], query=None, usage=Usage(), steps=1)
+
+
+EXPECT = {"contains_any": ["LLM01"], "cites": True, "levels": list(LEVELS)}
+EASY = "LLM01 is a trick. Bad text tells the bot what to do. Keep it on a short leash [1] [2]."
+MIDDLE = ("LLM01, prompt injection, happens when input changes the model's behaviour; constrain it and validate "
+          "the output [1] [2].")
+HARD = ("LLM01 exploits the absence of separation between instructions and data within the model's context window, "
+        "enabling adversarial manipulation of privileged operations [1] [2].")
+
+
+def checks_of(replies: dict) -> dict:
+    return {c.name: c for c in score_levels(EXPECT, replies)}
+
+
+def test_a19_5_all_three_levels_pass_when_fact_citations_and_readability_order_hold():
+    got = checks_of({"simple": reply(EASY), "normal": reply(MIDDLE), "deep_dive": reply(HARD)})
+    assert {"key_fact", "cites", "real_citations", "same_citations", "readability"} <= set(got)
+    assert all(c.passed for c in got.values()), [c for c in got.values() if not c.passed]
+
+
+def test_a19_5_a_level_missing_the_key_fact_fails_and_names_the_level():
+    got = checks_of({"simple": reply(EASY.replace("LLM01", "It")), "normal": reply(MIDDLE), "deep_dive": reply(HARD)})
+    assert not got["key_fact"].passed and "simple" in got["key_fact"].got
+
+
+def test_a19_5_different_citations_at_one_level_fail():
+    got = checks_of({"simple": reply(EASY.replace("[2]", "")), "normal": reply(MIDDLE), "deep_dive": reply(HARD)})
+    assert not got["same_citations"].passed and "simple" in got["same_citations"].got
+
+
+@pytest.mark.parametrize("order", [(MIDDLE, EASY, HARD), (EASY, HARD, MIDDLE), (HARD, MIDDLE, EASY)])
+def test_a19_5_readability_must_be_easiest_for_simple_and_hardest_for_deep_dive(order):
+    got = checks_of(dict(zip(LEVELS, (reply(t) for t in order))))
+    assert not got["readability"].passed
+    assert "simple" in got["readability"].got and "deep dive" in got["readability"].got  # the scores, by level
+
+
+def run_check(client, body) -> dict:
+    r = client.post("/dev/model-check", json=body)
+    assert r.status_code == 200, r.text
+    run = r.json()
+    for _ in range(400):
+        if run["status"] != "running":
+            return run
+        time.sleep(0.05)
+        run = client.get(f"/dev/model-check/{run['id']}").json()
+    raise AssertionError("the model check didn't finish")
+
+
+def test_a19_5_fakellm_passes_the_explain_level_question_at_all_three_levels(client):
+    run = run_check(client, {"ids": ["Q12"]})
+    row = run["results"][0]
+    assert row["passed"], row["failures"]
+    assert row["checks"] == {"tools": True, "key_fact": True, "real_citations": True, "cites": True,
+                             "same_citations": True, "readability": True}
+    levels = row["levels"]
+    assert list(levels) == list(LEVELS)
+    assert levels["simple"]["reading_ease"] > levels["normal"]["reading_ease"] > levels["deep_dive"]["reading_ease"]
+    assert levels["simple"]["cited"] == levels["deep_dive"]["cited"] != []
+    assert all(lv["answer"] and lv["words"] > 0 for lv in levels.values())
+    assert row["llm_calls"] >= 6  # three answers, two calls each at least
+
+
+# --- A19.5: the report's readability section ----------------------------------------------------------------------
+
+def report_section(html: str) -> str:
+    found = re.search(r'<section id="explain-levels".*?</section>', html, re.S)
+    assert found
+    return found.group(0)
+
+
+def test_a19_5_the_report_shows_reading_ease_words_and_citations_per_level(deps):
+    run = model_check.start(deps, ids=["Q12"], wait=True)
+    levels = run["results"][0]["levels"]
+    html = report_section(report.from_store(report.store_of(deps.settings), as_of=deps.settings.as_of))
+    assert "Not run yet" not in html and "FakeLLM (scripted)" in html
+    for label in ("Simple", "Normal", "Deep dive", "Reading ease", "Words", "Cited"):
+        assert label in html, label
+    for lv in levels.values():
+        assert f'{lv["reading_ease"]:.0f}' in html
+    assert "✓" in html  # the order and citation checks passed
+
+
+def test_a19_5_the_section_stays_a_placeholder_without_an_explain_level_run(deps):
+    model_check.start(deps, ids=["Q1"], wait=True)
+    html = report_section(report.from_store(report.store_of(deps.settings), as_of=deps.settings.as_of))
+    assert "Not run yet" in html
+
+
+def test_a19_5_answers_in_the_readability_section_are_escaped(deps):
+    run = model_check.start(deps, ids=["Q12"], wait=True)
+    run["model"] = "<b>m</b>"
+    for lv in run["results"][0]["levels"].values():
+        lv["answer"] = "<script>x</script>"
+    html = report_section(report.build([run], [], as_of="2026-10-13"))
+    assert "<script>x" not in html and "<b>m</b>" not in html and "&lt;b&gt;m&lt;/b&gt;" in html

@@ -2,12 +2,15 @@
 
 Each check runs only when `expect` asks for it, except `real_citations`, which every answer must pass. A check is a
 function `(expect, reply) -> Check | None` in CHECKS, so a later question type adds its check here (A15: the verdict;
-A18: the top 3 to fix first) and every run, the dev panel and the report pick it up by name.
+A18: the top 3 to fix first) and every run, the dev panel and the report pick it up by name. A question with
+`expect.levels` is asked once per explain level: `score_levels` runs the checks on every answer, then compares them
+(LEVEL_CHECKS: the same citations, readability in level order) (A19).
 """
 import re
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 
+from app.evals.readability import flesch_reading_ease
 from app.schemas import ChatReply
 
 GOT_MAX = 300  # characters of the answer kept in a failure: enough to see what the model did
@@ -116,3 +119,48 @@ LABELS = {
 def score(expect: dict, reply: ChatReply) -> list[Check]:
     """The checks this question asks for, in CHECKS order."""
     return [c for fn in CHECKS.values() if (c := fn(expect, reply)) is not None]
+
+
+# --- Explain levels (A19): one question asked at each level in `expect["levels"]`, answers compared -----------------
+
+LEVEL_NAMES = {"simple": "simple", "normal": "normal", "deep_dive": "deep dive"}
+
+
+def cited(r: ChatReply) -> list[int]:
+    """The source numbers an answer cites (only real sources)."""
+    return sorted(_cited(r.answer) & {s.n for s in r.sources})
+
+
+def _same_citations(expect: dict, replies: dict[str, ChatReply]) -> Check:
+    by_level = {lv: cited(r) for lv, r in replies.items()}
+    passed = len({tuple(c) for c in by_level.values()}) == 1
+    got = "; ".join(f"{LEVEL_NAMES[lv]}: {' '.join(f'[{n}]' for n in c) or 'none'}" for lv, c in by_level.items())
+    return Check("same_citations", passed, "the same sources cited at every level", got)
+
+
+def _readability(expect: dict, replies: dict[str, ChatReply]) -> Check:
+    scores = {lv: flesch_reading_ease(r.answer) for lv, r in replies.items()}
+    ordered = [scores[lv] for lv in expect["levels"]]  # simple first, deep dive last
+    passed = None not in ordered and all(a > b for a, b in zip(ordered, ordered[1:]))  # type: ignore[operator]
+    got = "; ".join(f"{LEVEL_NAMES[lv]} {'–' if s is None else f'{s:.0f}'}" for lv, s in scores.items())
+    return Check("readability", passed, "reading ease highest for simple, lowest for deep dive", got)
+
+
+LEVEL_CHECKS: dict[str, Callable[[dict, dict[str, ChatReply]], Check]] = {
+    "same_citations": _same_citations,
+    "readability": _readability,
+}
+LABELS |= {"same_citations": "Same citations at every level", "readability": "Readability by level"}
+
+
+def score_levels(expect: dict, replies: dict[str, ChatReply]) -> list[Check]:
+    """Each answer's own checks must pass at every level (a failure names the level), then the comparisons."""
+    out = []
+    per_level = {lv: score(expect, r) for lv, r in replies.items()}
+    first = next(iter(per_level.values()))
+    for i, check in enumerate(first):
+        at = {lv: checks[i] for lv, checks in per_level.items()}
+        failed = [lv for lv, c in at.items() if not c.passed]
+        got = "; ".join(f"{LEVEL_NAMES[lv]}: {at[lv].got}" for lv in failed) or check.got
+        out.append(Check(check.name, not failed, check.expected + " (at every level)", got))
+    return out + [fn(expect, replies) for fn in LEVEL_CHECKS.values()]

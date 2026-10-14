@@ -18,7 +18,8 @@ from pathlib import Path
 from app.agent import answer
 from app.config import FIXTURES
 from app.errors import InputError, LLMError
-from app.evals.checks import score
+from app.evals.checks import cited, score, score_levels
+from app.evals.readability import flesch_reading_ease
 from app.evals.runs import LISTED, RunStore, new_id, now
 from app.guard import check_message
 from app.state import State
@@ -50,6 +51,13 @@ def _pinned(llm):
     return llm.current() if hasattr(llm, "current") else llm
 
 
+def _level_row(r) -> dict:
+    """One explain level's answer, for the report's readability section (A19)."""
+    ease = flesch_reading_ease(r.answer)
+    return {"answer": r.answer, "reading_ease": None if ease is None else round(ease, 1),
+            "words": len(r.answer.split()), "cited": cited(r)}
+
+
 def _ask(q: dict, deps) -> dict:
     row = {"id": q["id"], "question": q["question"], "passed": False, "checks": {}, "failures": [], "tools": [],
            "answer": "", "seconds": 0.0, "cost": 0.0, "tokens_in": 0, "tokens_out": 0, "llm_calls": 0, "steps": 0,
@@ -57,15 +65,23 @@ def _ask(q: dict, deps) -> dict:
     start = time.perf_counter()
     try:
         message, flags = check_message(q["question"], [])
-        reply = answer(message, [], deps, max_steps=deps.dev().max_steps, flags=flags)
-        checks = score(q["expect"], reply)
+        levels = q["expect"].get("levels") or ["normal"]  # A19: asked once per explain level
+        replies = {lv: answer(message, [], deps, max_steps=deps.dev().max_steps, flags=flags, level=lv)
+                   for lv in levels}
+        reply = replies["normal"] if "normal" in replies else next(iter(replies.values()))
+        checks = score_levels(q["expect"], replies) if len(replies) > 1 else score(q["expect"], reply)
+        every = list(replies.values())
         row |= {"checks": {c.name: c.passed for c in checks},
                 "failures": [c.to_dict() for c in checks if not c.passed],
                 "passed": all(c.passed for c in checks), "tools": [t.name for t in reply.tool_calls],
-                "answer": reply.answer, "cost": reply.usage.cost, "tokens_in": reply.usage.input_tokens,
-                "tokens_out": reply.usage.output_tokens, "llm_calls": reply.usage.llm_calls, "steps": reply.steps,
-                "sources": len(reply.sources), "bad_citations": reply.bad_citations,
-                "no_citations": reply.no_citations, "estimated": reply.usage.estimated}
+                "answer": reply.answer, "cost": sum(r.usage.cost for r in every),
+                "tokens_in": sum(r.usage.input_tokens for r in every),
+                "tokens_out": sum(r.usage.output_tokens for r in every),
+                "llm_calls": sum(r.usage.llm_calls for r in every), "steps": sum(r.steps for r in every),
+                "sources": len(reply.sources), "bad_citations": sorted({n for r in every for n in r.bad_citations}),
+                "no_citations": any(r.no_citations for r in every), "estimated": any(r.usage.estimated for r in every)}
+        if len(replies) > 1:
+            row["levels"] = {lv: _level_row(r) for lv, r in replies.items()}
     except LLMError as e:
         row["error"] = e.public or e.message
     except Exception as e:  # noqa: BLE001 - one bad question shouldn't stop the run
