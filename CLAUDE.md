@@ -66,3 +66,17 @@ Lessons from those that matter here:
 - Never commit keys. Ship `.env.example` instead of `.env`.
 - They like visual, switchable prototypes to compare options on real data (layouts, charts), with a recommendation.
 - Run the browser check against a second pair of servers (ports 8001/5174, throwaway `STATE_PATH`), never their running app on 8000/5173: it changes data. STATUS.md has the commands.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are GitHub issues on DerykHopley/tc-patch-security (public: never quote REQUIREMENTS.md in them). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the root, plus `DECISIONS.md`. See `docs/agents/domain.md`.
