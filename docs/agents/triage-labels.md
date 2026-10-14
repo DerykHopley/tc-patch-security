@@ -9,6 +9,9 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 | `ready-for-agent`          | `ready-for-agent`    | Fully specified, ready for an AFK agent  |
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
+| (none)                     | `waiting-for-agent`  | Human task, but blocked: agents must finish the blocking tickets first |
+
+**`waiting-for-agent` (added 2026-10-14):** a human task (a review gate, a run that needs the owner's key) whose blockers aren't merged yet. Use it instead of `ready-for-human` while blocked. When the last blocker lands, swap it for `ready-for-human` and post a "ready" comment on the ticket. The ticket body says what it waits for.
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
