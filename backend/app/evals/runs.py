@@ -9,11 +9,12 @@ from pathlib import Path
 
 KINDS = ("models", "retrieval")
 LISTED = 50  # newest runs listed in the dev panel
-_ID = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{4}$")
+_ID = re.compile(r"^[0-9]{8}-[0-9]{6}(-[0-9]{3})?-[0-9a-f]{4}$")  # milliseconds since A19; older ids still load
 
 
 def new_id() -> str:
-    return dt.datetime.now().strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4]
+    """Sorts by time: with milliseconds, two runs in the same second still list newest first."""
+    return dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3] + "-" + uuid.uuid4().hex[:4]
 
 
 def now() -> str:
