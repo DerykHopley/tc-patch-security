@@ -7,9 +7,10 @@ import tempfile
 import threading
 from pathlib import Path
 
-from app.config import DEFAULT_WATCHLIST
+from app.config import DEFAULT_WATCHLIST, LIBRARY_PRODUCTS
 from app.app_settings import AppSettings, DevSettings
 from app.errors import InputError
+from app.verdict import USAGES, check_version
 
 STATUSES = ("open", "fixed", "not_affected")
 ALERTS_LOG_MAX = 50  # kept in the file; the Settings page shows the newest 20
@@ -71,13 +72,51 @@ class State:
             self._save(data)
             return data["watchlist"], True
 
-    def set_watchlist(self, names: list[str]) -> list[str]:
+    def set_watchlist(self, names: list[str], fields: dict[str, dict] | None = None) -> list[str]:
+        """Replace the watchlist. `fields` (by name): a product's usage, version and internet-facing, replaced as a
+        whole (missing ones take the defaults). A product without fields keeps what's saved for it (A15)."""
         pids = list(dict.fromkeys(self._product(n) for n in names))
+        checked = {self._product(n): self._fields(self._product(n), f) for n, f in (fields or {}).items()}
         with self._lock:
             data = self._load()
             data["watchlist"] = pids
+            if checked:
+                data["product_settings"] = {**data.get("product_settings", {}), **checked}
             self._save(data)
             return pids
+
+    # --- Usage, version and internet-facing per product (A15)
+
+    def _fields(self, pid: str, f: dict) -> dict:
+        out = self.default_fields(pid) | {k: v for k, v in f.items() if v is not None}
+        if out["usage"] not in USAGES:
+            raise InputError(f"Usage must be one of {', '.join(USAGES)}, not {out['usage']!r}.")
+        if out["version"] is not None:
+            out["version"] = str(out["version"]).strip() or None
+        if out["version"] is not None:
+            check_version(self.k.osv["products"].get(pid, {}), self.k.products[pid], out["version"])
+        out["internet_facing"] = bool(out["internet_facing"])
+        return out
+
+    @staticmethod
+    def default_fields(pid: str) -> dict:
+        return {"usage": "library" if pid in LIBRARY_PRODUCTS else "self_hosted", "version": None,
+                "internet_facing": False}
+
+    @classmethod
+    def fields_of(cls, pid: str, data: dict) -> dict:
+        """A product's usage, version and internet-facing; the defaults for what a file saved before A15 lacks."""
+        return cls.default_fields(pid) | data.get("product_settings", {}).get(pid, {})
+
+    def set_fields(self, name: str, **f) -> dict:
+        """Change some of one product's fields (the chat tool); the others stay."""
+        pid = self._product(name)
+        with self._lock:
+            data = self._load()
+            new = self._fields(pid, self.fields_of(pid, data) | {k: v for k, v in f.items() if v is not None})
+            data["product_settings"] = {**data.get("product_settings", {}), pid: new}
+            self._save(data)
+            return new
 
     def set_status(self, cve_id: str, status: str) -> dict:
         if status not in STATUSES:

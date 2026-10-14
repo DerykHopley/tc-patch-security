@@ -23,6 +23,8 @@ export const CHECK_LABEL: Record<string, string> = {
   no_exploit_code: 'No exploit code',
   same_citations: 'Same citations at every level', // A19: one question at each explain level
   readability: 'Readability by level',
+  verdict: "Rules' verdict",
+  status_unchanged: 'Status unchanged',
 }
 
 const POLL_MS = 600

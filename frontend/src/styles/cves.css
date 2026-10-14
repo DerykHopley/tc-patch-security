@@ -141,6 +141,37 @@ table.cves .epss .meta {
   align-items: center;
   justify-content: flex-end;
   margin-top: 0.6rem;
+  margin-right: 96px; /* clear of Patch's button at the bottom right, like the save bar (DESIGN.md §5.7) */
+}
+
+/* ---------- Verdict (A15): the chip, its reason, the fixed version, who acts, and the suggestion ---------- */
+
+table.cves .verdict-cell {
+  min-width: 9rem;
+  max-width: 13rem;
+}
+
+.verdict-cell .chip.verdict {
+  margin-bottom: 0.15rem;
+}
+
+.verdict-reason,
+.verdict-fact {
+  display: block;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.verdict-fact {
+  color: var(--muted);
+}
+
+table.cves .verdict-cell .suggest {
+  margin-top: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  border-color: var(--ok);
 }
 
 /* ---------- Narrow: each row a stacked card (phones, or the chat pinned beside the page) ---------- */
@@ -179,6 +210,7 @@ table.cves .epss .meta {
 
   /* The id and summary, and the status with its actions, take the card's whole width. */
   table.cves .cve-cell,
+  table.cves .verdict-cell,
   table.cves .status-cell,
   table.cves tr.empty td {
     grid-column: 1 / -1;
@@ -194,7 +226,8 @@ table.cves .epss .meta {
     letter-spacing: 0.04em;
   }
 
-  table.cves .summary {
+  table.cves .summary,
+  table.cves .verdict-cell {
     max-width: none;
   }
 

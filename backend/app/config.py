@@ -14,6 +14,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "fixtures"  # the snapshot's folder
 
 DEFAULT_WATCHLIST = ["langchain", "langflow", "litellm", "ollama", "open-webui"]
+LIBRARY_PRODUCTS = {"langchain", "llamaindex", "gradio"}  # default usage "library"; every other product "self_hosted"
 DEFAULT_CORS = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174"
 PROVIDERS = ("fake", "openrouter", "local")
 EMBEDDERS = ("hash", "openrouter", "ollama")  # hash: the free test fake; the other two need the index built (A09)

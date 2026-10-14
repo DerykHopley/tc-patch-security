@@ -87,8 +87,8 @@ def test_a04_3_row_action_errors(client):
 
 
 def test_a04_4_watchlist_add_and_remove_from_the_fixed_list(client):
-    assert client.put("/watchlist", json={"products": ["vLLM", "ollama", "Ollama"]}).json() == {"watchlist": ["vllm", "ollama"]}
-    assert client.get("/watchlist").json() == {"watchlist": ["vllm", "ollama"]}
+    assert client.put("/watchlist", json={"products": ["vLLM", "ollama", "Ollama"]}).json()["watchlist"] == ["vllm", "ollama"]
+    assert client.get("/watchlist").json()["watchlist"] == ["vllm", "ollama"]
     assert client.get("/dashboard").json()["watchlist"] == ["vllm", "ollama"]
     assert {r["product"] for r in client.get("/cves?limit=200").json()["rows"]} == {"vllm", "ollama"}
 

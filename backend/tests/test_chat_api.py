@@ -56,7 +56,7 @@ def test_a06_1_history_is_accepted(client):
 
 def test_a06_1_examples_are_the_scripted_questions(client):
     ex = client.get("/examples").json()
-    assert [e["id"] for e in ex] == list(Q) and ex[0]["question"] == Q["Q1"]
+    assert [e["id"] for e in ex][:len(Q)] == list(Q) and ex[0]["question"] == Q["Q1"]  # later tickets add more
 
 
 def test_a06_1_q1_filters(client):

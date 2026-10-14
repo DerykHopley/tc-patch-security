@@ -84,4 +84,4 @@ def run_tool(call: ToolCall, deps, ctx: Context) -> ToolCallRecord:
 
 
 # Importing the tool modules registers them.
-from app.tools import cve, search, watchlist, weakness  # noqa: E402,F401
+from app.tools import affected, cve, search, watchlist, weakness  # noqa: E402,F401

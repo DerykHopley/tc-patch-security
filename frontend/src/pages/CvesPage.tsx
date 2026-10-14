@@ -8,14 +8,17 @@ import {
   type CveStatus,
   type Product,
   type Severity,
+  type Verdict,
 } from '../api.ts'
 import { SeverityBadge } from '../chat/SeverityBadge.tsx'
 import { EPSS_URL, epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
+import { VERDICT_LABEL, VERDICTS, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { SEVERITIES, sevLabel } from '../severity.ts'
 import '../styles/cves.css'
 
 // The CVEs page (A04b, DESIGN.md §5.9): the CVE table at the page's full width, the work list beside the dashboard's
-// "how exposed am I?". Filters live in the URL (`?product=langflow&severity=CRITICAL&status=open&kev=1&since=…`),
+// "how exposed am I?". Filters live in the URL (`?product=langflow&severity=CRITICAL&status=open&kev=1&since=…`
+// &verdict=affected`),
 // so a tile or a shared link opens the page filtered and a reload keeps the filters. Narrow (a phone, or the chat
 // pinned beside it) the rows become stacked cards: the row actions never need sideways scrolling.
 
@@ -33,12 +36,14 @@ function filtersFromSearch(search: string): Filters {
   const severity = (p.get('severity') ?? '').toUpperCase() as Severity
   const status = p.get('status') as Filters['status']
   const since = p.get('since') ?? ''
+  const verdict = p.get('verdict') as Verdict
   return {
     product: /^[a-z0-9][a-z0-9.-]{0,40}$/.test(product) ? product : undefined,
     severity_min: SEVERITIES.includes(severity) ? severity : undefined,
     status: STATUSES.includes(status) ? status : 'open',
     kev: p.get('kev') === '1' ? true : undefined,
     published_since: /^\d{4}-\d{2}-\d{2}$/.test(since) ? since : undefined,
+    verdict: VERDICTS.includes(verdict) ? verdict : undefined,
   }
 }
 
@@ -50,6 +55,7 @@ function searchFromFilters(f: Filters): string {
   if (f.status !== 'open') p.set('status', f.status)
   if (f.kev) p.set('kev', '1')
   if (f.published_since) p.set('since', f.published_since)
+  if (f.verdict) p.set('verdict', f.verdict)
   const s = p.toString()
   return s ? `?${s}` : ''
 }
@@ -154,6 +160,20 @@ export function CvesPage({ search, onAsk }: { search: string; onAsk: (cveId: str
             </select>
           </label>
           <label>
+            Verdict
+            <select
+              value={filters.verdict ?? ''}
+              onChange={(e) => filter({ verdict: (e.target.value || undefined) as Verdict | undefined })}
+            >
+              <option value="">Any</option>
+              {VERDICTS.map((v) => (
+                <option key={v} value={v}>
+                  {VERDICT_LABEL[v]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
             <input
               type="checkbox"
               checked={filters.kev ?? false}
@@ -234,6 +254,11 @@ function CveTable({ page, busy, onMark, onAsk }: {
             <th scope="col">
               <abbr title="Exploit Prediction Scoring System: the chance of exploitation in the next 30 days">EPSS</abbr>
             </th>
+            <th scope="col">
+              <abbr title="The version check's advice from your usage and version. Your status stays your decision.">
+                Verdict
+              </abbr>
+            </th>
             <th scope="col">Status</th>
           </tr>
         </thead>
@@ -272,6 +297,22 @@ function CveTable({ page, busy, onMark, onAsk }: {
                   '—'
                 )}
               </td>
+              <td data-label="Verdict" className="verdict-cell">
+                <VerdictChip verdict={r.verdict} />
+                <VerdictFacts reason={r.verdict_reason} fixed={r.fixed_version} who={r.who_acts} />
+                {/* A suggestion only: the user's click is the decision; nothing marks a CVE on its own (A15). */}
+                {r.verdict === 'not_affected' && r.status === 'open' && (
+                  <button
+                    type="button"
+                    className="suggest"
+                    disabled={busy === r.id}
+                    aria-label={`Mark ${r.id} not affected? Suggested by the version check`}
+                    onClick={() => onMark(r.id, 'not_affected')}
+                  >
+                    Mark not affected?
+                  </button>
+                )}
+              </td>
               <td data-label="Status" className="status-cell">
                 {/* Status and its actions share a column: the table stays narrow enough for the pinned chat. */}
                 <span className="status">{STATUS_LABEL[r.status]}</span>
@@ -286,14 +327,16 @@ function CveTable({ page, busy, onMark, onAsk }: {
                       >
                         Mark fixed
                       </button>
-                      <button
-                        type="button"
-                        disabled={busy === r.id}
-                        aria-label={`Mark ${r.id} not affected`}
-                        onClick={() => onMark(r.id, 'not_affected')}
-                      >
-                        Not affected
-                      </button>
+                      {r.verdict !== 'not_affected' && (
+                        <button
+                          type="button"
+                          disabled={busy === r.id}
+                          aria-label={`Mark ${r.id} not affected`}
+                          onClick={() => onMark(r.id, 'not_affected')}
+                        >
+                          Not affected
+                        </button>
+                      )}
                     </>
                   ) : (
                     <button
@@ -314,7 +357,7 @@ function CveTable({ page, busy, onMark, onAsk }: {
           ))}
           {page?.rows.length === 0 && (
             <tr className="empty">
-              <td colSpan={7} className="meta">
+              <td colSpan={8} className="meta">
                 No CVEs match these filters.
               </td>
             </tr>
