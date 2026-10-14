@@ -6,7 +6,7 @@ know.
 """
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.config import Settings
 
@@ -33,9 +33,37 @@ class AlertSettings(BaseModel):
 ExplainLevel = Literal["simple", "normal", "deep_dive"]  # how Patch pitches an answer (A19)
 
 
+class PolicySettings(BaseModel):
+    """Your policy (A16): days allowed per priority level, counted from the publication (or KEV-added) date, and
+    whether KEV CVEs take CISA's KEV deadline instead. A more urgent level never gets more days than a less urgent one.
+    """
+    urgent_days: int = Field(7, ge=1, le=730)
+    high_days: int = Field(30, ge=1, le=730)
+    normal_days: int = Field(90, ge=1, le=730)
+    low_days: int = Field(180, ge=1, le=730)
+    adopt_kev_deadline: bool = True
+
+    @model_validator(mode="after")
+    def _ordered(self):
+        if not self.urgent_days <= self.high_days <= self.normal_days <= self.low_days:
+            raise ValueError("days must not shrink as the level gets less urgent: urgent ≤ high ≤ normal ≤ low")
+        return self
+
+    def days(self, level: str) -> int:
+        return getattr(self, f"{level}_days")
+
+
+class PrioritySettings(BaseModel):
+    """The priority rules' tunable threshold (A16): EPSS at or above this percentile, on an internet-facing product,
+    makes a CVE high priority (row 2)."""
+    epss_percentile: int = Field(90, ge=50, le=99)
+
+
 class AppSettings(BaseModel):
     alerts: AlertSettings = Field(default_factory=AlertSettings)
     explain_level: ExplainLevel = "normal"
+    policy: PolicySettings = Field(default_factory=PolicySettings)
+    priority: PrioritySettings = Field(default_factory=PrioritySettings)
 
 
 def default_settings(env: Settings) -> AppSettings:
