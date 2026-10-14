@@ -270,7 +270,8 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - Fieldsets ("Alert me when", "Timing"): radius 18px, nested-card fill.
 - Delivery channels: one soft card each (radius 18px). The "ready" / "not set up" pill hugs its text (it must not stretch).
 - Callouts (warning boxes): radius 14px. The reset box: radius 18px, red outline.
-- **Save bar**: sticky at the bottom of Settings and Dev, floating as a rounded card 0.8rem above the bottom, with "All changes saved" / "Unsaved changes" on the left and Discard / Save changes on the right. It keeps 96px clear on the right for Patch's button.
+- **Save bar**: sticky at the bottom of Settings and Dev, floating as a rounded card 0.8rem above the bottom, with "All changes saved" / "Unsaved changes" on the left and Discard / Save changes on the right. It keeps 96px clear on the right for Patch's button. On phones (≤ 800px) 96px leaves too little room and the bar wrapped to two rows, so there it floats just above Patch's button instead (A13, 2026-10-14; the browser check A13.6 checks it never overlaps his button at 400px and 1400px).
+- Text on the soft status fills ("Saved for later" chip, "urgent" tag, error messages) is `--text`, with the warn or error colour as an edge: `--warn` on `--warn-soft` is 3.9:1 and `--error` on the surface 4.2:1, both under 4.5:1 for small text (A13, 2026-10-14).
 - The page heading inside Settings and Dev is hidden: the top bar already names the page.
 
 ### 5.8 Welcome banner (dashboard)
