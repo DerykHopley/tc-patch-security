@@ -5,6 +5,7 @@
 #
 #   frontend/e2e/run.sh                      # both browsers
 #   frontend/e2e/run.sh --browser firefox    # extra arguments go to pytest
+#   E2E_API_PORT=8011 E2E_UI_PORT=5184 frontend/e2e/run.sh   # another pair, e.g. for parallel worktrees
 #
 # Needs: backend deps (uv), frontend deps (npm ci), and the browsers:
 #   uv run --project frontend/e2e playwright install firefox chromium
@@ -12,8 +13,8 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
-API_PORT=8001
-UI_PORT=5174
+API_PORT="${E2E_API_PORT:-8001}"
+UI_PORT="${E2E_UI_PORT:-5174}"
 
 for port in "$API_PORT" "$UI_PORT"; do
   if (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
