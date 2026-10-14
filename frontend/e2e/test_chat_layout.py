@@ -193,3 +193,60 @@ def test_a07_1_pinned_chat_stays_within_60_percent_when_the_window_narrows(open_
     expect(divider(page)).to_have_attribute("aria-valuenow", "600")
     assert round(box(chat)["width"]) == 600
     assert no_sideways_scroll(page)
+
+
+# --- A07.3: Ctrl/Cmd+K, Esc, the sidebar (DESIGN.md §6.4) --------------------------------------------------------
+
+def message_box(page: Page) -> Locator:
+    return window(page).get_by_role("textbox", name="Message")
+
+
+@pytest.mark.parametrize("page_name", ["Dashboard", "Settings", "Dev"])
+@pytest.mark.parametrize("key", ["Control+k", "Meta+k"])
+def test_a07_3_ctrl_or_cmd_k_opens_the_chat_on_any_page(open_app, page_name, key):
+    page = open_app()
+    page.get_by_role("button", name=page_name, exact=True).click()
+    page.locator("h1").click()  # focus on the page, not in a field
+    page.keyboard.press(key)
+    expect(window(page)).to_be_visible()
+    expect(message_box(page)).to_be_focused()
+    page.get_by_role("button", name="Switch to dark mode").focus()
+    page.keyboard.press(key)  # already open: back to the message box
+    expect(window(page)).to_be_visible()
+    expect(message_box(page)).to_be_focused()
+
+
+def test_a07_3_esc_closes_the_bubble_and_returns_focus_to_patch(open_app):
+    page = open_app()
+    open_chat(page)
+    page.keyboard.press("Escape")
+    expect(window(page)).to_have_count(0)
+    expect(fab(page)).to_be_focused()
+    open_chat(page)
+    head_button(page, "Make larger").click()
+    page.keyboard.press("Escape")  # the enlarged bubble is a bubble too
+    expect(window(page)).to_have_count(0)
+
+
+def test_a07_3_esc_does_not_close_a_pinned_chat(open_app):
+    page = open_app()
+    pin(page)
+    message_box(page).focus()
+    page.keyboard.press("Escape")
+    page.locator("h1").click()
+    page.keyboard.press("Escape")
+    expect(head_button(page, UNPIN)).to_be_visible()
+    head_button(page, "Close the chat").click()  # the ✕ still closes it; it stays pinned for next time
+    expect(window(page)).to_have_count(0)
+    expect(fab(page)).to_be_visible()
+    page.keyboard.press("Control+k")
+    expect(head_button(page, UNPIN)).to_be_visible()
+
+
+def test_a07_3_ask_patch_in_the_sidebar_opens_and_closes_the_chat(open_app):
+    page = open_app()
+    ask = page.get_by_role("complementary", name="Main").get_by_role("button", name="Ask Patch")
+    ask.click()
+    expect(window(page)).to_be_visible()
+    ask.click()
+    expect(window(page)).to_have_count(0)

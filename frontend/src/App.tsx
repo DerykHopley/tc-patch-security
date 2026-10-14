@@ -52,13 +52,32 @@ export default function App() {
     fetchExamples().then(setExamples, () => setExamples([]))
   }, [])
 
-  const openChat = () => layout.setOpen(true)
+  function openChat() {
+    layout.setOpen(true)
+    // A chat that opens focuses its message box itself; one already open gets the focus back here.
+    setTimeout(() => document.querySelector<HTMLTextAreaElement>('.chat-window textarea')?.focus())
+  }
 
   function closeChat() {
     layout.setOpen(false)
     // Keyboard users land back on the button that opened it (it reappears once a pinned chat closes).
     setTimeout(() => patchButton.current?.focus())
   }
+
+  // Ctrl/Cmd+K opens the chat on any page; Esc closes the bubble, never a pinned chat (DESIGN.md §6.4).
+  // Bound on every render, so it always sees the current layout.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault() // Firefox and Chrome would focus their own search box
+        openChat()
+      } else if (e.key === 'Escape' && layout.open && !layout.pinned) {
+        closeChat()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 
   function toggleCollapsed() {
     const next = !collapsed
