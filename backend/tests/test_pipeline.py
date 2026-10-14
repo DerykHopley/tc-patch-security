@@ -16,7 +16,7 @@ class PlanLLM(FakeLLM):
 
 
 def run(deps, query, llm=None):
-    return search_security(query, llm or deps.llm, deps.index, deps.knowledge.resolve_product)
+    return search_security(query, llm or deps.llm, deps.retrievers, deps.knowledge.resolve_product)
 
 
 def test_a06_1_s5_q1_only_critical_langflow_2026(deps):

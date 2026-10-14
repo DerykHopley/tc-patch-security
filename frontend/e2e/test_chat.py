@@ -306,6 +306,9 @@ def test_a06_6_tool_cards_and_query_plan(open_app):
     plan = answer.locator(".query-plan")
     expect(plan).to_contain_text("prevent prompt injection leading to SQL injection")
     expect(plan.locator(".rewrites li")).to_have_count(3)
+    # A10.4: the plan says which retriever found each source (Q2's search adds sources from [2] on)
+    expect(plan).to_contain_text("Found by")
+    expect(plan.locator(".chip", has_text=re.compile(r"^\[2\] (keyword|vector)"))).to_have_count(1)
 
     weak = ask(page, Q3)
     weak.get_by_role("button", name=re.compile("Show")).click()
