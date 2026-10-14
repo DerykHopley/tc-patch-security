@@ -1,0 +1,40 @@
+/* Buttons and form controls (DESIGN.md §5.3). Plain buttons are in tokens.css; this adds the primary button,
+   inputs and selects, and purple checkboxes. Sliders come with the Settings page. */
+
+button[type='submit'] {
+  color: var(--on-primary);
+  background: var(--gradient-primary);
+  border-color: transparent;
+  box-shadow: var(--shadow-primary);
+}
+
+button[type='submit']:hover:not(:disabled) {
+  border-color: transparent;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+input:not([type='checkbox'], [type='radio'], [type='range']),
+select,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  padding: 0.3rem 0.6rem;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent);
+}
+
+.meta {
+  margin: 0.2rem 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
