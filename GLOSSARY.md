@@ -136,6 +136,18 @@ _Avoid_: notifier (that's the code), sink
 The assistant, and the robot that is its face in the UI.
 _Avoid_: the bot, the chatbot, the agent
 
+**Page context**:
+What Patch is told about the view under the chat: the page, the CVEs page's filters (product, severity, status, verdict, KEV, since) and the selected CVE. Fixed fields only, each checked against a fixed list; anything else is dropped and listed. Never free text.
+_Avoid_: page state, screen text
+
+**Selected CVE**:
+The CVE last asked about with "Ask about this" on the CVEs page, during that visit. Part of the page context.
+_Avoid_: active CVE, focused CVE
+
+**Fix first**:
+The top of the priority order for the page's view, as the `prioritise` tool returns it. Rules set the order; Patch explains it and never re-ranks.
+_Avoid_: recommendation, Patch's ranking
+
 **Explain level**:
 How Patch pitches an answer: simple, normal, or deep dive. The facts and sources stay the same at every level.
 _Avoid_: tone, mode, persona
