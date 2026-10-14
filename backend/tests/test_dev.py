@@ -173,6 +173,16 @@ def test_a11_1_a_local_model_that_is_not_running_gives_a_plain_chat_error(settin
     assert r.status_code == 502 and "Is it running?" in r.json()["error"]["message"]
 
 
+def test_a11_1_saved_choices_survive_a_restart_and_reset_clears_them(settings, knowledge, index):
+    c, _ = make_client(settings, knowledge, index)
+    c.put("/dev/settings", json=dev_body(c, rrf_k=30, temperature=1.1))
+    again, _ = make_client(settings, knowledge, index)
+    assert (again.get("/dev/settings").json()["settings"]["rrf_k"],
+            again.get("/settings").json()["settings"]["alerts"]["min_severity"]) == (30, "HIGH")  # parts kept apart
+    again.post("/state/reset", json={"confirm": "reset"})
+    assert again.get("/dev/settings").json()["settings"]["rrf_k"] == 60
+
+
 def test_a11_1_max_steps_applies_to_the_next_chat(client):
     client.put("/dev/settings", json=dev_body(client, max_steps=1))
     r = client.post("/chat", json={"message": "Explain CVE-2024-8309"}).json()
@@ -263,3 +273,62 @@ def test_a11_3_playground_lists_filters_and_dropped_filters(client):
 @pytest.mark.parametrize("bad", [{"query": ""}, {"query": "x" * 501}, {}])
 def test_a11_3_playground_query_is_validated(client, bad):
     assert client.post("/dev/search", json=bad).status_code == 400
+
+
+# --- A11.4: the embedding map: PCA of the vectors stored in the Chroma index -----------------------------------------
+
+class CountingEmbedder:
+    """Wraps the index's embedder and records how many texts each call embeds."""
+
+    def __init__(self, inner):
+        self.inner, self.name, self.min_score, self.calls = inner, inner.name, inner.min_score, []
+
+    def embed(self, texts):
+        self.calls.append(len(texts))
+        return self.inner.embed(texts)
+
+
+def test_a11_4_index_facts(client, index):
+    info = client.get("/dev/info").json()
+    assert info["chunks"] == len(index.chunks) and sum(info["by_doc_type"].values()) == len(index.chunks)
+    assert (info["embedder"], info["dim"], info["as_of"]) == (index.embedder_name, index.dim, "2026-10-13")
+    assert info["min_score"] == index.min_score and info["local_hosts"] == ["localhost", "127.0.0.1", "::1"]
+
+
+def test_a11_4_map_has_a_point_for_every_chunk_by_group(client, index):
+    body = client.get("/dev/map").json()
+    points = body["points"]
+    assert [p["id"] for p in points] == [c.chunk_id for c in index.chunks]
+    assert set(points[0]) == {"id", "doc_id", "title", "type", "x", "y"}
+    assert {p["type"] for p in points} == {"owasp_llm", "owasp_web", "atlas_technique", "atlas_mitigation",
+                                           "atlas_case", "cve"}
+    assert len(body["explained"]) == 2 and 0 < body["explained"][1] <= body["explained"][0] < 1
+    assert body["embedder"] == index.embedder_name and body["dim"] == index.dim
+
+
+def test_a11_4_map_reads_the_stored_vectors_and_embeds_nothing(client, index, monkeypatch):
+    counting = CountingEmbedder(index.embedder)
+    monkeypatch.setattr(index, "embedder", counting)
+    from app.dev import projection_for
+    projection_for.cache_clear()
+    assert client.get("/dev/map").status_code == 200
+    assert counting.calls == []  # with a real embedder, re-embedding 1,680 chunks would cost money
+
+
+def test_a11_4_a_query_lands_where_its_own_text_does(client, index):
+    """The playground places each query by the same projection as the chunks: a query whose text is a chunk's own
+    indexed text lands on that chunk's point."""
+    from app.rag.vector import index_text
+
+    chunk = next(c for c in index.chunks if c.doc_type == "atlas_technique" and len(index_text(c)) <= 500)
+    points = {p["id"]: p for p in client.get("/dev/map").json()["points"]}
+    body = client.post("/dev/search", json={"query": index_text(chunk)}).json()
+    q = body["map"][0]
+    assert q["query"] == index_text(chunk)  # unscripted: FakeLLM searches the question as is
+    assert (q["x"], q["y"]) == pytest.approx((points[chunk.chunk_id]["x"], points[chunk.chunk_id]["y"]), abs=1e-3)
+
+
+def test_a11_4_playground_places_the_query_and_every_rewrite(client):
+    body = client.post("/dev/search", json={"query": Q5}).json()
+    assert [m["query"] for m in body["map"]] == [body["query"]["semantic_query"], *body["query"]["rewrites"]]
+    assert all(isinstance(m["x"], float) and isinstance(m["y"], float) for m in body["map"])

@@ -2,6 +2,8 @@
 
 Mounted only when DEV_PANEL is on (they show internals): off, every /dev route is a 404.
 """
+from collections import Counter
+
 import httpx
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -11,6 +13,7 @@ from app.app_settings import DevSettings
 from app.errors import InputError
 from app.llm.urls import local_url_allowed
 from app.rag.pipeline import search_security
+from app.rag.projection import projection_for
 
 FUSED_SHOWN = 15  # the fused column: enough to see what the per-document cap and top-n cut
 MODELS_TIMEOUT = 5  # seconds: listing models is quick even when loading one is slow
@@ -24,6 +27,14 @@ class SearchRequest(BaseModel):
 
 def _hit(chunk, score: float) -> dict:
     return {"chunk_id": chunk.chunk_id, "title": chunk.title, "doc_type": chunk.doc_type, "score": round(score, 4)}
+
+
+def _place(index, queries: list[str]) -> list[dict]:
+    """Where each query lands on the map, by the same projection as the chunks."""
+    if not queries:
+        return []
+    points = projection_for(index).project(index.embedder.embed(queries))
+    return [{"query": q, "x": round(float(x), 4), "y": round(float(y), 4)} for q, (x, y) in zip(queries, points)]
 
 
 def _unreachable(message: str) -> JSONResponse:
@@ -48,6 +59,13 @@ def dev_router(deps) -> APIRouter:
         if body.provider == "local" and not body.local_model:
             raise InputError("Choose a local model first: Find models lists the ones the server has.")
         return {"settings": deps.state.save_dev_settings(body).model_dump()}
+
+    @r.get("/info")
+    def info():
+        chunks = deps.index.chunks
+        return {"chunks": len(chunks), "by_doc_type": dict(Counter(c.doc_type for c in chunks).most_common()),
+                "embedder": deps.index.embedder_name, "dim": deps.index.dim, "min_score": deps.index.min_score,
+                "as_of": deps.settings.as_of, "local_hosts": deps.settings.local_llm_hosts}
 
     @r.get("/models")
     def models(url: str = ""):
@@ -88,6 +106,19 @@ def dev_router(deps) -> APIRouter:
             "fused": [{"chunk_id": cid, "title": chunks[cid].title, "doc_type": chunks[cid].doc_type,
                        "rrf": round(score, 5)} for cid, score in res.fused[:FUSED_SHOWN]],
             "final": [s.model_dump() for s in res.sources],
+            "map": _place(deps.index, [q for q in dict.fromkeys(q for _, q, _ in res.lists)]),
+        }
+
+    @r.get("/map")
+    def embedding_map():
+        """Every chunk as a point: PCA of the vectors in the Chroma index."""
+        proj = projection_for(deps.index)
+        return {
+            "embedder": deps.index.embedder_name, "dim": deps.index.dim,
+            "explained": [round(e, 4) for e in proj.explained],
+            "points": [{"id": c.chunk_id, "doc_id": c.doc_id, "title": c.title, "type": c.doc_type,
+                        "x": round(float(x), 4), "y": round(float(y), 4)}
+                       for c, (x, y) in zip(deps.index.chunks, proj.coords)],
         }
 
     return r
