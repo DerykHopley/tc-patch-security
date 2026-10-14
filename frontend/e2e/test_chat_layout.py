@@ -132,8 +132,9 @@ def test_a07_1_divider_turns_purple_on_hover_and_focus(open_app):
     page.wait_for_timeout(250)
     assert bg() == accent
     page.mouse.move(10, 10)
-    divider(page).focus()
-    page.keyboard.press("ArrowLeft")  # by keyboard, so :focus-visible applies
+    head_button(page, UNPIN).focus()
+    page.keyboard.press("Shift+Tab")  # by keyboard: the divider comes just before the chat
+    expect(divider(page)).to_be_focused()
     page.wait_for_timeout(250)
     assert bg() == accent
 
@@ -250,3 +251,43 @@ def test_a07_3_ask_patch_in_the_sidebar_opens_and_closes_the_chat(open_app):
     expect(window(page)).to_be_visible()
     ask.click()
     expect(window(page)).to_have_count(0)
+
+
+# --- A07.4: phones (DESIGN.md §6.5, §4.2) ------------------------------------------------------------------------
+
+def full_screen(page: Page, loc: Locator, width: int) -> None:
+    b = box(loc)
+    assert (round(b["x"]), round(b["y"]), round(b["width"]), round(b["height"])) == (0, 0, width, HEIGHT)
+
+
+@pytest.mark.parametrize("width", [PHONE, 700])
+def test_a07_4_phone_chat_is_a_full_screen_sheet_without_pin(open_app, width):
+    page = open_app(width=width)
+    chat = open_chat(page)
+    full_screen(page, chat, width)
+    assert chat.evaluate("el => getComputedStyle(el).borderTopLeftRadius") == "0px"
+    head_button(page, "Make larger").click()
+    page.wait_for_timeout(250)
+    full_screen(page, chat, width)
+    expect(head_button(page, PIN)).to_be_hidden()  # no pin on a phone
+    expect(head_button(page, "Close the chat")).to_be_visible()  # the sheet covers Patch's button: its ✕ closes it
+    assert no_sideways_scroll(page)
+    head_button(page, "Close the chat").click()
+    expect(window(page)).to_have_count(0)
+
+
+def test_a07_4_a_pinned_chat_on_a_phone_is_the_same_sheet(open_app):
+    page = open_app(init_script="localStorage.setItem('pinned', '1')", width=PHONE)
+    chat = window(page)
+    expect(chat).to_be_visible()
+    full_screen(page, chat, PHONE)
+    expect(divider(page)).to_be_hidden()
+    expect(head_button(page, UNPIN)).to_be_hidden()
+    assert no_sideways_scroll(page)
+
+
+def test_a07_4_patch_sits_above_the_tab_bar(open_app):
+    page = open_app(width=PHONE)
+    button, tab_bar = box(fab(page)), box(page.locator(".sidenav"))
+    assert button["y"] + button["height"] <= tab_bar["y"]
+    assert round(HEIGHT - (button["y"] + button["height"])) == 5 * REM

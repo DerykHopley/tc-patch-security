@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { Example } from '../api.ts'
 import { PinIcon } from '../components/Icons.tsx'
 import { Robot, type Mood } from '../components/Robot.tsx'
@@ -35,7 +36,7 @@ export function ChatWindow({ chat, mood, pageTitle, suggestions, examples, layou
     <aside
       className={`chat-window${pinned ? ' pinned' : expanded ? ' expanded' : ''}`}
       aria-label="Chat with Patch"
-      style={pinned ? { width: layout.width } : undefined}
+      style={{ '--pin-width': `${layout.width}px` } as CSSProperties}
     >
       <header className="chat-head">
         <div className="chat-title">

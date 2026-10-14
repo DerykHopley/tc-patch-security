@@ -563,6 +563,7 @@
   bottom: auto;
   flex: none;
   align-self: flex-start;
+  width: var(--pin-width);
   height: calc(100vh - 2rem);
   margin: 1rem 1rem 1rem 0;
   box-shadow: var(--shadow-pinned);
@@ -584,8 +585,9 @@
   transition: background-color 0.15s;
 }
 
-/* Hover and keyboard focus: the divider turns purple (its focus ring, §10). */
+/* Hover and focus: the divider turns purple (its focus ring, §10); it stays purple while dragged. */
 .chat-divider:hover,
+.chat-divider:focus,
 .chat-divider:focus-visible {
   background: var(--accent);
   outline: none;
@@ -611,4 +613,30 @@
 
 .pin-btn[aria-pressed='true'] svg {
   rotate: 0deg;
+}
+
+/* ---------- Phones (§6.5, ≤ 700px): every layout is a full-screen sheet; no pin, no divider ---------- */
+
+@media (max-width: 700px) {
+  .app.docked {
+    flex-direction: column; /* the page stays as it is under the sheet */
+  }
+
+  .chat-window,
+  .chat-window.expanded,
+  .chat-window.pinned {
+    position: fixed;
+    inset: 0;
+    z-index: 30; /* over the tab bar */
+    align-self: auto; /* flex-start would shrink it inside its insets (box alignment for fixed boxes) */
+    width: auto;
+    height: auto;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .chat-divider,
+  .chat-head .pin-btn {
+    display: none;
+  }
 }
