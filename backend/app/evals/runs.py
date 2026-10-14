@@ -45,5 +45,7 @@ class RunStore:
     def all(self, kind: str) -> list[dict]:
         """Every saved run of this kind, newest first."""
         folder = self.folder / kind
-        files = sorted(folder.glob("*.json"), reverse=True) if folder.exists() else []
+        # Ids order by the second they started; two runs in one second (tests, quick checks) order by when saved.
+        files = (sorted(folder.glob("*.json"), key=lambda p: (p.name[:15], p.stat().st_mtime_ns), reverse=True)
+                 if folder.exists() else [])
         return [json.loads(p.read_text()) for p in files]
