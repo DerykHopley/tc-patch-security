@@ -79,12 +79,12 @@ def test_a13_1_a_partly_saved_part_is_filled_from_the_defaults(settings, client)
 def test_a13_1_saving_keeps_the_watchlist_statuses_and_parts_saved_by_other_pages(settings, client):
     settings.state_path.write_text(json.dumps({
         "watchlist": ["ollama"], "statuses": {"CVE-2024-37032": "fixed"}, "usage": {"ollama": "library"},
-        "settings": {"alerts": {}, "policy": {"urgent": 3}}}))
+        "settings": {"alerts": {}, "later_part": {"x": 3}}}))
     body = client.get("/settings").json()["settings"]
     assert client.put("/settings", json=body).status_code == 200
     saved = json.loads(settings.state_path.read_text())
     assert saved["watchlist"] == ["ollama"] and saved["statuses"] == {"CVE-2024-37032": "fixed"}
-    assert saved["usage"] == {"ollama": "library"} and saved["settings"]["policy"] == {"urgent": 3}
+    assert saved["usage"] == {"ollama": "library"} and saved["settings"]["later_part"] == {"x": 3}
 
 
 # --- A13.3: channels, test alerts, the log ------------------------------------------------------------------------

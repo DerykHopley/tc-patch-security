@@ -129,7 +129,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
                 raise InputError("published_since must be a date, YYYY-MM-DD.") from None
         if verdict and verdict not in VERDICTS:
             raise InputError("verdict must be affected, not_affected or unknown.")
-        return dashboard.list_cves(deps.knowledge, deps.state.snapshot(), pid, severity, status, limit, offset,
+        return dashboard.list_cves(deps.knowledge, deps.state.snapshot(), deps.settings.as_of, pid, severity, status, limit, offset,
                                    kev, published_since, verdict)
 
     @app.patch("/cves/{cve_id}")
@@ -181,7 +181,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.post("/alerts/test")
     def test_alert(body: TestAlertRequest):
         """A real alert from the most urgent open CVE on the watchlist, on one channel. "preview" only records it."""
-        cve = most_urgent_open(deps.knowledge, deps.state.snapshot())
+        cve = most_urgent_open(deps.knowledge, deps.state.snapshot(), deps.settings.as_of)
         if cve is None:
             raise InputError("There are no open CVEs on your watchlist to build a test alert from.")
         msg = format_alert(cve, "kev" if deps.knowledge.cves.kev.get(cve["id"]) else "new", deps.knowledge,

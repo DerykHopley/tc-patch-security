@@ -55,7 +55,7 @@ def _cve_card(c: dict) -> str:
                      f"**{c['owasp']['title']}**.")
     if c["kev"]:
         lines.append(f"\n**Exploited in the wild:** CISA added it to KEV on {c['kev']['date_added']} "
-                     f"(remediation due {c['kev']['due']}). {c['kev']['required_action']}")
+                     f"(KEV deadline {c['kev']['deadline']}). {c['kev']['required_action']}")
     status = {"open": "It's **open** on your watchlist.", "fixed": "You marked it **fixed**.",
               "not_affected": "You marked it **not affected**.",
               "not_watched": "Its product isn't on your watchlist."}[c["watch_status"]]

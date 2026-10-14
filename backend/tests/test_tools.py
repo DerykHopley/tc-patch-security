@@ -17,7 +17,7 @@ def test_a06_1_t2_lookup_cve(deps):
 
 def test_a06_1_t2_kev_details(deps):
     res = call(deps, "lookup_cve", cve_id="CVE-2025-3248").result
-    assert res["kev"]["date_added"] == "2025-05-05" and res["kev"]["due"] == "2025-05-26"
+    assert res["kev"]["date_added"] == "2025-05-05" and res["kev"]["deadline"] == "2025-05-26"
 
 
 def test_a14_7_lookup_cve_returns_epss_and_possible_match(deps):

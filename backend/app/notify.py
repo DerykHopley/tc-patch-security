@@ -66,15 +66,13 @@ def format_alert(cve: dict, reason: str, knowledge, app_url: str = "") -> dict:
             "tags": [reason, cve["product"]], "click": f"{app_url}/#cve={cve['id']}"}
 
 
-def most_urgent_open(knowledge, data: dict) -> dict | None:
-    """The open CVE on the watchlist a test alert is built from: KEV first, then highest CVSS, then newest.
-    (The priority rules of A16 can replace this order.)"""
-    from app.state import State
+def most_urgent_open(knowledge, data: dict, as_of: str) -> dict | None:
+    """The open CVE on the watchlist a test alert is built from: the top of the priority order (A16), the CVEs
+    page's first row."""
+    from app.dashboard import watched_rows
 
-    rows = [c for c in knowledge.cves.all() if State.status_of(c, data) == "open"]
-    rows.sort(key=lambda c: (not knowledge.cves.kev.get(c["id"]), -(c["cvss"] or 0),
-                             -dt.date.fromisoformat(c["published"]).toordinal()))
-    return rows[0] if rows else None
+    top = next((r for r in watched_rows(knowledge, data, as_of) if r["status"] == "open"), None)
+    return knowledge.cves.get(top["id"]) if top else None
 
 
 class PreviewNotifier:

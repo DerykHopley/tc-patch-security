@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, StringConstraints
 
-from app.dashboard import affected
+from app.dashboard import affected, prioritised
 from app.errors import ToolError
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
@@ -25,6 +25,7 @@ def run(args: CveArgs, deps, ctx) -> dict:
     data = deps.state.snapshot()
     status = State.status_of(cve, data)
     v = affected(k, cve, data)  # the version check (A15): advice, never the status
+    p = prioritised(k, cve, status, v, data, deps.settings.as_of) if status != "not_watched" else None  # A16
     source = to_source(len(ctx.sources) + 1, chunk_cve(cve, k.products[cve["product"]])[0], None)
     ctx.sources.append(source)
     return {
@@ -32,7 +33,7 @@ def run(args: CveArgs, deps, ctx) -> dict:
         "id": cve["id"], "product": k.products[cve["product"]], "published": cve["published"],
         "severity": cve["severity"], "cvss": cve["cvss"], "cwes": cve["cwes"],
         "owasp": k.category(cve["owasp"]), "description": cve["description"], "url": cve["url"],
-        "kev": None if not kev else {"date_added": kev["dateAdded"], "due": kev["dueDate"],
+        "kev": None if not kev else {"date_added": kev["dateAdded"], "deadline": kev["dueDate"],
                                      "ransomware": kev["knownRansomwareCampaignUse"],
                                      "required_action": kev["requiredAction"]},
         "watch_status": status,
@@ -41,6 +42,10 @@ def run(args: CveArgs, deps, ctx) -> dict:
         "possible_match": k.possible_match(cve["id"]),
         "verdict": v["verdict"], "verdict_reason": v["verdict_reason"], "fixed_version": v["fixed_version"],
         "who_acts": v["who_acts"],
+        # The rules' priority and your due date (A16); None off the watchlist. The KEV deadline is under "kev".
+        "priority": None if p is None else {
+            "level": p["priority"], "reasons": p["priority_reasons"], "due_date": p["due_date"],
+            "due_from": p["due_from"], "overdue": p["overdue"], "alert_priority": p["alert_priority"]},
     }
 
 
@@ -49,7 +54,10 @@ register(ToolSpec(
     description="Look up one CVE by id (e.g. CVE-2024-8309): severity, CWEs, OWASP category, CISA KEV status, "
                 "EPSS score and percentile, whether the product is only a possible match (guessed from the "
                 "description), whether it's open on the user's watchlist, and the version check's verdict "
-                "(affected, not affected, unknown) with its reason, the fixed version and who acts.",
+                "(affected, not affected, unknown) with its reason, the fixed version and who acts. For a watched CVE, "
+                "also the priority set by the rules (urgent, high, normal, low) with its reasons, the user's due "
+                "date and whether it's overdue; the KEV deadline is CISA's date, separate from the due date. "
+                "Explain the priority from its reasons; never change it.",
     args_model=CveArgs,
     run=run,
 ))

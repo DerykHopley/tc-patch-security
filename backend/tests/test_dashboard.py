@@ -4,7 +4,7 @@
 def test_a04_1_dashboard_tiles_watchlist_and_products(client):
     d = client.get("/dashboard").json()
     assert d["as_of"] == "2026-10-13"
-    assert set(d["kpis"]) == {"open", "critical", "kev", "kev_next_due", "new_30d", "new_since"}
+    assert set(d["kpis"]) == {"open", "critical", "kev", "kev_next_due", "kev_overdue", "overdue", "new_30d", "new_since"}
     assert d["kpis"]["open"] == sum(p["total"] for p in d["by_product"])
     assert d["kpis"]["kev"] == 9 and d["kpis"]["kev_next_due"]["due"]
     assert d["watchlist"] == ["langchain", "langflow", "litellm", "ollama", "open-webui"]
@@ -32,13 +32,9 @@ def test_a04_1_marking_fixed_changes_the_tiles(client):
     assert after["kev"] == before["kev"] - 1
 
 
-def test_a04_2_cves_sorted_kev_first_then_cvss_then_newest(client):
+def test_a04_2_cves_open_and_kev_first(client):
+    # The full order is the priority's since A16: test_priority_api.py::test_a16_5_sorted_by_priority_then_due_date
     rows = client.get("/cves?limit=200").json()["rows"]
-    keys = [(not r["kev"], -(r["cvss"] or 0)) for r in rows]
-    assert keys == sorted(keys)
-    for a, b in zip(rows, rows[1:]):
-        if (a["kev"], a["cvss"]) == (b["kev"], b["cvss"]):
-            assert a["published"] >= b["published"]
     assert rows[0]["kev"] and all(r["status"] == "open" for r in rows)
 
 

@@ -119,7 +119,10 @@ def test_a15_4_a_not_affected_verdict_leaves_the_cve_open(client):
     row = _row(client, "CVE-2025-3248", "langflow")
     assert row["verdict"] == "not_affected" and row["status"] == "open"
     assert row["id"] in {r["id"] for r in client.get("/cves?status=open&product=langflow&limit=200").json()["rows"]}
-    assert client.get("/dashboard").json()["kpis"] == before  # open CVEs are counted by status alone
+    after = client.get("/dashboard").json()["kpis"]
+    counts = ("open", "critical", "kev", "new_30d")  # open CVEs are counted by status alone
+    assert {c: after[c] for c in counts} == {c: before[c] for c in counts}
+    assert after["overdue"] < before["overdue"]  # the priority steps down (A16): later due dates
 
 
 # --- A15.7: the chat's tools: check_affected, lookup_cve, update_watchlist --------------------------------------
