@@ -8,7 +8,7 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from test_chat import box, fab, window
-from test_shell import DESKTOP, PHONE, SHOTS, no_sideways_scroll, open_app  # noqa: F401 (fixture)
+from test_shell import DESKTOP, PHONE, SHOTS, contrast, no_sideways_scroll, open_app  # noqa: F401 (fixture)
 
 REM = 15  # px: the base font size (DESIGN.md §3.4)
 HEIGHT = 900  # the viewport height open_app uses
@@ -372,3 +372,140 @@ def test_a07_6_a_malformed_alert_link_is_ignored(open_app):
     page = open_app(query="#cve=<img src=x onerror=alert(1)>")
     expect(page.locator("h1")).to_be_visible()
     expect(alert_banner(page)).to_have_count(0)
+
+
+# --- A07.7, A07.8: motion (DESIGN.md §7.1) -----------------------------------------------------------------------
+
+def rotation(loc: Locator) -> str:
+    return loc.evaluate("el => getComputedStyle(el).rotate")
+
+
+def test_a07_7_pin_icon_rotates_from_35_degrees_to_0_when_pinned(open_app):
+    page = open_app()
+    open_chat(page)
+    head_button(page, "Make larger").click()
+    icon = head_button(page, PIN).locator("svg")
+    assert rotation(icon) == "35deg"
+    assert icon.evaluate("el => [getComputedStyle(el).transitionDuration, getComputedStyle(el).transitionProperty]") \
+        == ["0.15s", "rotate"]
+    head_button(page, PIN).click()
+    seen = page.evaluate("""async () => {
+      const icon = document.querySelector('.pin-btn svg'); const seen = [];
+      const t0 = performance.now();
+      while (performance.now() - t0 < 300) {
+        seen.push(getComputedStyle(icon).rotate);
+        await new Promise(r => requestAnimationFrame(r));
+      }
+      return seen;
+    }""")
+    assert seen[-1] in ("0deg", "none")
+    assert any(s not in ("0deg", "35deg", "none") for s in seen), seen  # in between: it turns
+
+
+def test_a07_8_reduced_motion_nothing_in_the_chat_layout_moves(open_app):
+    page = open_app(reduced=True, query=f"#cve={ALERT_CVE}")
+    still = lambda: page.evaluate("document.getAnimations().length") == 0  # noqa: E731
+    assert still()  # the alert banner
+    page.keyboard.press("Control+k")
+    expect(window(page)).to_be_visible()
+    assert still()  # no pop
+    head_button(page, "Make larger").click()
+    assert still()
+    head_button(page, PIN).click()
+    expect(head_button(page, UNPIN)).to_be_visible()
+    assert still()  # the pin icon jumps to 0°
+    assert head_button(page, UNPIN).locator("svg").evaluate("el => getComputedStyle(el).transitionDuration") == "0s"
+    divider(page).hover()
+    divider(page).focus()
+    page.keyboard.press("ArrowLeft")
+    assert still()  # the divider's colour
+    head_button(page, UNPIN).click()
+    assert still()
+    page.keyboard.press("Escape")
+    expect(window(page)).to_have_count(0)
+    assert still()
+
+
+# --- A07.9: light and dark, phone and desktop (DESIGN.md §9, §4.2) -----------------------------------------------
+
+def colour(page: Page, value: str) -> str:
+    return page.evaluate("v => { const d = document.createElement('div'); d.style.color = v; document.body.append(d); "
+                         "const c = getComputedStyle(d).color; d.remove(); return c }", value)
+
+
+@pytest.mark.parametrize("width", [PHONE, DESKTOP])
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_a07_9_layouts_work_in_light_and_dark_at_phone_and_desktop_width(open_app, browser_name, width, scheme):
+    page = open_app(width=width, scheme=scheme, reduced=True, query=f"#cve={ALERT_CVE}")
+    SHOTS.mkdir(exist_ok=True)
+    shot = lambda name: page.screenshot(path=SHOTS / f"a07-{browser_name}-{width}-{scheme}-{name}.png")  # noqa: E731
+    banner = alert_banner(page)
+    text = banner.locator("p").evaluate("el => getComputedStyle(el).color")
+    fill = banner.evaluate("el => getComputedStyle(el).backgroundColor")
+    assert contrast(text, fill) >= 4.5  # the banner reads in both modes
+    assert no_sideways_scroll(page)
+    shot("alert")
+    banner.get_by_role("button", name="Explain it").click()
+    chat = window(page)
+    expect(chat.locator(".message.assistant")).to_have_count(1, timeout=10_000)
+    head_button(page, "Make larger").click()
+    c = box(chat)
+    assert c["x"] >= 0 and c["x"] + c["width"] <= width and c["y"] >= 0 and c["y"] + c["height"] <= HEIGHT
+    assert no_sideways_scroll(page)
+    shot("enlarged")
+    if width == PHONE:
+        expect(head_button(page, PIN)).to_be_hidden()
+        return
+    head_button(page, PIN).click()
+    unpin = head_button(page, UNPIN)
+    expect(unpin).to_be_visible()
+    assert unpin.evaluate("el => getComputedStyle(el).color") == colour(page, "var(--accent)")
+    assert contrast(unpin.evaluate("el => getComputedStyle(el).color"),
+                    unpin.evaluate("el => getComputedStyle(el).backgroundColor")) >= 4.5
+    assert no_sideways_scroll(page)
+    shot("pinned")
+
+
+# --- A07.10: keyboard and names (DESIGN.md §10) ------------------------------------------------------------------
+
+def focused_name(page: Page) -> str:
+    return page.evaluate("(() => { const a = document.activeElement; "
+                         "return a.getAttribute('aria-label') || a.textContent.trim() })()")
+
+
+def visible_focus(page: Page) -> bool:
+    s = page.evaluate("(() => { const s = getComputedStyle(document.activeElement); "
+                      "return [s.outlineStyle, s.outlineWidth] })()")
+    return s[0] != "none" and float(s[1].rstrip("px")) >= 2
+
+
+def test_a07_10_layout_controls_by_keyboard_with_names_and_visible_focus(open_app):
+    page = open_app()
+    page.keyboard.press("Control+k")
+    expect(message_box(page)).to_be_focused()
+    names = []
+    for _ in range(6):  # back through the header
+        page.keyboard.press("Shift+Tab")
+        names.append(focused_name(page))
+        if names[-1] == "Make larger":
+            break
+    assert names[-1] == "Make larger", names
+    assert visible_focus(page)
+    page.keyboard.press("Enter")
+    expect(head_button(page, "Make smaller")).to_be_focused()  # focus stays on the button
+    page.keyboard.press("Shift+Tab")
+    assert focused_name(page) == PIN
+    assert visible_focus(page)
+    page.keyboard.press("Enter")
+    expect(head_button(page, UNPIN)).to_be_focused()
+    page.keyboard.press("Shift+Tab")  # New chat is disabled on an empty chat, so the divider comes next
+    expect(divider(page)).to_be_focused()
+    expect(divider(page)).to_have_attribute("aria-orientation", "vertical")
+    page.keyboard.press("ArrowLeft")
+    expect(divider(page)).to_have_attribute("aria-valuenow", "464")
+    page.keyboard.press("Tab")
+    page.keyboard.press("Enter")  # Unpin
+    expect(head_button(page, PIN)).to_be_focused()
+    page.keyboard.press("Escape")
+    expect(window(page)).to_have_count(0)
+    expect(fab(page)).to_be_focused()

@@ -607,7 +607,7 @@
 
 .chat-head .pin-btn[aria-pressed='true'] {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  background: var(--surface); /* --accent on --accent-soft is 4.48:1 in light mode: just short of 4.5 */
   color: var(--accent);
 }
 

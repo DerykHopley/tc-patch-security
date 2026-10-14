@@ -55,9 +55,9 @@ export default function App() {
   }, [])
 
   function openChat() {
-    layout.setOpen(true)
     // A chat that opens focuses its message box itself; one already open gets the focus back here.
-    setTimeout(() => document.querySelector<HTMLTextAreaElement>('.chat-window textarea')?.focus())
+    if (layout.open) document.querySelector<HTMLTextAreaElement>('.chat-window textarea')?.focus()
+    else layout.setOpen(true)
   }
 
   // "Ask about this" and an alert's "Explain it": open the chat where it is and ask about one CVE (DESIGN.md §6.4).
