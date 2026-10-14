@@ -1,5 +1,5 @@
 {
- "_note": "FakeLLM scripts. keywords: all must appear in the lowercased question. Answers are templates filled from real tool results. expect: what the model check (app/evals.py) scores for a real model; tools null = not checked.",
+ "_note": "FakeLLM scripts. keywords: all must appear in the lowercased question. Answers are templates filled from real tool results. expect: what the model check (app/evals/checks.py) scores for a real model; tools null = not checked.",
  "scripts": [
   {
    "id": "Q1",

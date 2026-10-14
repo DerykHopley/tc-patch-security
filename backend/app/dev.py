@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from app.app_settings import DevSettings
 from app.errors import InputError
+from app.evals import model_check
 from app.llm.urls import local_url_allowed
 from app.rag.pipeline import search_security
 from app.rag.projection import projection_for
@@ -37,8 +38,16 @@ def _place(index, queries: list[str]) -> list[dict]:
     return [{"query": q, "x": round(float(x), 4), "y": round(float(y), 4)} for q, (x, y) in zip(queries, points)]
 
 
+class ModelCheckRequest(BaseModel):
+    ids: list[str] = Field(default_factory=list, max_length=50)  # empty: every question
+
+
 def _unreachable(message: str) -> JSONResponse:
     return JSONResponse(status_code=502, content={"error": {"code": "unreachable", "message": message}})
+
+
+def _not_found(message: str) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"error": {"code": "not_found", "message": message}})
 
 
 def dev_router(deps) -> APIRouter:
@@ -120,5 +129,19 @@ def dev_router(deps) -> APIRouter:
                         "x": round(float(x), 4), "y": round(float(y), 4)}
                        for c, (x, y) in zip(deps.index.chunks, proj.coords)],
         }
+
+    # --- The model check (A12): exact checks on the scripted questions, in the background, on a copy of the state
+
+    @r.post("/model-check")
+    def start_model_check(body: ModelCheckRequest):
+        return model_check.start(deps, body.ids or None)
+
+    @r.get("/model-check/{run_id}")
+    def get_model_check(run_id: str):
+        return model_check.get(deps, run_id) or _not_found("No model check with that id.")
+
+    @r.get("/model-checks")
+    def list_model_checks():
+        return {"runs": model_check.listing(deps)}
 
     return r
