@@ -1,0 +1,818 @@
+{
+ "counts": {
+  "text_matched": 184,
+  "confirmed": 36,
+  "conflicting": 0,
+  "unknown": 148
+ },
+ "cves": {
+  "CVE-2026-109572": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109311": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109300": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109299": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109298": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109297": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109296": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109295": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109294": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109293": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109292": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109291": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109290": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109289": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109288": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109287": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109286": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109285": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109284": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-109283": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-108836": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-108575": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-108574": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-103663": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-107183": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-106119": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-105799": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-105775": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-105762": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-105761": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-105760": {
+   "result": "confirmed",
+   "osv_products": [
+    "vllm"
+   ]
+  },
+  "CVE-2026-105759": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-105741": {
+   "result": "confirmed",
+   "osv_products": [
+    "langflow"
+   ]
+  },
+  "CVE-2026-105740": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-105699": {
+   "result": "confirmed",
+   "osv_products": [
+    "langflow"
+   ]
+  },
+  "CVE-2026-105698": {
+   "result": "confirmed",
+   "osv_products": [
+    "langflow"
+   ]
+  },
+  "CVE-2026-105697": {
+   "result": "confirmed",
+   "osv_products": [
+    "langflow"
+   ]
+  },
+  "CVE-2026-51888": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-51886": {
+   "result": "confirmed",
+   "osv_products": [
+    "langflow"
+   ]
+  },
+  "CVE-2026-51884": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-102697": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-93355": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-101861": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-100653": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-100610": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-100609": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-100608": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-100607": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-100606": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-100605": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-97620": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-89032": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-61732": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-92365": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-92220": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-59823": {
+   "result": "confirmed",
+   "osv_products": [
+    "litellm"
+   ]
+  },
+  "CVE-2026-91938": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-91937": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-91936": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-91935": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-91934": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-91933": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-91932": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-91931": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-91930": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-91929": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-90878": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-90713": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-55253": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-17628": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-12944": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-12767": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-12766": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-12765": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-12763": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-88055": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-86317": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-86289": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-85180": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-85022": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-85021": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-84377": {
+   "result": "confirmed",
+   "osv_products": [
+    "litellm"
+   ]
+  },
+  "CVE-2026-82637": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-82275": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-82268": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-37004": {
+   "result": "confirmed",
+   "osv_products": [
+    "litellm"
+   ]
+  },
+  "CVE-2026-78148": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-78147": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-73557": {
+   "result": "confirmed",
+   "osv_products": [
+    "vllm"
+   ]
+  },
+  "CVE-2026-59714": {
+   "result": "confirmed",
+   "osv_products": [
+    "open-webui"
+   ]
+  },
+  "CVE-2026-27765": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-72917": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-18632": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-18581": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-18266": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-17501": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-17500": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-65315": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-63766": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-30623": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-59806": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-56273": {
+   "result": "confirmed",
+   "osv_products": [
+    "flowise"
+   ]
+  },
+  "CVE-2026-56399": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-55611": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-48789": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-12821": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-56276": {
+   "result": "confirmed",
+   "osv_products": [
+    "flowise"
+   ]
+  },
+  "CVE-2026-56267": {
+   "result": "confirmed",
+   "osv_products": [
+    "flowise"
+   ]
+  },
+  "CVE-2024-58351": {
+   "result": "confirmed",
+   "osv_products": [
+    "flowise"
+   ]
+  },
+  "CVE-2026-12491": {
+   "result": "confirmed",
+   "osv_products": [
+    "vllm"
+   ]
+  },
+  "CVE-2026-3341": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-43625": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-43624": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-4944": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-45134": {
+   "result": "confirmed",
+   "osv_products": [
+    "langchain"
+   ]
+  },
+  "CVE-2026-9540": {
+   "result": "confirmed",
+   "osv_products": [
+    "vllm"
+   ]
+  },
+  "CVE-2026-8756": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-7700": {
+   "result": "confirmed",
+   "osv_products": [
+    "langflow"
+   ]
+  },
+  "CVE-2026-7687": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-6543": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-4503": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-4502": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-3346": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-3345": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-3340": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-41488": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-41481": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-6619": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-6618": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-6617": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-6600": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-6599": {
+   "result": "confirmed",
+   "osv_products": [
+    "langflow"
+   ]
+  },
+  "CVE-2026-6598": {
+   "result": "confirmed",
+   "osv_products": [
+    "langflow"
+   ]
+  },
+  "CVE-2026-6597": {
+   "result": "confirmed",
+   "osv_products": [
+    "langflow"
+   ]
+  },
+  "CVE-2026-6596": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-40087": {
+   "result": "confirmed",
+   "osv_products": [
+    "langchain"
+   ]
+  },
+  "CVE-2026-35485": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-5530": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-34936": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-34070": {
+   "result": "confirmed",
+   "osv_products": [
+    "langchain"
+   ]
+  },
+  "CVE-2026-33401": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-25750": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-27795": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-26019": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2026-26013": {
+   "result": "confirmed",
+   "osv_products": [
+    "langchain"
+   ]
+  },
+  "CVE-2026-2069": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2025-15063": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2025-68665": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2025-68664": {
+   "result": "confirmed",
+   "osv_products": [
+    "langchain"
+   ]
+  },
+  "CVE-2025-65106": {
+   "result": "confirmed",
+   "osv_products": [
+    "langchain"
+   ]
+  },
+  "CVE-2025-11203": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2025-8709": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2025-6242": {
+   "result": "confirmed",
+   "osv_products": [
+    "vllm"
+   ]
+  },
+  "CVE-2025-6985": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2025-59434": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2025-58177": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2025-6984": {
+   "result": "confirmed",
+   "osv_products": [
+    "langchain"
+   ]
+  },
+  "CVE-2025-46059": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2025-53630": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2025-5320": {
+   "result": "confirmed",
+   "osv_products": [
+    "gradio"
+   ]
+  },
+  "CVE-2024-8966": {
+   "result": "confirmed",
+   "osv_products": [
+    "gradio"
+   ]
+  },
+  "CVE-2024-12217": {
+   "result": "confirmed",
+   "osv_products": [
+    "gradio"
+   ]
+  },
+  "CVE-2024-12065": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-11031": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-11030": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-10707": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-10650": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-10188": {
+   "result": "confirmed",
+   "osv_products": [
+    "litellm"
+   ]
+  },
+  "CVE-2025-1953": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-7774": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-46946": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-8939": {
+   "result": "confirmed",
+   "osv_products": [
+    "vllm"
+   ]
+  },
+  "CVE-2024-8768": {
+   "result": "confirmed",
+   "osv_products": [
+    "vllm"
+   ]
+  },
+  "CVE-2024-4839": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-38459": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-3234": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-37058": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-4286": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-34359": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-31462": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2024-3098": {
+   "result": "confirmed",
+   "osv_products": [
+    "llamaindex"
+   ]
+  },
+  "CVE-2024-27444": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2023-46315": {
+   "result": "unknown",
+   "osv_products": []
+  },
+  "CVE-2023-44467": {
+   "result": "unknown",
+   "osv_products": []
+  }
+ }
+}
