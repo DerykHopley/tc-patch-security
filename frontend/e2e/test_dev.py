@@ -252,7 +252,7 @@ def test_a11_4_map_group_toggles_zoom_and_table(dev_page, api_url):
     info = api(api_url, "/dev/info")
     total = info["chunks"]
     cves = info["by_doc_type"]["cve"]
-    toggle = page.get_by_role("button", name="CVEs")
+    toggle = page.get_by_role("main").get_by_role("button", name="CVEs")  # the sidebar has a CVEs page too (A04b)
     expect(toggle).to_have_attribute("aria-pressed", "true")
     expect(toggle).to_contain_text(str(cves))
     toggle.click()
@@ -386,7 +386,7 @@ def test_a11_9_buttons_have_accessible_names(dev_page):
     run_search(page)
     for name in ("Run search", "Discard", "Save changes", "Reset to the defaults", "OWASP pages", "MITRE ATLAS", "CVEs",
                  "Show all"):
-        expect(page.get_by_role("button", name=name)).to_have_count(1)
+        expect(page.get_by_role("main").get_by_role("button", name=name)).to_have_count(1)
     unnamed = page.evaluate("""[...document.querySelectorAll('main button, main input, main select')].filter(b =>
         !(b.getAttribute('aria-label') || (b.labels && b.labels.length && b.labels[0].textContent) || b.textContent || '')
         .trim()).length""")
