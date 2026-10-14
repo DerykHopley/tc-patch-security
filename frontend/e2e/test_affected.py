@@ -161,8 +161,13 @@ def test_a15_9_reduced_motion_nothing_moves(open_cves, open_dash, api_url):
     set_stack(api_url, langflow={"version": "99.0.0"})
     page = open_cves("?product=langflow", reduced=True)
     page.get_by_role("combobox", name="Verdict").select_option("not_affected")
-    expect(page.get_by_role("button", name=re.compile(r"Suggested by the version check$")).first).to_be_visible()
-    suggestion(page, rows(page)[0]).click()
+    # The filter reloads the table: a row read before that may be an unfiltered one with no suggestion (CI race, run #62).
+    # So wait on the first row of the filtered table itself, re-found on every retry.
+    expect(page).to_have_url(re.compile(r"verdict=not_affected"))
+    first_suggestion = page.locator("table.cves tbody tr").first.get_by_role(
+        "button", name=re.compile(r"Suggested by the version check$"))
+    expect(first_suggestion).to_be_visible()
+    first_suggestion.click()
     expect(page.get_by_role("dialog")).to_be_visible()
     assert page.evaluate("document.getAnimations().length") == 0  # the decision dialog doesn't move either (A16b)
     confirm(page)
