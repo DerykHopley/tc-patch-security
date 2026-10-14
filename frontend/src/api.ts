@@ -126,6 +126,30 @@ export interface Dashboard {
     kev_next_due: { cve: string; due: string } | null
     new_30d: number
   }
+  by_product: ProductCounts[] // open CVEs per watched product, in watchlist order
+  per_month: { month: string; count: number }[] // all statuses, by publication month (YYYY-MM)
+  by_owasp: { code: string; title: string; count: number }[] // open CVEs per OWASP web category
+  owasp_unmapped: number // open CVEs whose CWE isn't in OWASP's lists
+  latest_incidents: Incident[] // the 5 latest MITRE ATLAS incidents
+  freshness: Source[] // one per snapshot source
+}
+
+export type ProductCounts = { product: string; name: string; total: number } & Record<Severity, number>
+
+export interface Incident {
+  id: string
+  name: string
+  date: string
+  url: string
+  summary: string
+}
+
+export interface Source {
+  name: string
+  licence: string
+  url: string
+  retrieved: string
+  count: number
 }
 
 export interface CveRow {

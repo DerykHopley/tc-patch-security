@@ -151,7 +151,7 @@ export default function App() {
         </header>
         <main>
           {page === 'dashboard' ? (
-            <DashboardPage />
+            <DashboardPage onAskPatch={() => setChatOpen(true)} />
           ) : page === 'settings' ? (
             <SettingsPage asOf={status?.as_of ?? null} onOpenDashboard={() => setPage('dashboard')} />
           ) : (
