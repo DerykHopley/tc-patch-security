@@ -198,6 +198,36 @@ export function DashboardPage() {
         <aside className="dash-side" aria-label="Dashboard side panels">
           {/* key: a newly saved watchlist resets the editor's unsaved picks */}
           <WatchlistEditor key={data.watchlist.join()} data={data} note={watchNote} onSave={saveWatchlist} />
+          <section className="card" aria-labelledby="incidents-title">
+            <h2 id="incidents-title">Latest AI incidents (MITRE ATLAS)</h2>
+            <ul className="side-list">
+              {data.latest_incidents.map((c) => (
+                <li key={c.id}>
+                  <a href={c.url} target="_blank" rel="noreferrer">
+                    {c.name}
+                  </a>
+                  <span className="meta">
+                    {c.date} · {c.id}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="card" aria-labelledby="freshness-title">
+            <h2 id="freshness-title">Data freshness</h2>
+            <ul className="side-list">
+              {data.freshness.map((s) => (
+                <li key={s.name}>
+                  <a href={s.url} target="_blank" rel="noreferrer">
+                    {s.name}
+                  </a>
+                  <span className="meta">
+                    {s.count.toLocaleString('en')} items · {s.licence} · retrieved {s.retrieved}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
         </aside>
       </div>
       <Tooltip tip={tip} />
