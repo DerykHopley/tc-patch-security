@@ -47,10 +47,15 @@ def test_a14_9_epss_column_with_score_percentile_and_credit(open_cves, api_url):
 
 # --- Possible match --------------------------------------------------------------------------------------------------
 
+# Possible matches are recent guesses from description text; since A16 sorts by priority, the old CVEs come first,
+# so these checks open the page on the last 30 days (the "new" tile's filter), where page 1 has several.
+RECENT = "?since=2026-09-14"
+
+
 def test_a14_10_possible_match_badge_only_on_unconfirmed_guesses(open_cves, api_url):
-    page = open_cves()
+    page = open_cves(RECENT)
     page.get_by_role("combobox", name="Product").select_option(label="Langflow")
-    rows = api(api_url, "/cves?product=langflow&limit=25")["rows"]
+    rows = api(api_url, "/cves?product=langflow&published_since=2026-09-14&limit=25")["rows"]
     expect(table(page).locator("tbody tr td:first-child a")).to_have_text([r["id"] for r in rows])
     flagged = [r["id"] for r in rows if r["possible_match"]]
     assert flagged, "page 1 of Langflow should have a possible match"
@@ -106,7 +111,7 @@ def test_a14_11_freshness_lists_every_licence_attribution_and_the_nvd_notice(ope
 # --- Motion, themes, widths, keyboard ----------------------------------------------------------------------------------
 
 def test_a14_12_reduced_motion_nothing_new_moves(open_cves, api_url):
-    page = open_cves(reduced=True)
+    page = open_cves(RECENT, reduced=True)
     page.get_by_role("combobox", name="Product").select_option(label="Langflow")
     expect(table(page).locator(".chip.possible").first).to_be_visible()
     expect(page.locator(".epss-credit")).to_be_visible()
@@ -121,7 +126,7 @@ def test_a14_12_reduced_motion_nothing_new_moves(open_cves, api_url):
 @pytest.mark.parametrize("width", [PHONE, DESKTOP])
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 def test_a14_13_light_dark_phone_and_desktop(open_cves, browser_name, width, scheme):
-    page = open_cves(width=width, scheme=scheme, reduced=True)
+    page = open_cves(RECENT, width=width, scheme=scheme, reduced=True)
     page.get_by_role("combobox", name="Product").select_option(label="Langflow")
     badge = table(page).locator(".chip.possible").first
     expect(badge).to_be_visible()

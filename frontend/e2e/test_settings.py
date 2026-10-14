@@ -257,7 +257,7 @@ def test_a13_8_works_in_both_themes_at_both_widths(settings_page, browser_name, 
     page = settings_page(width=width, scheme=scheme, reduced=True)
     assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
     cards = page.locator("section.card")
-    expect(cards).to_have_count(5)  # with "Patch's answers" (A19)
+    expect(cards).to_have_count(6)  # with "Patch's answers" (A19) and "Priority and due dates" (A16)
     one_column = len({round(c.bounding_box()["x"]) for c in cards.all()}) == 1
     assert one_column == (width == PHONE)  # one column of cards at ≤ 900px (DESIGN.md §4.2)
     SHOTS.mkdir(exist_ok=True)

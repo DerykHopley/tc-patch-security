@@ -93,6 +93,7 @@ table.cves .summary {
   line-clamp: 2;
   overflow: hidden;
   max-width: 26rem; /* 16rem while the table shared the dashboard with a side column */
+  overflow-wrap: anywhere; /* a long path or URL in a description must not widen the column (A16 added two) */
   margin-top: 0.15rem;
   color: var(--muted);
   font-size: 0.78rem;

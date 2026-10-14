@@ -141,7 +141,7 @@ def test_a04_7_table_sorted_filtered_and_paged(open_cves, api_url):
     filtered = api(api_url, "/cves?product=open-webui&severity_min=HIGH&limit=25")
     expect(page.get_by_text(f"{filtered['total']} CVEs")).to_be_visible()
     expect_rows(page, [r["id"] for r in filtered["rows"]])  # filters go back to page 1
-    sev = page.locator("table.cves tbody tr td:nth-child(3)").all_inner_texts()
+    sev = page.locator("table.cves tbody tr td[data-label='Severity']").all_inner_texts()
     assert all(s.startswith(("High", "Critical")) for s in sev)
 
 
