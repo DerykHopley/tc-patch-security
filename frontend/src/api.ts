@@ -8,6 +8,7 @@ export interface Health {
   llm: string // provider id, e.g. "fake"
   model: string // the model in use, as shown to the user
   as_of: string // the as-of date, YYYY-MM-DD
+  dev_panel: boolean // the Dev page is shown only when this is true
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

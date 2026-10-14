@@ -1,0 +1,31 @@
+/* Patch's moves (DESIGN.md §8.3), ported from proto/ as is; Patch's own colours are fixed (§8.1).
+   Reduced motion stops them through the global rule in tokens.css. */
+.robot { flex: none; overflow: visible; }
+.robot .bot-shadow { fill: rgba(42, 37, 89, 0.16); transform-box: fill-box; transform-origin: center; animation: bot-shadow 3s ease-in-out infinite; }
+.robot .bot-float { animation: bot-bob 3s ease-in-out infinite; }
+.robot .bot-hand rect { fill: #6c4cf5; }
+.robot .bot-hand { transform-box: fill-box; transform-origin: 50% 100%; }
+.robot .bot-hand.left { animation: bot-hand 3s ease-in-out infinite; }
+.robot .bot-hand.right { animation: bot-hand 3s ease-in-out 0.4s infinite; }
+.robot.wave .bot-hand.right, .robot.mood-happy .bot-hand.right { animation: bot-wave 1.1s ease-in-out infinite; }
+.robot .bot-eyes { transform-box: fill-box; transform-origin: center; animation: bot-blink 4.5s infinite; }
+.robot .bot-eyes path { fill: none; stroke: #5cf2ff; stroke-width: 4; stroke-linecap: round; }
+.robot.mood-thinking .bot-eyes { animation: bot-scan 1.1s ease-in-out infinite; }
+.robot .bot-light { fill: #ff5d73; }
+.robot.mood-thinking .bot-light { animation: bot-light 0.5s steps(2) infinite; }
+.robot .bot-dot.d1 { fill: #35d07f; }
+.robot .bot-dot.d2 { fill: #ffc93c; }
+.robot .bot-dot.d3 { fill: #ff5d73; }
+.robot.mood-thinking .bot-dot { animation: bot-dot 0.9s ease-in-out infinite; }
+.robot.mood-thinking .bot-dot.d2 { animation-delay: 0.15s; }
+.robot.mood-thinking .bot-dot.d3 { animation-delay: 0.3s; }
+.robot.mood-alert .bot-float { animation: bot-shake 0.5s ease-in-out 2; }
+@keyframes bot-bob { 50% { transform: translateY(-5px); } }
+@keyframes bot-shadow { 50% { transform: scale(0.8); opacity: 0.6; } }
+@keyframes bot-hand { 50% { transform: translateY(-3px) rotate(-6deg); } }
+@keyframes bot-wave { 0%, 100% { transform: translateY(-14px) rotate(10deg); } 50% { transform: translateY(-16px) rotate(-22deg); } }
+@keyframes bot-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+@keyframes bot-scan { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+@keyframes bot-light { 50% { fill: #ffd6dc; } }
+@keyframes bot-dot { 50% { opacity: 0.25; } }
+@keyframes bot-shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
