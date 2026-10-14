@@ -119,3 +119,15 @@ _Avoid_: the bot, the chatbot, the agent
 **Explain level**:
 How Patch pitches an answer: simple, normal, or deep dive. The facts and sources stay the same at every level.
 _Avoid_: tone, mode, persona
+
+**Model check**:
+The scripted questions asked of one model, each answer scored by exact checks (right tools, filters, key fact, real citations, cites sources, flagged, no exploit code). No LLM judges another.
+_Avoid_: eval, benchmark, LLM-as-judge
+
+**Retrieval check**:
+Questions whose right source comes from structured fields (a CVE id → that CVE), asked of one embedder's search; scored by hit rate at 5 and MRR.
+_Avoid_: embedding eval, recall test
+
+**Run**:
+One saved model check or retrieval check: who or what was checked, when, every score. The evaluation report is built from runs.
+_Avoid_: result, session

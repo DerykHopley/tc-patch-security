@@ -26,6 +26,12 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.0
       - run: uv sync --locked
       - run: uv run pytest
+      # The evaluation report from FakeLLM and two fake embedders (A12): proves it builds, and shows the layout
+      - run: uv run python -m app.evals fake-report --out ${{ runner.temp }}/model-check-report.html
+      - uses: actions/upload-artifact@v7
+        with:
+          name: model-check-report
+          path: ${{ runner.temp }}/model-check-report.html
 
   frontend:
     name: Type check and lint
