@@ -36,8 +36,13 @@ def watched_rows(k, data: dict) -> list[dict]:
     return [_row(c, State.status_of(c, data), k) for c in k.cves.all() if c["product"] in watch]
 
 
-def list_cves(k, data: dict, product=None, severity_min=None, status="open", limit=50, offset=0) -> dict:
+def list_cves(k, data: dict, product=None, severity_min=None, status="open", limit=50, offset=0,
+              kev=None, published_since=None) -> dict:
     rows = watched_rows(k, data)
+    if kev is not None:
+        rows = [r for r in rows if r["kev"] == kev]
+    if published_since:  # inclusive, YYYY-MM-DD: the "new in 30 days" tile links here with kpis.new_since
+        rows = [r for r in rows if r["published"] >= published_since]
     if product:
         rows = [r for r in rows if r["product"] == product]
     if severity_min:
@@ -61,6 +66,7 @@ def summary(k, data: dict, as_of: str) -> dict:
     rows = watched_rows(k, data)
     open_rows = [r for r in rows if r["status"] == "open"]
     since = (dt.date.fromisoformat(as_of) - dt.timedelta(days=30)).isoformat()
+    first_new_day = (dt.date.fromisoformat(as_of) - dt.timedelta(days=29)).isoformat()
     kev_open = sorted((r for r in open_rows if r["kev"]), key=lambda r: r["kev_due"] or "9999")
 
     by_product = []
@@ -89,6 +95,7 @@ def summary(k, data: dict, as_of: str) -> dict:
             "kev": len(kev_open),
             "kev_next_due": {"cve": kev_open[0]["id"], "due": kev_open[0]["kev_due"]} if kev_open else None,
             "new_30d": sum(since < r["published"] <= as_of for r in rows),
+            "new_since": first_new_day,  # the first of those 30 days: the tile's link filters on it
         },
         "by_product": by_product,
         "per_month": per_month,
