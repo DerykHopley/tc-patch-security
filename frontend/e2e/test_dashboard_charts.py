@@ -98,6 +98,7 @@ def test_a05_4_legend_only_on_the_chart_with_several_series(open_dash):
 def test_a05_4_every_bar_has_a_hover_tooltip_above_the_pointer(open_dash, title):
     page = open_dash(reduced=True)
     targets = chart(page, title).locator("svg [aria-label]:is(.fill, .hit)")
+    expect(targets.first).to_be_attached()  # drawn once the chart knows its width
     count = targets.count()
     assert count > 0
     tip = page.get_by_role("tooltip")
@@ -136,6 +137,57 @@ def test_a05_4_show_as_table_gives_the_same_numbers(open_dash, api_url):
         got = table.locator("tbody tr").evaluate_all(
             "trs => trs.map(tr => [...tr.cells].map(c => c.textContent.trim()))")
         assert got == rows, title
+
+
+# --- Patch's welcome banner (DESIGN.md §5.8, §8.2) -----------------------------------------------------------------
+
+def banner(page: Page):
+    return page.get_by_role("region", name="Hi there! I'm Patch, your security sidekick.")
+
+
+def test_a05_7_welcome_banner_with_waving_patch_over_its_top_edge(open_dash):
+    page = open_dash()
+    hello = banner(page)
+    expect(hello).to_be_visible()
+    title = hello.get_by_role("heading", name="Hi there! I'm Patch, your security sidekick.")
+    looks = title.evaluate("el => [getComputedStyle(el).fontFamily, getComputedStyle(el).fontSize, getComputedStyle(el).color]")
+    assert looks[0].startswith("Fredoka") and looks[1] == "18.75px" and looks[2] == "rgb(108, 76, 245)"  # 1.25rem, --accent
+    expect(hello.locator("p")).to_have_count(1)  # one line of help
+    expect(hello.get_by_role("button", name="Ask Patch")).to_be_visible()
+    box = hello.evaluate("""el => { const s = getComputedStyle(el); return [s.borderRadius, s.backgroundImage] }""")
+    assert box[0] == "28px" and "linear-gradient" in box[1]
+    # Above the dashboard: before the tiles.
+    assert hello.evaluate("el => !!(el.compareDocumentPosition(document.querySelector('.tiles')) & 4)")
+    robot = hello.locator("svg.robot")
+    expect(robot).to_have_attribute("aria-hidden", "true")
+    assert robot.evaluate("el => el.getAttribute('width')") == "110"
+    assert "wave" in (robot.get_attribute("class") or "")
+    hand = robot.locator(".bot-hand.right").evaluate("el => getComputedStyle(el).animationName")
+    assert hand == "bot-wave"
+    rb, hb = robot.bounding_box(), hello.bounding_box()
+    # His head rises over the banner's top edge (margin −2.4rem inside the 0.9rem padding): a fifth of him sticks out.
+    assert rb and hb and 20 <= hb["y"] - rb["y"] <= rb["height"] / 2, (rb, hb)
+
+
+@pytest.mark.parametrize("width", [PHONE, DESKTOP])
+def test_a05_7_closed_banner_stays_closed_in_this_browser(open_dash, width):
+    page = open_dash(width=width, reduced=True)
+    close = banner(page).get_by_role("button", name="Close Patch's welcome")
+    size = close.evaluate("el => [getComputedStyle(el).width, getComputedStyle(el).height, getComputedStyle(el).borderRadius]")
+    assert size[:2] == ["32px", "32px"] and size[2] in ("50%", "999px", "16px"), size
+    close.click()
+    expect(banner(page)).to_have_count(0)
+    assert page.evaluate("localStorage.getItem('helloHidden')") == "1"
+    page.reload()
+    expect(page.locator(".tile")).to_have_count(4)
+    expect(banner(page)).to_have_count(0)
+
+
+def test_a05_7_banner_survives_blocked_storage(open_dash):
+    block = "Object.defineProperty(window, 'localStorage', { get() { throw new Error('blocked') } })"
+    page = open_dash(before=lambda p: p.add_init_script(block))
+    banner(page).get_by_role("button", name="Close Patch's welcome").click()
+    expect(banner(page)).to_have_count(0)  # closes for now, just isn't remembered
 
 
 # --- Side panels ---------------------------------------------------------------------------------------------------
@@ -182,7 +234,9 @@ def test_a05_5_bars_grow_in_on_first_load_stacked_bars_as_one_piece(open_dash):
         "els => els.map(el => [getComputedStyle(el).animationName, getComputedStyle(el).animationDelay])")
     assert cards == [["fade-up", d] for d in ("0s", "0.12s", "0.24s", "0.24s")]  # 3 charts, then the CVE table
     stacked = chart(page, BY_PRODUCT).locator(".chart-box")
-    fills = stacked.locator(".fill").evaluate_all("""els => els.map(el => { const s = getComputedStyle(el);
+    for title in (BY_PRODUCT, PER_MONTH, BY_OWASP):
+        expect(chart(page, title).locator(".fill").first).to_be_attached()
+    fills =stacked.locator(".fill").evaluate_all("""els => els.map(el => { const s = getComputedStyle(el);
         return [s.animationName, s.animationDuration, s.animationDelay, s.animationTimingFunction, s.transformBox,
                 s.transformOrigin] })""")
     x0 = stacked.locator("svg").evaluate("el => el.style.getPropertyValue('--x0')")
@@ -230,3 +284,85 @@ def test_a05_5_bars_do_not_grow_again_on_hover_resize_or_reload(open_dash, api_u
     editor.get_by_role("button", name="Save watchlist").click()
     expect(chart(page, BY_PRODUCT).locator(".bar-row")).to_have_count(rows_before + 1)
     assert dash.evaluate(GROWING) == []
+
+
+def test_a05_8_reduced_motion_nothing_in_charts_or_banner_moves(open_dash):
+    page = open_dash(reduced=True)
+    expect(banner(page).locator("svg.robot")).to_be_visible()
+    expect(chart(page, BY_PRODUCT).locator(".fill").first).to_be_visible()
+    assert page.evaluate("document.getAnimations().length") == 0
+    names = page.locator(".chart .fill, .hello .robot *").evaluate_all(
+        "els => [...new Set(els.map(el => getComputedStyle(el).animationName))]")
+    assert names == ["none"]
+    # Bars are drawn at full length straight away, and Patch's waving hand stands still.
+    full = chart(page, BY_PRODUCT).locator(".fill").first.evaluate(
+        "el => Math.abs(el.getBoundingClientRect().width - el.getBBox().width) < 0.6")
+    assert full
+    hand = banner(page).locator(".bot-hand.right").evaluate("""async el => { const seen = new Set();
+        for (let i = 0; i < 8; i++) { seen.add(getComputedStyle(el).transform); await new Promise(r => setTimeout(r, 60)) }
+        return [...seen] }""")
+    assert hand == ["none"]
+
+
+# --- Light and dark, phone and desktop, keyboard (DESIGN.md §9, §4.2, §10) -----------------------------------------
+
+SEV_DARK_CRITICAL = "rgb(217, 208, 255)"
+
+
+@pytest.mark.parametrize("width", [PHONE, DESKTOP])
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_a05_9_light_dark_phone_and_desktop(open_dash, browser_name, width, scheme):
+    page = open_dash(width=width, scheme=scheme, reduced=True)
+    expect(banner(page)).to_be_visible()
+    for title in (BY_PRODUCT, PER_MONTH, BY_OWASP):
+        card = chart(page, title)
+        expect(card.locator(".fill").first).to_be_visible()
+        svg, box = card.locator("svg").bounding_box(), card.bounding_box()
+        assert svg and box and svg["x"] >= box["x"] and svg["x"] + svg["width"] <= box["x"] + box["width"], title
+    page.screenshot(path=SHOTS / f"a05-{browser_name}-{width}-{scheme}.png", full_page=True)
+    assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
+    critical = chart(page, BY_PRODUCT).locator(".fill.sev-critical").first.evaluate("el => getComputedStyle(el).fill")
+    assert critical == (SEV_LIGHT["CRITICAL"] if scheme == "light" else SEV_DARK_CRITICAL)
+    hello = banner(page).evaluate("el => getComputedStyle(el).backgroundImage")
+    assert ("rgb(255, 255, 255)" if scheme == "light" else "rgb(26, 26, 46)") in hello  # starts at --surface
+    side = page.locator(".dash-side").bounding_box()
+    main = page.locator(".dash-main").bounding_box()
+    assert side and main
+    if width == PHONE:  # one column: the side panels drop below the main column
+        assert side["y"] > main["y"] + main["height"] - 1
+        assert banner(page).evaluate("el => getComputedStyle(el).flexDirection") == "column"
+    else:
+        assert side["x"] > main["x"] + main["width"] - 1
+
+
+def test_a05_10_keyboard_reaches_banner_bars_tables_and_panels(open_dash):
+    page = open_dash(reduced=True)
+    hello = banner(page)
+    hello.get_by_role("button", name="Close Patch's welcome").focus()
+    page.keyboard.press("Tab")
+    expect(hello.get_by_role("button", name="Ask Patch")).to_be_focused()
+    # The first bar: a keyboard stop with a visible ring, and its tooltip shows.
+    first_bar = chart(page, BY_PRODUCT).locator(".fill").first
+    for _ in range(30):
+        page.keyboard.press("Tab")
+        if first_bar.evaluate("el => el === document.activeElement"):
+            break
+    expect(first_bar).to_be_focused()
+    ring = first_bar.evaluate("el => [getComputedStyle(el).stroke, getComputedStyle(el).strokeWidth]")
+    assert ring == ["rgb(42, 37, 89)", "2px"]
+    expect(page.get_by_role("tooltip")).to_have_text(first_bar.get_attribute("aria-label") or "")
+    # "Show as table" opens with the keyboard.
+    summary = chart(page, BY_PRODUCT).get_by_text("Show as table")
+    for _ in range(30):
+        page.keyboard.press("Tab")
+        if summary.evaluate("el => el === document.activeElement"):
+            break
+    expect(summary).to_be_focused()
+    outline = summary.evaluate("el => [getComputedStyle(el).outlineStyle, getComputedStyle(el).outlineWidth]")
+    assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
+    page.keyboard.press("Enter")
+    expect(chart(page, BY_PRODUCT).get_by_role("table")).to_be_visible()
+    # The side panels' links are reachable too.
+    link = page.get_by_role("region", name="Data freshness").get_by_role("link").first
+    link.focus()
+    expect(link).to_be_focused()

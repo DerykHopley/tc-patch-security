@@ -85,6 +85,7 @@
 
 /* "Show as table": the same numbers, for anyone who can't read the bars. */
 .table-view {
+  overflow-x: auto;
   margin-top: 0.5rem;
 }
 

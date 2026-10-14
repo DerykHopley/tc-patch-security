@@ -13,6 +13,7 @@ import {
 } from '../api.ts'
 import { Bars, ChartCard, Columns, SeverityLegend, StackedBars, Tooltip, type Tip } from '../components/charts.tsx'
 import { WarningIcon } from '../components/Icons.tsx'
+import { WelcomeBanner } from '../components/WelcomeBanner.tsx'
 import { SEVERITIES, sevLabel } from '../severity.ts'
 import '../styles/dashboard.css'
 
@@ -25,7 +26,8 @@ const STATUS_LABEL: Record<CveStatus, string> = { open: 'Open', fixed: 'Fixed', 
 type Note = { ok: boolean; text: string }
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
 
-export function DashboardPage() {
+// onAskPatch: opens the chat from the welcome banner; the chat ticket passes it in.
+export function DashboardPage({ onAskPatch }: { onAskPatch?: () => void } = {}) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [page, setPage] = useState<CvePage | null>(null)
   const [query, setQuery] = useState<CveQuery>({ status: 'open', limit: PAGE_SIZE, offset: 0 })
@@ -74,6 +76,7 @@ export function DashboardPage() {
   if (!data) {
     return (
       <div className="page dashboard">
+        <WelcomeBanner onAsk={onAskPatch} />
         {error ? (
           <p className="dash-error" role="alert">
             {error}
@@ -89,6 +92,7 @@ export function DashboardPage() {
 
   return (
     <div className="page dashboard">
+      <WelcomeBanner onAsk={onAskPatch} />
       {error && (
         <p className="dash-error" role="alert">
           {error}{' '}

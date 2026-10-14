@@ -165,8 +165,8 @@ def test_a04_7_table_sorted_filtered_and_paged(open_dash, api_url):
     expect(page.get_by_text(f"26–50 of {first['total']}")).to_be_visible()
     expect_rows(page, [r["id"] for r in api(api_url, "/cves?limit=25&offset=25")["rows"]])
 
-    page.get_by_label("Product").select_option(label="Open WebUI")
-    page.get_by_label("Severity").select_option(label="High or worse")
+    page.get_by_role("combobox", name="Product").select_option(label="Open WebUI")
+    page.get_by_role("combobox", name="Severity").select_option(label="High or worse")
     filtered = api(api_url, "/cves?product=open-webui&severity_min=HIGH&limit=25")
     expect(page.get_by_text(f"{filtered['total']} CVEs")).to_be_visible()
     expect_rows(page, [r["id"] for r in filtered["rows"]])  # filters go back to page 1
@@ -186,7 +186,7 @@ def test_a04_7_row_actions_reload_tiles_and_table(open_dash, api_url):
     page.get_by_role("button", name=f"Mark {second} not affected").click()
     expect(tile(page, "Open CVEs").locator(".tile-value")).to_have_text(str(open_before - 2))
 
-    page.get_by_label("Status").select_option(label="Fixed")
+    page.get_by_role("combobox", name="Status").select_option(label="Fixed")
     expect(page.get_by_role("link", name=top, exact=True)).to_be_visible()
     page.get_by_role("button", name=f"Reopen {top}").click()
     expect(page.get_by_text("No CVEs match these filters.")).to_be_visible()
@@ -208,7 +208,7 @@ def test_a04_8_watchlist_add_and_remove(open_dash, api_url):
     watchlist = api(api_url, "/watchlist")["watchlist"]
     assert "vllm" in watchlist and "langchain" not in watchlist
     expect(tile(page, "Open CVEs").locator(".tile-value")).to_have_text(str(api(api_url, "/dashboard")["kpis"]["open"]))
-    options = page.get_by_label("Product").locator("option").all_inner_texts()
+    options = page.get_by_role("combobox", name="Product").locator("option").all_inner_texts()
     assert "vLLM" in options and "LangChain" not in options
 
 
@@ -272,7 +272,7 @@ def test_a04_10_light_dark_phone_and_desktop(open_dash, browser_name, width, sch
 def test_a04_11_keyboard_reaches_filters_actions_and_watchlist(open_dash):
     page = open_dash()
     top = rows(page)[0]
-    page.get_by_label("Product").focus()
+    page.get_by_role("combobox", name="Product").focus()
     seen = []
     for _ in range(150):
         page.keyboard.press("Tab")

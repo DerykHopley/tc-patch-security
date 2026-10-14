@@ -80,7 +80,7 @@ export function ChartCard({
       {children}
       <details className="table-view">
         <summary>Show as table</summary>
-        <div className="table-scroll">{table}</div>
+        {table}
       </details>
     </section>
   )
