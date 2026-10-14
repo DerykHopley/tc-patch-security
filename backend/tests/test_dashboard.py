@@ -100,6 +100,28 @@ def test_a04_4_unknown_product_rejected_with_a_plain_message(client):
     assert client.get("/watchlist").json()["watchlist"] == ["langchain", "langflow", "litellm", "ollama", "open-webui"]
 
 
+def _row(client, cve_id, product):
+    rows = client.get(f"/cves?status=all&product={product}&limit=200").json()["rows"]
+    return next(r for r in rows if r["id"] == cve_id)
+
+
+def test_a14_7_rows_carry_epss_and_possible_match(client):
+    row = _row(client, "CVE-2024-8309", "langchain")  # product from the CPE
+    assert row["epss"] == {"score": 0.13738, "percentile": 0.96438, "date": "2026-10-13"}
+    assert row["possible_match"] is False
+    assert _row(client, "CVE-2026-105740", "langflow")["possible_match"] is True  # from text, OSV doesn't say
+    assert _row(client, "CVE-2026-105741", "langflow")["possible_match"] is False  # from text, OSV confirms
+    assert all("epss" in r and "possible_match" in r for r in client.get("/cves?limit=200").json()["rows"])
+
+
+def test_a14_7_freshness_shows_every_licence_attribution_and_the_nvd_notice(client):
+    sources = {s["id"]: s for s in client.get("/dashboard").json()["freshness"]}
+    assert set(sources) == {"owasp_llm", "owasp_web", "atlas", "nvd", "kev", "osv", "epss"}
+    assert all(s["licence"] and s["attribution"] for s in sources.values())
+    assert sources["epss"]["attribution"] == "EPSS by FIRST" and sources["kev"]["licence"] == "CC0 1.0"
+    assert sources["nvd"]["notice"].startswith("This product uses the NVD API but is not endorsed")
+
+
 def test_a04_5_one_state_shared_with_what_the_chat_uses(client, deps):
     # The chat's tools change deps.state; the dashboard reads the same state, and the other way round.
     deps.state.watch("vLLM")
