@@ -208,7 +208,7 @@ export function Conversation({ messages, pending, onSend, greeting, suggestions,
           maxLength={1000}
           aria-label="Message"
         />
-        <button type="submit" className="primary" disabled={!canSend}>
+        <button type="submit" disabled={!canSend}>
           Send
         </button>
       </form>

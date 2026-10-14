@@ -6,6 +6,7 @@ import { useChat } from './chat/useChat.ts'
 import { usePatch } from './chat/usePatch.ts'
 import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, MoonIcon, ShieldIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
+import { DashboardPage } from './pages/Dashboard.tsx'
 import { EmptyPage } from './pages/EmptyPage.tsx'
 import { store } from './storage.ts'
 import { useTheme } from './theme.ts'
@@ -148,7 +149,11 @@ export default function App() {
           </button>
         </header>
         <main>
-          <EmptyPage title={current.title} comingWith={current.comingWith} />
+          {page === 'dashboard' ? (
+            <DashboardPage />
+          ) : (
+            <EmptyPage title={current.title} comingWith={current.comingWith} />
+          )}
         </main>
       </div>
 

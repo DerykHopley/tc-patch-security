@@ -55,4 +55,4 @@ wait_for "http://localhost:$UI_PORT/"
 
 if [ "$#" -eq 0 ]; then set -- --browser firefox --browser chromium; fi
 cd "$HERE"
-UI_URL="http://localhost:$UI_PORT" uv run --project "$HERE" pytest -q "$@"
+API_URL="http://localhost:$API_PORT" UI_URL="http://localhost:$UI_PORT" uv run --project "$HERE" pytest -q "$@"

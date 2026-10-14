@@ -28,11 +28,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const health = () => request<Health>('/health')
 
-// --- Chat (A06). Shapes written by hand from backend/app/schemas.py.
+// --- Chat (A06). Shapes written by hand from backend/app/schemas.py. Severity is the dashboard's, below.
 
 export type Role = 'user' | 'assistant'
 export type DocType = 'owasp_llm' | 'owasp_web' | 'atlas_technique' | 'atlas_mitigation' | 'atlas_case' | 'cve'
-export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
 
 export interface Turn {
   role: Role
@@ -105,3 +104,74 @@ export const chat = (message: string, history: Turn[]) =>
   })
 
 export const examples = () => request<Example[]>('/examples')
+
+// --- Dashboard (A04)
+
+export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+export type CveStatus = 'open' | 'fixed' | 'not_affected'
+
+export interface Product {
+  id: string
+  name: string
+}
+
+export interface Dashboard {
+  as_of: string
+  watchlist: string[] // product ids
+  products: Product[] // every product in the snapshot: the watchlist is chosen from these
+  kpis: {
+    open: number
+    critical: number
+    kev: number
+    kev_next_due: { cve: string; due: string } | null
+    new_30d: number
+  }
+}
+
+export interface CveRow {
+  id: string
+  product: string
+  product_name: string
+  severity: Severity | null
+  cvss: number | null
+  published: string
+  owasp: string | null
+  owasp_title: string | null
+  kev: boolean
+  kev_due: string | null
+  status: CveStatus
+  summary: string
+  url: string
+}
+
+export interface CveQuery {
+  product?: string
+  severity_min?: Severity
+  status: CveStatus | 'all'
+  limit: number
+  offset: number
+}
+
+export interface CvePage {
+  total: number
+  rows: CveRow[]
+}
+
+function json(method: string, body: unknown): RequestInit {
+  return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+}
+
+export const dashboard = () => request<Dashboard>('/dashboard')
+
+export function cves(q: CveQuery): Promise<CvePage> {
+  const params = new URLSearchParams({ status: q.status, limit: String(q.limit), offset: String(q.offset) })
+  if (q.product) params.set('product', q.product)
+  if (q.severity_min) params.set('severity_min', q.severity_min)
+  return request<CvePage>(`/cves?${params}`)
+}
+
+export const setStatus = (id: string, status: CveStatus) =>
+  request<{ id: string; status: CveStatus }>(`/cves/${encodeURIComponent(id)}`, json('PATCH', { status }))
+
+export const setWatchlist = (products: string[]) =>
+  request<{ watchlist: string[] }>('/watchlist', json('PUT', { products }))

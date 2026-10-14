@@ -416,6 +416,7 @@ def test_a06_9_works_in_light_and_dark_at_phone_and_desktop_width(open_app, brow
 def test_a06_10_keyboard_open_ask_and_reach_every_chat_control(open_app):
     page = open_app()
     button = fab(page)
+    page.get_by_role("button", name="Settings", exact=True).click()  # no page controls between the toggle and Patch
     page.get_by_role("button", name="Switch to dark mode").focus()
     page.keyboard.press("Tab")  # by keyboard, so :focus-visible applies
     expect(button).to_be_focused()
