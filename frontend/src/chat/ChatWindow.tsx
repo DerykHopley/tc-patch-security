@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react'
-import type { Example } from '../api.ts'
+import type { Example, PageContext } from '../api.ts'
 import { PinIcon } from '../components/Icons.tsx'
 import { Robot, type Mood } from '../components/Robot.tsx'
+import { contextWords } from '../pageContext.ts'
 import '../styles/chat.css'
 import { Conversation } from './Conversation.tsx'
 import { LevelSwitch } from './LevelSwitch.tsx'
@@ -10,13 +11,16 @@ import type { ChatState } from './useChat.ts'
 import type { ChatLayout } from './useChatLayout.ts'
 
 // The chat window (DESIGN.md §6.2, §6.3): the bubble above Patch's button (opens with a pop), the enlarged bubble,
-// or pinned beside the page. Header: Patch with his mood, the page underneath, New chat, Pin (enlarged or pinned
+// or pinned beside the page. Header: Patch with his mood, the page underneath with the
+// filters and selected CVE Patch is told about (A18), New chat, Pin (enlarged or pinned
 // only), Make larger (not when pinned), close; under them the explain-level switch (A19). Empty: Patch waving behind a speech bubble, with suggested questions.
 // The same element in every layout, so pinning never loses the conversation's scroll.
-export function ChatWindow({ chat, mood, pageTitle, suggestions, examples, layout, onClose }: {
+export function ChatWindow({ chat, mood, pageTitle, context, productName, suggestions, examples, layout, onClose }: {
   chat: ChatState
   mood: Mood
   pageTitle: string
+  context: PageContext // what Patch is told about the page (A18): the chip shows it
+  productName?: string
   suggestions: string[]
   examples: Example[]
   layout: ChatLayout
@@ -24,6 +28,8 @@ export function ChatWindow({ chat, mood, pageTitle, suggestions, examples, layou
 }) {
   const { expanded, pinned } = layout
   const savedLevel = useSavedLevel()
+  const words = contextWords(context, productName)
+  const chipText = [`on ${pageTitle}`, ...words].join(' · ')
   const greeting = (
     <div className="greeting">
       <div className="robot-slot">
@@ -45,8 +51,11 @@ export function ChatWindow({ chat, mood, pageTitle, suggestions, examples, layou
         <div className="chat-title">
           <Robot mood={mood} size={34} />
           <strong>Patch</strong>
-          <span className="context-chip" title="The page under the chat">
-            on {pageTitle}
+          <span
+            className="context-chip"
+            title={`Patch knows: the ${pageTitle} page${words.length ? `, ${words.join(', ')}` : ''}`}
+          >
+            {chipText}
           </span>
         </div>
         <button type="button" onClick={chat.newChat} disabled={chat.pending || chat.messages.length === 0}>

@@ -315,7 +315,7 @@ def test_a07_5_ask_about_this_opens_the_chat_over_the_cves_page_and_asks(open_ap
     chat = window(page)
     expect(chat).to_be_visible()
     expect(page.locator("h1")).to_have_text("CVEs")  # over the CVEs page: the page stays
-    expect(chat.locator(".context-chip")).to_have_text("on CVEs")
+    expect(chat.locator(".context-chip")).to_have_text(f"on CVEs · {cve}")  # A18: the row asked about is selected
     expect(chat.locator(".message.user")).to_have_text(f"Explain {cve} and how to defend against it.")
     answer = chat.locator(".message.assistant")
     expect(answer).to_have_count(1, timeout=10_000)

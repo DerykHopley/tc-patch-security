@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { chat, type ChatReply, type ExplainLevel, type Turn } from '../api.ts'
+import { chat, type ChatReply, type ExplainLevel, type PageContext, type Turn } from '../api.ts'
 
 export interface Message {
   id: number // unique for the page's lifetime: a new chat never reuses one
@@ -23,23 +23,26 @@ function toHistory(messages: Message[]): Turn[] {
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_TURN_CHARS) }))
 }
 
-/** One conversation for the whole app, so moving between pages never loses it. */
-export function useChat() {
+/** One conversation for the whole app, so moving between pages never loses it. `pageContext`: what the user is
+ *  looking at now (A18), sent with each message. */
+export function useChat(pageContext: PageContext) {
   const [messages, setMessages] = useState<Message[]>([])
   const [pending, setPending] = useState(false)
   // A level picked in the chat header for the next question only (A19); null = the saved level.
   const [nextLevel, setNextLevel] = useState<ExplainLevel | null>(null)
 
-  /** savedLevel: ignore a level picked for the next question ("Explain it" and "Ask about this" use the saved one). */
-  async function send(text: string, { savedLevel = false } = {}) {
+  /** savedLevel: ignore a level picked for the next question ("Explain it" and "Ask about this" use the saved one).
+   *  context: send this page context instead of the current one ("Ask about this" selects its CVE in the same click). */
+  async function send(text: string, { savedLevel = false, context }: { savedLevel?: boolean; context?: PageContext } = {}) {
     if (pending) return
     const history = toHistory(messages)
     const level = savedLevel ? undefined : (nextLevel ?? undefined)
+    const page = context ?? pageContext
     if (!savedLevel) setNextLevel(null)
     setMessages((ms) => [...ms, { id: nextId++, role: 'user', content: text }])
     setPending(true)
     try {
-      const reply = await chat(text, history, level)
+      const reply = await chat(text, history, level, page)
       setMessages((ms) => [...ms, { id: nextId++, role: 'assistant', content: reply.answer, reply }])
     } catch (e) {
       const error = e instanceof Error ? e.message : 'Something went wrong. Try again.'

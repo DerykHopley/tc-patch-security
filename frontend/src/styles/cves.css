@@ -481,3 +481,18 @@ table.cves .history .history-who {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ---------- The selected CVE (A18): the row last asked about, the one Patch is told about ---------- */
+
+/* An accent edge on the first cell and the word "Selected": never colour alone. Nothing moves. */
+table.cves tr.selected > td:first-child {
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.chip.selected-chip {
+  margin-left: 0.3rem;
+  color: var(--text);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  white-space: nowrap;
+}

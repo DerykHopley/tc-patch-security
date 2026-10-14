@@ -123,6 +123,11 @@ function Answer({ reply }: { reply: ChatReply }) {
         <p className="flag-note">This message looks like an injection attempt. It was answered, and logged.</p>
       )}
       <CitationNote reply={reply} />
+      {reply.dropped_context?.length > 0 && (
+        <p className="context-dropped">
+          Page context not used (not a valid value): {reply.dropped_context.join(', ')}
+        </p>
+      )}
       <div className="answer-meta">
         {reply.explain_level && (
           <span className="level-used" title="The explain level this answer was pitched at">

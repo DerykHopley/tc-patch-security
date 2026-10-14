@@ -13,6 +13,7 @@ import { CvesPage } from './pages/CvesPage.tsx'
 import { DashboardPage } from './pages/Dashboard.tsx'
 import { DevPage } from './pages/DevPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
+import { pageContext, type CveView } from './pageContext.ts'
 import { PATHS, useRoute, type Page } from './route.ts'
 import { store } from './storage.ts'
 import { useTheme } from './theme.ts'
@@ -29,14 +30,8 @@ const PAGES: Record<Page, { title: string; nav: string; Icon: () => JSX.Element 
 
 // Questions that fit the page under the chat (1–2, DESIGN.md §6.2). FakeLLM answers each one.
 const SUGGESTIONS: Record<Page, string[]> = {
-  dashboard: [
-    'Explain CVE-2025-3248 and how to defend against it.',
-    'Which critical Langflow vulnerabilities were published in 2026?',
-  ],
-  cves: [
-    'Explain CVE-2025-3248 and how to defend against it.',
-    'Which critical Langflow vulnerabilities were published in 2026?',
-  ],
+  dashboard: ['What should I fix first?', 'Explain CVE-2025-3248 and how to defend against it.'],
+  cves: ['What should I fix first?', 'Explain CVE-2025-3248 and how to defend against it.'],
   settings: ['How do I protect a RAG app from indirect prompt injection?'],
   dev: ['What does an "ignore previous instructions" attack look like?'],
 }
@@ -48,7 +43,13 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(() => store.get('sidenavCollapsed') === '1')
   const [route, navigate] = useRoute()
   const page = route.page
-  const chat = useChat()
+  // Page context (A18): the CVEs page's filters and the CVE last asked about there, sent with every message. The
+  // selection belongs to one visit of the page: leave it (or follow a link to it) and nothing is selected.
+  const [cveView, setCveView] = useState<CveView | null>(null)
+  const [selection, setSelection] = useState<{ cve: string; visit: number } | null>(null)
+  const selectedCve = page === 'cves' && selection?.visit === route.visit ? selection.cve : null
+  const context = pageContext(page, cveView, selectedCve)
+  const chat = useChat(context)
   const layout = useChatLayout()
   const [alertCve, alertDone] = useAlertLink()
   const chatOpen = layout.open
@@ -76,6 +77,16 @@ export default function App() {
   function askAbout(cveId: string) {
     openChat()
     void chat.send(`Explain ${cveId} and how to defend against it.`, { savedLevel: true }) // A19: the saved level
+  }
+
+  // "Ask about this" on the CVEs page also selects the row: Patch knows which CVE "this" is (A18).
+  function askAboutRow(cveId: string) {
+    setSelection({ cve: cveId, visit: route.visit })
+    openChat()
+    void chat.send(`Explain ${cveId} and how to defend against it.`, {
+      savedLevel: true,
+      context: pageContext(page, cveView, cveId),
+    })
   }
 
   function closeChat() {
@@ -209,7 +220,13 @@ export default function App() {
             <DashboardPage onNavigate={navigate} onAskPatch={openChat} />
           ) : page === 'cves' ? (
             // keyed by the visit: a link followed again with other filters starts from them
-            <CvesPage key={route.visit} search={route.search} onAsk={askAbout} />
+            <CvesPage
+              key={route.visit}
+              search={route.search}
+              onAsk={askAboutRow}
+              selected={selectedCve}
+              onView={setCveView}
+            />
           ) : page === 'settings' ? (
             <SettingsPage asOf={status?.as_of ?? null} onOpenDashboard={() => navigate(PATHS.dashboard)} />
           ) : status?.dev_panel ? (
@@ -225,6 +242,8 @@ export default function App() {
           chat={chat}
           mood={patch.mood}
           pageTitle={current.title}
+          context={context}
+          productName={page === 'cves' ? cveView?.productName : undefined}
           suggestions={SUGGESTIONS[page]}
           examples={examples}
           layout={layout}

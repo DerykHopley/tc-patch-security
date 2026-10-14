@@ -128,17 +128,20 @@
   margin: -0.2rem 0 -0.3rem -0.2rem; /* in the title row; his antenna stays inside the window's top edge */
 }
 
+/* The page under the chat, with the filters and selected CVE Patch is told about (A18). It wraps rather than cuts
+   off: the chip is the promise of what Patch knows, so all of it stays readable. --text, since --accent on
+   --accent-soft is 4.48:1 in light mode, just short of 4.5. */
 .context-chip {
-  overflow: hidden;
+  min-width: 0;
   padding: 0.05rem 0.55rem;
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--text);
   font-family: var(--font-body);
   font-size: 0.72rem;
   font-weight: 700;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  line-height: 1.35;
+  overflow-wrap: break-word;
 }
 
 .chat-head button {
@@ -777,4 +780,39 @@
   margin: 0.3rem 0 0;
   padding-left: 1rem;
   font-size: 0.8rem;
+}
+
+/* prioritise's card (A18): the rules' order as a numbered list, each CVE with its level, reasons and due date. */
+.fix-list {
+  margin: 0.3rem 0 0;
+  padding-left: 1.3rem;
+  font-size: 0.82rem;
+}
+
+.fix-list li {
+  margin-bottom: 0.3rem;
+}
+
+.fix-list .fix-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.fix-list .chip {
+  margin: 0;
+}
+
+/* Page-context values the backend dropped (A18): the words in --text, the warn colour only as the edge (--warn on
+   --warn-soft is under 4.5:1 for small text). */
+.context-dropped {
+  margin: 0.4rem 0 0;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-input);
+  background: var(--warn-soft);
+  box-shadow: inset 0 0 0 1px var(--warn);
+  color: var(--text);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
 }

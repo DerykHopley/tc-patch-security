@@ -94,6 +94,20 @@ export interface ChatReply {
   bad_citations: number[] // [n] removed from the answer: no source n
   no_citations: boolean // has sources but cites none of them
   explain_level: ExplainLevel // the level this answer was pitched at (A19)
+  page_context: PageContext // the checked page context Patch had (A18)
+  dropped_context: string[] // page-context values the backend dropped: "key=value"
+}
+
+// Page context (A18): fixed fields only, each checked by the backend (app/page_context.py). Never free text.
+export interface PageContext {
+  page?: 'dashboard' | 'cves' | 'settings' | 'dev'
+  product?: string
+  severity?: Severity
+  status?: CveStatus | 'all'
+  verdict?: Verdict
+  kev?: boolean
+  since?: string // YYYY-MM-DD
+  cve?: string // the selected CVE
 }
 
 export interface Example {
@@ -110,12 +124,12 @@ export const EXPLAIN_LEVELS: { id: ExplainLevel; label: string; what: string }[]
   { id: 'deep_dive', label: 'Deep dive', what: 'The technical detail: CWE, attack path, CVSS vector.' },
 ]
 
-// explainLevel: this message only; left out, the backend uses the saved level.
-export const chat = (message: string, history: Turn[], explainLevel?: ExplainLevel) =>
+// explainLevel: this message only; left out, the backend uses the saved level. page: what the user is looking at.
+export const chat = (message: string, history: Turn[], explainLevel?: ExplainLevel, page?: PageContext) =>
   request<ChatReply>('/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, history, ...(explainLevel && { explain_level: explainLevel }) }),
+    body: JSON.stringify({ message, history, ...(explainLevel && { explain_level: explainLevel }), ...(page && { page }) }),
   })
 
 export const examples = () => request<Example[]>('/examples')

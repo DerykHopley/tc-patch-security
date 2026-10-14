@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import type { Decision, Epss, PriorityLevel, Severity, ToolCallRecord, Verdict, WhoActs } from '../api.ts'
+import type { Decision, Epss, PageContext, PriorityLevel, Severity, ToolCallRecord, Verdict, WhoActs } from '../api.ts'
+import { contextWords } from '../pageContext.ts'
 import { OverdueMark, PriorityChip } from '../components/Priority.tsx'
 import { NoFixMark, STATUS_LABEL as CVE_STATUS_LABEL } from '../components/Decision.tsx'
 import { epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
@@ -74,6 +75,34 @@ interface WeaknessResult {
   maturity?: string
   mitigations?: { id: string; name: string }[]
   cited_by_llm_top10?: { code: string; title: string }[]
+}
+
+// prioritise (A18): the rules' order for the watchlist and the page's view. Drawn in that order, never re-sorted.
+interface FixFirstCve {
+  rank: number
+  n: number
+  id: string
+  product: string
+  severity: Severity | null
+  kev: boolean
+  verdict: Verdict
+  status: 'open' | 'accepted'
+  review_due: boolean
+  priority: PriorityLevel
+  reasons: string[]
+  due_date: string
+  due_from: string
+  overdue: boolean
+  no_fix: boolean
+  open_days: number
+}
+
+interface FixFirstResult {
+  filters: Record<string, string | boolean>
+  ignored: string[]
+  product: string | null
+  total_open: number
+  cves: FixFirstCve[]
 }
 
 interface WatchlistResult {
@@ -226,6 +255,44 @@ function WeaknessCard({ r }: { r: WeaknessResult }) {
   )
 }
 
+function FixFirstCard({ r }: { r: FixFirstResult }) {
+  const view = contextWords(r.filters as PageContext, r.product ?? undefined).join(', ')
+  return (
+    <div className="result-card fix-first-card">
+      <p className="result-title">
+        {r.total_open} open{view ? ` · ${view}` : ' on your watchlist'} · in the rules' order
+      </p>
+      {r.ignored.map((i) => (
+        <p key={i} className="meta">
+          Not applied: {i}
+        </p>
+      ))}
+      {r.cves.length === 0 ? (
+        <p className="meta">Nothing open in this view.</p>
+      ) : (
+        <ol className="fix-list">
+          {r.cves.map((c) => (
+            <li key={c.id}>
+              <span className="fix-head">
+                <strong>{c.id}</strong>
+                <PriorityChip level={c.priority} />
+                <SeverityBadge severity={c.severity} cvss={null} />
+                {c.kev && <span className="chip kev">KEV</span>}
+                {c.review_due && <span className="chip review-due">Review due</span>}
+                {c.no_fix && <NoFixMark days={c.open_days} />}
+                {c.overdue && <OverdueMark />}
+              </span>
+              <span className="meta">
+                {c.product} · {c.reasons.join(' · ')} · {c.no_fix ? 'decide by' : 'due'} {c.due_date} ({c.due_from})
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  )
+}
+
 function WatchlistCard({ r }: { r: WatchlistResult }) {
   return (
     <div className="result-card watchlist-card">
@@ -241,6 +308,7 @@ export function ToolCallCard({ call }: { call: ToolCallRecord }) {
   if (r && call.name === 'lookup_cve') body = <CveCard r={r as unknown as CveResult} />
   else if (r && call.name === 'explain_weakness') body = <WeaknessCard r={r as unknown as WeaknessResult} />
   else if (r && call.name === 'check_affected') body = <AffectedCard r={r as unknown as AffectedOne | AffectedProduct} />
+  else if (r && call.name === 'prioritise') body = <FixFirstCard r={r as unknown as FixFirstResult} />
   else if (r && call.name === 'update_watchlist') body = <WatchlistCard r={r as unknown as WatchlistResult} />
   return (
     <article className={`tool-card ${call.status}`}>

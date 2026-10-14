@@ -4,7 +4,6 @@ import {
   dashboard as fetchDashboard,
   setStatus,
   type CvePage,
-  type CveQuery,
   type CveRow,
   type DecisionInput,
   type Product,
@@ -23,6 +22,7 @@ import {
 } from '../components/Decision.tsx'
 import { VERDICT_LABEL, VERDICTS, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { SEVERITIES, sevLabel } from '../severity.ts'
+import type { CveFilters, CveView } from '../pageContext.ts'
 import '../styles/cves.css'
 
 // The CVEs page (A04b, DESIGN.md §5.9): the CVE table at the page's full width, the work list beside the dashboard's
@@ -35,7 +35,7 @@ const PAGE_SIZE = 25
 const STATUSES = ['open', 'fixed', 'not_affected', 'accepted', 'all'] as const
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
 
-type Filters = Omit<CveQuery, 'limit' | 'offset'>
+type Filters = CveFilters
 
 /** The filters in a query string. Anything malformed is dropped: the URL is text from outside. */
 function filtersFromSearch(search: string): Filters {
@@ -68,8 +68,14 @@ function searchFromFilters(f: Filters): string {
   return s ? `?${s}` : ''
 }
 
-// onAsk: "Ask about this" opens Patch over this page and asks about that CVE (DESIGN.md §6.4).
-export function CvesPage({ search, onAsk }: { search: string; onAsk: (cveId: string) => void }) {
+// onAsk: "Ask about this" opens Patch over this page and asks about that CVE (DESIGN.md §6.4); that row becomes the
+// selected CVE. onView: the filters Patch is told about (A18), on every change.
+export function CvesPage({ search, onAsk, selected = null, onView }: {
+  search: string
+  onAsk: (cveId: string) => void
+  selected?: string | null
+  onView?: (view: CveView) => void
+}) {
   const [filters, setFilters] = useState<Filters>(() => filtersFromSearch(search))
   const [offset, setOffset] = useState(0)
   const [page, setPage] = useState<CvePage | null>(null)
@@ -98,6 +104,11 @@ export function CvesPage({ search, onAsk }: { search: string; onAsk: (cveId: str
       (e: unknown) => setError(message(e)),
     )
   }, [loadRows])
+
+  const productName = products.find((p) => p.id === filters.product)?.name
+  useEffect(() => {
+    onView?.({ filters, productName })
+  }, [filters, productName, onView])
 
   function filter(patch: Partial<Filters>) {
     const next = { ...filters, ...patch }
@@ -205,7 +216,7 @@ export function CvesPage({ search, onAsk }: { search: string; onAsk: (cveId: str
             {page ? `${page.total} CVEs · by priority, then due date` : 'Loading…'}
           </span>
         </div>
-        <CveTable page={page} onDecide={asOf ? setDeciding : undefined} onAsk={onAsk} />
+        <CveTable page={page} onDecide={asOf ? setDeciding : undefined} onAsk={onAsk} selected={selected} />
         {deciding && asOf && (
           <DecisionDialog
             key={`${deciding.cve}-${deciding.status}`}
@@ -251,8 +262,9 @@ export function CvesPage({ search, onAsk }: { search: string; onAsk: (cveId: str
 }
 
 // data-label names each cell when the rows are stacked cards (the header row is hidden then).
-function CveTable({ page, onDecide, onAsk }: {
+function CveTable({ page, onDecide, onAsk, selected }: {
   page: CvePage | null
+  selected: string | null // the CVE Patch is told about (A18)
   onDecide?: (r: DecisionRequest) => void // undefined until the as-of date is known (the review date needs it)
   onAsk: (id: string) => void
 }) {
@@ -285,11 +297,16 @@ function CveTable({ page, onDecide, onAsk }: {
         </thead>
         <tbody>
           {page?.rows.map((r) => (
-            <tr key={r.id}>
+            <tr key={r.id} className={r.id === selected ? 'selected' : undefined}>
               <td className="cve-cell">
                 <a href={r.url} target="_blank" rel="noreferrer">
                   {r.id}
                 </a>
+                {r.id === selected && (
+                  <span className="chip selected-chip" title="Patch knows this is the CVE you asked about">
+                    Selected
+                  </span>
+                )}
                 {r.kev && (
                   <span className="chip kev" title={`In CISA KEV: known exploited. KEV deadline ${r.kev_deadline}`}>
                     KEV
