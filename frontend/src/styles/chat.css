@@ -52,12 +52,7 @@
 }
 
 .patch-fab:focus-visible {
-  outline: none;
-}
-
-.patch-fab:focus-visible .patch-pill {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+  border-radius: var(--radius-input); /* the global focus ring, rounded around Patch and his pill */
 }
 
 /* Open: Patch steps off; the pill turns purple with a white ✕. */

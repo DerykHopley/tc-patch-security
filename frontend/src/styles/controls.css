@@ -1,40 +1,81 @@
-/* Buttons and form controls (DESIGN.md §5.3). Plain buttons are in tokens.css; this adds the primary button,
-   inputs and selects, and purple checkboxes. Sliders come with the Settings page. */
+/* Buttons and form controls (docs/design/DESIGN.md §5.3), for every page. Tokens only.
+   The base button (a pill with a border that turns purple on hover) is in tokens.css; this adds the primary
+   button, inputs and selects, and purple checkboxes. */
 
+button.primary,
 button[type='submit'] {
-  color: var(--on-primary);
   background: var(--gradient-primary);
+  color: var(--on-primary);
   border-color: transparent;
   box-shadow: var(--shadow-primary);
 }
 
+button.primary:hover:not(:disabled),
 button[type='submit']:hover:not(:disabled) {
   border-color: transparent;
 }
 
 button:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
-  opacity: 0.55;
 }
 
 input:not([type='checkbox'], [type='radio'], [type='range']),
 select,
 textarea {
   font: inherit;
+  font-size: 0.9rem;
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-input);
   padding: 0.3rem 0.6rem;
+  min-width: 0;
+}
+
+input:not([type='checkbox'], [type='radio'], [type='range']):hover:not(:disabled),
+select:hover:not(:disabled),
+textarea:hover:not(:disabled) {
+  border-color: var(--accent);
 }
 
 input[type='checkbox'],
 input[type='radio'] {
   accent-color: var(--accent);
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
 }
 
+/* Secondary text in cards and forms. */
 .meta {
   margin: 0.2rem 0;
   font-size: 0.82rem;
   color: var(--muted);
+}
+
+.meta.inline {
+  display: inline;
+  margin: 0 0 0 0.3rem;
+}
+
+/* A button that reads as a link. */
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* Error text: --error alone is under 4.5:1 for small text on the surface, so the message is --text on the soft
+   error fill, with an --error edge as the colour cue. */
+.form-error {
+  margin: 0.5rem 0 0;
+  padding: 0.4rem 0.7rem;
+  border-left: 4px solid var(--error);
+  border-radius: var(--radius-input);
+  background: var(--error-soft);
+  color: var(--text);
+  font-size: 0.85rem;
 }

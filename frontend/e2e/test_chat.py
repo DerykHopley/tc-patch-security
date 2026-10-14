@@ -416,10 +416,15 @@ def test_a06_9_works_in_light_and_dark_at_phone_and_desktop_width(open_app, brow
 def test_a06_10_keyboard_open_ask_and_reach_every_chat_control(open_app):
     page = open_app()
     button = fab(page)
-    page.get_by_role("button", name="Settings", exact=True).click()  # no page controls between the toggle and Patch
+    page.get_by_role("button", name="Dev", exact=True).click()  # the page with the fewest controls before Patch
     page.get_by_role("button", name="Switch to dark mode").focus()
-    page.keyboard.press("Tab")  # by keyboard, so :focus-visible applies
+    for _ in range(80):  # by keyboard, so :focus-visible applies; Patch's button comes after the page's controls
+        page.keyboard.press("Tab")
+        if button.evaluate("el => el === document.activeElement"):
+            break
     expect(button).to_be_focused()
+    outline = button.evaluate("el => [getComputedStyle(el).outlineStyle, getComputedStyle(el).outlineWidth]")
+    assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
     page.wait_for_timeout(300)  # the pill's 0.15s colour transition
     pill_border = button.locator(".patch-pill").evaluate("el => getComputedStyle(el).borderTopColor")
     accent = page.evaluate("(() => { const d = document.createElement('div'); d.style.color = 'var(--accent)'; "

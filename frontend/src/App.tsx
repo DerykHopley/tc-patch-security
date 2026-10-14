@@ -8,6 +8,7 @@ import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, MoonIcon, Shi
 import { Robot } from './components/Robot.tsx'
 import { DashboardPage } from './pages/Dashboard.tsx'
 import { EmptyPage } from './pages/EmptyPage.tsx'
+import { SettingsPage } from './pages/SettingsPage.tsx'
 import { store } from './storage.ts'
 import { useTheme } from './theme.ts'
 
@@ -151,6 +152,8 @@ export default function App() {
         <main>
           {page === 'dashboard' ? (
             <DashboardPage />
+          ) : page === 'settings' ? (
+            <SettingsPage asOf={status?.as_of ?? null} onOpenDashboard={() => setPage('dashboard')} />
           ) : (
             <EmptyPage title={current.title} comingWith={current.comingWith} />
           )}

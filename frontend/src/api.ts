@@ -175,3 +175,66 @@ export const setStatus = (id: string, status: CveStatus) =>
 
 export const setWatchlist = (products: string[]) =>
   request<{ watchlist: string[] }>('/watchlist', json('PUT', { products }))
+
+// --- Settings page (A13): alert rules, channels, test alerts, the alerts log, reset
+
+export type Channel = 'desktop' | 'email' | 'ntfy'
+
+export interface AlertSettings {
+  enabled: boolean
+  min_severity: Severity
+  kev: boolean
+  kev_recheck: boolean
+  unscored: boolean
+  now_critical: boolean
+  digest_over: number
+  schedule_hours: 1 | 3 | 6 | 12 | 24
+  quiet_start: string | null // HH:MM
+  quiet_end: string | null
+  channels: Channel[]
+}
+
+export interface AppSettings {
+  alerts: AlertSettings
+}
+
+export interface ChannelStatus {
+  configured: boolean
+  detail: string // how it's set up, or how to set it up; never a secret
+}
+
+export interface SettingsReply {
+  settings: AppSettings
+  channels: Record<Channel, ChannelStatus>
+}
+
+export interface AlertMessage {
+  title: string
+  body: string
+  priority: number
+  tags: string[]
+  click: string | null
+}
+
+export interface AlertLogEntry extends AlertMessage {
+  at: string // ISO time, UTC
+  channel: Channel | 'preview'
+  sent: boolean
+  error: string | null
+  error_code: 'not_configured' | 'notify_failed' | null
+}
+
+export interface TestAlertReply {
+  alert: AlertMessage
+  channel: Channel | 'preview'
+  sent: boolean
+  note: string
+}
+
+export const getSettings = () => request<SettingsReply>('/settings')
+export const saveSettings = (s: AppSettings) => request<{ settings: AppSettings }>('/settings', json('PUT', s))
+export const alertsLog = () => request<{ alerts: AlertLogEntry[] }>('/alerts')
+export const testAlert = (channel: Channel | 'preview') =>
+  request<TestAlertReply>('/alerts/test', json('POST', { channel }))
+export const resetState = () =>
+  request<{ reset: boolean; watchlist: string[] }>('/state/reset', json('POST', { confirm: 'reset' }))

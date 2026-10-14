@@ -1,10 +1,12 @@
 """Builds the app's parts once. Tests pass their own knowledge, index and settings."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from app.app_settings import default_settings
 from app.config import Settings
 from app.knowledge import Knowledge, load_knowledge
 from app.llm.base import LLM
 from app.llm.fake import FakeLLM
+from app.notify import Transports
 from app.rag.chunking import build_chunks
 from app.rag.embed import HashEmbedder
 from app.rag.index import VectorIndex
@@ -18,6 +20,7 @@ class Deps:
     knowledge: Knowledge
     state: State
     index: VectorIndex  # the prototype's in-memory index with the hash embedder until Chroma (A09)
+    transports: Transports = field(default_factory=Transports)  # how alerts leave the machine; tests pass fakes
 
 
 def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge | None = None,
@@ -28,6 +31,6 @@ def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge 
         settings=settings,
         llm=llm or FakeLLM(),
         knowledge=knowledge,
-        state=State(settings.state_path, knowledge),
+        state=State(settings.state_path, knowledge, default_settings(settings)),
         index=index or VectorIndex(build_chunks(knowledge), HashEmbedder()),
     )
