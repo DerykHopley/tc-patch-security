@@ -16,6 +16,7 @@ def _row(cve: dict, status: str, k) -> dict:
         "owasp": cve["owasp"], "owasp_title": cat["title"] if cat else None,
         "kev": bool(kev), "kev_due": kev["dueDate"] if kev else None,
         "status": status, "summary": cve["description"][:220], "url": cve["url"],
+        "epss": k.epss_of(cve["id"]), "possible_match": k.possible_match(cve["id"]),
     }
 
 

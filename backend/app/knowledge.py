@@ -1,9 +1,10 @@
-"""The snapshot, loaded once: CVEs, KEV, OWASP pages and map, ATLAS, manifest. Moved from proto.
+"""The snapshot, loaded once: CVEs, KEV, OWASP pages and map, ATLAS, manifest, and (A14) OSV
+versions, EPSS scores and the product-match check. Moved from proto.
 
 `CveSource` is the seam for live data later: `FixtureCveSource` now, an NVD-backed one later.
 """
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from app.config import FIXTURES
@@ -37,6 +38,21 @@ class Knowledge:
     owasp: dict  # categories, cwe_to_web, llm_to_atlas
     atlas: dict  # version, tactics, techniques, mitigations, case_studies
     manifest: dict
+    osv: dict = field(default_factory=lambda: {"products": {}, "cves": {}})  # per CVE: packages, ranges, fixed
+    epss: dict = field(default_factory=lambda: {"scores": {}})  # per CVE: score, percentile, date
+    product_check: dict = field(default_factory=lambda: {"cves": {}})  # text-matched CVEs: confirmed/...
+
+    def epss_of(self, cve_id: str) -> dict | None:
+        return self.epss["scores"].get(cve_id)
+
+    def product_match(self, cve_id: str) -> str | None:
+        """confirmed, conflicting or unknown for a CVE whose product came from description text; else None."""
+        checked = self.product_check["cves"].get(cve_id)
+        return checked["result"] if checked else None
+
+    def possible_match(self, cve_id: str) -> bool:
+        """The product was guessed from text and OSV doesn't confirm it."""
+        return self.product_match(cve_id) in ("conflicting", "unknown")
 
     @property
     def products(self) -> dict[str, str]:
@@ -65,4 +81,7 @@ def load_knowledge() -> Knowledge:
         owasp=json.loads((FIXTURES / "owasp.json").read_text()),
         atlas=json.loads((FIXTURES / "atlas.json").read_text()),
         manifest=json.loads((FIXTURES / "manifest.json").read_text()),
+        osv=json.loads((FIXTURES / "osv.json").read_text()),
+        epss=json.loads((FIXTURES / "epss.json").read_text()),
+        product_check=json.loads((FIXTURES / "product_check.json").read_text()),
     )

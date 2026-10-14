@@ -13,6 +13,7 @@ import {
 } from '../api.ts'
 import { Bars, ChartCard, Columns, SeverityLegend, StackedBars, Tooltip, type Tip } from '../components/charts.tsx'
 import { WarningIcon } from '../components/Icons.tsx'
+import { EPSS_URL, epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { WelcomeBanner } from '../components/WelcomeBanner.tsx'
 import { SEVERITIES, sevLabel } from '../severity.ts'
 import '../styles/dashboard.css'
@@ -223,13 +224,16 @@ export function DashboardPage({ onAsk, onAskPatch }: { onAsk: (cveId: string) =>
             <h2 id="freshness-title">Data freshness</h2>
             <ul className="side-list">
               {data.freshness.map((s) => (
-                <li key={s.name}>
+                <li key={s.id}>
                   <a href={s.url} target="_blank" rel="noreferrer">
                     {s.name}
                   </a>
                   <span className="meta">
-                    {s.count.toLocaleString('en')} items · {s.licence} · retrieved {s.retrieved}
+                    {s.count.toLocaleString('en')} items · {s.licence} ·{' '}
+                    {s.as_of && s.as_of !== s.retrieved ? `as of ${s.as_of}, ` : ''}retrieved {s.retrieved}
                   </span>
+                  <span className="meta attribution">{s.attribution}</span>
+                  {s.notice && <span className="meta freshness-notice">{s.notice}</span>}
                 </li>
               ))}
             </ul>
@@ -355,6 +359,9 @@ function CveTable({
               <th scope="col">Severity</th>
               <th scope="col">Published</th>
               <th scope="col">OWASP</th>
+              <th scope="col">
+                <abbr title="Exploit Prediction Scoring System: the chance of exploitation in the next 30 days">EPSS</abbr>
+              </th>
               <th scope="col">Status</th>
             </tr>
           </thead>
@@ -370,6 +377,7 @@ function CveTable({
                       KEV
                     </span>
                   )}
+                  {r.possible_match && <PossibleMatch />}
                   <div className="summary">{r.summary}</div>
                 </td>
                 <td>{r.product_name}</td>
@@ -378,6 +386,16 @@ function CveTable({
                 </td>
                 <td className="num">{r.published}</td>
                 <td title={r.owasp_title ?? undefined}>{r.owasp ?? '—'}</td>
+                <td className="epss num">
+                  {r.epss ? (
+                    <>
+                      {epssScore(r.epss)}
+                      <span className="meta">{epssPercentile(r.epss)}</span>
+                    </>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td>
                   {/* Status and its actions share a column: the table fits beside the side column. */}
                   <span className="status">{STATUS_LABEL[r.status]}</span>
@@ -420,7 +438,7 @@ function CveTable({
             ))}
             {page?.rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="meta">
+                <td colSpan={7} className="meta">
                   No CVEs match these filters.
                 </td>
               </tr>
@@ -428,6 +446,13 @@ function CveTable({
           </tbody>
         </table>
       </div>
+      <p className="meta epss-credit">
+        EPSS by{' '}
+        <a href={EPSS_URL} target="_blank" rel="noreferrer">
+          FIRST
+        </a>
+        : the chance of exploitation in the next 30 days, and how that ranks among all scored CVEs.
+      </p>
       {page && page.total > PAGE_SIZE && (
         <div className="pager">
           <button

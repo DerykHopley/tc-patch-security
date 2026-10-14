@@ -1,0 +1,9846 @@
+{
+ "as_of": "2026-10-13",
+ "retrieved": "2026-10-14",
+ "products": {
+  "langflow": {
+   "coverage": "package",
+   "packages": [
+    {
+     "ecosystem": "PyPI",
+     "name": "langflow"
+    }
+   ]
+  },
+  "open-webui": {
+   "coverage": "package",
+   "packages": [
+    {
+     "ecosystem": "PyPI",
+     "name": "open-webui"
+    }
+   ]
+  },
+  "flowise": {
+   "coverage": "package",
+   "packages": [
+    {
+     "ecosystem": "npm",
+     "name": "flowise"
+    },
+    {
+     "ecosystem": "npm",
+     "name": "flowise-components"
+    }
+   ]
+  },
+  "vllm": {
+   "coverage": "package",
+   "packages": [
+    {
+     "ecosystem": "PyPI",
+     "name": "vllm"
+    }
+   ]
+  },
+  "langchain": {
+   "coverage": "package",
+   "packages": [
+    {
+     "ecosystem": "PyPI",
+     "name": "langchain"
+    },
+    {
+     "ecosystem": "PyPI",
+     "name": "langchain-core"
+    },
+    {
+     "ecosystem": "PyPI",
+     "name": "langchain-community"
+    }
+   ]
+  },
+  "gradio": {
+   "coverage": "package",
+   "packages": [
+    {
+     "ecosystem": "PyPI",
+     "name": "gradio"
+    }
+   ]
+  },
+  "litellm": {
+   "coverage": "package",
+   "packages": [
+    {
+     "ecosystem": "PyPI",
+     "name": "litellm"
+    }
+   ]
+  },
+  "ollama": {
+   "coverage": "package",
+   "packages": [
+    {
+     "ecosystem": "Go",
+     "name": "github.com/ollama/ollama"
+    }
+   ]
+  },
+  "llamaindex": {
+   "coverage": "package",
+   "packages": [
+    {
+     "ecosystem": "PyPI",
+     "name": "llama-index"
+    },
+    {
+     "ecosystem": "PyPI",
+     "name": "llama-index-core"
+    }
+   ]
+  },
+  "llama.cpp": {
+   "coverage": "commits",
+   "packages": []
+  },
+  "dify": {
+   "coverage": "none",
+   "packages": []
+  },
+  "anything-llm": {
+   "coverage": "none",
+   "packages": []
+  }
+ },
+ "counts": {
+  "records": 1038,
+  "cves": 514,
+  "not_in_snapshot": 57
+ },
+ "cves": {
+  "CVE-2021-43831": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-rhq2-3vr9-6mcr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "2.5.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "2.5.0"
+    ]
+   }
+  ],
+  "CVE-2023-25823": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-3x5j-9vwr-8rr5",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.13.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.13.1"
+    ]
+   }
+  ],
+  "CVE-2023-29374": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-fprp-p869-w6q2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.0.131"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2023-32786": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-6h8p-4hx9-w66c",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.329",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.329"
+    ]
+   }
+  ],
+  "CVE-2023-34239": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-3qqg-pgqq-3695",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.34.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.34.0"
+    ]
+   }
+  ],
+  "CVE-2023-34540": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-x32c-59v5-h7fg",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.225",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.225"
+    ]
+   }
+  ],
+  "CVE-2023-34541": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-6643-h7h5-x9wh",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.247",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.247"
+    ]
+   }
+  ],
+  "CVE-2023-36095": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-gwqq-6vq7-5j86",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.236",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.236"
+    ]
+   }
+  ],
+  "CVE-2023-36188": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-57fc-8q82-gfp3",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.247",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.247"
+    ]
+   }
+  ],
+  "CVE-2023-36189": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-7q94-qpjr-xpgm",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.247",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.247"
+    ]
+   }
+  ],
+  "CVE-2023-36258": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-2qmj-7962-cjq8",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.247",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.247"
+    ]
+   }
+  ],
+  "CVE-2023-36281": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-7gfq-f96f-g85j",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.312",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.312"
+    ]
+   }
+  ],
+  "CVE-2023-38860": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-fj32-q626-pjjc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.247",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.247"
+    ]
+   }
+  ],
+  "CVE-2023-38896": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-92j5-3459-qgp4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.236",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.236"
+    ]
+   }
+  ],
+  "CVE-2023-39631": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-f73w-4m7g-ch9x",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.308",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.308"
+    ]
+   }
+  ],
+  "CVE-2023-39659": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-prgp-w7vf-ch62",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.325",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.325"
+    ]
+   }
+  ],
+  "CVE-2023-39662": [
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index",
+    "advisory": "GHSA-2xxc-73fv-36f7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.14",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.14"
+    ]
+   }
+  ],
+  "CVE-2023-41626": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-v4q9-qgqf-7jwp",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "3.27.0"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2023-46229": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-655w-fm8m-m478",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.317",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.317"
+    ]
+   }
+  ],
+  "CVE-2023-51449": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-6qm2-wpxq-7qh2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.11.0"
+    ]
+   }
+  ],
+  "CVE-2023-6572": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-gqvf-3hgp-5hxv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.14.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.14.0"
+    ]
+   }
+  ],
+  "CVE-2024-0964": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-f3h9-8phc-6gvh",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.9.0"
+    ]
+   }
+  ],
+  "CVE-2024-10188": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-gw2q-qw9j-rgv7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.53.1.dev1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.53.1.dev1"
+    ]
+   }
+  ],
+  "CVE-2024-10569": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-7xmc-vhjp-qv5q",
+    "ranges": [
+     {
+      "introduced": "4.0.0",
+      "fixed": null,
+      "last_affected": "5.0.0b2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-10624": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-rvgh-pr46-x7gg",
+    "ranges": [
+     {
+      "introduced": "4.38.0",
+      "fixed": null,
+      "last_affected": "5.0.0-beta.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-10648": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-pgfv-gvc5-prfg",
+    "ranges": [
+     {
+      "introduced": "4.0.0",
+      "fixed": null,
+      "last_affected": "5.0.0b2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-11041": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-5vqr-wprc-cpp7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.6.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-1183": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-qh6x-j82h-vpf9",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.10.0"
+    ]
+   }
+  ],
+  "CVE-2024-12055": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-89qx-m49c-8crf",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.3.14"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-12217": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-prpg-p95c-32fv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "5.0.1"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-12704": [
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index",
+    "advisory": "PYSEC-2025-244",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.12.5"
+     }
+    ],
+    "fixed": []
+   },
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index-core",
+    "advisory": "GHSA-j3wr-m6xh-64hg",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.12.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.12.6"
+    ]
+   }
+  ],
+  "CVE-2024-12911": [
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index",
+    "advisory": "GHSA-jmgm-gx32-vp4w",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.12.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.12.3"
+    ]
+   }
+  ],
+  "CVE-2024-14021": [
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index",
+    "advisory": "PYSEC-2026-85",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.11.7",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.7"
+    ]
+   }
+  ],
+  "CVE-2024-1455": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-core",
+    "advisory": "GHSA-q84m-rmw3-4382",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.1.35",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.1.35"
+    ]
+   }
+  ],
+  "CVE-2024-1561": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-g9cj-cfpp-4g2x",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.13.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.13.0"
+    ]
+   }
+  ],
+  "CVE-2024-1727": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-48cq-79qq-6f7x",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.19.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.19.2"
+    ]
+   }
+  ],
+  "CVE-2024-1728": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-m842-4qm8-7gpq",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.19.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.19.2"
+    ]
+   }
+  ],
+  "CVE-2024-1729": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-hmx6-r76c-85g9",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.19.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.19.2"
+    ]
+   }
+  ],
+  "CVE-2024-2057": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-community",
+    "advisory": "PYSEC-2024-278",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.0.26"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-2206": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-r364-m2j9-mf4h",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.18.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.18.0"
+    ]
+   }
+  ],
+  "CVE-2024-23751": [
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index",
+    "advisory": "GHSA-2jxw-4hm4-6w87",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.9.35"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-28088": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-h59x-p739-982c",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.339",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.339"
+    ]
+   },
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-core",
+    "advisory": "GHSA-h59x-p739-982c",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.1.30",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.1.30"
+    ]
+   }
+  ],
+  "CVE-2024-28224": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-5jx5-hqx5-2vrj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.1.29",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.1.29"
+    ]
+   }
+  ],
+  "CVE-2024-3095": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-community",
+    "advisory": "GHSA-q25c-c977-4cmh",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.2.9",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.2.9"
+    ]
+   }
+  ],
+  "CVE-2024-3098": [
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index-core",
+    "advisory": "GHSA-wvpx-g427-q9wc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.10.24",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.24"
+    ]
+   }
+  ],
+  "CVE-2024-31621": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-6wp6-22x5-rr3w",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.8.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.8.1"
+    ]
+   }
+  ],
+  "CVE-2024-3271": [
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index-core",
+    "advisory": "GHSA-r6gp-rff2-p3hf",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.10.24",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.24"
+    ]
+   }
+  ],
+  "CVE-2024-34510": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-rvfh-h6c7-fc3c",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.20.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.20.0"
+    ]
+   }
+  ],
+  "CVE-2024-3571": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-rgp8-pm28-3759",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.353",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.353"
+    ]
+   }
+  ],
+  "CVE-2024-36420": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-h997-3fxj-p5j8",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.4.3"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-36421": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-66f2-xxgm-f6xp",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.4.3"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-36422": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-2jch-qc96-9f5g",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.4.3"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-36423": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-fccx-2pwj-hrq7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.4.3"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-37014": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-qg33-x2c5-6p44",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.0.15",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.0.15"
+    ]
+   }
+  ],
+  "CVE-2024-37032": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-8hqg-whrw-pv92",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.1.34",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.1.34"
+    ]
+   }
+  ],
+  "CVE-2024-37145": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-858c-qxvx-rg9v",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.4.3"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-37146": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-wxm4-9f8p-gggv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.4.3"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-39236": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "PYSEC-2024-274",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "4.36.1"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-39720": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-95j2-w8x7-hm88",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.1.46",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.1.46"
+    ]
+   }
+  ],
+  "CVE-2024-4181": [
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index",
+    "advisory": "GHSA-pw38-xv9x-h8ch",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.10.13",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.13"
+    ]
+   }
+  ],
+  "CVE-2024-4253": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "PYSEC-2024-321",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.29.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.29.0"
+    ]
+   }
+  ],
+  "CVE-2024-42835": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-56m6-4mhw-h3g5",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.0.12"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-4325": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-973g-55hp-3frw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "4.36.0"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-45201": [
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index",
+    "advisory": "PYSEC-2024-192",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.10.38",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.38"
+    ]
+   },
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index-core",
+    "advisory": "GHSA-fxc2-8m62-m85x",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.10.38",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.38"
+    ]
+   }
+  ],
+  "CVE-2024-45436": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-846m-99qv-67mg",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.1.47",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.1.47"
+    ]
+   }
+  ],
+  "CVE-2024-47084": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-3c67-5hwx-f6wx",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.44.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.44.0"
+    ]
+   }
+  ],
+  "CVE-2024-47164": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-77xq-6g77-h274",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "5.0.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "5.0.0"
+    ]
+   }
+  ],
+  "CVE-2024-47165": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-89v2-pqfv-c5r9",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "5.0.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "5.0.0"
+    ]
+   }
+  ],
+  "CVE-2024-47166": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-37qc-qgx6-9xjv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.44.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.44.0"
+    ]
+   }
+  ],
+  "CVE-2024-47167": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-576c-3j53-r9jj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "5.0.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "5.0.0"
+    ]
+   }
+  ],
+  "CVE-2024-47168": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-hm3c-93pg-4cxw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.44.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.44.0"
+    ]
+   }
+  ],
+  "CVE-2024-47867": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-8c87-gvhj-xm8m",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "5.0.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "5.0.0"
+    ]
+   }
+  ],
+  "CVE-2024-47868": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-4q3c-cj7g-jcwf",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "5.0.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "5.0.0"
+    ]
+   }
+  ],
+  "CVE-2024-47869": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-j757-pf57-f8r4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.44.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.44.0"
+    ]
+   }
+  ],
+  "CVE-2024-47870": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-xh2x-3mrm-fwqm",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "5.0.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "5.0.0"
+    ]
+   }
+  ],
+  "CVE-2024-47871": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-279j-x4gx-hfrh",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "5.0.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "5.0.0"
+    ]
+   }
+  ],
+  "CVE-2024-47872": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-gvv6-33j7-884g",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "5.0.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "5.0.0"
+    ]
+   }
+  ],
+  "CVE-2024-48052": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-3gf9-wv65-gwh9",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "4.42.0"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-48061": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-5p5r-57fx-pmfr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.0.18"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-4888": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-3xr8-qfvj-9p9j",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.35.36",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.35.36"
+    ]
+   }
+  ],
+  "CVE-2024-4940": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-g6c9-f4xm-9j4x",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "4.36.1"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-4941": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-6v6g-j5fq-hpvw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "4.31.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "4.31.3"
+    ]
+   }
+  ],
+  "CVE-2024-51751": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-rhm9-gp5p-5248",
+    "ranges": [
+     {
+      "introduced": "5.0.0",
+      "fixed": "5.5.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "5.5.0"
+    ]
+   }
+  ],
+  "CVE-2024-58339": [
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index",
+    "advisory": "PYSEC-2026-86",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.12.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.12.3"
+    ]
+   }
+  ],
+  "CVE-2024-58351": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-5cph-wvm9-45gj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "2.1.4",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "2.1.4"
+    ]
+   }
+  ],
+  "CVE-2024-5998": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "PYSEC-2024-323",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.2.9",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.2.9"
+    ]
+   },
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-community",
+    "advisory": "GHSA-f2jm-rw3h-6phg",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.2.4",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.2.4"
+    ]
+   }
+  ],
+  "CVE-2024-8021": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-7v2w-h4gh-w5cv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "4.37.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-8063": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-2xf2-gjm6-g2c6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.3.3"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-8181": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-2q4w-x8h2-2fvh",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.8.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-8182": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-48x4-mx8f-gr4h",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.8.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-8309": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-45pg-36p6-83v9",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.2.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.2.0"
+    ]
+   },
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-community",
+    "advisory": "GHSA-45pg-36p6-83v9",
+    "ranges": [
+     {
+      "introduced": "0.2.0",
+      "fixed": "0.2.19",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.2.19"
+    ]
+   }
+  ],
+  "CVE-2024-8768": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-w2r7-9579-27hf",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.5.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.5.5"
+    ]
+   }
+  ],
+  "CVE-2024-8939": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-wc36-9694-f9rf",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.5.0.post1"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-8966": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-5cpq-9538-jm2j",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "5.22.0"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-9053": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-cj47-qj6g-x7r4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.6.0"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2024-9148": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-m5p9-xvxj-64c8",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "2.1.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "2.1.1"
+    ]
+   }
+  ],
+  "CVE-2024-9277": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-355v-2rjx-fpx7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.0.18"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-0312": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-p2wh-w96x-w232",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.3.14"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-0315": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-fccc-8m69-8r78",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.3.14"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-0317": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-9gcr-28rp-cc24",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.3.14"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-1975": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-wrh5-cmwx-q2qr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.5.11"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-23042": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-j2jg-fq62-7c3h",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "5.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "5.11.0"
+    ]
+   }
+  ],
+  "CVE-2025-24357": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-rh4j-5rhw-hr54",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.7.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.7.0"
+    ]
+   }
+  ],
+  "CVE-2025-25183": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-rm76-4mrf-v9r8",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.7.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.7.2"
+    ]
+   }
+  ],
+  "CVE-2025-26319": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-69jq-qr7w-j7qh",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "2.2.6"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-2828": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-community",
+    "advisory": "GHSA-h5gc-rm8j-5gpr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.0.28",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.0.28"
+    ]
+   }
+  ],
+  "CVE-2025-29189": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-gjx9-wg9x-7gvp",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "2.2.4",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "2.2.4"
+    ]
+   }
+  ],
+  "CVE-2025-29192": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-7r4h-vmj9-wg42",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.5"
+    ]
+   }
+  ],
+  "CVE-2025-29770": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-mgrm-fgjv-mhv8",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.0"
+    ]
+   }
+  ],
+  "CVE-2025-29783": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-x3m8-f7g5-qhm7",
+    "ranges": [
+     {
+      "introduced": "0.6.5",
+      "fixed": "0.8.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.0"
+    ]
+   }
+  ],
+  "CVE-2025-30165": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-9pcc-gvx5-r5wm",
+    "ranges": [
+     {
+      "introduced": "0.5.2",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2025-30202": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-9f8f-2vmf-885j",
+    "ranges": [
+     {
+      "introduced": "0.5.2",
+      "fixed": "0.8.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.5"
+    ]
+   }
+  ],
+  "CVE-2025-32444": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-hj4w-hm2g-p6w5",
+    "ranges": [
+     {
+      "introduced": "0.6.5",
+      "fixed": "0.8.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.5"
+    ]
+   }
+  ],
+  "CVE-2025-3248": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-rvqx-wpfh-mfx7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.3.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.3.0"
+    ]
+   }
+  ],
+  "CVE-2025-34267": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-r4hh-pcgx-j5r2",
+    "ranges": [
+     {
+      "introduced": "3.0.1",
+      "fixed": "3.0.8",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.8"
+    ]
+   }
+  ],
+  "CVE-2025-34291": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-577h-p2hh-v4mv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.7.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.7.0"
+    ]
+   }
+  ],
+  "CVE-2025-44779": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-93jv-pvg8-hf3v",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.1.34",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.1.34"
+    ]
+   }
+  ],
+  "CVE-2025-46560": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-vc6m-hm49-g9qg",
+    "ranges": [
+     {
+      "introduced": "0.8.0",
+      "fixed": "0.8.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.5"
+    ]
+   }
+  ],
+  "CVE-2025-46570": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-4qjh-9fv9-r85r",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2025-46571": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-8gh5-qqh8-hq3x",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.6.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.6.6"
+    ]
+   }
+  ],
+  "CVE-2025-46719": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-9f4f-jv96-8766",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.6.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.6.6"
+    ]
+   }
+  ],
+  "CVE-2025-46722": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-c65p-x677-fgj6",
+    "ranges": [
+     {
+      "introduced": "0.7.0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2025-47277": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-hjq4-87xh-g4fv",
+    "ranges": [
+     {
+      "introduced": "0.6.5",
+      "fixed": "0.8.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.5"
+    ]
+   }
+  ],
+  "CVE-2025-48887": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-w6q7-j642-7c25",
+    "ranges": [
+     {
+      "introduced": "0.6.4",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2025-48889": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-8jw3-6x8j-v96g",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "5.31.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "5.31.0"
+    ]
+   }
+  ],
+  "CVE-2025-48942": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-6qc9-v4r8-22xg",
+    "ranges": [
+     {
+      "introduced": "0.8.0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2025-48943": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-9hcf-v7m4-6m2j",
+    "ranges": [
+     {
+      "introduced": "0.8.0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2025-48944": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-vrq3-r879-7m65",
+    "ranges": [
+     {
+      "introduced": "0.8.0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2025-48956": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-rxc4-3w6r-4v47",
+    "ranges": [
+     {
+      "introduced": "0.1.0",
+      "fixed": "0.10.1.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.1.1"
+    ]
+   }
+  ],
+  "CVE-2025-50538": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-964p-j4gg-mhwc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.8",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.8"
+    ]
+   }
+  ],
+  "CVE-2025-51471": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-x9hg-5q6g-q3jr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.9.6"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-5320": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-wmjh-cpqj-4v6x",
+    "ranges": [
+     {
+      "introduced": "5.0.0",
+      "fixed": null,
+      "last_affected": "5.29.1"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-57164": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-7944-7c6r-55vv",
+    "ranges": [
+     {
+      "introduced": "3.0.5",
+      "fixed": "3.0.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.6"
+    ]
+   }
+  ],
+  "CVE-2025-57760": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-4gv9-mp8m-592r",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.5.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.5.1"
+    ]
+   }
+  ],
+  "CVE-2025-58434": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-wgpv-6j63-x5ph",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.6"
+    ]
+   }
+  ],
+  "CVE-2025-59425": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-wr9h-g72x-mwhm",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2025-59527": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-hr92-4q35-4j3m",
+    "ranges": [
+     {
+      "introduced": "3.0.5",
+      "fixed": "3.0.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.6"
+    ]
+   }
+  ],
+  "CVE-2025-59528": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-3gcm-f6qx-ff7p",
+    "ranges": [
+     {
+      "introduced": "3.0.5",
+      "fixed": "3.0.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.6"
+    ]
+   }
+  ],
+  "CVE-2025-61687": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-35g6-rrw3-v6xc",
+    "ranges": [
+     {
+      "introduced": "3.0.7",
+      "fixed": "3.0.8",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.8"
+    ]
+   }
+  ],
+  "CVE-2025-61913": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-jv9m-vf54-chjj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.8",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.8"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-jv9m-vf54-chjj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.8",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.8"
+    ]
+   }
+  ],
+  "CVE-2025-62164": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-mrw7-hf4f-83pf",
+    "ranges": [
+     {
+      "introduced": "0.10.2",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2025-62372": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-pmqf-x6x8-p7qw",
+    "ranges": [
+     {
+      "introduced": "0.5.5",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2025-6242": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-3f6c-7fw2-ppm4",
+    "ranges": [
+     {
+      "introduced": "0.5.0",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2025-62426": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-69j4-grxj-j64p",
+    "ranges": [
+     {
+      "introduced": "0.5.5",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2025-63389": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-f6mr-38g8-39rg",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.13.5"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-63681": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-frv8-gffc-37px",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.6.33"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-64495": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-w7xj-8fx7-wfch",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.6.35",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.6.35"
+    ]
+   }
+  ],
+  "CVE-2025-64496": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-cm35-v4vp-5xvx",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.6.35",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.6.35"
+    ]
+   }
+  ],
+  "CVE-2025-65106": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-core",
+    "advisory": "GHSA-6qv9-48xg-fc7f",
+    "ranges": [
+     {
+      "introduced": "1.0.0",
+      "fixed": "1.0.7",
+      "last_affected": null
+     },
+     {
+      "introduced": "0",
+      "fixed": "0.3.80",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.0.7",
+     "0.3.80"
+    ]
+   }
+  ],
+  "CVE-2025-65958": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-c6xv-rcvw-v685",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.6.37",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.6.37"
+    ]
+   }
+  ],
+  "CVE-2025-66448": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-8fr4-5q9j-m8gm",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2025-68477": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-5993-7p27-66g5",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.7.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.7.1"
+    ]
+   }
+  ],
+  "CVE-2025-68478": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-f43r-cc68-gpx4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.7.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.7.1"
+    ]
+   }
+  ],
+  "CVE-2025-68664": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-core",
+    "advisory": "GHSA-c67j-w6g6-q2cm",
+    "ranges": [
+     {
+      "introduced": "1.0.0",
+      "fixed": "1.2.5",
+      "last_affected": null
+     },
+     {
+      "introduced": "0",
+      "fixed": "0.3.81",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.2.5",
+     "0.3.81"
+    ]
+   }
+  ],
+  "CVE-2025-6984": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-community",
+    "advisory": "GHSA-pc6w-59fv-rh23",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.3.27",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.3.27"
+    ]
+   }
+  ],
+  "CVE-2025-71324": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-99pg-hqvx-r4gf",
+    "ranges": [
+     {
+      "introduced": "3.0.5",
+      "fixed": "3.0.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.6"
+    ]
+   }
+  ],
+  "CVE-2025-71327": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-v5w9-prxf-w882",
+    "ranges": [],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-71331": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-4fr9-3x69-36wv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.8",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.8"
+    ]
+   }
+  ],
+  "CVE-2025-71332": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-9c4c-g95m-c8cp",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "2.2.7"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-71333": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-h42x-xx2q-6v6g",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "2.2.7"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-71334": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-q67q-549q-p849",
+    "ranges": [
+     {
+      "introduced": "2.2.8",
+      "fixed": "3.0.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.6"
+    ]
+   }
+  ],
+  "CVE-2025-71335": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-x7rp-qj2h-ghgw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.10",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.10"
+    ]
+   }
+  ],
+  "CVE-2025-71336": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-6933-jpx5-q87q",
+    "ranges": [
+     {
+      "introduced": "2.2.7-patch.1",
+      "fixed": "3.0.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.6"
+    ]
+   }
+  ],
+  "CVE-2025-71338": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-8vvx-qvq9-5948",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "2.2.7"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2025-71379": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-j828-28rj-hfhp",
+    "ranges": [
+     {
+      "introduced": "0.6.3",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2025-7707": [
+   {
+    "product": "llamaindex",
+    "ecosystem": "PyPI",
+    "package": "llama-index",
+    "advisory": "GHSA-rg9h-vx28-xxp5",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.13.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.13.0"
+    ]
+   }
+  ],
+  "CVE-2025-8943": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-2vv2-3x8x-4gv7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "3.0.5"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-0770": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-g22f-v6f7-2hrh",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.7.3"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-100650": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-4184",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-100652": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-4185",
+    "ranges": [
+     {
+      "introduced": "0.22.0",
+      "fixed": "0.24.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.24.0"
+    ]
+   }
+  ],
+  "CVE-2026-103241": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-4186",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.27.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.27.0"
+    ]
+   }
+  ],
+  "CVE-2026-10561": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-8qpj-27x8-pwpq",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.10.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.10.1"
+    ]
+   }
+  ],
+  "CVE-2026-105697": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-w794-rj3p-xv45",
+    "ranges": [
+     {
+      "introduced": "1.1.2",
+      "fixed": "1.10.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.10.3"
+    ]
+   }
+  ],
+  "CVE-2026-105698": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-gh98-4phw-6fmw",
+    "ranges": [
+     {
+      "introduced": "1.0.0",
+      "fixed": "1.10.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.10.1"
+    ]
+   }
+  ],
+  "CVE-2026-105699": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-4hmc-cfm3-w43c",
+    "ranges": [
+     {
+      "introduced": "1.6.8",
+      "fixed": "1.9.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.1"
+    ]
+   }
+  ],
+  "CVE-2026-105741": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-4f6c-2vvp-gw82",
+    "ranges": [
+     {
+      "introduced": "1.5.0",
+      "fixed": "1.10.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.10.3"
+    ]
+   }
+  ],
+  "CVE-2026-105752": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-935w-9g4m-p28p",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-105753": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-ph3r-5jfg-f84f",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.28.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.28.0"
+    ]
+   }
+  ],
+  "CVE-2026-105754": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-ph72-cqr5-qpp7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-105755": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-2phq-3phc-84px",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-105756": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-2823-qmq8-rwvj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-105757": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-85xf-c7hm-whqw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-105758": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-x6mc-67gf-chw4",
+    "ranges": [
+     {
+      "introduced": "0.24.0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-105760": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-58v5-2m8f-94pr",
+    "ranges": [
+     {
+      "introduced": "0.23.0rc2",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-10783": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-6655-8ph2-63j3",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "6.15.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "6.15.1"
+    ]
+   }
+  ],
+  "CVE-2026-12491": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-8jr5-v98p-w75m",
+    "ranges": [
+     {
+      "introduced": "0.11.0",
+      "fixed": "0.24.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.24.0"
+    ]
+   }
+  ],
+  "CVE-2026-12770": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-6qr3-3g89-m4jj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.63.1"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-12771": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-qmf3-4767-5fg3",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.82.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-12772": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-mf52-j94g-746m",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.82.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-12773": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-4jcj-7x88-m979",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.84.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.84.0"
+    ]
+   }
+  ],
+  "CVE-2026-12795": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-j37q-q7p9-vpwm",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.82.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-12796": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-w2mh-qq9q-453x",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.82.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-12797": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-p897-vf7j-f5h8",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.82.5"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-12798": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-c693-x898-5g4h",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.82.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-12799": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-m2v5-74w2-qhcj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.82.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-21445": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-c5cp-vx83-jhqx",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.7.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.7.1"
+    ]
+   }
+  ],
+  "CVE-2026-22773": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-grg2-63fw-f2qr",
+    "ranges": [
+     {
+      "introduced": "0.6.4",
+      "fixed": "0.12.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.12.0"
+    ]
+   }
+  ],
+  "CVE-2026-22778": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-4r2x-xpjr-7cvv",
+    "ranges": [
+     {
+      "introduced": "0.8.3",
+      "fixed": "0.14.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.14.1"
+    ]
+   }
+  ],
+  "CVE-2026-22807": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-2pc9-4j83-qjmr",
+    "ranges": [
+     {
+      "introduced": "0.10.1",
+      "fixed": "0.14.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.14.0"
+    ]
+   }
+  ],
+  "CVE-2026-24779": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-qh4c-xf7m-gxfc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.14.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.14.1"
+    ]
+   }
+  ],
+  "CVE-2026-25960": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-v359-jj2v-j536",
+    "ranges": [
+     {
+      "introduced": "0.15.1",
+      "fixed": "0.17.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.17.0"
+    ]
+   }
+  ],
+  "CVE-2026-26013": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-core",
+    "advisory": "GHSA-2g6r-c272-w58r",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.2.11",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.2.11"
+    ]
+   }
+  ],
+  "CVE-2026-26192": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-xc8p-9rr6-97r2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.7.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.7.0"
+    ]
+   }
+  ],
+  "CVE-2026-26193": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-vjm7-m4xh-7wrc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.6.44",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.6.44"
+    ]
+   }
+  ],
+  "CVE-2026-27167": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-h3h8-3v2v-rg7m",
+    "ranges": [
+     {
+      "introduced": "4.16.0",
+      "fixed": "6.6.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "6.6.0"
+    ]
+   }
+  ],
+  "CVE-2026-27893": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-7972-pg2x-xr59",
+    "ranges": [
+     {
+      "introduced": "0.10.1",
+      "fixed": "0.18.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.18.0"
+    ]
+   }
+  ],
+  "CVE-2026-27966": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-3645-fxcv-hqr4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.8.0rc2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-28414": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-39mp-8hj3-5c49",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "6.7.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "6.7.0"
+    ]
+   }
+  ],
+  "CVE-2026-28415": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-pfjf-5gxr-995x",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "6.6.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "6.6.0"
+    ]
+   }
+  ],
+  "CVE-2026-28416": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-jmh7-g254-2cq9",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "6.6.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "6.6.0"
+    ]
+   }
+  ],
+  "CVE-2026-28786": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-vvxm-vxmr-624h",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.6"
+    ]
+   }
+  ],
+  "CVE-2026-28788": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-jjp7-g2jw-wh3j",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.6"
+    ]
+   }
+  ],
+  "CVE-2026-29070": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-26gm-93rw-cchf",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.6"
+    ]
+   }
+  ],
+  "CVE-2026-29071": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-w9f8-gxf9-rhvw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.6"
+    ]
+   }
+  ],
+  "CVE-2026-30820": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-wvhq-wp8g-c7vq",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.13",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.13"
+    ]
+   }
+  ],
+  "CVE-2026-30821": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-j8g8-j7fc-43v6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.13",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.13"
+    ]
+   }
+  ],
+  "CVE-2026-30822": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-mq4r-h2gh-qv7x",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.13",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.13"
+    ]
+   }
+  ],
+  "CVE-2026-30823": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-cwc3-p92j-g7qm",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.13",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.13"
+    ]
+   }
+  ],
+  "CVE-2026-30824": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-5f53-522j-j454",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.13",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.13"
+    ]
+   }
+  ],
+  "CVE-2026-31829": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-fvcw-9w9r-pxc7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.13",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.13"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-fvcw-9w9r-pxc7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.13",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.13"
+    ]
+   }
+  ],
+  "CVE-2026-33017": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-vwmf-pq79-vjvx",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-33053": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-rf6x-r45m-xv3w",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-33309": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-g2j9-7rj2-gm6c",
+    "ranges": [
+     {
+      "introduced": "1.2.0",
+      "fixed": "1.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-33484": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-7grx-3xcx-2xv5",
+    "ranges": [
+     {
+      "introduced": "1.0.0",
+      "fixed": "1.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-33497": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-ph9w-r52h-28p7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.7.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.7.1"
+    ]
+   }
+  ],
+  "CVE-2026-33760": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-9c59-2mvc-vfr8",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-33873": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-v8hw-mh8c-jxfc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-34046": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-8c4j-f57c-35cf",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.5.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.5.1"
+    ]
+   }
+  ],
+  "CVE-2026-34070": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-core",
+    "advisory": "GHSA-qh6h-p6c9-ff54",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.2.22",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.2.22"
+    ]
+   }
+  ],
+  "CVE-2026-34222": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-7429-hxcv-268m",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.11",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.11"
+    ]
+   }
+  ],
+  "CVE-2026-34225": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-jgx9-jr5x-mvpv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.7.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-34753": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-pf3h-qjgv-vcpr",
+    "ranges": [
+     {
+      "introduced": "0.16.0",
+      "fixed": "0.19.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.19.0"
+    ]
+   }
+  ],
+  "CVE-2026-34755": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-pq5c-rjhq-qp7p",
+    "ranges": [
+     {
+      "introduced": "0.7.0",
+      "fixed": "0.19.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.19.0"
+    ]
+   }
+  ],
+  "CVE-2026-34756": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-3mwp-wvh9-7528",
+    "ranges": [
+     {
+      "introduced": "0.1.0",
+      "fixed": "0.19.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.19.0"
+    ]
+   }
+  ],
+  "CVE-2026-34760": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-6c4r-fmh3-7rh8",
+    "ranges": [
+     {
+      "introduced": "0.5.5",
+      "fixed": "0.18.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.18.0"
+    ]
+   }
+  ],
+  "CVE-2026-35029": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-53mr-6c8q-9789",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.83.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.83.0"
+    ]
+   }
+  ],
+  "CVE-2026-35030": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-jjhc-v7c2-5hh6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.83.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.83.0"
+    ]
+   }
+  ],
+  "CVE-2026-37004": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-6wvf-77m9-58rm",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.83.7",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.83.7"
+    ]
+   }
+  ],
+  "CVE-2026-40087": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-core",
+    "advisory": "GHSA-926x-3r5x-gfhw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.3.84",
+      "last_affected": null
+     },
+     {
+      "introduced": "1.0.0a1",
+      "fixed": "1.2.28",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.3.84",
+     "1.2.28"
+    ]
+   }
+  ],
+  "CVE-2026-40217": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-wxxx-gvqv-xp7p",
+    "ranges": [
+     {
+      "introduced": "1.81.8",
+      "fixed": "1.83.10",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.83.10"
+    ]
+   }
+  ],
+  "CVE-2026-40933": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-c9gw-hvqq-f33r",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-c9gw-hvqq-f33r",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41137": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-9wc7-mj3f-74xv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-9wc7-mj3f-74xv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41138": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-f228-chmx-v6j6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-f228-chmx-v6j6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41264": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-3hjv-c53m-58jj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-3hjv-c53m-58jj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41265": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-v38x-c887-992f",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-v38x-c887-992f",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41266": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-4jpm-cgx2-8h37",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41267": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-48m6-ch88-55mj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41268": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-cvrr-qhgw-2mm6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-cvrr-qhgw-2mm6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41269": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-rh7v-6w34-w2rr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41270": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-xhmj-rg95-44hv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-xhmj-rg95-44hv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41271": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-6r77-hqx7-7vw8",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-6r77-hqx7-7vw8",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41272": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-2x8m-83vc-6wv4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-2x8m-83vc-6wv4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41273": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-6f7g-v4pp-r667",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41274": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-28g4-38q8-3cwc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-28g4-38q8-3cwc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41275": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-x5w6-38gp-mrqh",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41276": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-f6hc-c5jr-878p",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41277": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-3prp-9gf7-4rxx",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41278": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-w47f-j8rh-wx87",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41279": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-5fw2-mwhh-9947",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-41523": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-q8gq-377p-jq3r",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.22.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.22.0"
+    ]
+   }
+  ],
+  "CVE-2026-42048": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-9whx-c884-c68q",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-42203": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-xqmj-j6mv-4862",
+    "ranges": [
+     {
+      "introduced": "1.80.5",
+      "fixed": "1.83.7",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.83.7"
+    ]
+   }
+  ],
+  "CVE-2026-42208": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-r75f-5x8p-qvmc",
+    "ranges": [
+     {
+      "introduced": "1.81.16",
+      "fixed": "1.83.7",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.83.7"
+    ]
+   }
+  ],
+  "CVE-2026-42271": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-v4p8-mg3p-g94g",
+    "ranges": [
+     {
+      "introduced": "1.74.2",
+      "fixed": "1.83.7",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.83.7"
+    ]
+   }
+  ],
+  "CVE-2026-42861": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-6fw7-3q8r-m5vj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-42862": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-x5v6-pj28-cwwm",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-42863": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-5wxp-qjgq-fx6m",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-42867": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-79ph-745m-6wxq",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-43995": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-qqvm-66q4-vf5c",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-qqvm-66q4-vf5c",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-44222": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-hpv8-x276-m59f",
+    "ranges": [
+     {
+      "introduced": "0.6.1",
+      "fixed": "0.20.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.20.0"
+    ]
+   }
+  ],
+  "CVE-2026-44223": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-83vm-p52w-f9pw",
+    "ranges": [
+     {
+      "introduced": "0.18.0",
+      "fixed": "0.20.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.20.0"
+    ]
+   }
+  ],
+  "CVE-2026-44549": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-jwf8-pv5p-vhmc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.0"
+    ]
+   }
+  ],
+  "CVE-2026-44550": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-hr43-rjmr-7wmm",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44551": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-2r4p-jpmg-48f4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44552": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-3x8w-4f7p-xxc2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44553": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-45m8-cpm2-3v65",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44554": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-7r82-qhg4-6wvj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44555": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-9vvh-qmjx-p4q8",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44556": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-hp5m-24vp-vq2q",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44557": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-6c2x-gcp3-gp73",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44558": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-7rjh-px4v-5w55",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44559": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-c7wp-3qh5-55pv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44560": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-h36f-rqpx-j5wx",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44561": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-hmgr-67hw-j2cq",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44562": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-mqq6-cqcx-38vg",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44563": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-rcvp-6fgw-c7fh",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44564": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-vrfh-rj4q-rmhr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44565": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-j3fw-wc48-29g3",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.6.10",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.6.10"
+    ]
+   }
+  ],
+  "CVE-2026-44566": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-9pgh-j74g-qj6m",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.1.124",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.1.124"
+    ]
+   }
+  ],
+  "CVE-2026-44567": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-4vg5-rp28-gvjf",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.1.124",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.1.124"
+    ]
+   }
+  ],
+  "CVE-2026-44568": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-fq3v-xjjx-95rc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44569": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-jxwr-g6r6-j3fx",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.6.19",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.6.19"
+    ]
+   }
+  ],
+  "CVE-2026-44570": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-hmjq-crxp-7rjw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.6.19",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.6.19"
+    ]
+   }
+  ],
+  "CVE-2026-44571": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-jgj3-r8hr-9pjw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.6"
+    ]
+   }
+  ],
+  "CVE-2026-44721": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-gf5m-wcrh-7928",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-44843": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain-core",
+    "advisory": "GHSA-pjwx-r37v-7724",
+    "ranges": [
+     {
+      "introduced": "1.0.0",
+      "fixed": "1.3.3",
+      "last_affected": null
+     },
+     {
+      "introduced": "0",
+      "fixed": "0.3.85",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.3.3",
+     "0.3.85"
+    ]
+   }
+  ],
+  "CVE-2026-45134": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-3644-q5cj-c5c7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.3.30",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.3.30"
+    ]
+   }
+  ],
+  "CVE-2026-45299": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-6gh2-q7cp-9qf6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.0"
+    ]
+   }
+  ],
+  "CVE-2026-45301": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-r8wh-8m7r-fh33",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.3.16",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.3.16"
+    ]
+   }
+  ],
+  "CVE-2026-45303": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-4vrc-m9ch-6m3r",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.6.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.6.5"
+    ]
+   }
+  ],
+  "CVE-2026-45314": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-3856-3vxq-m6fc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.3"
+    ]
+   }
+  ],
+  "CVE-2026-45315": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-m8f9-9whg-f4xr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.3"
+    ]
+   }
+  ],
+  "CVE-2026-45316": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-jx2x-j75f-xq3j",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.3"
+    ]
+   }
+  ],
+  "CVE-2026-45317": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-j6w6-986j-2m2m",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.3"
+    ]
+   }
+  ],
+  "CVE-2026-45318": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-hcwp-82g6-8wxc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.3"
+    ]
+   }
+  ],
+  "CVE-2026-45331": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-4v7r-f4w8-8972",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-45338": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-24c9-2m8q-qhmh",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-45339": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "PYSEC-2026-3543",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-45345": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-gm54-m39w-grjp",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.5.7",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.5.7"
+    ]
+   }
+  ],
+  "CVE-2026-45347": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-f776-fp4w-266c",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.5.11",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.5.11"
+    ]
+   }
+  ],
+  "CVE-2026-45349": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-gfm2-xm6c-37qc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-45350": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-4pcg-253r-rf9w",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.6"
+    ]
+   }
+  ],
+  "CVE-2026-45351": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-jh9g-8jqw-m2qx",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.9",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.9"
+    ]
+   }
+  ],
+  "CVE-2026-45365": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-v6qf-75pr-p96m",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.11",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.11"
+    ]
+   }
+  ],
+  "CVE-2026-45385": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-wwhq-cx22-f7vv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.5"
+    ]
+   }
+  ],
+  "CVE-2026-45386": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-5gc6-xhv4-2wg6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.5"
+    ]
+   }
+  ],
+  "CVE-2026-45387": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-h2cw-7qw9-56xr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.5"
+    ]
+   }
+  ],
+  "CVE-2026-45396": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-rjmp-vjf2-qf4g",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.5"
+    ]
+   }
+  ],
+  "CVE-2026-45397": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-65pg-qhhw-mxwg",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.5"
+    ]
+   }
+  ],
+  "CVE-2026-45398": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-4g37-7p2c-38r9",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.5"
+    ]
+   }
+  ],
+  "CVE-2026-45399": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-8jjp-r2w2-4v22",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-45400": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-8w7q-q5jp-jvgx",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.5"
+    ]
+   }
+  ],
+  "CVE-2026-45401": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-rh5x-h6pp-cjj6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.5"
+    ]
+   }
+  ],
+  "CVE-2026-45402": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-r472-mw7m-967f",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.5"
+    ]
+   }
+  ],
+  "CVE-2026-45666": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-x3qm-p8hr-3c3h",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.11",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.11"
+    ]
+   }
+  ],
+  "CVE-2026-45667": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-m69w-p7m4-585j",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.0"
+    ]
+   }
+  ],
+  "CVE-2026-45671": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-26g9-27vm-x3q8",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-45672": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-482j-2pq6-q5w4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.12",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.12"
+    ]
+   }
+  ],
+  "CVE-2026-45675": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-h3ww-q6xx-w7x3",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-46440": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-php6-83fg-gw3g",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-46441": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-hp26-q66v-q2w7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-46442": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-9rvc-vf7m-pgm2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-46443": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-7g73-99r4-m4mj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-46444": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-hmg2-jjjx-jcp2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-46475": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-78pr-c5x5-jggc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-46476": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-728h-4mwj-f2p4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-46477": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-5h9v-837x-m97r",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-46478": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-7j65-65cr-6644",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-46479": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-mq53-pc65-wjc4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-46480": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-wxrr-jp8m-qq7f",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-47101": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-qrc4-49gv-mv9m",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.83.14",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.83.14"
+    ]
+   }
+  ],
+  "CVE-2026-47102": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-wpfp-gwwc-vwq6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.83.10",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.83.10"
+    ]
+   }
+  ],
+  "CVE-2026-47155": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-3ww4-5jv9-j5gm",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.22.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.22.0"
+    ]
+   }
+  ],
+  "CVE-2026-48519": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-v5ff-9q35-q26f",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.9.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.2"
+    ]
+   }
+  ],
+  "CVE-2026-48520": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-rcjh-r59h-gq37",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-48545": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-7hp7-4p35-3cx2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "6.15.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "6.15.0"
+    ]
+   }
+  ],
+  "CVE-2026-48746": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-94f4-hr76-p5j6",
+    "ranges": [
+     {
+      "introduced": "0.3.0",
+      "fixed": "0.22.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.22.0"
+    ]
+   }
+  ],
+  "CVE-2026-49119": [
+   {
+    "product": "gradio",
+    "ecosystem": "PyPI",
+    "package": "gradio",
+    "advisory": "GHSA-j36p-7w88-g82j",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "6.16.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "6.16.0"
+    ]
+   }
+  ],
+  "CVE-2026-49468": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-4xpc-pv4p-pm3w",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.84.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.84.0"
+    ]
+   }
+  ],
+  "CVE-2026-51886": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-w584-2h2r-2hvf",
+    "ranges": [
+     {
+      "introduced": "1.7.2",
+      "fixed": "1.10.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.10.1"
+    ]
+   }
+  ],
+  "CVE-2026-53923": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-5jv2-g5wq-cmr4",
+    "ranges": [
+     {
+      "introduced": "0.5.5",
+      "fixed": "0.24.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.24.0"
+    ]
+   }
+  ],
+  "CVE-2026-54006": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-f3g7-59qc-pqg6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54007": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-3vv5-8xxp-4f55",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54008": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-226f-f24g-524w",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54009": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-wch8-mhj5-9frg",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54010": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-vrhc-3fr6-pc3c",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54011": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-v8qj-hxv7-mgvv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54012": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-vjqm-6gcc-62cr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54013": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-v2qm-5wxj-qhj7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54014": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-j2c8-v969-8r5c",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54015": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-4r4w-2wgp-w7cj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54016": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-cx9v-4qj2-jrw6",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54017": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-r2wg-2mcr-66rv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54018": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-jrfp-m64g-pcwv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54019": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-p5cp-r7rg-qpxc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54020": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-h6x2-583h-x99r",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-54021": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-9rpj-v7hf-vv2w",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.6",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.6"
+    ]
+   }
+  ],
+  "CVE-2026-54022": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-8788-j68r-3cgh",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.8.11",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.8.11"
+    ]
+   }
+  ],
+  "CVE-2026-54232": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-227",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.22.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.22.1"
+    ]
+   }
+  ],
+  "CVE-2026-54233": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-6pr9-rp53-2pmc",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.24.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.24.0"
+    ]
+   }
+  ],
+  "CVE-2026-54234": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-8wr5-jm2h-8r4f",
+    "ranges": [
+     {
+      "introduced": "0.17.1",
+      "fixed": "0.24.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.24.0"
+    ]
+   }
+  ],
+  "CVE-2026-54235": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-7h4p-rffg-7823",
+    "ranges": [
+     {
+      "introduced": "0.8.5",
+      "fixed": "0.24.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.24.0"
+    ]
+   }
+  ],
+  "CVE-2026-54236": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-hgg8-fqqc-vfmw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.24.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.24.0"
+    ]
+   }
+  ],
+  "CVE-2026-5497": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-wcwg-c5fc-9vrc",
+    "ranges": [
+     {
+      "introduced": "0.8.0",
+      "fixed": "0.19.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.19.0"
+    ]
+   }
+  ],
+  "CVE-2026-55255": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-qrpv-q767-xqq2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.9.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.1"
+    ]
+   }
+  ],
+  "CVE-2026-55423": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-7hw8-6q6r-4276",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.7.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.7.0"
+    ]
+   }
+  ],
+  "CVE-2026-55443": [
+   {
+    "product": "langchain",
+    "ecosystem": "PyPI",
+    "package": "langchain",
+    "advisory": "GHSA-gr75-jv2w-4656",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.3.9",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.3.9"
+    ]
+   }
+  ],
+  "CVE-2026-55446": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-qwqc-p3q8-wcg9",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.0.19",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.0.19"
+    ]
+   }
+  ],
+  "CVE-2026-55447": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-ccv6-r384-xp75",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.9.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.2"
+    ]
+   }
+  ],
+  "CVE-2026-55450": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-x223-p2gf-v735",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.9.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.1"
+    ]
+   }
+  ],
+  "CVE-2026-55514": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-33cg-gxv8-3p8g",
+    "ranges": [
+     {
+      "introduced": "0.12.0",
+      "fixed": "0.24.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.24.0"
+    ]
+   }
+  ],
+  "CVE-2026-55574": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-rwxx-mrjm-wc2m",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.24.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.24.0"
+    ]
+   }
+  ],
+  "CVE-2026-55646": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-v82g-2437-67m2",
+    "ranges": [
+     {
+      "introduced": "0.22.0",
+      "fixed": "0.24.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.24.0"
+    ]
+   }
+  ],
+  "CVE-2026-56267": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-jc5m-wrp2-qq38",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.13",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.13"
+    ]
+   }
+  ],
+  "CVE-2026-56268": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-c2c9-mfw7-p8hw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-56269": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-m7mq-85xj-9x33",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-56270": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-6pcv-j4jx-m4vx",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-56271": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-cc4f-hjpj-g9p8",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-56272": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-x2g5-fvc2-gqvp",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.0.13",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.0.13"
+    ]
+   }
+  ],
+  "CVE-2026-56273": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-w6v6-49gh-mc9w",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-w6v6-49gh-mc9w",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-56274": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-m99r-2hxc-cp3q",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-m99r-2hxc-cp3q",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-56275": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-9hrv-gvrv-6gf2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-9hrv-gvrv-6gf2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-56276": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-59fh-9f3p-7m39",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-56277": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-m837-xvxr-vqwg",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.2"
+    ]
+   }
+  ],
+  "CVE-2026-56278": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-2qqc-p94c-hxwh",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.0"
+    ]
+   }
+  ],
+  "CVE-2026-56340": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-mcmc-2m55-j8jj",
+    "ranges": [
+     {
+      "introduced": "0.10.2",
+      "fixed": "0.13.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.13.0"
+    ]
+   }
+  ],
+  "CVE-2026-56398": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-3wgj-c2hg-vm6q",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.9.5",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.5"
+    ]
+   }
+  ],
+  "CVE-2026-57173": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-hcwq-8wjf-3gcr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.24.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.24.0"
+    ]
+   }
+  ],
+  "CVE-2026-59212": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-2xwm-4h2q-ggfx",
+    "ranges": [
+     {
+      "introduced": "0.9.6",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59213": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-3wp3-xxj9-5jqq",
+    "ranges": [
+     {
+      "introduced": "0.6.27",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59214": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-4r2p-27mh-5m22",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59215": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-73x5-h92w-xc2j",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59216": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-74h3-cxq7-vc5q",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59217": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-7r7x-gjvr-448g",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59218": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-7rw5-9f7q-xj36",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59219": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-855v-hq7w-jmjw",
+    "ranges": [
+     {
+      "introduced": "0.9.0",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59220": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-ffpj-xv5c-p3gw",
+    "ranges": [
+     {
+      "introduced": "0.9.2",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59221": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-frvj-c5qp-xj4w",
+    "ranges": [
+     {
+      "introduced": "0.9.6",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59222": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-gh7p-78x6-jw6m",
+    "ranges": [
+     {
+      "introduced": "0.7.0",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59223": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-qg3f-8x3j-ggf2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59224": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-j657-m4c4-24jq",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59225": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-m3qf-58wf-w979",
+    "ranges": [
+     {
+      "introduced": "0.8.12",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59226": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-mvx4-532p-xfm9",
+    "ranges": [
+     {
+      "introduced": "0.9.0",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59227": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-rqj7-6wrp-6g2g",
+    "ranges": [
+     {
+      "introduced": "0.8.11",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59714": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-x2ff-v5v8-m75m",
+    "ranges": [
+     {
+      "introduced": "0.9.5",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59715": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-gmfw-g93r-vg53",
+    "ranges": [
+     {
+      "introduced": "0.6.16",
+      "fixed": "0.10.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.10.0"
+    ]
+   }
+  ],
+  "CVE-2026-59819": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-4g5m-c9r5-49xf",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.83.10",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.83.10"
+    ]
+   }
+  ],
+  "CVE-2026-59820": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-5jmr-gcrj-2c9q",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.83.7",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.83.7"
+    ]
+   }
+  ],
+  "CVE-2026-59821": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-72m8-9m7m-h278",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.82.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.82.0"
+    ]
+   }
+  ],
+  "CVE-2026-59822": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-7488-6r32-c95q",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.84.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.84.0"
+    ]
+   }
+  ],
+  "CVE-2026-59823": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-hx8v-g79f-8w5f",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.83.9",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.83.9"
+    ]
+   }
+  ],
+  "CVE-2026-6597": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-5jjf-wcvf-923w",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.8.3"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-6598": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-9jpj-cph8-w449",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.9.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.1"
+    ]
+   }
+  ],
+  "CVE-2026-6599": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-v66p-f7x3-4794",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "1.8.3"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-69147": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-8pw2-6jv3-mj5j",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.28.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.28.0"
+    ]
+   }
+  ],
+  "CVE-2026-69250": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-r745-8hwv-h473",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-69251": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-g32j-mmxr-gfq5",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-g32j-mmxr-gfq5",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-69252": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-wp74-f5hh-5f3r",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-69253": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-wg86-r78f-74mp",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-wg86-r78f-74mp",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-69254": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-3769-jgqc-cxm7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-3769-jgqc-cxm7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-69255": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-vmv7-4m6c-3cg5",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-vmv7-4m6c-3cg5",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-69256": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-x6vm-w76m-8j7g",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-x6vm-w76m-8j7g",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-69257": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-c6xh-wv4j-ppv5",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-69258": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-6vh2-wg4h-4vwj",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-69259": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-x3hf-7cj6-3r4m",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-x3hf-7cj6-3r4m",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-69262": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-p5w8-m249-4r4v",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-69263": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-xc48-889x-5qmw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-xc48-889x-5qmw",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-69264": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-4j8x-x6v7-w9rq",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-4j8x-x6v7-w9rq",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-7020": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-x99g-8v8j-25j2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.20.2"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-70470": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-52fh-8v99-63c2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-52fh-8v99-63c2",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-70471": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-8r8h-6vcc-xhrv",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-70472": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-chm3-vqcf-52rx",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-70473": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-fr6g-7cq8-fg82",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-70474": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-wch5-xp77-fxg4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-70475": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-fm2f-4339-4p2f",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-70476": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-gmmw-qg98-6j6p",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-70477": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-5xvg-pmgg-3mxr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-5xvg-pmgg-3mxr",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-70478": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-qgvm-j2hm-6m38",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-70479": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-w2rx-84hp-gg95",
+    "ranges": [
+     {
+      "introduced": "0.9.6",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70480": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-rffm-9q57-q649",
+    "ranges": [
+     {
+      "introduced": "0.6.34",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70481": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-mj5r-jf49-m3w7",
+    "ranges": [
+     {
+      "introduced": "0.5.0",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70482": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-rq84-p6rr-vf89",
+    "ranges": [
+     {
+      "introduced": "0.8.0",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70483": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-3vf6-64vr-3g56",
+    "ranges": [
+     {
+      "introduced": "0.9.6",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70484": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-g423-grf7-98rv",
+    "ranges": [
+     {
+      "introduced": "0.7.0",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70485": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-8x5v-cpv7-8jjp",
+    "ranges": [
+     {
+      "introduced": "0.9.0",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70486": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-3xpf-xq7r-v8c5",
+    "ranges": [
+     {
+      "introduced": "0.9.0",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70487": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-6xhv-rxhv-pwm4",
+    "ranges": [
+     {
+      "introduced": "0.8.8",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70488": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-jxc9-xmc4-gr23",
+    "ranges": [
+     {
+      "introduced": "0.9.6",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70489": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-73cq-mcgh-379c",
+    "ranges": [
+     {
+      "introduced": "0.9.0",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70490": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-5gpj-vj23-vhhv",
+    "ranges": [
+     {
+      "introduced": "0.8.8",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70491": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-3r7g-q6cg-q2vx",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70492": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-pwxh-7358-jq2x",
+    "ranges": [
+     {
+      "introduced": "0.10.0",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70493": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-2f54-p244-32q6",
+    "ranges": [
+     {
+      "introduced": "0.9.6",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-70494": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-3cg5-48j3-v4gv",
+    "ranges": [
+     {
+      "introduced": "0.10.0",
+      "fixed": "0.11.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.0"
+    ]
+   }
+  ],
+  "CVE-2026-7141": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-x368-4g9h-fvv4",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.19.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.19.1"
+    ]
+   }
+  ],
+  "CVE-2026-71486": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-8737-qx52-hjff",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.26.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.26.0"
+    ]
+   }
+  ],
+  "CVE-2026-73483": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-9gvv-qjj3-2p6g",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-9gvv-qjj3-2p6g",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-73487": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-w7x8-q2gp-5cgg",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   },
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise-components",
+    "advisory": "GHSA-w7x8-q2gp-5cgg",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-73488": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-2364-jh4q-m9vm",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-73555": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-hwrm-c4cx-rf4j",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.26.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.26.0"
+    ]
+   }
+  ],
+  "CVE-2026-73556": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-48jh-3gj7-fg8v",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.26.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.26.0"
+    ]
+   }
+  ],
+  "CVE-2026-73557": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-pr7f-p5mw-fc87",
+    "ranges": [
+     {
+      "introduced": "0.21.0",
+      "fixed": "0.26.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.26.0"
+    ]
+   }
+  ],
+  "CVE-2026-73558": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-7m6h-x95x-82q5",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.27.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.27.0"
+    ]
+   }
+  ],
+  "CVE-2026-73559": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-87x5-vmc3-756j",
+    "ranges": [
+     {
+      "introduced": "0.19.0",
+      "fixed": "0.26.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.26.0"
+    ]
+   }
+  ],
+  "CVE-2026-73560": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-4hhp-h66f-j5j7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.26.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.26.0"
+    ]
+   }
+  ],
+  "CVE-2026-73603": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-8gj2-2cvc-6xx7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.4",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.4"
+    ]
+   }
+  ],
+  "CVE-2026-73604": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-rwrp-9823-p2xq",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "3.1.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "3.1.3"
+    ]
+   }
+  ],
+  "CVE-2026-7482": [
+   {
+    "product": "ollama",
+    "ecosystem": "Go",
+    "package": "github.com/ollama/ollama",
+    "advisory": "GHSA-x8qc-fggm-mpqg",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.17.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.17.1"
+    ]
+   }
+  ],
+  "CVE-2026-7700": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-9fpm-3445-2vx4",
+    "ranges": [
+     {
+      "introduced": "1.3.0",
+      "fixed": "1.10.3",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.10.3"
+    ]
+   }
+  ],
+  "CVE-2026-78684": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-4003",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.27.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.27.0"
+    ]
+   }
+  ],
+  "CVE-2026-8026": [
+   {
+    "product": "flowise",
+    "ecosystem": "npm",
+    "package": "flowise",
+    "advisory": "GHSA-8f47-4rh3-x44m",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "3.0.12"
+     }
+    ],
+    "fixed": []
+   }
+  ],
+  "CVE-2026-84377": [
+   {
+    "product": "litellm",
+    "ecosystem": "PyPI",
+    "package": "litellm",
+    "advisory": "GHSA-3cv6-jpf6-8222",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.88.6",
+      "last_affected": null
+     },
+     {
+      "introduced": "1.89.0",
+      "fixed": "1.89.7",
+      "last_affected": null
+     },
+     {
+      "introduced": "1.90.0",
+      "fixed": "1.90.7",
+      "last_affected": null
+     },
+     {
+      "introduced": "1.91.0",
+      "fixed": "1.91.5",
+      "last_affected": null
+     },
+     {
+      "introduced": "1.92.0",
+      "fixed": "1.92.2",
+      "last_affected": null
+     },
+     {
+      "introduced": "1.93.0",
+      "fixed": "1.93.2",
+      "last_affected": null
+     },
+     {
+      "introduced": "1.94.0",
+      "fixed": "1.94.3",
+      "last_affected": null
+     },
+     {
+      "introduced": "1.95.0",
+      "fixed": "1.95.1",
+      "last_affected": null
+     },
+     {
+      "introduced": "1.96.0",
+      "fixed": "1.96.2",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.88.6",
+     "1.89.7",
+     "1.90.7",
+     "1.91.5",
+     "1.92.2",
+     "1.93.2",
+     "1.94.3",
+     "1.95.1",
+     "1.96.2"
+    ]
+   }
+  ],
+  "CVE-2026-8505": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-cf6m-vc3m-7cgm",
+    "ranges": [
+     {
+      "introduced": "1.7.0",
+      "fixed": "1.9.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.9.1"
+    ]
+   }
+  ],
+  "CVE-2026-87011": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-3g9q-v48f-hh9w",
+    "ranges": [
+     {
+      "introduced": "0.9.0",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-87012": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-v39v-59xw-j98g",
+    "ranges": [
+     {
+      "introduced": "0.9.0",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-87013": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-8r35-5x5r-hv74",
+    "ranges": [
+     {
+      "introduced": "0.10.0",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-87014": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-wjwr-xfp9-r66p",
+    "ranges": [
+     {
+      "introduced": "0.9.0",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-87015": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-p78m-89r6-pgf7",
+    "ranges": [
+     {
+      "introduced": "0.6.27",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-87016": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-wpmr-8h3q-fwj7",
+    "ranges": [
+     {
+      "introduced": "0.6.41",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-87017": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-pcvc-8vrv-8q6w",
+    "ranges": [
+     {
+      "introduced": "0.7.0",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-87994": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-fmqh-xp37-5hr8",
+    "ranges": [
+     {
+      "introduced": "0.9.5",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-87995": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-jmc6-2wr8-h3wj",
+    "ranges": [
+     {
+      "introduced": "0.8.11",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-87996": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-4v28-j6q3-5m4r",
+    "ranges": [
+     {
+      "introduced": "0.9.6",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-87997": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-3pf7-q2g3-wj28",
+    "ranges": [
+     {
+      "introduced": "0.10.0",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-87998": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-2724-6cpj-gf3v",
+    "ranges": [
+     {
+      "introduced": "0.10.0",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-87999": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-34r3-9m95-vq73",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-88000": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-3cgp-3cqx-j8w2",
+    "ranges": [
+     {
+      "introduced": "0.10.0",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-88001": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-5x7x-4c3c-qf5w",
+    "ranges": [
+     {
+      "introduced": "0.9.5",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-88002": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-jqhh-cjmq-vmv6",
+    "ranges": [
+     {
+      "introduced": "0.5.0",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-88005": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-4qg5-cxx4-g927",
+    "ranges": [
+     {
+      "introduced": "0.8.0",
+      "fixed": "0.9.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.9.0"
+    ]
+   }
+  ],
+  "CVE-2026-88006": [
+   {
+    "product": "open-webui",
+    "ecosystem": "PyPI",
+    "package": "open-webui",
+    "advisory": "GHSA-wvm9-9g5j-623f",
+    "ranges": [
+     {
+      "introduced": "0.8.0",
+      "fixed": "0.11.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.11.1"
+    ]
+   }
+  ],
+  "CVE-2026-90553": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-3985",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.28.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.28.0"
+    ]
+   }
+  ],
+  "CVE-2026-9205": [
+   {
+    "product": "langflow",
+    "ecosystem": "PyPI",
+    "package": "langflow",
+    "advisory": "GHSA-jxw3-mjmx-3pqm",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "1.10.1",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "1.10.1"
+    ]
+   }
+  ],
+  "CVE-2026-93436": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-3996",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-93592": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-3997",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.28.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.28.0"
+    ]
+   }
+  ],
+  "CVE-2026-93840": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-3998",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.29.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.29.0"
+    ]
+   }
+  ],
+  "CVE-2026-93841": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-3999",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-93989": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-4000",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-94622": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-4004",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-94623": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-4005",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-94624": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-4006",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-94625": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-4007",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-94626": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "PYSEC-2026-4008",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": "0.30.0",
+      "last_affected": null
+     }
+    ],
+    "fixed": [
+     "0.30.0"
+    ]
+   }
+  ],
+  "CVE-2026-9540": [
+   {
+    "product": "vllm",
+    "ecosystem": "PyPI",
+    "package": "vllm",
+    "advisory": "GHSA-98f3-hwg4-4rf7",
+    "ranges": [
+     {
+      "introduced": "0",
+      "fixed": null,
+      "last_affected": "0.19.0"
+     }
+    ],
+    "fixed": []
+   }
+  ]
+ }
+}

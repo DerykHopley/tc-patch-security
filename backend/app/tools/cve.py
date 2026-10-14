@@ -33,13 +33,17 @@ def run(args: CveArgs, deps, ctx) -> dict:
                                      "ransomware": kev["knownRansomwareCampaignUse"],
                                      "required_action": kev["requiredAction"]},
         "watch_status": status,
+        "epss": k.epss_of(cve["id"]),  # EPSS by FIRST, as of the snapshot date
+        "product_match": k.product_match(cve["id"]),  # None when the product came from the CPE
+        "possible_match": k.possible_match(cve["id"]),
     }
 
 
 register(ToolSpec(
     name="lookup_cve",
     description="Look up one CVE by id (e.g. CVE-2024-8309): severity, CWEs, OWASP category, CISA KEV status, "
-                "and whether it's open on the user's watchlist.",
+                "EPSS score and percentile, whether the product is only a possible match (guessed from the "
+                "description), and whether it's open on the user's watchlist.",
     args_model=CveArgs,
     run=run,
 ))

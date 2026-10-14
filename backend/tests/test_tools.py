@@ -20,6 +20,15 @@ def test_a06_1_t2_kev_details(deps):
     assert res["kev"]["date_added"] == "2025-05-05" and res["kev"]["due"] == "2025-05-26"
 
 
+def test_a14_7_lookup_cve_returns_epss_and_possible_match(deps):
+    res = call(deps, "lookup_cve", cve_id="CVE-2025-3248").result
+    assert res["epss"] == {"score": 0.99993, "percentile": 0.99988, "date": "2026-10-13"}
+    assert res["possible_match"] is False and res["product_match"] is None  # product from the CPE
+    res = call(deps, "lookup_cve", cve_id="CVE-2026-105740").result
+    assert res["possible_match"] is True and res["product_match"] == "unknown"
+    assert call(deps, "lookup_cve", cve_id="CVE-2026-105741").result["product_match"] == "confirmed"
+
+
 def test_a06_1_t2_adds_a_numbered_source(deps):
     ctx = Context()
     rec = run_tool(ToolCall(id="t", name="lookup_cve", args={"cve_id": "CVE-2024-8309"}), deps, ctx)
