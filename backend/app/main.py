@@ -10,11 +10,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app import dashboard
+from app import agent, dashboard, guard
+from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.config import Settings
 from app.deps import Deps, build_deps
-from app.errors import InputError
+from app.errors import InputError, LLMError
 from app.knowledge import SEVERITY_ORDER
+from app.notify import NotifyError, channel_status, deliver, format_alert, most_urgent_open
+from app.schemas import ChatReply, ChatRequest
 
 log = logging.getLogger(__name__)
 
@@ -53,6 +56,15 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     async def input_error(request: Request, exc: InputError):
         return _error(400, exc.code, exc.message)
 
+    @app.exception_handler(LLMError)
+    async def llm_error(request: Request, exc: LLMError):
+        log.warning("LLM error: %s", exc.message)
+        return _error(502, "llm_error", exc.public or "The language model didn't respond properly. Try again in a moment.")
+
+    @app.exception_handler(NotifyError)
+    async def notify_error(request: Request, exc: NotifyError):
+        return _error(400 if exc.code == "not_configured" else 502, exc.code, exc.message)
+
     @app.exception_handler(Exception)
     async def internal_error(request: Request, exc: Exception):
         log.exception("unhandled error")  # stack trace in the server log only
@@ -62,6 +74,18 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def health():
         return {"status": "ok", "llm": deps.llm.name, "model": deps.llm.label(), "as_of": deps.settings.as_of,
                 "dev_panel": deps.settings.dev_panel}
+
+    # --- Chat (A06)
+
+    @app.post("/chat", response_model=ChatReply)
+    def chat(req: ChatRequest):
+        history = [t.model_dump() for t in req.history]
+        message, flags = guard.check_message(req.message, history)  # limits and flags, before any LLM call
+        return agent.answer(message, history, deps, flags=flags)
+
+    @app.get("/examples")
+    def examples():
+        return agent.examples()
 
     # --- Dashboard (A04). Reads and writes deps.state, the same state the chat's tools use.
 
@@ -99,6 +123,40 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.put("/watchlist")
     def put_watchlist(body: WatchlistUpdate):
         return {"watchlist": deps.state.set_watchlist(body.products)}
+
+    # --- Settings page (A13): alert rules, channels, test alerts, reset
+
+    @app.get("/settings")
+    def get_settings():
+        return {"settings": deps.state.settings().model_dump(),
+                "channels": channel_status(deps.settings, deps.transports)}
+
+    @app.put("/settings")
+    def put_settings(body: AppSettings):
+        return {"settings": deps.state.save_settings(body).model_dump()}
+
+    @app.get("/alerts")
+    def get_alerts():
+        return {"alerts": deps.state.alerts_log()[:20]}
+
+    @app.post("/alerts/test")
+    def test_alert(body: TestAlertRequest):
+        """A real alert from the most urgent open CVE on the watchlist, on one channel. "preview" only records it."""
+        cve = most_urgent_open(deps.knowledge, deps.state.snapshot())
+        if cve is None:
+            raise InputError("There are no open CVEs on your watchlist to build a test alert from.")
+        msg = format_alert(cve, "kev" if deps.knowledge.cves.kev.get(cve["id"]) else "new", deps.knowledge,
+                           deps.settings.app_url)
+        msg["title"] = "Test · " + msg["title"]
+        entry = deliver(body.channel, msg, deps.settings, deps.transports, deps.state)
+        note = ("Recorded only: nothing was sent." if body.channel == "preview"
+                else f"Sent by {body.channel}. Check that it arrived.")
+        return {"alert": msg, "channel": body.channel, "sent": entry["sent"], "note": note}
+
+    @app.post("/state/reset")
+    def reset_state(body: ResetRequest):
+        deps.state.reset()
+        return {"reset": True, "watchlist": deps.state.snapshot()["watchlist"]}
 
     return app
 

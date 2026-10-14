@@ -183,6 +183,14 @@ def test_a05_7_closed_banner_stays_closed_in_this_browser(open_dash, width):
     expect(banner(page)).to_have_count(0)
 
 
+def test_a05_7_ask_patch_in_the_banner_opens_the_chat(open_dash):
+    page = open_dash(reduced=True)
+    chat = page.get_by_role("complementary", name="Chat with Patch")
+    expect(chat).to_have_count(0)
+    banner(page).get_by_role("button", name="Ask Patch").click()
+    expect(chat).to_be_visible()
+
+
 def test_a05_7_banner_survives_blocked_storage(open_dash):
     block = "Object.defineProperty(window, 'localStorage', { get() { throw new Error('blocked') } })"
     page = open_dash(before=lambda p: p.add_init_script(block))

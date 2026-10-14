@@ -28,6 +28,83 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const health = () => request<Health>('/health')
 
+// --- Chat (A06). Shapes written by hand from backend/app/schemas.py. Severity is the dashboard's, below.
+
+export type Role = 'user' | 'assistant'
+export type DocType = 'owasp_llm' | 'owasp_web' | 'atlas_technique' | 'atlas_mitigation' | 'atlas_case' | 'cve'
+
+export interface Turn {
+  role: Role
+  content: string
+}
+
+export interface Source {
+  n: number
+  chunk_id: string
+  doc_id: string
+  doc_type: DocType
+  title: string
+  section: string | null
+  date: string | null
+  url: string
+  snippet: string
+  score: number | null // null for a CVE added by lookup_cve
+  product: string | null
+  severity: Severity | null
+  cvss: number | null
+  kev: boolean | null
+}
+
+export interface QueryInfo {
+  original: string
+  semantic_query: string
+  rewrites: string[]
+  filters: Record<string, string>
+  dropped_filters: string[]
+  relaxed: boolean
+}
+
+export interface ToolCallRecord {
+  id: string
+  name: string
+  args: Record<string, unknown>
+  status: 'ok' | 'error'
+  result: Record<string, unknown> | null
+  error: { code: string; message: string } | null
+  duration_ms: number
+}
+
+export interface Usage {
+  input_tokens: number
+  output_tokens: number
+  llm_calls: number
+  estimated: boolean
+}
+
+export interface ChatReply {
+  answer: string
+  sources: Source[]
+  tool_calls: ToolCallRecord[]
+  query: QueryInfo | null
+  usage: Usage
+  steps: number
+  flags: string[] // "injection_phrasing": flagged, still answered
+}
+
+export interface Example {
+  id: string
+  question: string
+}
+
+export const chat = (message: string, history: Turn[]) =>
+  request<ChatReply>('/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, history }),
+  })
+
+export const examples = () => request<Example[]>('/examples')
+
 // --- Dashboard (A04)
 
 export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
@@ -122,3 +199,66 @@ export const setStatus = (id: string, status: CveStatus) =>
 
 export const setWatchlist = (products: string[]) =>
   request<{ watchlist: string[] }>('/watchlist', json('PUT', { products }))
+
+// --- Settings page (A13): alert rules, channels, test alerts, the alerts log, reset
+
+export type Channel = 'desktop' | 'email' | 'ntfy'
+
+export interface AlertSettings {
+  enabled: boolean
+  min_severity: Severity
+  kev: boolean
+  kev_recheck: boolean
+  unscored: boolean
+  now_critical: boolean
+  digest_over: number
+  schedule_hours: 1 | 3 | 6 | 12 | 24
+  quiet_start: string | null // HH:MM
+  quiet_end: string | null
+  channels: Channel[]
+}
+
+export interface AppSettings {
+  alerts: AlertSettings
+}
+
+export interface ChannelStatus {
+  configured: boolean
+  detail: string // how it's set up, or how to set it up; never a secret
+}
+
+export interface SettingsReply {
+  settings: AppSettings
+  channels: Record<Channel, ChannelStatus>
+}
+
+export interface AlertMessage {
+  title: string
+  body: string
+  priority: number
+  tags: string[]
+  click: string | null
+}
+
+export interface AlertLogEntry extends AlertMessage {
+  at: string // ISO time, UTC
+  channel: Channel | 'preview'
+  sent: boolean
+  error: string | null
+  error_code: 'not_configured' | 'notify_failed' | null
+}
+
+export interface TestAlertReply {
+  alert: AlertMessage
+  channel: Channel | 'preview'
+  sent: boolean
+  note: string
+}
+
+export const getSettings = () => request<SettingsReply>('/settings')
+export const saveSettings = (s: AppSettings) => request<{ settings: AppSettings }>('/settings', json('PUT', s))
+export const alertsLog = () => request<{ alerts: AlertLogEntry[] }>('/alerts')
+export const testAlert = (channel: Channel | 'preview') =>
+  request<TestAlertReply>('/alerts/test', json('POST', { channel }))
+export const resetState = () =>
+  request<{ reset: boolean; watchlist: string[] }>('/state/reset', json('POST', { confirm: 'reset' }))

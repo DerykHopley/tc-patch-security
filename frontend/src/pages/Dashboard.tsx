@@ -26,8 +26,8 @@ const STATUS_LABEL: Record<CveStatus, string> = { open: 'Open', fixed: 'Fixed', 
 type Note = { ok: boolean; text: string }
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
 
-// onAskPatch: opens the chat from the welcome banner; the chat ticket passes it in.
-export function DashboardPage({ onAskPatch }: { onAskPatch?: () => void } = {}) {
+// onAskPatch: the welcome banner's "Ask Patch" opens the chat.
+export function DashboardPage({ onAskPatch }: { onAskPatch: () => void }) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [page, setPage] = useState<CvePage | null>(null)
   const [query, setQuery] = useState<CveQuery>({ status: 'open', limit: PAGE_SIZE, offset: 0 })
