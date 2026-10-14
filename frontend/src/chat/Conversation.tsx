@@ -23,15 +23,31 @@ const scrollTo = (el: Element | null, block: ScrollLogicalPosition) =>
 const linkCitations = (text: string, ns: Set<number>) =>
   text.replace(/\[(\d+)\](?!\()/g, (whole, n: string) => (ns.has(Number(n)) ? `[[${n}]](#source-${n})` : whole))
 
+// Two significant figures: $0.00061, $0.012, $1.2; a free answer shows $0.
+const dollars = (cost: number) => `$${Number(cost.toPrecision(2))}`
+
 function Usage({ reply }: { reply: ChatReply }) {
   const u = reply.usage
   return (
     <p className="usage">
       {u.input_tokens.toLocaleString()} in · {u.output_tokens.toLocaleString()} out · {u.llm_calls} LLM calls ·{' '}
-      {reply.steps} steps
+      {reply.steps} steps · {dollars(u.cost)}
       {u.estimated && <span className="chip">estimated</span>}
     </p>
   )
+}
+
+/** The citation check's result, quietly: a sourced answer that cites none of them, and citations removed. */
+function CitationNote({ reply }: { reply: ChatReply }) {
+  const bad = reply.bad_citations
+  if (!reply.no_citations && bad.length === 0) return null
+  const parts = []
+  if (reply.no_citations) parts.push('No sources cited.')
+  if (bad.length > 0) {
+    const list = bad.map((n) => `[${n}]`).join(' ')
+    parts.push(`Removed ${bad.length === 1 ? 'citation' : 'citations'} ${list}: no matching source.`)
+  }
+  return <p className="cite-note">{parts.join(' ')}</p>
 }
 
 // The answer a citation belongs to: Markdown renders the links, the answer handles the click.
@@ -103,6 +119,7 @@ function Answer({ reply }: { reply: ChatReply }) {
       {reply.flags.includes('injection_phrasing') && (
         <p className="flag-note">This message looks like an injection attempt. It was answered, and logged.</p>
       )}
+      <CitationNote reply={reply} />
       <Usage reply={reply} />
       {hasDetails && (
         <>

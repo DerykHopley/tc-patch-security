@@ -7,16 +7,17 @@ import json
 import os
 import pathlib
 from dataclasses import dataclass, field
-from urllib.parse import urlparse
+
+from app.llm.urls import local_url_allowed
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "fixtures"  # the snapshot's folder
 
 DEFAULT_WATCHLIST = ["langchain", "langflow", "litellm", "ollama", "open-webui"]
 DEFAULT_CORS = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174"
-PROVIDERS = ("fake",)  # openrouter and local arrive with the real model (A08)
+PROVIDERS = ("fake", "openrouter", "local")
 EMBEDDERS = ("hash", "openrouter", "ollama")  # hash: the free test fake; the other two need the index built (A09)
-LOCAL_HOSTS = ("localhost", "127.0.0.1", "::1")
+LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "::1"]
 
 
 def snapshot_date() -> str:
@@ -65,6 +66,12 @@ def _list(value: str) -> list[str]:
 @dataclass
 class Settings:
     llm_provider: str = "fake"
+    # The real model (A08). The key is a secret: .env only, never in the state file or an API reply.
+    openrouter_api_key: str = ""
+    openrouter_model: str = "openai/gpt-oss-120b"
+    local_llm_url: str = "http://localhost:11434/v1"  # Ollama; LM Studio is :1234, llama.cpp :8080
+    local_llm_model: str = ""
+    local_llm_hosts: list[str] = field(default_factory=lambda: list(LOOPBACK_HOSTS))  # plus LOCAL_LLM_HOSTS
     state_path: pathlib.Path = ROOT / "data" / "state.json"
     as_of: str = field(default_factory=snapshot_date)
     cors_origins: list[str] = field(default_factory=lambda: _list(DEFAULT_CORS))
@@ -86,13 +93,17 @@ class Settings:
     embed_model: str = ""  # empty = the embedder's default
     index_path: pathlib.Path = ROOT / "data" / "index"
     search_min_score: float | None = None  # empty = the embedder's default threshold
-    openrouter_api_key: str = ""
     ollama_url: str = "http://localhost:11434"
 
     @classmethod
     def from_env(cls) -> "Settings":
         return cls(
             llm_provider=os.environ.get("LLM_PROVIDER", "fake").strip().lower(),
+            openrouter_api_key=_env("OPENROUTER_API_KEY"),
+            openrouter_model=_env("OPENROUTER_MODEL", cls.openrouter_model),
+            local_llm_url=_env("LOCAL_LLM_URL", cls.local_llm_url),
+            local_llm_model=_env("LOCAL_LLM_MODEL"),
+            local_llm_hosts=LOOPBACK_HOSTS + _list(os.environ.get("LOCAL_LLM_HOSTS", "")),
             state_path=_path("STATE_PATH", cls.state_path),
             as_of=os.environ.get("AS_OF", "").strip() or snapshot_date(),
             cors_origins=_list(os.environ.get("CORS_ORIGINS", DEFAULT_CORS)),
@@ -112,7 +123,6 @@ class Settings:
             embed_model=_env("EMBED_MODEL"),
             index_path=_path("INDEX_PATH", cls.index_path),
             search_min_score=_float("SEARCH_MIN_SCORE"),
-            openrouter_api_key=_env("OPENROUTER_API_KEY"),
             ollama_url=_env("OLLAMA_URL", cls.ollama_url).rstrip("/"),
         )
 
@@ -120,12 +130,21 @@ class Settings:
         """Fail at start-up with a plain message."""
         if self.llm_provider not in PROVIDERS:
             raise ConfigError(
-                f"LLM_PROVIDER must be one of {', '.join(PROVIDERS)}, not {self.llm_provider!r}. "
-                "Only FakeLLM is built so far."
+                f"LLM_PROVIDER must be one of {', '.join(PROVIDERS)}, not {self.llm_provider!r}."
             )
+        if self.llm_provider == "openrouter" and not self.openrouter_api_key:
+            raise ConfigError("LLM_PROVIDER=openrouter needs OPENROUTER_API_KEY. Set it in backend/.env "
+                              "(see .env.example), or use LLM_PROVIDER=fake.")
+        if self.llm_provider == "local":
+            if not local_url_allowed(self.local_llm_url, self.local_llm_hosts):
+                raise ConfigError(f"LOCAL_LLM_URL must be on this machine (localhost, 127.0.0.1, ::1 or a host in "
+                                  f"LOCAL_LLM_HOSTS), not {self.local_llm_url!r}.")
+            if not self.local_llm_model:
+                raise ConfigError("LLM_PROVIDER=local needs LOCAL_LLM_MODEL, e.g. the name `ollama list` shows.")
         if self.embedder not in EMBEDDERS:
             raise ConfigError(f"EMBEDDER must be one of {', '.join(EMBEDDERS)}, not {self.embedder!r}.")
         if self.embedder == "openrouter" and not self.openrouter_api_key:
             raise ConfigError("EMBEDDER=openrouter needs OPENROUTER_API_KEY in backend/.env.")
-        if self.embedder == "ollama" and urlparse(self.ollama_url).hostname not in LOCAL_HOSTS:
-            raise ConfigError(f"OLLAMA_URL must point at this machine (localhost), not {self.ollama_url!r}.")
+        if self.embedder == "ollama" and not local_url_allowed(self.ollama_url, self.local_llm_hosts):
+            raise ConfigError(f"OLLAMA_URL must be on this machine (localhost, 127.0.0.1, ::1 or a host in "
+                              f"LOCAL_LLM_HOSTS), not {self.ollama_url!r}.")
