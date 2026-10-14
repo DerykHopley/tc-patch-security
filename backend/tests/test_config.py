@@ -46,3 +46,9 @@ def test_a01_7_env_example_holds_no_values_that_look_like_keys():
         if "=" in line and not line.startswith("#"):
             name, value = line.split("=", 1)
             assert not re.search(r"(sk-|key|token|secret|password)", value, re.I), name
+
+
+@pytest.mark.parametrize(("value", "expected"), [("true", True), (" 1 ", True), ("yes", True), ("false", False), ("0", False), ("", True)])
+def test_a02_1_dev_panel_from_environment(monkeypatch, value, expected):
+    monkeypatch.setenv("DEV_PANEL", value)
+    assert Settings.from_env().dev_panel is expected

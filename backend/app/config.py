@@ -20,6 +20,11 @@ def snapshot_date() -> str:
     return json.loads((FIXTURES / "manifest.json").read_text())["as_of"]
 
 
+def _flag(value: str, default: bool) -> bool:
+    value = value.strip().lower()
+    return default if not value else value in ("1", "true", "yes", "on")
+
+
 class ConfigError(RuntimeError):
     pass
 
@@ -34,6 +39,7 @@ class Settings:
     state_path: pathlib.Path = ROOT / "data" / "state.json"
     as_of: str = field(default_factory=snapshot_date)
     cors_origins: list[str] = field(default_factory=lambda: _list(DEFAULT_CORS))
+    dev_panel: bool = True  # the Dev page (and later its routes) exist only when this is on
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -45,6 +51,7 @@ class Settings:
             state_path=state_path,
             as_of=os.environ.get("AS_OF", "").strip() or snapshot_date(),
             cors_origins=_list(os.environ.get("CORS_ORIGINS", DEFAULT_CORS)),
+            dev_panel=_flag(os.environ.get("DEV_PANEL", ""), default=True),
         )
 
     def check(self) -> None:

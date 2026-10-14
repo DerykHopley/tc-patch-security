@@ -47,7 +47,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "llm": deps.llm.name, "model": deps.llm.label(), "as_of": deps.settings.as_of}
+        return {"status": "ok", "llm": deps.llm.name, "model": deps.llm.label(), "as_of": deps.settings.as_of,
+                "dev_panel": deps.settings.dev_panel}
 
     return app
 
