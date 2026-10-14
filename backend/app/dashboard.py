@@ -3,11 +3,25 @@ import datetime as dt
 from collections import Counter
 
 from app.knowledge import SEVERITY_ORDER
+from app.verdict import verdict
 
 SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
 
 
-def _row(cve: dict, status: str, k) -> dict:
+def affected(k, cve: dict, data: dict) -> dict:
+    """The verdict for one CVE from the product's saved usage and version (A15). Advice only: never the status."""
+    from app.state import State
+
+    f = State.fields_of(cve["product"], data)
+    coverage = k.osv["products"].get(cve["product"], {}).get("coverage", "none")
+    entries = [e for e in k.osv["cves"].get(cve["id"], []) if e["product"] == cve["product"]]
+    v = verdict(coverage, entries, f["usage"], f["version"])
+    return {"verdict": v.verdict, "verdict_reason": v.reason, "fixed_version": v.fixed_version,
+            "who_acts": v.who_acts, "usage": f["usage"], "version": f["version"],
+            "internet_facing": f["internet_facing"]}
+
+
+def _row(cve: dict, status: str, k, data: dict) -> dict:
     kev = k.cves.kev.get(cve["id"])
     cat = k.category(cve["owasp"])
     return {
@@ -17,6 +31,7 @@ def _row(cve: dict, status: str, k) -> dict:
         "kev": bool(kev), "kev_due": kev["dueDate"] if kev else None,
         "status": status, "summary": cve["description"][:220], "url": cve["url"],
         "epss": k.epss_of(cve["id"]), "possible_match": k.possible_match(cve["id"]),
+        **affected(k, cve, data),
     }
 
 
@@ -33,11 +48,11 @@ def watched_rows(k, data: dict) -> list[dict]:
     from app.state import State
 
     watch = set(data["watchlist"])
-    return [_row(c, State.status_of(c, data), k) for c in k.cves.all() if c["product"] in watch]
+    return [_row(c, State.status_of(c, data), k, data) for c in k.cves.all() if c["product"] in watch]
 
 
 def list_cves(k, data: dict, product=None, severity_min=None, status="open", limit=50, offset=0,
-              kev=None, published_since=None) -> dict:
+              kev=None, published_since=None, verdict=None) -> dict:
     rows = watched_rows(k, data)
     if kev is not None:
         rows = [r for r in rows if r["kev"] == kev]
@@ -49,6 +64,8 @@ def list_cves(k, data: dict, product=None, severity_min=None, status="open", lim
         rows = [r for r in rows if SEVERITY_ORDER.get(r["severity"] or "", 0) >= SEVERITY_ORDER[severity_min]]
     if status != "all":
         rows = [r for r in rows if r["status"] == status]
+    if verdict:
+        rows = [r for r in rows if r["verdict"] == verdict]
     rows.sort(key=_sort_key)
     return {"total": len(rows), "rows": rows[offset:offset + limit]}
 

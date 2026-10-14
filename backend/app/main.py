@@ -9,7 +9,9 @@ from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
 from app import agent, dashboard, guard
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
@@ -20,6 +22,7 @@ from app.errors import InputError, LLMError
 from app.knowledge import SEVERITY_ORDER
 from app.notify import NotifyError, channel_status, deliver, format_alert, most_urgent_open
 from app.schemas import ChatReply, ChatRequest
+from app.verdict import USAGES, VERDICTS
 
 log = logging.getLogger(__name__)
 
@@ -30,8 +33,17 @@ class StatusUpdate(BaseModel):
     status: str
 
 
+class WatchedProduct(BaseModel):
+    """One watched product with its fields (A15). Missing fields take the defaults."""
+    model_config = ConfigDict(extra="forbid")
+    product: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)]
+    usage: Literal[USAGES] | None = None  # type: ignore[valid-type]
+    version: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)] | None = None
+    internet_facing: StrictBool | None = None
+
+
 class WatchlistUpdate(BaseModel):
-    products: list[str]
+    products: list[Annotated[str, StringConstraints(max_length=40)] | WatchedProduct]  # a plain name keeps its fields
 
 
 def _error(status: int, code: str, message: str) -> JSONResponse:
@@ -98,7 +110,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.get("/cves")
     def get_cves(product: str | None = None, severity_min: str | None = None, status: str = "open",
                  limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), kev: bool | None = None,
-                 published_since: str | None = None):
+                 published_since: str | None = None, verdict: str | None = None):
         pid = None
         if product:
             pid = deps.knowledge.resolve_product(product)
@@ -114,8 +126,10 @@ def create_app(deps: Deps | None = None) -> FastAPI:
                 published_since = dt.date.fromisoformat(published_since).isoformat()
             except ValueError:
                 raise InputError("published_since must be a date, YYYY-MM-DD.") from None
+        if verdict and verdict not in VERDICTS:
+            raise InputError("verdict must be affected, not_affected or unknown.")
         return dashboard.list_cves(deps.knowledge, deps.state.snapshot(), pid, severity, status, limit, offset,
-                                   kev, published_since)
+                                   kev, published_since, verdict)
 
     @app.patch("/cves/{cve_id}")
     def patch_cve(cve_id: str, body: StatusUpdate):
@@ -125,13 +139,26 @@ def create_app(deps: Deps | None = None) -> FastAPI:
             return _error(404, "not_found", f"{cve_id} isn't in the snapshot.")
         return {"id": cve["id"], "status": body.status}
 
+    def watchlist_body():
+        data, k = deps.state.snapshot(), deps.knowledge
+        products = []
+        for pid in data["watchlist"]:
+            osv = k.osv["products"].get(pid, {"coverage": "none", "packages": []})
+            products.append({"product": pid, "name": k.products[pid], **deps.state.fields_of(pid, data),
+                             "coverage": osv["coverage"],
+                             "ecosystem": osv["packages"][0]["ecosystem"] if osv["packages"] else None})
+        return {"watchlist": data["watchlist"], "products": products}
+
     @app.get("/watchlist")
     def get_watchlist():
-        return {"watchlist": deps.state.snapshot()["watchlist"]}
+        return watchlist_body()
 
     @app.put("/watchlist")
     def put_watchlist(body: WatchlistUpdate):
-        return {"watchlist": deps.state.set_watchlist(body.products)}
+        names = [p if isinstance(p, str) else p.product for p in body.products]
+        fields = {p.product: p.model_dump(exclude={"product"}) for p in body.products if not isinstance(p, str)}
+        deps.state.set_watchlist(names, fields)
+        return watchlist_body()
 
     # --- Settings page (A13): alert rules, channels, test alerts, reset
 

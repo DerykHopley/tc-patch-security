@@ -20,6 +20,7 @@ with every package OSV lists for the CVE, and the reason names the package.
 
 Who acts comes from your usage alone. The verdict is advice: it never changes your CVE status.
 """
+import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -61,6 +62,28 @@ def parse_version(ecosystem: str, text: str):
         except (ValueError, TypeError):
             raise ValueError(f"{text!r} isn't a {'Go module' if ecosystem == 'Go' else 'semver'} version") from None
     raise ValueError(f"no version rules for {ecosystem!r}")
+
+
+ECOSYSTEM_LABELS = {"PyPI": "PyPI (PEP 440)", "npm": "semver", "Go": "Go module"}
+EXAMPLES = {"PyPI": "0.3.27", "npm": "3.1.0", "Go": "v0.12.3"}
+PLAIN_VERSION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.+_-]{0,39}$")  # products without package data (Dify, llama.cpp)
+
+
+def check_version(product_osv: dict, name: str, version: str) -> None:
+    """Can the product's ecosystem read this version? Raises InputError (400) with a plain message if not.
+    `product_osv`: the product's coverage and packages from the snapshot."""
+    from app.errors import InputError
+
+    ecosystems = list(dict.fromkeys(p["ecosystem"] for p in product_osv.get("packages", [])))
+    for eco in ecosystems:
+        try:
+            parse_version(eco, version)
+        except ValueError:
+            raise InputError(f"{version!r} isn't a {ECOSYSTEM_LABELS[eco]} version, which {name} uses. "
+                             f"Example: {EXAMPLES[eco]}.", "bad_version") from None
+    if not ecosystems and not PLAIN_VERSION.match(version):
+        raise InputError(f"{version!r} doesn't look like a version: use letters, digits and . + _ - only.",
+                         "bad_version")
 
 
 def _newest_fix(entries: list[dict]):
