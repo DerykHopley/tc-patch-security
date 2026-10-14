@@ -161,7 +161,11 @@ def test_a15_9_reduced_motion_nothing_moves(open_cves, open_dash, api_url):
     set_stack(api_url, langflow={"version": "99.0.0"})
     page = open_cves("?product=langflow", reduced=True)
     page.get_by_role("combobox", name="Verdict").select_option("not_affected")
+    expect(page.get_by_role("button", name=re.compile(r"Suggested by the version check$")).first).to_be_visible()
     suggestion(page, rows(page)[0]).click()
+    expect(page.get_by_role("dialog")).to_be_visible()
+    assert page.evaluate("document.getAnimations().length") == 0  # the decision dialog doesn't move either (A16b)
+    confirm(page)
     expect(page.locator("table.cves tbody tr").first).to_be_visible()
     assert page.evaluate("document.getAnimations().length") == 0
     dash = open_dash(reduced=True)
