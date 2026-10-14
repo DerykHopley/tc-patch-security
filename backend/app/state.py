@@ -8,7 +8,7 @@ import threading
 from pathlib import Path
 
 from app.config import DEFAULT_WATCHLIST
-from app.app_settings import AppSettings
+from app.app_settings import AppSettings, DevSettings
 from app.errors import InputError
 
 STATUSES = ("open", "fixed", "not_affected")
@@ -16,10 +16,12 @@ ALERTS_LOG_MAX = 50  # kept in the file; the Settings page shows the newest 20
 
 
 class State:
-    def __init__(self, path: Path, knowledge, defaults: AppSettings | None = None):
+    def __init__(self, path: Path, knowledge, defaults: AppSettings | None = None,
+                 dev_defaults: DevSettings | None = None):
         self.path = path
         self.k = knowledge
         self.defaults = defaults or AppSettings()  # from the environment; saved settings override them
+        self.dev_defaults = dev_defaults or DevSettings()
         self._lock = threading.Lock()  # FastAPI runs sync routes in a thread pool
 
     def _load(self) -> dict:
@@ -109,6 +111,20 @@ class State:
             self._save(data)
         return new
 
+    # --- The dev panel's choices (A11): their own part, saved by the Dev page only
+
+    def dev_settings(self) -> DevSettings:
+        """Saved dev choices over the env defaults, field by field (a file from before a field existed still loads)."""
+        saved = self.snapshot().get("dev", {})
+        return DevSettings.model_validate(self.dev_defaults.model_dump() | saved)
+
+    def save_dev_settings(self, new: DevSettings) -> DevSettings:
+        with self._lock:
+            data = self._load()
+            data["dev"] = new.model_dump()
+            self._save(data)
+        return new
+
     def log_alert(self, entry: dict) -> None:
         with self._lock:
             data = self._load()
@@ -120,7 +136,7 @@ class State:
         return self.snapshot().get("alerts_log", [])
 
     def reset(self) -> None:
-        """Back to the default watchlist, no statuses, default settings and an empty alerts log."""
+        """Back to the default watchlist, no statuses, default settings (dev choices too) and an empty alerts log."""
         with self._lock:
             self.path.unlink(missing_ok=True)
 

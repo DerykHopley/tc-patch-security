@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, StringConstraints
 
-from app.rag.pipeline import SearchOptions, search_security
+from app.rag.pipeline import search_security
 from app.tools.registry import ToolSpec, register
 
 
@@ -12,9 +12,8 @@ class SearchArgs(BaseModel):
 
 
 def run(args: SearchArgs, deps, ctx) -> dict:
-    opts = SearchOptions()  # the defaults; the dev panel's search tuning arrives with A11
     res = search_security(args.query, deps.llm, deps.retrievers, deps.knowledge.resolve_product,
-                          start_n=len(ctx.sources) + 1, opts=opts)
+                          start_n=len(ctx.sources) + 1, opts=deps.search_options())  # the dev panel's tuning (A11)
     ctx.add_usage(res.reply)
     ctx.sources.extend(res.sources)
     ctx.query = res.query

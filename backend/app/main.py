@@ -14,6 +14,7 @@ from app import agent, dashboard, guard
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.config import Settings
 from app.deps import Deps, build_deps
+from app.dev import dev_router
 from app.errors import InputError, LLMError
 from app.knowledge import SEVERITY_ORDER
 from app.notify import NotifyError, channel_status, deliver, format_alert, most_urgent_open
@@ -81,7 +82,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def chat(req: ChatRequest):
         history = [t.model_dump() for t in req.history]
         message, flags = guard.check_message(req.message, history)  # limits and flags, before any LLM call
-        return agent.answer(message, history, deps, flags=flags)
+        return agent.answer(message, history, deps, max_steps=deps.dev().max_steps, flags=flags)
 
     @app.get("/examples")
     def examples():
@@ -157,6 +158,10 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def reset_state(body: ResetRequest):
         deps.state.reset()
         return {"reset": True, "watchlist": deps.state.snapshot()["watchlist"]}
+
+    # --- Dev panel (A11): only when DEV_PANEL is on, because it shows internals. Off, every /dev route is a 404.
+    if deps.settings.dev_panel:
+        app.include_router(dev_router(deps))
 
     return app
 

@@ -26,7 +26,7 @@ systems (MITRE ATLAS), and vulnerabilities in LLM products such as LangChain, La
 - Politely refuse questions outside application and AI security. Keep the refusal short."""
 
 
-MAX_STEPS = 4  # the dev panel makes this tunable later (A11)
+MAX_STEPS = 4  # the default; the dev panel tunes it (A11)
 
 
 def examples() -> list[dict]:
