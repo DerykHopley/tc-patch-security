@@ -11,28 +11,31 @@ import {
   type Product,
   type Severity,
 } from '../api.ts'
+import { Bars, ChartCard, Columns, SeverityLegend, StackedBars, Tooltip, type Tip } from '../components/charts.tsx'
 import { WarningIcon } from '../components/Icons.tsx'
+import { WelcomeBanner } from '../components/WelcomeBanner.tsx'
+import { SEVERITIES, sevLabel } from '../severity.ts'
 import '../styles/dashboard.css'
 
-// The dashboard (DESIGN.md §5): four candy tiles, the CVE table with row actions, the watchlist editor.
-// Every change goes to the backend's one state module, which the chat's tools share; then tiles and table reload.
-// Charts, side panels and Patch's welcome banner come with ticket "Dashboard: charts and side panels".
+// The dashboard (DESIGN.md §5): Patch's welcome banner, four candy tiles, three charts, the CVE table with row
+// actions; beside them the watchlist editor, the latest ATLAS incidents and the data's freshness.
+// Every change goes to the backend's one state module, which the chat's tools share; then tiles, charts and table reload.
 
 const PAGE_SIZE = 25
-const SEVERITIES: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 const STATUS_LABEL: Record<CveStatus, string> = { open: 'Open', fixed: 'Fixed', not_affected: 'Not affected' }
-const sevLabel = (s: Severity) => s[0] + s.slice(1).toLowerCase()
 type Note = { ok: boolean; text: string }
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
 
-/** `onAsk` opens Patch over the dashboard and asks about one CVE ("Ask about this", DESIGN.md §6.4). */
-export function DashboardPage({ onAsk }: { onAsk: (cveId: string) => void }) {
+// onAsk: "Ask about this" on a row opens Patch over the dashboard and asks about that CVE (DESIGN.md §6.4).
+// onAskPatch: the welcome banner's "Ask Patch" opens the chat.
+export function DashboardPage({ onAsk, onAskPatch }: { onAsk: (cveId: string) => void; onAskPatch: () => void }) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [page, setPage] = useState<CvePage | null>(null)
   const [query, setQuery] = useState<CveQuery>({ status: 'open', limit: PAGE_SIZE, offset: 0 })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [watchNote, setWatchNote] = useState<Note | null>(null) // kept here: saving remounts the editor
+  const [tip, setTip] = useState<Tip | null>(null)
 
   const loadSummary = useCallback(() => fetchDashboard().then(setData), [])
   const loadRows = useCallback(() => fetchCves(query).then(setPage), [query])
@@ -74,6 +77,7 @@ export function DashboardPage({ onAsk }: { onAsk: (cveId: string) => void }) {
   if (!data) {
     return (
       <div className="page dashboard">
+        <WelcomeBanner onAsk={onAskPatch} />
         {error ? (
           <p className="dash-error" role="alert">
             {error}
@@ -89,6 +93,7 @@ export function DashboardPage({ onAsk }: { onAsk: (cveId: string) => void }) {
 
   return (
     <div className="page dashboard">
+      <WelcomeBanner onAsk={onAskPatch} />
       {error && (
         <p className="dash-error" role="alert">
           {error}{' '}
@@ -100,6 +105,91 @@ export function DashboardPage({ onAsk }: { onAsk: (cveId: string) => void }) {
       <Tiles data={data} />
       <div className="dash-grid">
         <div className="dash-main">
+          <ChartCard
+            id="chart-product"
+            title="Open CVEs by product and severity"
+            legend={<SeverityLegend />}
+            table={
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th scope="col">Product</th>
+                    {SEVERITIES.map((s) => (
+                      <th key={s} scope="col">
+                        {sevLabel(s)}
+                      </th>
+                    ))}
+                    <th scope="col">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.by_product.map((p) => (
+                    <tr key={p.product}>
+                      <th scope="row">{p.name}</th>
+                      {SEVERITIES.map((s) => (
+                        <td key={s}>{p[s]}</td>
+                      ))}
+                      <td>{p.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            }
+          >
+            <StackedBars rows={data.by_product} onTip={setTip} />
+          </ChartCard>
+          <ChartCard
+            id="chart-month"
+            title="CVEs per month"
+            note="Watched products, all statuses, by publication date."
+            table={
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th scope="col">Month</th>
+                    <th scope="col">CVEs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.per_month.map((m) => (
+                    <tr key={m.month}>
+                      <th scope="row">{m.month}</th>
+                      <td>{m.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            }
+          >
+            <Columns data={data.per_month} onTip={setTip} />
+          </ChartCard>
+          <ChartCard
+            id="chart-owasp"
+            title="Open CVEs by OWASP category"
+            note={
+              data.owasp_unmapped > 0 ? `${data.owasp_unmapped} open CVEs have no CWE in OWASP's lists.` : undefined
+            }
+            table={
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th scope="col">Category</th>
+                    <th scope="col">Open CVEs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.by_owasp.map((o) => (
+                    <tr key={o.code}>
+                      <th scope="row">{o.title}</th>
+                      <td>{o.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            }
+          >
+            <Bars data={data.by_owasp.map((o) => ({ label: o.title.replace(':2025', ''), count: o.count }))} onTip={setTip} />
+          </ChartCard>
           <CveTable
             page={page}
             query={query}
@@ -114,8 +204,39 @@ export function DashboardPage({ onAsk }: { onAsk: (cveId: string) => void }) {
         <aside className="dash-side" aria-label="Dashboard side panels">
           {/* key: a newly saved watchlist resets the editor's unsaved picks */}
           <WatchlistEditor key={data.watchlist.join()} data={data} note={watchNote} onSave={saveWatchlist} />
+          <section className="card" aria-labelledby="incidents-title">
+            <h2 id="incidents-title">Latest AI incidents (MITRE ATLAS)</h2>
+            <ul className="side-list">
+              {data.latest_incidents.map((c) => (
+                <li key={c.id}>
+                  <a href={c.url} target="_blank" rel="noreferrer">
+                    {c.name}
+                  </a>
+                  <span className="meta">
+                    {c.date} · {c.id}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="card" aria-labelledby="freshness-title">
+            <h2 id="freshness-title">Data freshness</h2>
+            <ul className="side-list">
+              {data.freshness.map((s) => (
+                <li key={s.name}>
+                  <a href={s.url} target="_blank" rel="noreferrer">
+                    {s.name}
+                  </a>
+                  <span className="meta">
+                    {s.count.toLocaleString('en')} items · {s.licence} · retrieved {s.retrieved}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
         </aside>
       </div>
+      <Tooltip tip={tip} />
     </div>
   )
 }
