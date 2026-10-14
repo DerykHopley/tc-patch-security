@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { examples as fetchExamples, health, type Example, type Health } from './api.ts'
+import { AlertBanner, useAlertLink } from './chat/AlertBanner.tsx'
 import { ChatDivider } from './chat/ChatDivider.tsx'
 import { ChatWindow } from './chat/ChatWindow.tsx'
 import { PatchButton } from './chat/PatchButton.tsx'
@@ -42,6 +43,7 @@ export default function App() {
   const [page, setPage] = useState<Page>('dashboard')
   const chat = useChat()
   const layout = useChatLayout()
+  const [alertCve, alertDone] = useAlertLink()
   const chatOpen = layout.open
   const [examples, setExamples] = useState<Example[]>([])
   const patch = usePatch(chat, chatOpen) // one mood for the button and the chat header
@@ -56,6 +58,12 @@ export default function App() {
     layout.setOpen(true)
     // A chat that opens focuses its message box itself; one already open gets the focus back here.
     setTimeout(() => document.querySelector<HTMLTextAreaElement>('.chat-window textarea')?.focus())
+  }
+
+  // "Ask about this" and an alert's "Explain it": open the chat where it is and ask about one CVE (DESIGN.md §6.4).
+  function askAbout(cveId: string) {
+    openChat()
+    void chat.send(`Explain ${cveId} and how to defend against it.`)
   }
 
   function closeChat() {
@@ -174,9 +182,19 @@ export default function App() {
             {dark ? <SunIcon /> : <MoonIcon />}
           </button>
         </header>
+        {alertCve && (
+          <AlertBanner
+            cve={alertCve}
+            onExplain={() => {
+              alertDone()
+              askAbout(alertCve)
+            }}
+            onDismiss={alertDone}
+          />
+        )}
         <main>
           {page === 'dashboard' ? (
-            <DashboardPage />
+            <DashboardPage onAsk={askAbout} />
           ) : page === 'settings' ? (
             <SettingsPage asOf={status?.as_of ?? null} onOpenDashboard={() => setPage('dashboard')} />
           ) : (

@@ -615,6 +615,33 @@
   rotate: 0deg;
 }
 
+/* ---------- Alert link banner (§6.4): over the page, "Explain it" asks Patch ---------- */
+
+.alert-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  width: calc(100% - 2rem);
+  max-width: calc(1280px - 2rem);
+  margin: 0.8rem auto 0;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-input);
+  background: var(--warn-soft);
+  box-shadow: var(--shadow-card);
+}
+
+.alert-banner > svg {
+  flex: none;
+  color: var(--warn);
+}
+
+.alert-banner p {
+  flex: 1;
+  min-width: 12rem;
+  margin: 0;
+}
+
 /* ---------- Phones (§6.5, ≤ 700px): every layout is a full-screen sheet; no pin, no divider ---------- */
 
 @media (max-width: 700px) {

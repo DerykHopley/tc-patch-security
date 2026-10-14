@@ -25,7 +25,8 @@ const sevLabel = (s: Severity) => s[0] + s.slice(1).toLowerCase()
 type Note = { ok: boolean; text: string }
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
 
-export function DashboardPage() {
+/** `onAsk` opens Patch over the dashboard and asks about one CVE ("Ask about this", DESIGN.md §6.4). */
+export function DashboardPage({ onAsk }: { onAsk: (cveId: string) => void }) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [page, setPage] = useState<CvePage | null>(null)
   const [query, setQuery] = useState<CveQuery>({ status: 'open', limit: PAGE_SIZE, offset: 0 })
@@ -107,6 +108,7 @@ export function DashboardPage() {
             onFilter={filter}
             onPage={(offset) => setQuery((q) => ({ ...q, offset }))}
             onMark={mark}
+            onAsk={onAsk}
           />
         </div>
         <aside className="dash-side" aria-label="Dashboard side panels">
@@ -169,6 +171,7 @@ function CveTable({
   onFilter,
   onPage,
   onMark,
+  onAsk,
 }: {
   page: CvePage | null
   query: CveQuery
@@ -177,6 +180,7 @@ function CveTable({
   onFilter: (patch: Partial<CveQuery>) => void
   onPage: (offset: number) => void
   onMark: (id: string, status: CveStatus) => void
+  onAsk: (id: string) => void
 }) {
   const { offset } = query
   return (
@@ -286,6 +290,9 @@ function CveTable({
                         Reopen
                       </button>
                     )}
+                    <button type="button" aria-label={`Ask about this: ${r.id}`} onClick={() => onAsk(r.id)}>
+                      Ask about this
+                    </button>
                   </div>
                 </td>
               </tr>

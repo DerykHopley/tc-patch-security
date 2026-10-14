@@ -291,3 +291,84 @@ def test_a07_4_patch_sits_above_the_tab_bar(open_app):
     button, tab_bar = box(fab(page)), box(page.locator(".sidenav"))
     assert button["y"] + button["height"] <= tab_bar["y"]
     assert round(HEIGHT - (button["y"] + button["height"])) == 5 * REM
+
+
+# --- A07.5: "Ask about this" on a CVE row (DESIGN.md §6.4) -------------------------------------------------------
+
+def first_row_cve(page: Page) -> str:
+    row = page.locator("table.cves tbody tr").first
+    expect(row).to_be_visible()
+    return row.locator("td").first.get_by_role("link").inner_text()
+
+
+def test_a07_5_ask_about_this_opens_the_chat_over_the_dashboard_and_asks(open_app):
+    page = open_app()
+    cve = first_row_cve(page)
+    button = page.get_by_role("button", name=f"Ask about this: {cve}")
+    expect(button).to_have_text("Ask about this")
+    button.focus()
+    page.keyboard.press("Enter")  # reachable by keyboard
+    chat = window(page)
+    expect(chat).to_be_visible()
+    expect(page.locator("h1")).to_have_text("Dashboard")  # over the dashboard: the page stays
+    expect(chat.locator(".context-chip")).to_have_text("on Dashboard")
+    expect(chat.locator(".message.user")).to_have_text(f"Explain {cve} and how to defend against it.")
+    answer = chat.locator(".message.assistant")
+    expect(answer).to_have_count(1, timeout=10_000)
+    answer.get_by_role("button", name="Show", exact=False).click()
+    answer.get_by_role("tab", name="Tool calls", exact=False).click()
+    expect(answer.locator(".tool-card").first).to_contain_text(cve)
+
+
+def test_a07_5_ask_about_this_uses_a_pinned_chat_when_pinned(open_app):
+    page = open_app(init_script="localStorage.setItem('pinned', '1')")
+    cve = first_row_cve(page)
+    head_button(page, "Close the chat").click()
+    page.get_by_role("button", name=f"Ask about this: {cve}").click()
+    expect(head_button(page, UNPIN)).to_be_visible()
+    expect(window(page).locator(".message.user")).to_have_text(f"Explain {cve} and how to defend against it.")
+
+
+# --- A07.6: an alert link #cve=CVE-… (DESIGN.md §6.4) ------------------------------------------------------------
+
+ALERT_CVE = "CVE-2024-8309"
+
+
+def alert_banner(page: Page) -> Locator:
+    return page.get_by_role("region", name="Alert")
+
+
+def test_a07_6_alert_link_shows_a_banner_and_explain_it_asks_patch(open_app):
+    page = open_app(query=f"#cve={ALERT_CVE.lower()}")
+    banner = alert_banner(page)
+    expect(banner).to_contain_text(f"You opened an alert for {ALERT_CVE}.")
+    expect(window(page)).to_have_count(0)  # nothing asked until the user says so
+    banner.get_by_role("button", name="Explain it").click()
+    expect(window(page).locator(".message.user")).to_have_text(f"Explain {ALERT_CVE} and how to defend against it.")
+    expect(window(page).locator(".message.assistant")).to_have_count(1, timeout=10_000)
+    expect(alert_banner(page)).to_have_count(0)
+    assert "cve=" not in page.url  # a reload doesn't ask again
+    page.reload()
+    expect(page.get_by_role("heading", level=1)).to_be_visible()
+    expect(alert_banner(page)).to_have_count(0)
+
+
+def test_a07_6_dismiss_closes_the_banner_without_asking(open_app):
+    page = open_app(query=f"#cve={ALERT_CVE}")
+    alert_banner(page).get_by_role("button", name="Dismiss").click()
+    expect(alert_banner(page)).to_have_count(0)
+    expect(window(page)).to_have_count(0)
+    assert "cve=" not in page.url
+
+
+def test_a07_6_alert_link_followed_while_the_app_is_open(open_app):
+    page = open_app()
+    expect(alert_banner(page)).to_have_count(0)
+    page.evaluate(f"location.hash = 'cve={ALERT_CVE}'")
+    expect(alert_banner(page)).to_contain_text(ALERT_CVE)
+
+
+def test_a07_6_a_malformed_alert_link_is_ignored(open_app):
+    page = open_app(query="#cve=<img src=x onerror=alert(1)>")
+    expect(page.locator("h1")).to_be_visible()
+    expect(alert_banner(page)).to_have_count(0)
