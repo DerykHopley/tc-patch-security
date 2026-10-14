@@ -675,3 +675,15 @@
     display: none;
   }
 }
+
+/* check_affected's card (A15): the verdict chip and its facts, one per line. */
+.affected-card .verdict-lines .verdict-reason,
+.affected-card .verdict-lines .verdict-fact {
+  display: block;
+}
+
+.affected-list {
+  margin: 0.3rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.8rem;
+}

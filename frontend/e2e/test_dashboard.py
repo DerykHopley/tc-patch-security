@@ -35,10 +35,10 @@ def api(api_url: str, path: str, method: str = "GET", body: dict | None = None) 
 
 @pytest.fixture
 def clean_state(api_url: str):
-    """Default watchlist and every CVE open, before and after the test."""
+    """Default watchlist, default usage, version and internet-facing, and every CVE open, before and after the test."""
     def reset():
         products = [p["id"] for p in api(api_url, "/dashboard")["products"]]
-        api(api_url, "/watchlist", "PUT", {"products": products})
+        api(api_url, "/watchlist", "PUT", {"products": [{"product": p} for p in products]})  # A15: default fields
         for status in ("fixed", "not_affected"):
             for r in api(api_url, f"/cves?status={status}&limit=200")["rows"]:
                 api(api_url, f"/cves/{r['id']}", "PATCH", {"status": "open"})

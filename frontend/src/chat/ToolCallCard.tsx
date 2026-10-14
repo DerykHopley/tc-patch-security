@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import type { Epss, Severity, ToolCallRecord } from '../api.ts'
+import type { Epss, Severity, ToolCallRecord, Verdict, WhoActs } from '../api.ts'
 import { epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
+import { VERDICT_LABEL, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { SeverityBadge } from './SeverityBadge.tsx'
 
 // One card per tool call: name, arguments, status, time, and the result drawn for its tool. Errors in red.
@@ -19,6 +20,33 @@ interface CveResult {
   watch_status: 'open' | 'fixed' | 'not_affected' | 'not_watched'
   epss: Epss | null
   possible_match: boolean
+  verdict: Verdict
+  verdict_reason: string
+  fixed_version: string | null
+  who_acts: WhoActs
+}
+
+// check_affected (A15): one CVE's verdict, or a product's open CVEs by verdict.
+interface AffectedOne {
+  id: string
+  product: string
+  severity: Severity | null
+  verdict: Verdict
+  reason: string
+  fixed_version: string | null
+  who_acts: WhoActs
+  usage: string
+  version: string | null
+  possible_match: boolean
+}
+
+interface AffectedProduct {
+  product: string
+  usage: string
+  version: string | null
+  open: number
+  counts: Record<Verdict, number>
+  cves: { id: string; severity: Severity | null; verdict: Verdict; reason: string; fixed_version: string | null }[]
 }
 
 interface WeaknessResult {
@@ -58,7 +86,9 @@ function CveCard({ r }: { r: CveResult }) {
         {r.kev && <span className="chip kev">CISA KEV · due {r.kev.due}</span>}
         <span className="chip">{STATUS_LABEL[r.watch_status]}</span>
         {r.possible_match && <PossibleMatch />}
+        {r.verdict && <VerdictChip verdict={r.verdict} />}
       </div>
+      {r.verdict_reason && <p className="meta">Verdict: {r.verdict_reason}</p>}
       {r.epss && (
         <p className="meta">
           EPSS {epssScore(r.epss)} · {epssPercentile(r.epss)} · EPSS by FIRST, {r.epss.date}
@@ -72,6 +102,46 @@ function CveCard({ r }: { r: CveResult }) {
             <External href={r.owasp.url}>{r.owasp.title}</External>
           </>
         )}
+      </p>
+    </div>
+  )
+}
+
+function AffectedCard({ r }: { r: AffectedOne | AffectedProduct }) {
+  if ('counts' in r) {
+    return (
+      <div className="result-card affected-card">
+        <p className="result-title">
+          {r.product} · {r.usage} · {r.version ? `version ${r.version}` : 'no version given'}
+        </p>
+        <p className="meta">
+          {r.open} open: {(['affected', 'unknown', 'not_affected'] as Verdict[])
+            .map((v) => `${r.counts[v]} ${VERDICT_LABEL[v].toLowerCase()}`)
+            .join(', ')}
+        </p>
+        <ul className="affected-list">
+          {r.cves.map((c) => (
+            <li key={c.id}>
+              {c.id} <VerdictChip verdict={c.verdict} /> <span className="meta">{c.reason}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+  return (
+    <div className="result-card affected-card">
+      <p className="result-title">
+        {r.id} · {r.product} · {r.usage}
+        {r.version ? ` ${r.version}` : ''}
+      </p>
+      <div className="chips">
+        <VerdictChip verdict={r.verdict} />
+        <SeverityBadge severity={r.severity} cvss={null} />
+        {r.possible_match && <PossibleMatch />}
+      </div>
+      <p className="meta verdict-lines">
+        <VerdictFacts reason={r.reason} fixed={r.fixed_version} who={r.who_acts} />
       </p>
     </div>
   )
@@ -138,6 +208,7 @@ export function ToolCallCard({ call }: { call: ToolCallRecord }) {
   let body = null
   if (r && call.name === 'lookup_cve') body = <CveCard r={r as unknown as CveResult} />
   else if (r && call.name === 'explain_weakness') body = <WeaknessCard r={r as unknown as WeaknessResult} />
+  else if (r && call.name === 'check_affected') body = <AffectedCard r={r as unknown as AffectedOne | AffectedProduct} />
   else if (r && call.name === 'update_watchlist') body = <WatchlistCard r={r as unknown as WatchlistResult} />
   return (
     <article className={`tool-card ${call.status}`}>

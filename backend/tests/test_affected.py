@@ -21,9 +21,10 @@ def _row(client, cve_id, product):
 def test_a15_1_defaults_for_each_watched_product(client):
     body = client.get("/watchlist").json()
     assert body["watchlist"] == ["langchain", "langflow", "litellm", "ollama", "open-webui"]
-    assert [p["product"] for p in body["products"]] == body["watchlist"]
+    assert [p["product"] for p in body["products"] if p["watched"]] == body["watchlist"]
+    assert [p["product"] for p in body["products"]][:5] == body["watchlist"] and len(body["products"]) == 12
     assert _product(body, "langchain") == {
-        "product": "langchain", "name": "LangChain", "usage": "library", "version": None,
+        "product": "langchain", "name": "LangChain", "watched": True, "usage": "library", "version": None,
         "internet_facing": False, "coverage": "package", "ecosystem": "PyPI"}
     assert _product(body, "langflow")["usage"] == "self_hosted"
     assert _product(body, "ollama")["ecosystem"] == "Go"
@@ -32,8 +33,8 @@ def test_a15_1_defaults_for_each_watched_product(client):
 def test_a15_1_an_old_state_file_loads_with_defaults(settings, client):
     settings.state_path.write_text(json.dumps({"watchlist": ["ollama", "dify"], "statuses": {}}))
     body = client.get("/watchlist").json()
-    assert _product(body, "ollama") | {} == {
-        "product": "ollama", "name": "Ollama", "usage": "self_hosted", "version": None,
+    assert _product(body, "ollama") == {
+        "product": "ollama", "name": "Ollama", "watched": True, "usage": "self_hosted", "version": None,
         "internet_facing": False, "coverage": "package", "ecosystem": "Go"}
     assert _product(body, "dify")["coverage"] == "none" and _product(body, "dify")["ecosystem"] is None
 

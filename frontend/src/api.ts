@@ -184,6 +184,38 @@ export interface CveRow {
   url: string
   epss: Epss | null
   possible_match: boolean // product guessed from the description and not confirmed by OSV
+  // Am I affected? (A15): the version check's advice from the product's usage and version. Never the status.
+  verdict: Verdict
+  verdict_reason: string // e.g. "1.2.0 is before the fixed version 1.3.0 (langflow)", or why it's unknown
+  fixed_version: string | null
+  who_acts: WhoActs
+  usage: ProductUsage
+  version: string | null
+  internet_facing: boolean
+}
+
+export type Verdict = 'affected' | 'not_affected' | 'unknown'
+export type WhoActs = 'you' | 'upstream' | 'vendor'
+export type ProductUsage = 'self_hosted' | 'library' | 'transitive' | 'hosted'
+
+/** How you run one product (A15). `coverage` says whether OSV has versions for it at all. */
+export interface ProductFields {
+  product: string
+  usage: ProductUsage
+  version: string | null
+  internet_facing: boolean
+}
+
+export interface WatchedProduct extends ProductFields {
+  name: string
+  watched: boolean
+  coverage: 'package' | 'commits' | 'none'
+  ecosystem: 'PyPI' | 'npm' | 'Go' | null
+}
+
+export interface Watchlist {
+  watchlist: string[]
+  products: WatchedProduct[] // every product: watched first, in watchlist order
 }
 
 export interface CveQuery {
@@ -192,6 +224,7 @@ export interface CveQuery {
   status: CveStatus | 'all'
   kev?: boolean // only CVEs in CISA KEV (A04b: the KEV tile's link)
   published_since?: string // YYYY-MM-DD, inclusive (A04b: the "new in 30 days" tile's link)
+  verdict?: Verdict // A15
   limit: number
   offset: number
 }
@@ -213,14 +246,18 @@ export function cves(q: CveQuery): Promise<CvePage> {
   if (q.severity_min) params.set('severity_min', q.severity_min)
   if (q.kev !== undefined) params.set('kev', String(q.kev))
   if (q.published_since) params.set('published_since', q.published_since)
+  if (q.verdict) params.set('verdict', q.verdict)
   return request<CvePage>(`/cves?${params}`)
 }
 
 export const setStatus = (id: string, status: CveStatus) =>
   request<{ id: string; status: CveStatus }>(`/cves/${encodeURIComponent(id)}`, json('PATCH', { status }))
 
-export const setWatchlist = (products: string[]) =>
-  request<{ watchlist: string[] }>('/watchlist', json('PUT', { products }))
+export const getWatchlist = () => request<Watchlist>('/watchlist')
+
+/** Replace the watchlist. A plain id keeps that product's saved fields; an object replaces them. */
+export const setWatchlist = (products: (string | ProductFields)[]) =>
+  request<Watchlist>('/watchlist', json('PUT', { products }))
 
 // --- Settings page (A13): alert rules, channels, test alerts, the alerts log, reset
 
