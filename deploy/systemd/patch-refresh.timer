@@ -1,0 +1,12 @@
+# Every hour, start patch-refresh.service (B03, #36). Persistent: a tick missed while the machine was off runs at
+# the next boot. The random delay (under the refresh's 10-minute slack) spreads the calls to the feeds.
+[Unit]
+Description=Patch: hourly check of the refresh schedule
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=2min
+
+[Install]
+WantedBy=timers.target
