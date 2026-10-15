@@ -205,7 +205,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.get("/settings")
     def get_settings():
         return {"settings": deps.state.settings().model_dump(),
-                "channels": channel_status(deps.settings, deps.transports)}
+                "channels": channel_status(deps.settings, deps.transports), "alert_tz": deps.settings.alert_tz}
 
     @app.put("/settings")
     def put_settings(body: AppSettings):
@@ -258,9 +258,10 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     if deps.live and deps.settings.feeds == "fake":
         @app.post("/refresh/reset")
         def reset_live_data(body: ResetRequest):
-            """The fake feeds only: the live data back to the snapshot and an empty run log, so the browser check
+            """The fake feeds only: the live data back to the snapshot, an empty run log and no alerts, so the browser check
             can run Check now again (DECISIONS.md, 2026-10-15). The real feeds have no such route."""
             live_only().reset()
+            deps.state.clear_alerts()  # B04: so the next Check now alerts again
             deps.sync()
             return {"reset": True}
 

@@ -16,7 +16,8 @@ HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
 
 
 class AlertSettings(BaseModel):
-    """Saved now; the refresh worker in spec B reads them. Nothing checks for new CVEs yet."""
+    """The alert rules and channels a live refresh reads (app.alerts, B04). due_soon and overdue have no switch: they
+    are always on while `enabled` is. Quiet hours are in ALERT_TZ."""
     enabled: bool = True
     min_severity: Severity = "HIGH"
     kev: bool = True  # a watched CVE is added to CISA KEV

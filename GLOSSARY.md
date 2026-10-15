@@ -150,6 +150,18 @@ _Avoid_: trigger, type
 Where alerts are delivered: desktop, email or ntfy.
 _Avoid_: notifier (that's the code), sink
 
+**Digest**:
+One message for many alerts: more than the digest limit in one check (default 5), or what quiet hours held. It gives counts by alert reason, never the CVE ids.
+_Avoid_: summary, batch
+
+**Quiet hours**:
+A daily time window in which alerts are held, then sent as one digest when it ends.
+_Avoid_: do not disturb, mute
+
+**Alerts log**:
+The record of every alert message: when, why, and what each channel did with it (sent, recorded only, not set up, failed). The dashboard's "Recent alerts" card shows the last 20.
+_Avoid_: history (that's a CVE's decisions), notifications
+
 ### The assistant
 
 **Patch**:

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react
 import { cves as fetchCves, dashboard as fetchDashboard, type CveRow, type Dashboard as DashboardData } from '../api.ts'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
 import { Bars, ChartCard, Columns, SeverityLegend, StackedBars, Tooltip, type Tip } from '../components/charts.tsx'
+import { AlertsCard } from '../components/AlertsLog.tsx'
 import { FreshnessCard } from '../components/Freshness.tsx'
 import { WarningIcon } from '../components/Icons.tsx'
 import { OverdueMark, PriorityChip, PriorityReasons } from '../components/Priority.tsx'
@@ -220,6 +221,7 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
               ))}
             </ul>
           </section>
+          <AlertsCard data={data.data} onNavigate={onNavigate} />
           <FreshnessCard data={data.data} asOf={data.as_of} sources={data.freshness} />
         </aside>
       </div>
