@@ -253,11 +253,16 @@ class FakeLLM:
     @staticmethod
     def _answer(script: dict | None, results: list[tuple[str, dict]], level: str = "normal") -> str:
         """The template's fields, each from its tool by name (the result shapes are the tools' declared models)."""
+        from app.tools.registry import UNFINISHED  # here: the registry imports the tools, which import the LLM base
+
         fields: dict = {}
         sources: list[dict] = []
+        unfinished: list[tuple[str, str]] = []  # B20: steps that didn't finish (a timeout, a rate limit)
         for name, data in results:
             if "error" in data and isinstance(data["error"], dict):
                 fields["error"] = data["error"]["message"]
+                if data["error"].get("code") in UNFINISHED:
+                    unfinished.append((name, data["error"]["message"]))
             elif name == "search_security":
                 sources += data["sources"]
             elif name == "check_affected":  # one CVE, or one product's open CVEs (A15)
@@ -286,10 +291,15 @@ class FakeLLM:
                 parts.append(f"{head}\n\n{_bullets(sources, 3 if 'cve' in fields else 2)}")
             return "\n\n".join(parts) or NOTHING_FOUND
         limit = script.get("limit", 3)
-        fields["sources"] = _bullets(sources, limit)
+        searched = not any(name == "search_security" for name, _ in unfinished)
+        fields["sources"] = _bullets(sources, limit) if searched else "- Missing: the knowledge-base search didn't finish."
         fields["cites"] = " ".join(f"[{s['n']}]" for s in sources[:limit])
         template = script["answers"][level] if "answers" in script else script["answer"]
         try:
-            return template.format(**fields)
+            text = template.format(**fields)
         except KeyError:
             return f"Sorry, a tool didn't give me what I needed: {fields.get('error', 'no result')}"
+        for name, message in unfinished:  # never claim a step that failed: say so, and what Try again does
+            text += (f"\n\nOne step didn't finish: {name} ({message}) I left its part out instead of guessing. "
+                     "Try again on its tool card runs that step again.")
+        return text

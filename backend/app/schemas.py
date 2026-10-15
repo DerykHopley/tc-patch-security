@@ -58,6 +58,7 @@ class ToolCallRecord(BaseModel):
     result: dict | None = None
     error: dict | None = None  # {code, message}
     duration_ms: float
+    retryable: bool = False  # B20: an error that may pass on a second try (a timeout, a rate limit): "Try again"
 
 
 class Usage(BaseModel):

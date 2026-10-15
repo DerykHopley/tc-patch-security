@@ -56,10 +56,24 @@ export function useSettings() {
     setSaved(false)
   }
 
+  /** B20: whether a part has unsaved edits, so a failed save can show its error in that part's card. `only` or
+   *  `except` narrow a group to some of its keys (the Delivery card is alerts' `channels`). */
+  function changed(part: keyof AppSettings, keys: { only?: string[]; except?: string[] } = {}): boolean {
+    if (!reply || !draft) return false
+    const before = reply.settings[part]
+    const edited = draft[part]
+    if (typeof before !== 'object' || typeof edited !== 'object') return before !== edited
+    const a = before as unknown as Record<string, unknown>
+    const b = edited as unknown as Record<string, unknown>
+    return Object.keys({ ...a, ...b })
+      .filter((k) => (!keys.only || keys.only.includes(k)) && !keys.except?.includes(k))
+      .some((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]))
+  }
+
   function discard() {
     if (reply) setDraft(reply.settings)
     setError(null)
   }
 
-  return { reply, draft, dirty, saving, saved, error, save, discard, patch, setValue, reload: load }
+  return { reply, draft, dirty, saving, saved, error, save, discard, patch, setValue, changed, reload: load }
 }
