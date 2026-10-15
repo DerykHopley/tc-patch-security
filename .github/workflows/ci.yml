@@ -1,22 +1,61 @@
-# Tests on every push and pull request: backend tests, type check, lint, and the browser check
-# in Firefox and Chromium. FakeLLM and a throwaway state file: no keys, no secrets, no network calls
-# from the app. proto/ is frozen and not checked here.
+# Tests: backend tests, type check, lint, the fixed-wait check, and the browser check in Firefox and Chromium.
+# FakeLLM and a throwaway state file: no keys, no secrets, no network calls from the app. proto/ is frozen and not
+# checked here.
+#
+# Once per commit (#56, retro finding 2):
+# - A push to main or spec-* runs here. Every push keeps its own run: a later push doesn't cancel it, so each
+#   commit on an integration branch keeps its verdict.
+# - A pull request runs here only from other branches. A pull request from main or spec-* (e.g. spec-a into main)
+#   would repeat its push run, so its jobs are skipped. A newer push to such a pull request cancels the older run.
+# - Other branches run nothing on a push: open a pull request.
+# - When a push (or a pull request, against its base) changes only docs (docs/**, *.md at the root), the browser
+#   check is skipped. The backend tests and the type check still run: they're quick, and docs/report/ is built by
+#   backend code. Markdown elsewhere (e.g. the knowledge base in backend/) isn't docs and runs everything.
 name: CI
 
 on:
   push:
+    branches: [main, "spec-*"]
   pull_request:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Integration branches: a group per run, so nothing is cancelled or dropped from the queue.
+  group: ci-${{ github.ref }}-${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/spec-')) && github.run_id || 'latest' }}
+  cancel-in-progress: ${{ !(github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/spec-')) }}
 
 jobs:
+  changes:
+    name: What changed
+    # Skips a pull request from an integration branch: its push run already checks the same commit.
+    if: github.event_name == 'push' || !(github.head_ref == 'main' || startsWith(github.head_ref, 'spec-'))
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.diff.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          # A push: what this push added. A pull request: everything since it left its base.
+          RANGE: ${{ github.event_name == 'push' && format('{0}..{1}', github.event.before, github.sha) || format('{0}...{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
+        run: |
+          # A new branch (before = 000...), a force push past history we can't see, or no files: run everything.
+          if files="$(git diff --name-only "$RANGE")" && [ -n "$files" ] \
+              && ! grep -qvE '^docs/|^[^/]+\.md$' <<<"$files"; then
+            echo "docs_only=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "docs_only=false" >>"$GITHUB_OUTPUT"
+          fi
+          echo "Changed in $RANGE:"
+          echo "${files:-(could not compare: running everything)}"
+
   backend:
     name: Backend tests
+    needs: changes
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -35,6 +74,7 @@ jobs:
 
   frontend:
     name: Type check and lint
+    needs: changes
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -50,9 +90,13 @@ jobs:
       - run: npx tsc -b
       - run: npm run lint
       - run: npm test # unit tests (node --test): Patch's pose pick
+      # A fixed wait in the browser check needs '# allowed: <reason>' on its line (#56). Standard library only.
+      - run: python3 e2e/check_waits.py
 
   browser:
     name: Browser check (Firefox and Chromium)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
