@@ -63,6 +63,13 @@ const ROUND_TRIPS = [
     context: { status: 'open', since: '2026-09-14' },
     words: ['Since 2026-09-14'],
   },
+  {
+    url: '?new=1', // B05: new since the last check
+    view: { status: 'open', new: true },
+    query: '/cves?new=1&limit=25&offset=0',
+    context: { status: 'open', new: true },
+    words: ['New since last check'],
+  },
 ] as const
 
 for (const t of ROUND_TRIPS) {
@@ -77,17 +84,18 @@ for (const t of ROUND_TRIPS) {
 }
 
 test('every filter at once keeps one order in the URL, the query and the words', () => {
-  const url = '?product=langflow&severity=CRITICAL&status=accepted&verdict=unknown&kev=1&since=2025-01-01'
+  const url = '?product=langflow&severity=CRITICAL&status=accepted&verdict=unknown&kev=1&since=2025-01-01&new=1'
   const view = viewFromSearch(url)
   assert.equal(viewToSearch(view), url)
   assert.equal(cvesQuery(view, 5, 10), `/cves${url}&limit=5&offset=10`)
   assert.deepEqual(contextWords({ ...viewToContext(view), cve: 'CVE-2025-3248' }, 'Langflow'), [
-    'Langflow', 'Critical or worse', 'Accepted', 'Unknown', 'In KEV', 'Since 2025-01-01', 'CVE-2025-3248',
+    'Langflow', 'Critical or worse', 'Accepted', 'Unknown', 'In KEV', 'Since 2025-01-01', 'New since last check',
+    'CVE-2025-3248',
   ])
 })
 
 test('malformed values are dropped: the URL is text from outside', () => {
-  assert.deepEqual(viewFromSearch('?severity=HUGE&status=closed&kev=maybe&since=yesterday&verdict=maybe'), { status: 'open' })
+  assert.deepEqual(viewFromSearch('?severity=HUGE&status=closed&kev=maybe&since=yesterday&verdict=maybe&new=yes'), { status: 'open' })
   assert.deepEqual(viewFromSearch('?product=lang%3Bflow'), { status: 'open' })
   assert.deepEqual(viewFromSearch('?severity=critical'), { status: 'open', severity: 'CRITICAL' })
 })

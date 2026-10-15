@@ -170,7 +170,8 @@ DEFAULT_USER = "default"  # the one local user; per-user state (B09) runs this p
 
 
 class Alerter:
-    """The refresh's step 4 for each user (one today): the alerts for what changed, sent once.
+    """The refresh's step 4 for each user (one today): the alerts for what changed, sent once. After a good fetch it
+    also keeps the diff's new CVEs as the user's "new since last check" (B05), whether alerts are on or not.
 
     The alerts log has one entry per message sent, newest first: `kind` "alert" (one alert, with its `cve` and
     `reason`) or "digest" (several, `cve` and `reason` None), `alerts` [{cve, reason, priority}], the message
@@ -183,27 +184,31 @@ class Alerter:
         self.settings, self.state, self.transports = settings, state, transports
 
     def __call__(self, previous: dict | None, current: dict | None, folder: Path | None,
-                 now: dt.datetime) -> dict[str, list[dict]]:
+                 now: dt.datetime, complete: bool = True) -> dict[str, list[dict]]:
         """`previous` and `current`: the live versions before and after the run, `folder` the current one's
-        folder (None, None, None after a failed fetch: then only held alerts can go out)."""
-        return {DEFAULT_USER: self._for_user(self.state, previous, current, folder, now)}
+        folder (None, None, None after a failed fetch: then only held alerts can go out). `complete` False: a
+        partial run (B20), which doesn't count as a check for "new since last check"."""
+        return {DEFAULT_USER: self._for_user(self.state, previous, current, folder, now, complete)}
 
-    def _for_user(self, state, previous, current, folder, now: dt.datetime) -> list[dict]:
+    def _for_user(self, state, previous, current, folder, now: dt.datetime, complete: bool = True) -> list[dict]:
+        at = now.astimezone(dt.UTC).isoformat(timespec="seconds")
+        changes = diff(previous, current) if current is not None and previous is not None else None
+        if changes is not None:  # B05: the CVEs page's "new since last check", alerts on or off
+            state.note_new_cves(list(changes.new), at, complete)
         s = state.settings().alerts
         if not s.enabled:
             return []
-        at = now.astimezone(dt.UTC).isoformat(timespec="seconds")
         local = now.astimezone(zoneinfo.ZoneInfo(self.settings.alert_tz)).time()
         quiet = in_quiet_hours(local, s.quiet_start, s.quiet_end)
         out = []
         if not quiet and (held := state.take_held_alerts()):
             out += self._send(state, [held], s, at)  # quiet hours are over: what they held, as one message
-        if current is None or previous is None:
+        if changes is None:
             return out
         knowledge = load_knowledge(folder)
         as_of = now.astimezone(dt.UTC).date().isoformat()
         rows = {r["id"]: r for r in WatchedCves(knowledge, state, as_of).rows(status="all")}
-        alerts = rules(diff(previous, current), rows, s, as_of)
+        alerts = rules(changes, rows, s, as_of)
         fresh = state.claim_alerts([a.key for a in alerts], at)
         messages = [{"cve": a.cve, "reason": a.reason,
                      **format_alert(knowledge.cves.get(a.cve), a.reason, knowledge, self.settings.app_url,

@@ -50,6 +50,12 @@ def _upgraded(entry: dict) -> dict:
     return {"kind": "test", "cve": None, "reason": None, "alerts": [], **entry, "channels": [result]}
 
 
+def _new_since_check(data: dict) -> list[str]:
+    """New since last check (B05): what the last check found new, and what partial runs since then found."""
+    saved = data.get("new_since_check", {})
+    return [*saved.get("cves", []), *saved.get("pending", [])]
+
+
 def _default_fields(pid: str) -> dict:
     """A product's fields until you save them, or in a file saved before A15."""
     return {"usage": "library" if pid in LIBRARY_PRODUCTS else "self_hosted", "version": None,
@@ -75,6 +81,7 @@ class YourStack:
     settings: AppSettings  # the saved settings over the defaults
     dev: DevSettings  # the dev panel's saved choices over the defaults
     alerts_log: tuple[Mapping, ...]  # newest first
+    new_since_check: frozenset[str]  # B05: the CVEs your previous check found new (none before a check)
     _fields: Mapping[str, Mapping]  # product id → its saved fields
     _history: Mapping[str, tuple[Mapping, ...]]  # CVE id → its decision records, oldest first
 
@@ -137,7 +144,8 @@ class State:
             watchlist=tuple(data["watchlist"]), statuses=_freeze(data["statuses"]),
             settings=self._merged_settings(data.get("settings", {})),
             dev=DevSettings.model_validate(self.dev_defaults.model_dump() | data.get("dev", {})),
-            alerts_log=_freeze(data.get("alerts_log", [])), _fields=_freeze(data.get("product_settings", {})),
+            alerts_log=_freeze(data.get("alerts_log", [])),
+            new_since_check=frozenset(_new_since_check(data)), _fields=_freeze(data.get("product_settings", {})),
             _history=_freeze(data["history"]))
 
     def fork(self, path: Path) -> "State":
@@ -321,11 +329,24 @@ class State:
                 self._save(data)
             return held
 
-    def clear_alerts(self) -> None:
-        """No alerts sent, held or logged (the fake feeds' reset, for the browser check)."""
+    def note_new_cves(self, cve_ids: list[str], at: str, complete: bool = True) -> None:
+        """One run's new CVEs (B05: the CVEs page's "New" chip and filter), in the user's own state
+        (`new_since_check`), so it moves per user with B09. A complete run (every feed answered, so last checked
+        moves) is a check: its new CVEs, with those of the partial runs (B20) since the previous check, replace the
+        list. A partial run isn't a check: its new CVEs wait in `pending`, and show as new at once."""
         with self._lock:
             data = self._load()
-            for key in ("alerted", "alerts_held", "alerts_log"):
+            saved = data.get("new_since_check", {})
+            pending = list(dict.fromkeys([*saved.get("pending", []), *cve_ids]))
+            data["new_since_check"] = ({"at": at, "cves": pending, "pending": []} if complete else
+                                       {**saved, "pending": pending})
+            self._save(data)
+
+    def clear_alerts(self) -> None:
+        """No alerts sent, held or logged, and nothing new (the fake feeds' reset, for the browser check)."""
+        with self._lock:
+            data = self._load()
+            for key in ("alerted", "alerts_held", "alerts_log", "new_since_check"):
                 data.pop(key, None)
             self._save(data)
 
