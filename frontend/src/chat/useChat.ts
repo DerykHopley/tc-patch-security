@@ -25,20 +25,19 @@ function toHistory(messages: Message[]): Turn[] {
 }
 
 /** One conversation for the whole app, so moving between pages never loses it. `pageContext`: what the user is
- *  looking at now (A18), sent with each message. */
-export function useChat(pageContext: PageContext) {
+ *  looking at at the moment of asking (A18, usePageContext's `current`), sent with each message. */
+export function useChat(pageContext: () => PageContext) {
   const [messages, setMessages] = useState<Message[]>([])
   const [pending, setPending] = useState(false)
   // A level picked in the chat header for the next question only (A19); null = the saved level.
   const [nextLevel, setNextLevel] = useState<ExplainLevel | null>(null)
 
-  /** savedLevel: ignore a level picked for the next question ("Explain it" and "Ask about this" use the saved one).
-   *  context: send this page context instead of the current one ("Ask about this" selects its CVE in the same click). */
-  async function send(text: string, { savedLevel = false, context }: { savedLevel?: boolean; context?: PageContext } = {}) {
+  /** savedLevel: ignore a level picked for the next question ("Explain it" and "Ask about this" use the saved one). */
+  async function send(text: string, { savedLevel = false }: { savedLevel?: boolean } = {}) {
     if (pending) return
     const history = toHistory(messages)
     const level = savedLevel ? undefined : (nextLevel ?? undefined)
-    const page = context ?? pageContext
+    const page = pageContext()
     if (!savedLevel) setNextLevel(null)
     setMessages((ms) => [...ms, { id: nextId++, role: 'user', content: text }])
     setPending(true)

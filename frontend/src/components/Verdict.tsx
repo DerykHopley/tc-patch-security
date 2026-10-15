@@ -3,12 +3,9 @@ import type { ProductUsage, Verdict, WhoActs } from '../api.ts'
 // Am I affected? (A15): the version check's verdict, shown the same way on the CVEs page and in Patch's cards.
 // The verdict is advice; the CVE's status stays the user's decision. Never colour alone: the chip carries the word.
 
-export const VERDICTS: Verdict[] = ['affected', 'not_affected', 'unknown']
-export const VERDICT_LABEL: Record<Verdict, string> = {
-  affected: 'Affected',
-  not_affected: 'Not affected',
-  unknown: 'Unknown',
-}
+import { VERDICT_LABEL } from '../verdict.ts'
+
+export { VERDICT_LABEL, VERDICTS } from '../verdict.ts'
 export const WHO_ACTS_LABEL: Record<WhoActs, string> = { you: 'you', upstream: 'upstream', vendor: 'the vendor' }
 export const WHO_ACTS_TITLE: Record<WhoActs, string> = {
   you: 'You run it yourself: upgrade it.',
