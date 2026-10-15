@@ -39,6 +39,28 @@ def test_b20_1_a_failed_nvd_is_partial_and_the_other_feeds_are_kept_and_used(liv
     assert live.client.get("/health").json()["last_checked"] == f"{DAY1}T09:00:00+00:00"
 
 
+def test_b20_1_only_the_feeds_decide_partial_and_a_partial_run_still_sends_alerts(tmp_path):
+    import datetime as dt
+
+    from app.feeds import FakeFeeds
+    from app.live_data import LiveData
+    from app.refresh import Refresher
+
+    seen = []
+
+    def alerter(previous, files, folder, now):
+        seen.append(files is not None)
+        raise RuntimeError("ntfy down")
+
+    clock = lambda: dt.datetime(2026, 10, 15, 9, tzinfo=dt.UTC)  # noqa: E731
+    r = Refresher(LiveData(tmp_path / "live"), FakeFeeds(day=2), clock, alerter).run("cli").result
+    assert r.status == "ok" and [e.source for e in r.errors] == ["alerts"]  # a failed alert isn't a failed feed
+
+    r = Refresher(LiveData(tmp_path / "live2"), FakeFeeds(day=2, fail="nvd"), clock, alerter).run("cli").result
+    assert r.status == "partial" and [e.source for e in r.errors] == ["nvd", "alerts"]
+    assert seen == [True, True]  # the partial run's written data went to the alerts too
+
+
 def sources(client) -> dict[str, dict]:
     return {s["id"]: s for s in client.get("/dashboard").json()["freshness"]}
 
