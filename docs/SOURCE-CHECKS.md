@@ -78,6 +78,15 @@ Coverage of our 12 products (unique CVEs after de-duplication, against the snaps
 - 5 requests per 30 s without a key, 50 with one.
 - Required notice: "This product uses the NVD API but is not endorsed or certified by the NVD." https://nvd.nist.gov/developers/terms-of-use
 
+### What B03's adapter relies on (2026-10-15, `backend/app/feeds.py`)
+
+- `resultsPerPage` up to 2,000, paged with `startIndex` until `totalResults`: *checked* by `feasibility/fetch.py`'s runs on 2026-10-13.
+- Dates sent as `2026-10-15T09:00:00.000Z`: the same format `feasibility/fetch.py` used for `pubStartDate` and got answers. *Unverified* for `lastModStartDate`; the real run (#40) checks it.
+- The key goes in an `apiKey` header (NVD's developer docs). *Unverified* here: no key was used.
+- Pacing is a rolling window: at most 5 (or 50) requests in any 30 s. Tested against a fake server only.
+- EPSS: `limit` is set to the batch size, since the API returns 100 rows by default (*unverified*, from the API docs; the snapshot fetch already set it). Each `cve=` list is at most 2,000 characters, commas literal.
+- None of the four services was called while building B03: every test uses a local fake server.
+
 ## CISA KEV
 
 - Feed: https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json (catalogue 2026.10.13, 1,741 entries).

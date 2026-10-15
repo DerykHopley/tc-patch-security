@@ -1,7 +1,7 @@
 """The snapshot build (scripts/build_fixtures.py), moved from proto. Check ids: A14.n, from ticket #16.
 
 No test calls the network: the build reads the committed raw downloads (snapshot_raw/), and the
-fetch step is tested with fake OSV and EPSS servers.
+fetch step is tested against a local fake HTTP server (tests/fake_http.py).
 """
 import json
 
@@ -112,46 +112,26 @@ def test_a14_4_epss_score_percentile_and_date_per_cve():
     assert out["counts"] == {"scored": 2, "missing": 3}
 
 
-def test_a14_4_epss_fetched_in_batches_of_at_most_2000_characters():
-    ids = [f"CVE-2025-{n:05d}" for n in range(300)]  # 300 x 15 chars + commas: three calls
-    urls = []
+def test_b03_10_the_snapshot_fetch_uses_the_real_feeds_adapter(tmp_path, fake_http):
+    """The fetchers moved to app.feeds.HttpFeeds (batching and paging: B03.4, B03.5); --fetch saves their replies."""
+    from app.feeds import FeedUrls, HttpFeeds
 
-    def get_json(url):
-        urls.append(url)
-        asked = url.split("cve=")[1].split("&")[0].split(",")
-        return {"data": [{"cve": c, "epss": "0.1", "percentile": "0.5", "date": "2026-10-13"} for c in asked]}
+    fake_http.on("/osv", lambda seen: (200, {"vulns": [rec("GHSA-aaaa", ["CVE-2025-0001"], "langflow",
+                                                           [{"introduced": "0"}], details="long text")]}
+                                       if seen.body["package"]["name"] == "langflow" else {}))
+    fake_http.on("/epss", lambda seen: (200, {"data": [
+        {"cve": c, "epss": "0.1", "percentile": "0.5", "date": seen.query["date"]}
+        for c in seen.query["cve"].split(",")]}))
+    feeds = HttpFeeds(urls=FeedUrls.at(fake_http.url))
 
-    raw = add.fetch_epss(get_json, ids, date="2026-10-13", sleep=lambda s: None)
-    assert len(urls) == 3
-    assert all(u.startswith(add.EPSS_API + "?") and "date=2026-10-13" in u for u in urls)
-    assert all(len(u.split("cve=")[1].split("&")[0]) <= 2000 for u in urls)
-    assert sorted(r["cve"] for r in raw["rows"]) == ids and raw["date"] == "2026-10-13"
+    build.fetch_additions(tmp_path, ["CVE-2025-0001", "CVE-2025-0002"], feeds=feeds)
 
-
-def test_a14_3_osv_queried_by_package_with_pages_and_trimmed():
-    calls = []
-
-    def post_json(url, body):
-        calls.append((url, body))
-        name = body["package"]["name"]
-        if name == "langflow" and "page_token" not in body:
-            return {"vulns": [rec("GHSA-aaaa", ["CVE-2025-0001"], "langflow", [{"introduced": "0"}],
-                                  details="long text", database_specific={"x": 1})],
-                    "next_page_token": "p2"}
-        if name == "langflow":
-            return {"vulns": [rec("GHSA-bbbb", ["CVE-2025-0002"], "langflow", [{"introduced": "0"}])]}
-        return {}
-
-    packages = {"langflow": {"coverage": "package", "packages": [("PyPI", "langflow")]},
-                "ollama": {"coverage": "package", "packages": [("Go", "github.com/ollama/ollama")]},
-                "dify": {"coverage": "none", "packages": []}}
-    raw = add.fetch_osv(post_json, packages, sleep=lambda s: None)
-    assert all(url == add.OSV_QUERY for url, _ in calls)
-    assert [b["package"] for _, b in calls] == [{"ecosystem": "PyPI", "name": "langflow"}] * 2 + [
-        {"ecosystem": "Go", "name": "github.com/ollama/ollama"}]
-    assert calls[1][1]["page_token"] == "p2"
-    assert [r["id"] for r in raw["PyPI/langflow"]] == ["GHSA-aaaa", "GHSA-bbbb"] and raw["Go/github.com/ollama/ollama"] == []
-    assert set(raw["PyPI/langflow"][0]) == {"id", "aliases", "published", "modified", "affected"}
+    osv = json.loads((tmp_path / "osv.json").read_text())
+    assert [r["id"] for r in osv["packages"]["PyPI/langflow"]] == ["GHSA-aaaa"]
+    assert osv["packages"]["Go/github.com/ollama/ollama"] == []
+    assert set(osv["packages"]["PyPI/langflow"][0]) == {"id", "aliases", "published", "modified", "affected"}
+    epss = json.loads((tmp_path / "epss.json").read_text())
+    assert epss["date"] == build.AS_OF and [r["cve"] for r in epss["rows"]] == ["CVE-2025-0001", "CVE-2025-0002"]
 
 
 def test_a14_8_additions_built_from_a_small_fake_input(tmp_path):

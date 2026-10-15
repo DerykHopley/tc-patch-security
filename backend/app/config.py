@@ -22,7 +22,7 @@ LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "::1"]
 # The one user while sign-in is off (spec B: per-user state comes with B09). Per-user counters key by this id.
 DEFAULT_USER = "local"
 DATA_MODES = ("snapshot", "live")  # snapshot: frozen data, as of its date (the default and the tests); live: refreshed
-FEED_KINDS = ("fake",)  # the fake feeds (B02); the real ones come with B03 (#36)
+FEED_KINDS = ("fake", "real")  # fake: the made-up day data sets (B02, no network); real: NVD, KEV, EPSS, OSV (B03)
 
 
 def snapshot_date() -> str:
@@ -113,6 +113,7 @@ class Settings:
     live_path: pathlib.Path = ROOT / "data" / "live"  # the live data's versions and the refresh log
     feeds: str = "fake"
     fake_feeds_day: int = 2  # which data set the fake feeds serve (fixtures/fake_feeds/day<n>.json)
+    nvd_api_key: str = ""  # optional (B03): NVD allows 50 requests per 30 s with it, 5 without. A secret: .env only
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -153,6 +154,7 @@ class Settings:
             live_path=_path("LIVE_PATH", cls.live_path),
             feeds=_env("FEEDS", cls.feeds).lower(),
             fake_feeds_day=_int("FAKE_FEEDS_DAY", cls.fake_feeds_day),
+            nvd_api_key=_env("NVD_API_KEY"),
         )
 
     def check(self) -> None:

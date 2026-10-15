@@ -13,6 +13,7 @@ A fetch failure stops before step 3: the data and `last_checked` stay as they we
 One lock (a file lock, so the CLI and the server share it) and at most one run per 5 minutes, whoever triggers it.
 A refused run says when the next one is allowed, with the last run's result.
 """
+import argparse
 import contextlib
 import datetime as dt
 import fcntl
@@ -20,7 +21,7 @@ import json
 import logging
 import sys
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from typing import Literal
 
 from pydantic import BaseModel
@@ -280,18 +281,65 @@ def make_refresher(settings: Settings, feeds: Feeds | None = None, clock=utc_now
     return Refresher(LiveData(settings.live_path), feeds or make_feeds(settings), clock)
 
 
-def main() -> int:
-    """`uv run python -m app.refresh`: one run, as Check now does it. Prints the reply as JSON."""
+# --- The schedule (B03): an hourly timer calls this; Settings' schedule_hours decides whether it runs ---------------
+
+SCHEDULE_SLACK = dt.timedelta(minutes=10)  # a timer tick this early still counts, so 6 hours doesn't drift to 7
+
+
+def schedule_due(refresher: Refresher, schedule_hours: int) -> dt.datetime | None:
+    """When the scheduled refresh is next due: `schedule_hours` after the last good check (a failed run doesn't count,
+    so the next tick tries again), less the slack. None: never checked, so due now."""
+    last = refresher.last_checked()
+    return dt.datetime.fromisoformat(last) + dt.timedelta(hours=schedule_hours) - SCHEDULE_SLACK if last else None
+
+
+def run_scheduled(refresher: Refresher, schedule_hours: int) -> CheckReply | None:
+    """The scheduled refresh: the same run as Check now, or None (skipped, nothing fetched) when it isn't due yet."""
+    due = schedule_due(refresher, schedule_hours)
+    if due and refresher.clock() < due:
+        log.info("Scheduled refresh skipped: last checked %s, next due %s (every %d h).",
+                 refresher.last_checked(), _iso(due), schedule_hours)
+        return None
+    return refresher.run("schedule")
+
+
+def _schedule_hours(settings: Settings) -> int:
+    from app.app_settings import default_settings
+    from app.state import State
+
+    return State(settings.state_path, None, default_settings(settings)).read().settings.alerts.schedule_hours
+
+
+def main(argv: Sequence[str] = ()) -> int:
+    """`uv run python -m app.refresh`: one run, as Check now does it. Prints the reply as JSON.
+
+    `--schedule` (the hourly systemd timer, deploy/systemd/): run only if Settings' schedule_hours have passed since
+    the last check; otherwise print the skip and exit 0.
+    """
+    parser = argparse.ArgumentParser(prog="python -m app.refresh", description="Refresh the live CVE data.")
+    parser.add_argument("--schedule", action="store_true",
+                        help="the scheduled run: skip unless the Settings schedule has passed since the last check")
+    args = parser.parse_args(list(argv))
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     settings = Settings.from_env()
     settings.check()
     if settings.data_mode != "live":
         print("DATA_MODE is snapshot: the data is frozen. Set DATA_MODE=live to refresh it.", file=sys.stderr)
         return 2
-    reply = make_refresher(settings).run("cli")
+    refresher = make_refresher(settings)
+    if args.schedule:
+        hours = _schedule_hours(settings)
+        reply = run_scheduled(refresher, hours)
+        if reply is None:
+            due = schedule_due(refresher, hours)
+            print(json.dumps({"ran": False, "skipped": "not_due", "last_checked": refresher.last_checked(),
+                              "next_due": _iso(due) if due else None, "schedule_hours": hours}, indent=1))
+            return 0
+    else:
+        reply = refresher.run("cli")
     print(reply.model_dump_json(indent=1))
     return 0 if reply.ran and reply.result and reply.result.ok else 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
