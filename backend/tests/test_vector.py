@@ -88,13 +88,32 @@ def test_a09_1_build_script_writes_the_index_the_app_loads(knowledge, tmp_path, 
     assert deps.index.search("indirect prompt injection", k=3)
 
 
-def test_a09_1_app_refuses_to_start_on_a_mismatch(knowledge, tmp_path):
+def test_a09_1_a_stale_free_hash_index_rebuilds_itself(knowledge, tmp_path, caplog):
+    """Review item 12: the hash index costs nothing, so other data (a new snapshot) or another hash size is
+    rebuilt at start-up, with a log line, instead of refusing to start."""
     from app.deps import build_deps
 
-    build_index(build_chunks(knowledge)[:5], HashEmbedder(dim=512), tmp_path / "idx")
+    for stale_embedder in (HashEmbedder(), HashEmbedder(dim=512)):  # other data; other data and another size
+        build_index(build_chunks(knowledge)[:5], stale_embedder, tmp_path / "idx")
+        s = Settings(state_path=tmp_path / "state.json", index_path=tmp_path / "idx")
+        with caplog.at_level("WARNING"):
+            index = build_deps(s, knowledge=knowledge).index
+        assert index.embedder_name == "hash-4096"
+        assert len(index.search("indirect prompt injection", k=50, min_score=0.0)) == 50  # the full snapshot
+        assert "Rebuilding the free hash search index" in caplog.text
+        caplog.clear()
+
+
+def test_a09_1_a_paid_index_is_never_rebuilt_at_start_up(knowledge, tmp_path):
+    """A real embedder's index costs money: a mismatch stays a plain error, and the index is left as it is."""
+    from app.deps import build_deps
+
+    build_index(build_chunks(knowledge)[:5], CountingEmbedder(name="openrouter/some-model"), tmp_path / "idx")
     s = Settings(state_path=tmp_path / "state.json", index_path=tmp_path / "idx")
-    with pytest.raises(ConfigError, match="built with hash-512"):
+    with pytest.raises(ConfigError, match="built with openrouter/some-model.*costs money"):
         build_deps(s, knowledge=knowledge)
+    still = open_index(tmp_path / "idx", CountingEmbedder(name="openrouter/some-model"), build_chunks(knowledge)[:5])
+    assert still.embedder_name == "openrouter/some-model"
 
 
 def test_a09_1_hash_index_is_built_once_when_missing(knowledge, tmp_path):

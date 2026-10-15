@@ -1,4 +1,5 @@
 """Builds the app's parts once. Tests pass their own knowledge, index and settings."""
+import logging
 from dataclasses import dataclass, field
 
 from app.app_settings import DevSettings, default_dev_settings, default_settings
@@ -12,8 +13,10 @@ from app.rag.embed import make_embedder
 from app.rag.index import Retriever
 from app.rag.keyword import BM25Index
 from app.rag.pipeline import SearchOptions
-from app.rag.vector import ChromaIndex, build_index, open_index
+from app.rag.vector import ChromaIndex, IndexMismatch, build_index, open_index
 from app.state import State
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -47,13 +50,24 @@ class Deps:
 
 
 def load_index(settings: Settings, knowledge: Knowledge) -> ChromaIndex:
-    """Open the index at INDEX_PATH. Only the free hash embedder builds one when it's missing (fresh checkout, CI);
-    a real embedder costs money, so its index is built on purpose with app/rag/build_index.py."""
+    """Open the index at INDEX_PATH. Only the free hash embedder builds one: when it's missing (fresh checkout, CI)
+    and when the one there is a stale hash index (a new snapshot, another hash size), with a log line. A real
+    embedder costs money, so its index is built on purpose with app/rag/build_index.py, and a mismatch with an
+    index a real embedder built stays an error: it's never overwritten here."""
     chunks = build_chunks(knowledge)
     embedder = make_embedder(settings)
-    if settings.embedder == "hash" and not settings.index_path.exists():
+    free = settings.embedder == "hash"
+    if free and not settings.index_path.exists():
         build_index(chunks, embedder, settings.index_path)
-    return open_index(settings.index_path, embedder, chunks, settings.search_min_score)
+    try:
+        return open_index(settings.index_path, embedder, chunks, settings.search_min_score)
+    except IndexMismatch as e:
+        if not (free and str(e.built_with or "").startswith("hash-")):
+            raise IndexMismatch(f"{e} Embedding with a real model costs money, so it isn't rebuilt "
+                                "automatically.", e.built_with) from None
+        log.warning("Rebuilding the free hash search index at %s: %s", settings.index_path, e)
+        build_index(chunks, embedder, settings.index_path)
+        return open_index(settings.index_path, embedder, chunks, settings.search_min_score)
 
 
 def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge | None = None,

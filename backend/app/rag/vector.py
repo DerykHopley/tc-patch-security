@@ -20,6 +20,14 @@ BATCH = 200  # chunks per embedding call and per Chroma add
 BUILD_COMMAND = "cd backend && uv run --env-file .env python -m app.rag.build_index"
 
 
+class IndexMismatch(ConfigError):
+    """The index at the path is from another embedder, size or data. `built_with`: the embedder that built it."""
+
+    def __init__(self, message: str, built_with: str | None):
+        super().__init__(message)
+        self.built_with = built_with
+
+
 def _client(path: pathlib.Path):
     # Telemetry off: the app makes no network calls of its own (and tests must not).
     return chromadb.PersistentClient(path=str(path), settings=ChromaSettings(anonymized_telemetry=False))
@@ -87,7 +95,8 @@ def build_index(chunks: list[Chunk], embedder: Embedder, path: pathlib.Path, pro
 
 def open_index(path: pathlib.Path, embedder: Embedder, chunks: list[Chunk],
                min_score: float | None = None) -> ChromaIndex:
-    """Load the collection at `path`. Embeds nothing. A missing, mismatched or stale index is a ConfigError."""
+    """Load the collection at `path`. Embeds nothing. A missing index is a ConfigError; a mismatched or stale one
+    an IndexMismatch (app.deps rebuilds a free hash index on that; a paid one stays an error)."""
     path = pathlib.Path(path)
     collection = None
     if path.exists():
@@ -98,14 +107,14 @@ def open_index(path: pathlib.Path, embedder: Embedder, chunks: list[Chunk],
         raise ConfigError(f"No search index at {path}. Build it first: {BUILD_COMMAND}")
     meta = collection.metadata or {}
     if meta.get("embedder") != embedder.name:
-        raise ConfigError(f"The search index at {path} was built with {meta.get('embedder')}, but EMBEDDER is "
-                          f"{embedder.name}. Queries and chunks must use the same model: rebuild the index "
-                          f"({BUILD_COMMAND}) or set EMBEDDER/EMBED_MODEL back.")
+        raise IndexMismatch(f"The search index at {path} was built with {meta.get('embedder')}, but EMBEDDER is "
+                            f"{embedder.name}. Queries and chunks must use the same model: rebuild the index "
+                            f"({BUILD_COMMAND}) or set EMBEDDER/EMBED_MODEL back.", meta.get("embedder"))
     dim = getattr(embedder, "dim", None)  # known up front for the hash embedder; real ones are checked per query
     if dim is not None and dim != meta.get("dim"):
-        raise ConfigError(f"The search index at {path} has {meta.get('dim')} dimensions, the embedder {dim}. "
-                          f"Rebuild it: {BUILD_COMMAND}")
+        raise IndexMismatch(f"The search index at {path} has {meta.get('dim')} dimensions, the embedder {dim}. "
+                            f"Rebuild it: {BUILD_COMMAND}", meta.get("embedder"))
     if meta.get("chunks") != fingerprint(chunks):
-        raise ConfigError(f"The search index at {path} was built from different data than the snapshot. "
-                          f"Rebuild it: {BUILD_COMMAND}")
+        raise IndexMismatch(f"The search index at {path} was built from different data than the snapshot. "
+                            f"Rebuild it: {BUILD_COMMAND}", meta.get("embedder"))
     return ChromaIndex(collection, chunks, embedder, min_score)
