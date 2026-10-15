@@ -62,6 +62,7 @@ Spec A's tickets ([#2](https://github.com/DerykHopley/tc-patch-security/issues/2
 | Live mode and Check now on the fake feeds; the refresh CLI (`uv run python -m app.refresh`) | `backend/app/refresh.py`, `live_data.py`, `feeds.py`, `frontend/src/components/Freshness.tsx` | B02 #35 |
 | Real feeds (NVD, KEV, EPSS, OSV over HTTP, `FEEDS=real`) and the hourly schedule (`--schedule`, systemd user timer); the real run is a human step (#40) | `backend/app/feeds.py` `HttpFeeds`, `refresh.py` `run_scheduled`, `deploy/systemd/` | B03 #36 |
 | Alerts after a live refresh: diff, rules, once per CVE and reason, digest, quiet hours, per-channel log, the dashboard's Recent alerts | `backend/app/alerts.py`, `frontend/src/components/AlertsLog.tsx` | B04 #37 |
+| New since last check on the CVEs page: the "New" chip and `new=1` filter, `/cves?new=1`, kept per user | `backend/app/alerts.py`, `state.py`, `frontend/src/pages/CvesPage.tsx` | B05 #38 |
 | Patch as an MCP server (stdio, four read-only tools); the real-client demo is a human step | `backend/app/mcp_server.py`, `docs/mcp-demo.md` | B23 #61 |
 | Changes Patch proposes: a preview card, approve, edit, cancel; idempotent, 1-hour expiry, stale check | `backend/app/proposals.py`, `frontend/src/chat/ProposalCard.tsx` | B21 #58 |
 | Am I affected? Usage, version, verdict, `check_affected` | `backend/app/verdict.py`, `tools/affected.py` | A15 #17 |

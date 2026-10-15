@@ -75,6 +75,7 @@ class YourStack:
     settings: AppSettings  # the saved settings over the defaults
     dev: DevSettings  # the dev panel's saved choices over the defaults
     alerts_log: tuple[Mapping, ...]  # newest first
+    new_since_check: frozenset[str]  # B05: the CVEs your previous check found new (none before a check)
     _fields: Mapping[str, Mapping]  # product id → its saved fields
     _history: Mapping[str, tuple[Mapping, ...]]  # CVE id → its decision records, oldest first
 
@@ -137,7 +138,8 @@ class State:
             watchlist=tuple(data["watchlist"]), statuses=_freeze(data["statuses"]),
             settings=self._merged_settings(data.get("settings", {})),
             dev=DevSettings.model_validate(self.dev_defaults.model_dump() | data.get("dev", {})),
-            alerts_log=_freeze(data.get("alerts_log", [])), _fields=_freeze(data.get("product_settings", {})),
+            alerts_log=_freeze(data.get("alerts_log", [])),
+            new_since_check=frozenset(data.get("new_since_check", {}).get("cves", [])), _fields=_freeze(data.get("product_settings", {})),
             _history=_freeze(data["history"]))
 
     def fork(self, path: Path) -> "State":
@@ -319,11 +321,19 @@ class State:
                 self._save(data)
             return held
 
-    def clear_alerts(self) -> None:
-        """No alerts sent, held or logged (the fake feeds' reset, for the browser check)."""
+    def set_new_since_check(self, cve_ids: list[str], at: str) -> None:
+        """The CVEs a good check found new (B05), replacing the previous check's: the CVEs page's "New" chip and
+        filter. In the user's own state, so it moves per user with B09."""
         with self._lock:
             data = self._load()
-            for key in ("alerted", "alerts_held", "alerts_log"):
+            data["new_since_check"] = {"at": at, "cves": list(cve_ids)}
+            self._save(data)
+
+    def clear_alerts(self) -> None:
+        """No alerts sent, held or logged, and nothing new (the fake feeds' reset, for the browser check)."""
+        with self._lock:
+            data = self._load()
+            for key in ("alerted", "alerts_held", "alerts_log", "new_since_check"):
                 data.pop(key, None)
             self._save(data)
 
