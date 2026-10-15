@@ -262,6 +262,10 @@ function facts(d: Decision): string[] {
     d.compensating_control ? `Control: ${d.compensating_control}` : null,
     d.review_date ? `review ${d.review_date}` : null,
     d.note,
+    // what a decision Patch proposed rested on (B22); a web source stays marked unverified
+    d.sources?.length
+      ? `Sources: ${d.sources.map((s) => `[${s.n}] ${s.title}${s.kind === 'web' ? ' (web result, unverified)' : ''}`).join('; ')}`
+      : null,
   ].filter((x): x is string => !!x)
 }
 

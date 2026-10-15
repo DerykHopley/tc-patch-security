@@ -104,6 +104,7 @@ export interface Decision {
   decided_by: string | null
   via: string | null
   proposal?: string | null
+  sources?: ProposalSource[] | null
 }
 
 export interface Priority {
@@ -113,6 +114,59 @@ export interface Priority {
   due_from: string
   overdue: boolean
   alert_priority: number
+}
+
+/** A source a proposed decision cites (B22): what it rests on, so you can check it before you approve. A web
+source is always marked "web result, unverified". */
+export interface ProposalSource {
+  n: number
+  kind: 'knowledge' | 'web'
+  label: 'knowledge base' | 'web result, unverified'
+  title: string
+  url: string
+  site: string | null
+}
+
+/** update_watchlist (B21) or propose_decision (B22): a proposed change, not made yet. What, why, before and
+after, and for a proposed decision the sources it rests on; you approve, edit or cancel it in the chat's card. */
+export interface Proposal {
+  proposal_id: string
+  action: 'watch' | 'unwatch' | 'set_status' | 'set_details'
+  title: string
+  why: string | null
+  cve_id: string | null
+  product: string | null
+  product_name: string | null
+  before: string
+  after: string
+  fields: ProposalFields
+  state: 'proposed' | 'approved' | 'cancelled' | 'expired'
+  message: string
+  as_of: string
+  created_at: string
+  expires_at: string
+  approved_at: string | null
+  approved_by: string | null
+  sources: ProposalSource[]
+}
+
+/** update_watchlist when there's nothing to change (B21): why not, and the watchlist as it is. */
+export interface WatchlistResult {
+  message: string
+  watchlist: string[]
+}
+
+/** What a proposal would set. Only the fields its action takes are filled; the others are null. */
+export interface ProposalFields {
+  status: 'open' | 'fixed' | 'not_affected' | 'accepted' | null
+  justification: 'component_not_present' | 'vulnerable_code_not_present' | 'vulnerable_code_not_in_execute_path' | 'vulnerable_code_cannot_be_controlled_by_adversary' | 'inline_mitigations_already_exist' | null
+  note: string | null
+  reason: string | null
+  review_date: string | null
+  compensating_control: string | null
+  usage: 'self_hosted' | 'library' | 'transitive' | 'hosted' | null
+  version: string | null
+  internet_facing: boolean | null
 }
 
 /** prioritise: the top open CVEs in the rules' order, and the view they come from. */
@@ -184,47 +238,6 @@ export interface FoundSource {
   text: string
 }
 
-/** update_watchlist (B21): a proposed change, not made yet. What, why, before and after; you approve, edit or
-cancel it in the chat's card. */
-export interface Proposal {
-  proposal_id: string
-  action: 'watch' | 'unwatch' | 'set_status' | 'set_details'
-  title: string
-  why: string | null
-  cve_id: string | null
-  product: string | null
-  product_name: string | null
-  before: string
-  after: string
-  fields: ProposalFields
-  state: 'proposed' | 'approved' | 'cancelled' | 'expired'
-  message: string
-  as_of: string
-  created_at: string
-  expires_at: string
-  approved_at: string | null
-  approved_by: string | null
-}
-
-/** update_watchlist when there's nothing to change (B21): why not, and the watchlist as it is. */
-export interface WatchlistResult {
-  message: string
-  watchlist: string[]
-}
-
-/** What a proposal would set. Only the fields its action takes are filled; the others are null. */
-export interface ProposalFields {
-  status: 'open' | 'fixed' | 'not_affected' | 'accepted' | null
-  justification: 'component_not_present' | 'vulnerable_code_not_present' | 'vulnerable_code_not_in_execute_path' | 'vulnerable_code_cannot_be_controlled_by_adversary' | 'inline_mitigations_already_exist' | null
-  note: string | null
-  reason: string | null
-  review_date: string | null
-  compensating_control: string | null
-  usage: 'self_hosted' | 'library' | 'transitive' | 'hosted' | null
-  version: string | null
-  internet_facing: boolean | null
-}
-
 /** explain_weakness for a CWE: its OWASP Top 10 category and the snapshot's CVEs with it. */
 export interface CweResult {
   kind: 'cwe'
@@ -270,7 +283,7 @@ export interface CitedBy {
 /** research_web: what was searched, how, and the numbered web results. */
 export interface ResearchResult {
   query: string
-  via: 'mcp' | 'api'
+  via: 'mcp' | 'api' | 'canned'
   results: WebHit[]
   flagged: number
   searches_left: number
@@ -292,9 +305,10 @@ export interface WebHit {
 export interface ToolResults {
   check_affected: AffectedOne | AffectedProduct
   lookup_cve: CveResult
+  update_watchlist: Proposal | WatchlistResult
+  propose_decision: Proposal | WatchlistResult
   prioritise: FixFirstResult
   search_security: SearchResult
-  update_watchlist: Proposal | WatchlistResult
   explain_weakness: CweResult | TechniqueResult
   research_web: ResearchResult
 }

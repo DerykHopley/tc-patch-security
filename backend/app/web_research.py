@@ -11,6 +11,7 @@
 """
 import asyncio
 import datetime
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import Callable
@@ -18,7 +19,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from app.config import Settings
+from app.config import FIXTURES, Settings
 
 log = logging.getLogger(__name__)
 
@@ -159,3 +160,18 @@ class WebResearch:
             raise SearchFailed() from None
         return [Hit(x.get("title") or x["url"], x["url"], (x.get("content") or "").strip(),
                     x.get("published_date") or None) for x in results if x.get("url")]
+
+
+class CannedWeb:
+    """The saved web results (fixtures/web_canned.json) in place of Tavily, for the model check's web question (B22):
+    every run, and every model, sees the same pages, with no key, no network and no credits. The same filters apply
+    as to a real search (excluded sites dropped, snippets cut). Never used by the chat."""
+
+    def __init__(self):
+        self.cap = DailyCap(total=10**6, per_user=10**6)
+        self._results = json.loads((FIXTURES / "web_canned.json").read_text())["results"]
+
+    def search(self, query: str) -> tuple[list[Hit], str]:
+        hits = [Hit(r["title"], r["url"], r["content"][:SNIPPET_CHARS], r.get("published_date"))
+                for r in self._results if not excluded(r["url"])]
+        return hits[:MAX_RESULTS], "canned"

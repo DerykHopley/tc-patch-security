@@ -120,7 +120,7 @@ def test_a12_1_uses_the_saved_dev_settings(client):
     body = client.get("/dev/settings").json()["settings"] | {"max_steps": 1}
     client.put("/dev/settings", json=body)
     q2 = run_check(client, {"ids": ["Q2"]})["results"][0]
-    assert q2["steps"] == 1 and "I stopped after 1 steps" in q2["answer"]  # the saved limit, not the default 4
+    assert q2["steps"] == 1 and "I stopped after 1 steps" in q2["answer"]  # the saved limit, not the default 6
 
 
 def test_a12_2_a_run_is_saved_with_model_scores_cost_and_time(client):

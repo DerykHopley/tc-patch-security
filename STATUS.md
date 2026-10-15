@@ -63,6 +63,7 @@ Spec A's tickets ([#2](https://github.com/DerykHopley/tc-patch-security/issues/2
 | Real feeds (NVD, KEV, EPSS, OSV over HTTP, `FEEDS=real`) and the hourly schedule (`--schedule`, systemd user timer); the real run is a human step (#40) | `backend/app/feeds.py` `HttpFeeds`, `refresh.py` `run_scheduled`, `deploy/systemd/` | B03 #36 |
 | Patch as an MCP server (stdio, four read-only tools); the real-client demo is a human step | `backend/app/mcp_server.py`, `docs/mcp-demo.md` | B23 #61 |
 | Changes Patch proposes: a preview card, approve, edit, cancel; idempotent, 1-hour expiry, stale check | `backend/app/proposals.py`, `frontend/src/chat/ProposalCard.tsx` | B21 #58 |
+| Web research that ends in a proposed decision: `propose_decision` cites its sources (web ones unverified), FakeLLM workflows (`steps`), model-check question Q-research on saved web results; the real-run demo is a human step | `backend/app/tools/decision.py`, `docs/mcp-demo.md` | B22 #62 |
 | Am I affected? Usage, version, verdict, `check_affected` | `backend/app/verdict.py`, `tools/affected.py` | A15 #17 |
 | Priority by rules, policy, due dates | `backend/app/priority.py` | A16 #18, gate A17 #19 |
 | Accepted status, decision records, "no fix yet" | `backend/app/status.py`, `frontend/src/components/Decision.tsx` | A16b #27 |

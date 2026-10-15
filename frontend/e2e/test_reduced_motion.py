@@ -333,11 +333,22 @@ def b21_9_proposal_card(fx):
     still(page, "the done line")
 
 
+def b22_9_proposed_decision(fx):
+    page = fx("open_app")(reduced=True)
+    open_bubble(page)
+    card = ask(page, "Is CVE-2025-3248 a problem for my Langflow behind a VPN? Research it and propose a decision."
+               ).locator(".proposal-card")
+    expect(card.locator(".proposal-sources li")).to_have_count(2)
+    still(page, "the proposed decision with its sources")
+    card.get_by_role("button", name="Cancel", exact=True).click()  # leaves the shared state as it was
+    expect(card.locator("output.proposal-line")).to_contain_text("Cancelled")
+
+
 SCENES = {f.__name__: f for f in (
     a02_10_shell, a04_9_dashboard, a04b_9_cves_page, a05_8_charts_and_banner, a06_8_chat, a06b_7_patch_variants,
     a07_8_chat_layout, a11_7_dev_page, a13_7_settings, a14_12_snapshot_additions, a15_9_verdict, a15b_8_watchlist,
     a16_12_priority, a16b_13_decisions, a18_6_fix_first, a19_6_explain_levels, b02_9_check_now,
-    b08_13_research_web, b21_9_proposal_card,
+    b08_13_research_web, b21_9_proposal_card, b22_9_proposed_decision,
 )}
 
 

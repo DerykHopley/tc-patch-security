@@ -22,6 +22,7 @@ from app.evals.checks import cited, fix_first_lists, score, score_levels, state_
 from app.evals.readability import flesch_reading_ease
 from app.evals.runs import LISTED, RunStore, new_id, now
 from app.schemas import ChatRequest
+from app.web_research import CannedWeb
 
 KIND = "models"
 # These errors fail every question the same way: stop instead of waiting through the rest.
@@ -62,6 +63,8 @@ def _ask(q: dict, deps) -> dict:
            "answer": "", "seconds": 0.0, "cost": 0.0, "tokens_in": 0, "tokens_out": 0, "llm_calls": 0, "steps": 0,
            "sources": 0, "bad_citations": [], "no_citations": False, "estimated": False, "error": None}
     start = time.perf_counter()
+    if q.get("web"):  # B22: the web question searches the saved results, the same for every run and model
+        deps = dataclasses.replace(deps, web=CannedWeb())
     try:
         levels = q["expect"].get("levels") or ["normal"]  # A19: asked once per explain level, never the saved one
         before = deps.state.read()

@@ -410,6 +410,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - After the action, one line in an `<output>` (the §5.10 line rule: `--text` on a soft fill, the tone as the edge): "Done: Marked CVE-2024-8309 as fixed. See CVE-2024-8309 on the CVEs page" (`--ok` edge; the link opens `/cves?product=…&status=all` in the app, the chat stays open; a watchlist change links to Settings), "Cancelled: nothing was changed." or "Expired: …" (`--warn` edge). A refused approve (stale, expired) shows the backend's sentence as an alert (`--error` edge).
 - No animation: nothing moves, with or without reduced motion. Light and dark come from the tokens.
 - In the Tool calls tab, the update_watchlist card says "Proposed: {title}" and the before → after.
+- **A proposed decision** (B22, from the research workflow's `propose_decision`) is the same card, plus "It rests on:" between the before → after and the buttons: one line per cited source, its number (`.source-n`), its title as a link (new tab), and a chip in words: "Knowledge base" (`--surface`, `--border` edge) or "Web result, unverified" (the web sources' chip, §6.2 web research). The flagged page is never listed: it can't be cited. In the CVEs page history, the record adds "Sources: [1] …; [3] … (web result, unverified)". *Checked* by B22.9 (light and dark, 400px and 1400px, chip contrast at least 4.5:1, the links before the buttons in Tab order) and the reduced-motion scene `b22_9_proposed_decision`.
 - *Checked* by the browser check B21.9 (light and dark, 400px and 1400px, keyboard, the chip's and the line's contrast at least 4.5:1) and the reduced-motion scene `b21_9_proposal_card`.
 
 ### Checklist: chat
@@ -422,6 +423,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - [ ] Phone: full-screen sheet, no pin, no Make larger.
 - [ ] A proposed change (§6.6): card under the answer, before → after, Approve/Edit/Cancel by keyboard, nothing changes until Approve, one request per double click.
 - [ ] Web research (B08): the research card (query, results, time) and the web facts on each web source ("Web result, unverified", site, date, "Flagged" on an injection page), in light and dark at 4.5:1, at 400px with no sideways scroll, links by keyboard, still with reduced motion (checks B08.10 to B08.13).
+- [ ] A proposed decision (B22, §6.6): "It rests on:" with each cited source and its chip ("Knowledge base", "Web result, unverified"), in light and dark at 4.5:1, at 400px inside the chat, links then buttons by keyboard, still with reduced motion (check B22.9).
 
 ---
 

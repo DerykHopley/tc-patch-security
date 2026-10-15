@@ -122,7 +122,7 @@ function Answer({ reply }: { reply: ChatReply }) {
       </div>
       {reply.tool_calls.map((c) =>
         // A change Patch proposes (B21): its card under the answer, not folded in the details
-        c.name === 'update_watchlist' && c.result && 'proposal_id' in c.result ? (
+        (c.name === 'update_watchlist' || c.name === 'propose_decision') && c.result && 'proposal_id' in c.result ? (
           <ProposalCard key={c.id} proposal={c.result} />
         ) : null,
       )}
