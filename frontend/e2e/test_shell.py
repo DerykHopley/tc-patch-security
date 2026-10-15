@@ -66,7 +66,7 @@ def eventually(page: Page, check: Callable[[], bool], timeout: float = 5000, ste
     for _ in range(int(timeout // step)):
         if check():
             return
-        page.wait_for_timeout(step)
+        page.wait_for_timeout(step)  # allowed: the poll step of the wait on the real condition
     assert check()
 
 

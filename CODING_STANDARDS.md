@@ -16,4 +16,5 @@ Judgement calls a reviewer checks by reading. Anything a tool can check goes int
 
 - Tests check behaviour through a public seam (the HTTP API, a pure function, the browser), as in spec A's testing decisions.
 - Each test names the check id it covers: `A<ticket>.<n>`, e.g. `test_a01_2_default_watchlist_without_file`. Ids are per ticket so parallel work never reuses one.
-- No test calls the network or needs a key. The browser check runs only against its own servers on 8001/5174 (`frontend/e2e/run.sh`), never the app on 8000/5173.
+- Browser checks wait on the real condition (`expect()`, or `settled()` / `eventually()` in `frontend/e2e/test_shell.py`), never a fixed time: a fixed wait passes locally and fails on CI's slower runner. `check_waits.py` fails CI on a fixed wait without `# allowed: <reason>` on its line, and `E2E_LATENCY_MS=300 frontend/e2e/run.sh` shows races before CI does.
+- No test calls the network or needs a key. The browser check runs only against its own servers on two free ports (`frontend/e2e/run.sh`), never the app on 8000/5173.

@@ -85,10 +85,7 @@ def hold_chat(page: Page) -> list[Route]:
 
 
 def release(page: Page, held: list[Route]) -> None:
-    for _ in range(50):  # let the request reach the route handler
-        if held:
-            break
-        page.wait_for_timeout(100)
+    eventually(page, lambda: bool(held))  # the request has reached the route handler
     held.pop().continue_()
     page.unroute("**/chat")
 
@@ -193,7 +190,7 @@ def test_a06_4_button_and_header_share_one_mood_and_an_unread_answer_makes_patch
     release(page, held)
     expect(fab(page).locator(".unread-dot")).to_be_visible()
     expect(sidebar_ask(page).locator(".unread-dot")).to_be_visible()
-    page.wait_for_timeout(3500)  # past the 3 s happy spell: still happy while unread
+    page.wait_for_timeout(3500)  # allowed: past the 3 s happy spell, still happy while unread
     expect(fab_bot(page)).to_have_class(re.compile("mood-happy"))
     open_chat(page)
     expect(page.locator(".unread-dot")).to_have_count(0)

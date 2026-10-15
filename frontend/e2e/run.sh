@@ -1,20 +1,30 @@
 #!/usr/bin/env bash
 # The browser check, end to end: start a throwaway backend (FakeLLM, hash embedder, temp state file and
-# index) on 8001 and the frontend on 5174, run the checks in Firefox and Chromium, stop both servers.
+# index) and the frontend on two free ports, run the checks in Firefox and Chromium, stop both servers.
 # Never touches the user's app on 8000/5173. Used locally and in CI.
 #
 #   frontend/e2e/run.sh                      # both browsers
-#   frontend/e2e/run.sh --browser firefox    # extra arguments go to pytest
-#   E2E_API_PORT=8011 E2E_UI_PORT=5184 frontend/e2e/run.sh   # another pair, e.g. for parallel worktrees
+#   frontend/e2e/run.sh -k a02               # extra arguments go to pytest; still both browsers
+#   frontend/e2e/run.sh --browser firefox    # one browser: any --browser replaces the default pair
+#   E2E_API_PORT=8011 E2E_UI_PORT=5184 frontend/e2e/run.sh   # a fixed pair instead of two free ports
+#   E2E_LATENCY_MS=300 frontend/e2e/run.sh   # slow mode: every API response 300 ms late, to find timing races
+#                                            # before CI's slower runner does (conftest.py)
 #
-# Needs: backend deps (uv), frontend deps (npm ci), and the browsers:
+# Needs: backend deps (uv), frontend deps (npm ci), python3, and the browsers:
 #   uv run --project frontend/e2e playwright install firefox chromium
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
-API_PORT="${E2E_API_PORT:-8001}"
-UI_PORT="${E2E_UI_PORT:-5174}"
+# Two free ports from the OS, both held open until both are known, so they differ. Parallel runs and worktrees
+# then never collide, and the ports are never 8000/5173 (the OS hands out ports above 32767).
+read -r FREE_API FREE_UI < <(python3 -c '
+import socket
+a, b = socket.socket(), socket.socket()
+a.bind(("127.0.0.1", 0)); b.bind(("127.0.0.1", 0))
+print(a.getsockname()[1], b.getsockname()[1])')
+API_PORT="${E2E_API_PORT:-$FREE_API}"
+UI_PORT="${E2E_UI_PORT:-$FREE_UI}"
 
 for port in "$API_PORT" "$UI_PORT"; do
   if (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
@@ -54,6 +64,11 @@ wait_for() {
 wait_for "http://localhost:$API_PORT/health"
 wait_for "http://localhost:$UI_PORT/"
 
-if [ "$#" -eq 0 ]; then set -- --browser firefox --browser chromium; fi
+# Both browsers unless the arguments pick one: `run.sh -k a02` runs Firefox and Chromium.
+case " $* " in
+  *" --browser "* | *" --browser="*) ;;
+  *) set -- --browser firefox --browser chromium "$@" ;;
+esac
+echo "Browser check on API port $API_PORT, UI port $UI_PORT${E2E_LATENCY_MS:+, slow mode ${E2E_LATENCY_MS} ms}: pytest $*"
 cd "$HERE"
 API_URL="http://localhost:$API_PORT" UI_URL="http://localhost:$UI_PORT" uv run --project "$HERE" pytest -q "$@"
