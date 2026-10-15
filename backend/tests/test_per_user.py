@@ -248,6 +248,19 @@ def test_b09_9_new_since_last_check_is_kept_per_user(tmp_path, index_dir, index)
     assert new(alice) == set() and NEW_DAY2 in new(bob)
 
 
+def test_b09_9_the_shared_schedule_is_the_owners(tmp_path, index_dir, index):
+    app = LiveUsers(tmp_path, index_dir)
+    alice = app("alice")
+    body = alice.get("/settings").json()["settings"]
+    body["alerts"]["schedule_paused"] = True
+    alice.put("/settings", json=body)
+    assert alice.get("/refresh/runs").json()["schedule"]["paused"] is False  # the owner's schedule runs
+    body = app.live.client.get("/settings").json()["settings"]
+    body["alerts"]["schedule_paused"] = True
+    app.live.client.put("/settings", json=body)
+    assert alice.get("/refresh/runs").json()["schedule"]["paused"] is True
+
+
 def test_b09_9_the_owner_comes_from_the_environment(tmp_path, index_dir, index):
     app = LiveUsers(tmp_path, index_dir, owner="alice")
     alice = app("alice")

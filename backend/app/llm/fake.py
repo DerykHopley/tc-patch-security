@@ -26,6 +26,7 @@ NOTHING_FOUND = "I found nothing relevant in the knowledge base for that questio
 LEVEL_LINE = re.compile(r"^Explain level: (simple|normal|deep dive)\.", re.M)
 SEVERITY_WORD = {"CRITICAL": "critical", "HIGH": "high", "MEDIUM": "medium", "LOW": "low"}
 WEB_QUESTION = re.compile(r"\b(web|online|news|advisor(y|ies)|who'?s talking)\b", re.I)
+SCHEDULE_QUESTION = re.compile(r"\b(last (check|checked)|schedule|when did you (last )?check)\b", re.I)  # B19
 
 
 def _tokens(text: str) -> int:
@@ -165,8 +166,25 @@ REASON_WORDS = {"kev": "added to CISA KEV", "kev_recheck": "added to KEV while m
                 "due_soon": "due soon", "overdue": "overdue"}
 
 
+def _schedule(s: dict) -> str:
+    """B19: check_updates' `schedule` in one sentence."""
+    every = "every hour" if s["hours"] == 1 else f"every {s['hours']} hours"
+    if s["paused"]:
+        return "The schedule is paused: no scheduled check starts until you resume it on Settings."
+    if s["next_due"]:
+        return f"The schedule is on: {every}, next from {s['next_due'].replace('T', ' ').replace('+00:00', ' UTC')}."
+    return f"The schedule is on: {every}."
+
+
 def _updates(u: dict) -> str:
-    """check_updates (B06): this check or the last one, its counts, the new CVEs and the user's alerts."""
+    """check_updates (B06): this check or the last one, its counts, the new CVEs and the user's alerts; B19: the
+    schedule."""
+    if u["mode"] == "snapshot":
+        return _updates_only(u)
+    return _updates_only(u) + "\n\n" + _schedule(u["schedule"])
+
+
+def _updates_only(u: dict) -> str:
     if u["mode"] == "snapshot":
         return (f"This app runs on a frozen snapshot of the data as of {u['as_of']}, so there's nothing new to "
                 "check. Live mode checks the feeds.")
@@ -245,6 +263,8 @@ class FakeLLM:
             if m := guard.CVE_RE.search(question):
                 args["cve_id"] = m.group(0).upper()
             return [{"name": "research_web", "args": args}]
+        if "check_updates" in offered and SCHEDULE_QUESTION.search(question) and not guard.CVE_RE.search(question):
+            return [{"name": "check_updates", "args": {}}]  # B19: "when did you last check?", "is the schedule on?"
         if m := guard.CVE_RE.search(question):
             return [{"name": "lookup_cve", "args": {"cve_id": m.group(0).upper()}}]
         if m := (guard.CWE_RE.search(question) or guard.ATLAS_RE.search(question)):

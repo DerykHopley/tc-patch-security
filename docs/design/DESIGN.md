@@ -346,7 +346,20 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - No motion of its own: the card fades in with the other dashboard cards (§7.1), which reduced motion already stops.
 - *Checked* by the browser check B04.12 against the live pair (a busy check as one digest; one alert's link opening the banner; light and dark, 400px and 1400px, Enter on Check now and on the Settings link, a result pill's contrast at least 4.5:1, no sideways scroll); the words by `npm test` (`src/alertsLog.test.ts`).
 
+### 5.12 Refresh runs and the paused schedule (B19, 2026-10-16)
+
+- **Settings' "Refresh runs" card** (`frontend/src/components/RefreshRuns.tsx`), after Alerts, chip Live. A "Schedule" fieldset (§5.7) with "Check for new CVEs every" (moved here from Alerts' Timing) and **Pause the schedule**, a checkbox with its meaning under it ("No scheduled check starts. Check now and Patch's check still work."). Both save with the page's save bar. Under it the schedule line from the server (`.meta`): "Every 6 hours · next scheduled check from 2026-10-15 14:50 UTC.", "… the next scheduled check runs at the next tick.", or, paused, "Schedule paused: no scheduled check starts. Check now and Patch still check." in `--text` on `--warn-soft` with a 3px `--warn` edge (§5.7). Snapshot mode: "Every 6 hours, in live mode. The snapshot never changes."
+- **"Last 20 runs"** (`h3`), newest first, one line each, separated by 1px `--border`. Each is a native `<details>`: the summary (keyboard and screen readers as the platform does; a ▸/▾ in `--muted` as the marker) has the **result chip** (OK `--ok` edge on `--accent-soft`; Partial `--warn` on `--warn-soft`; Failed `--error` on `--error-soft`; "Skipped: too soon" `--border` edge, no fill; text always `--text`, 0.75rem bold), the trigger in bold (Check now, Schedule, Patch, Command line), and the start in UTC with the duration ("· 2.4 s"); then one muted line: "2 new · 1 updated · 1 added to KEV · 4 alerts sent" (zeros left out; "Nothing new"; a failed run "Nothing written"; a skip "Next allowed 09:05 UTC · asked 3 times").
+- **Opened**: a nested-fill box (radius 14px) with each feed's step ("NVD: answered", "NVD: didn't answer (…)", bold), the new CVEs as `#cve=…` links, an alerts error if any, and "Wrote live version 3 · finished …" (or "Wrote nothing: the data is unchanged"). A skip says why. Long errors wrap; nothing is wider than the card at 400px.
+- Empty: "No runs yet. Check now on the dashboard, the schedule or Patch starts one." (live) or "The snapshot never changes, so nothing runs."
+- **Dashboard (§5.10)**: while paused, under the last-checked line, "Schedule paused" (bold, `--text` on `--warn-soft`, 3px `--warn` edge) and **Resume**, a plain pill (2rem; "Resuming…", `aria-busy`), which saves the setting; the result line then says "Schedule resumed: a check every 6 hours.". In live mode, "Schedule and refresh runs →" links to `/settings#schedule`, which scrolls the schedule into view.
+- **Patch's check_updates card (§6.2)**: one muted line with the same schedule words.
+- Nothing moves: no animation of its own, so reduced motion changes nothing (scene `b19_9_runs_and_paused`).
+- *Checked* by the browser check B19.6–B19.8, B19.10 (light and dark, 400px and 1400px, a run opened by keyboard, Resume by keyboard, chip and paused-line contrast at least 4.5:1, the 3px edge, no sideways scroll); the words by `npm test` (`src/refreshRuns.test.ts`).
+
 ### Checklist: components
+
+- [ ] Refresh runs (B19): schedule and Pause in one fieldset, saved with the bar; the schedule line from the server; the last 20 runs newest first, the result in words with its edge, trigger, UTC time and duration, counts; each opens by keyboard to each feed's step; skips count up; fits at 400px. The dashboard says "Schedule paused" with Resume.
 
 - [ ] Recent alerts (B04): the last 20, reason and time in UTC, per-channel results in words, one alert links to `#cve=…`, a digest says counts only.
 - [ ] Tiles: gradients, circles, contrast as in the table; KEV tile wiggles only when KEV > 0.

@@ -253,6 +253,7 @@ export interface UpdatesResult {
   new_cves: NewCve[]
   alerts: UpdateAlert[]
   alerts_total: number
+  schedule: UpdatesSchedule
   note: string
 }
 
@@ -285,6 +286,13 @@ export interface UpdateAlert {
   reason: string
   priority: number
   held: boolean
+}
+
+/** B19: the scheduled check, as the user set it on Settings. */
+export interface UpdatesSchedule {
+  hours: number
+  paused: boolean
+  next_due: string | null
 }
 
 /** explain_weakness for a CWE: its OWASP Top 10 category and the snapshot's CVEs with it. */

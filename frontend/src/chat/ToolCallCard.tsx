@@ -19,6 +19,7 @@ import type {
   WatchlistResult,
 } from '../toolResults.ts'
 import { utcTime } from '../freshness.ts'
+import { scheduleLine } from '../refreshRuns.ts'
 import { followLink, openPath } from '../route.ts'
 
 // One card per tool call: name, arguments, status, time, and the result drawn for its tool. Errors in red.
@@ -298,6 +299,7 @@ function UpdatesCard({ r }: { r: UpdatesResult }) {
     <div className="result-card updates-card">
       <p className="result-title">{updatesTitle(r)}</p>
       {r.refusal && r.refusal.reason !== 'snapshot' && <p className="meta">{r.refusal.message}</p>}
+      {r.mode === 'live' && <p className="meta updates-schedule">{scheduleLine(r.schedule, r.mode)}</p>}
       {r.ok === false && <p className="tool-error">The check failed, nothing changed: {r.problems.join('; ')}</p>}
       {r.status === 'partial' && <p className="meta">Partial: {r.problems.join('; ')}. The rest was written.</p>}
       {r.ok && (

@@ -215,14 +215,17 @@ def test_b02_6_status_says_last_checked_running_and_the_last_result(live):
     assert (after["last_checked"], after["running"], after["last_result"]) == (result["started"], False, result)
     assert after["next_allowed"] == f"{DAY1}T09:05:00+00:00"
     assert live.client.get("/dashboard").json()["data"] == {"mode": "live", "last_checked": result["started"],
-                                                           "last_result": result}  # B20: for its banner
+                                                           "last_result": result,  # B20: for its banner
+                                                           "schedule": {"hours": 6, "paused": False,  # B19
+                                                                        "next_due": f"{DAY1}T14:50:00+00:00"}}
 
 
 def test_b02_6_snapshot_mode_has_nothing_to_check(client):
     r = client.post("/refresh")
     assert r.status_code == 400 and r.json()["error"]["code"] == "snapshot_mode"
     assert client.get("/refresh").json()["mode"] == "snapshot"
-    assert client.get("/dashboard").json()["data"] == {"mode": "snapshot", "last_checked": None, "last_result": None}
+    assert client.get("/dashboard").json()["data"] == {"mode": "snapshot", "last_checked": None, "last_result": None,
+                                                       "schedule": {"hours": 6, "paused": False, "next_due": None}}
     assert client.post("/refresh/reset", json={"confirm": "reset"}).status_code == 404
     assert client.post("/refresh/fake-feeds", json={"fail": []}).status_code == 404  # B20: the fake live feeds only
 

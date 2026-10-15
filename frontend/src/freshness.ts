@@ -27,7 +27,7 @@ const COUNT_WORDS: [keyof RefreshCounts, (n: number) => string][] = [
   ['rescored', (n) => `${n} rescored`],
 ]
 
-const SOURCE_NAME: Record<string, string> = { nvd: 'NVD', kev: 'CISA KEV', epss: 'EPSS', osv: 'OSV' }
+export const SOURCE_NAME: Record<string, string> = { nvd: 'NVD', kev: 'CISA KEV', epss: 'EPSS', osv: 'OSV' }
 
 export type Tone = 'ok' | 'warn' | 'error'
 

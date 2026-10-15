@@ -25,6 +25,8 @@ from test_fix_first import FIX_FIRST, VIEW, chip, fix_card, table_ids
 from test_fix_first import open_chat as open_chat_by_key
 from test_live import DONE, check_now_running, line, live_reset, open_live  # noqa: F401 (fixtures)
 from test_live import release as release_refresh
+from test_pause_history import live_state, pause, runs_card, two_checks  # noqa: F401 (fixture)
+from test_pause_history import open_settings as open_runs_settings
 from test_priority import open_settings  # noqa: F401 (fixture)
 from test_partial import failed_card, nvd_down, partial_check, search_down  # noqa: F401 (fixtures)
 from test_research_web import ASK as WEB_ASK, details as web_details
@@ -360,11 +362,25 @@ def b22_9_proposed_decision(fx):
     expect(card.locator("output.proposal-line")).to_contain_text("Cancelled")
 
 
+def b19_9_runs_and_paused(fx):
+    fx("live_state")
+    page = fx("open_live")(reduced=True)
+    two_checks(page)
+    page = open_runs_settings(fx("open_live"), reduced=True)
+    pause(page)
+    runs_card(page).locator(".run-list summary").nth(1).click()
+    still(page, "the run history, a run opened")
+    page = fx("open_live")(reduced=True)
+    expect(page.locator(".schedule-paused")).to_be_visible()
+    still(page, "Schedule paused")
+
+
 SCENES = {f.__name__: f for f in (
     a02_10_shell, a04_9_dashboard, a04b_9_cves_page, a05_8_charts_and_banner, a06_8_chat, a06b_7_patch_variants,
     a07_8_chat_layout, a11_7_dev_page, a13_7_settings, a14_12_snapshot_additions, a15_9_verdict, a15b_8_watchlist,
     a16_12_priority, a16b_13_decisions, a18_6_fix_first, a19_6_explain_levels, b02_9_check_now,
-    b08_13_research_web, b20_14_partial_and_try_again, b21_9_proposal_card, b22_9_proposed_decision,
+    b08_13_research_web, b19_9_runs_and_paused, b20_14_partial_and_try_again, b21_9_proposal_card,
+    b22_9_proposed_decision,
 )}
 
 

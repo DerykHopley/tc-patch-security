@@ -30,6 +30,7 @@ from typing import Literal
 from pydantic import BaseModel, model_validator
 
 from app import cve_build
+from app.config import DEFAULT_USER  # the alerts map is keyed by user id (B09)
 from app.config import FIXTURES, Settings
 from app.feeds import FeedError, Feeds, make_feeds
 from app.live_data import LiveData
@@ -202,6 +203,27 @@ class Refresher:
     def _save_log(self, data: dict) -> None:
         self.live.store.write("refresh.json", data)
 
+    def _log_skip(self, log_data: dict, trigger: str, reason: str, now: dt.datetime, next_allowed: dt.datetime):
+        """B19: a refused run, kept apart from `runs` so the 5-minute rule and the banner only ever see real runs.
+        The same refusal again (same trigger, same next allowed time) counts up instead of adding a line."""
+        skipped = log_data.setdefault("skipped", [])
+        if skipped and (skipped[0]["trigger"], skipped[0]["next_allowed"]) == (trigger, _iso(next_allowed)):
+            skipped[0]["times"] += 1
+        else:
+            skipped.insert(0, {"trigger": trigger, "started": _iso(now), "reason": reason,
+                               "next_allowed": _iso(next_allowed), "times": 1})
+        log_data["skipped"] = skipped[:RUNS_KEPT]
+        self._save_log(log_data)
+
+    def history(self, user_id: str = DEFAULT_USER) -> list[dict]:
+        """B19: the last 20 runs and refusals, newest first, as the "Refresh runs" card shows them. The runs are
+        shared (one refresh for everyone); the alert counts are `user_id`'s own (per user with B09)."""
+        data = self._log()
+        rows = [_run_row(RefreshResult.model_validate(r), user_id) for r in data["runs"]]
+        rows += [{**_EMPTY_ROW, **s, "result": "skipped"} for s in data.get("skipped", [])]
+        # in the same second, a skip comes after the run that made it too soon, so it goes above it
+        return sorted(rows, key=lambda r: (r["started"], r["result"] == "skipped"), reverse=True)[:RUNS_KEPT]
+
     def last_checked(self) -> str | None:
         return self._log()["last_checked"]
 
@@ -238,10 +260,13 @@ class Refresher:
         return {"last_checked": self.last_checked(), "running": self.running(),
                 "next_allowed": _iso(nxt) if nxt else None, "last_result": last.model_dump() if last else None}
 
-    def _refuse(self, reason: str, next_allowed: dt.datetime) -> CheckReply:
+    def _refuse(self, trigger: str, reason: str, now: dt.datetime, next_allowed: dt.datetime,
+                log_data: dict | None) -> CheckReply:
         at = next_allowed.astimezone(dt.UTC).strftime("%H:%M UTC")
         message = (f"A check is running now. The next one is allowed at {at}." if reason == "running" else
                    f"Checked less than 5 minutes ago. The next check is allowed at {at}.")
+        if log_data is not None:  # B19: the history shows it; "running" is left out (another run holds the log)
+            self._log_skip(log_data, trigger, reason, now, next_allowed)
         return CheckReply(ran=False, result=self.last_result(),
                           refusal=Refusal(reason=reason, next_allowed=_iso(next_allowed), message=message))
 
@@ -249,10 +274,10 @@ class Refresher:
         with self._lock() as held:
             now = self.clock()
             if not held:
-                return self._refuse("running", now + MIN_GAP)
+                return self._refuse(trigger, "running", now, now + MIN_GAP, None)
             nxt = self.next_allowed()
             if nxt and now < nxt:
-                return self._refuse("too_soon", nxt)
+                return self._refuse(trigger, "too_soon", now, nxt, self._log())
             result = self._run(trigger, now)
             log_data = self._log()
             log_data["runs"] = [result.model_dump(), *log_data["runs"]][:RUNS_KEPT]
@@ -342,7 +367,24 @@ class Refresher:
         """The fake feeds only: the live data back to the snapshot and an empty run log (the browser check)."""
         with self._lock():
             self.live.reset()
-            self._save_log({"last_checked": None, "runs": []})
+            self._save_log({"last_checked": None, "runs": [], "skipped": []})
+
+
+_EMPTY_ROW = {"finished": None, "duration_s": None, "counts": None, "new_cves": [], "version": None, "feeds": [],
+              "errors": [], "alerts_sent": 0, "alerts_held": 0, "reason": None, "next_allowed": None, "times": 1}
+
+
+def _run_row(r: RefreshResult, user_id: str) -> dict:
+    """One run as a history row (B19): its result (ok, partial, failed), how long it took, and the alerts it sent
+    `user_id` (each alert in a digest counts) or held for quiet hours."""
+    entries = r.alerts.get(user_id, [])
+    sent = sum(len(e["alerts"]) for e in entries if e["kind"] in ("alert", "digest"))
+    seconds = (dt.datetime.fromisoformat(r.finished) - dt.datetime.fromisoformat(r.started)).total_seconds()
+    return {**_EMPTY_ROW, "trigger": r.trigger, "started": r.started, "finished": r.finished, "result": r.status,
+            "duration_s": round(seconds, 1), "counts": r.counts.model_dump(), "new_cves": r.new_cves,
+            "version": r.version, "feeds": [f.model_dump() for f in r.feeds],
+            "errors": [e.model_dump() for e in r.errors], "alerts_sent": sent,
+            "alerts_held": sum(e["kind"] == "held" for e in entries)}
 
 
 def _took(result: RefreshResult) -> str:
@@ -377,8 +419,24 @@ def schedule_due(refresher: Refresher, schedule_hours: int) -> dt.datetime | Non
     return dt.datetime.fromisoformat(last) + dt.timedelta(hours=schedule_hours) - SCHEDULE_SLACK if last else None
 
 
-def run_scheduled(refresher: Refresher, schedule_hours: int) -> CheckReply | None:
-    """The scheduled refresh: the same run as Check now, or None (skipped, nothing fetched) when it isn't due yet."""
+def schedule_status(refresher: Refresher | None, alerts) -> dict:
+    """B19: the schedule as the owner set it (`alerts`: the owner's AlertSettings, B09: the refresh is shared, so
+    the owner's Settings decide it): every N hours, paused or not, and when the next scheduled run is due (None:
+    paused, snapshot mode, or never checked, so the next tick runs). The dashboard, Settings' "Refresh runs" card and
+    check_updates all say it from here."""
+    due = schedule_due(refresher, alerts.schedule_hours) if refresher and not alerts.schedule_paused else None
+    return {"hours": alerts.schedule_hours, "paused": alerts.schedule_paused,
+            "next_due": _iso(due) if due else None}
+
+
+def run_scheduled(refresher: Refresher, schedule_hours: int, paused: bool = False) -> CheckReply | None:
+    """The scheduled refresh: the same run as Check now, or None (skipped, nothing fetched) when it isn't due yet
+    or the schedule is paused (B19). Either way, what quiet hours held still goes out: pausing stops the fetch, not
+    the alerts already found."""
+    if paused:
+        log.info("Scheduled refresh skipped: the schedule is paused.")
+        refresher.send_held()
+        return None
     due = schedule_due(refresher, schedule_hours)
     if due and refresher.clock() < due:
         log.info("Scheduled refresh skipped: last checked %s, next due %s (every %d h).",
@@ -388,20 +446,21 @@ def run_scheduled(refresher: Refresher, schedule_hours: int) -> CheckReply | Non
     return refresher.run("schedule")
 
 
-def _schedule_hours(settings: Settings) -> int:
-    """The owner's schedule (B09): the refresh is shared, so one user's Settings decide it."""
+def _schedule(settings: Settings):
+    """The owner's alert settings: schedule_hours and schedule_paused (B19). The refresh is shared, so the owner's
+    Settings decide it (B09)."""
     from app.app_settings import default_dev_settings, default_settings
     from app.users import Users
 
     users = Users.local(settings, None, default_settings(settings), default_dev_settings(settings))
-    return users.state(settings.owner).read().settings.alerts.schedule_hours
+    return users.state(settings.owner).read().settings.alerts
 
 
 def main(argv: Sequence[str] = ()) -> int:
     """`uv run python -m app.refresh`: one run, as Check now does it. Prints the reply as JSON.
 
     `--schedule` (the hourly systemd timer, deploy/systemd/): run only if Settings' schedule_hours have passed since
-    the last check; otherwise print the skip and exit 0.
+    the last check and the schedule isn't paused (B19); otherwise print the skip and exit 0.
     """
     parser = argparse.ArgumentParser(prog="python -m app.refresh", description="Refresh the live CVE data.")
     parser.add_argument("--schedule", action="store_true",
@@ -415,8 +474,13 @@ def main(argv: Sequence[str] = ()) -> int:
         return 2
     refresher = make_refresher(settings, alerter=cli_alerter(settings))
     if args.schedule:
-        hours = _schedule_hours(settings)
-        reply = run_scheduled(refresher, hours)
+        schedule = _schedule(settings)
+        hours = schedule.schedule_hours
+        reply = run_scheduled(refresher, hours, schedule.schedule_paused)
+        if reply is None and schedule.schedule_paused:
+            print(json.dumps({"ran": False, "skipped": "paused", "last_checked": refresher.last_checked(),
+                              "schedule_hours": hours}, indent=1))
+            return 0
         if reply is None:
             due = schedule_due(refresher, hours)
             print(json.dumps({"ran": False, "skipped": "not_due", "last_checked": refresher.last_checked(),

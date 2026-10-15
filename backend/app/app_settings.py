@@ -26,6 +26,7 @@ class AlertSettings(BaseModel):
     now_critical: bool = True  # an open CVE is rescored as critical
     digest_over: int = Field(5, ge=1, le=50)  # more alerts than this per check become one digest
     schedule_hours: Literal[1, 3, 6, 12, 24] = 6
+    schedule_paused: bool = False  # B19: no scheduled run starts; Check now, the CLI and check_updates still run
     quiet_start: str | None = Field(None, pattern=HHMM)
     quiet_end: str | None = Field(None, pattern=HHMM)
     channels: list[Channel] = Field(default_factory=lambda: ["desktop"])

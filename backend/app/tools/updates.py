@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
-from app.refresh import RefreshResult
+from app.refresh import RefreshResult, schedule_status
 from app.tools.registry import PriorityLevel, Severity, ToolResult, ToolSpec, register
 from app.watched import WatchedCves
 
@@ -61,6 +61,13 @@ class UpdatesRefusal(ToolResult):
     message: str
 
 
+class UpdatesSchedule(ToolResult):
+    """B19: the scheduled check, as the user set it on Settings."""
+    hours: int  # every N hours
+    paused: bool  # paused: no scheduled check starts (this check and Check now still run)
+    next_due: str | None  # ISO 8601, UTC; None when paused, in snapshot mode, or never checked (the next tick runs)
+
+
 class UpdatesResult(ToolResult):
     """check_updates: this check, or the last one when refused, with what it found for this user."""
     mode: Literal["live", "snapshot"]
@@ -76,6 +83,7 @@ class UpdatesResult(ToolResult):
     new_cves: list[NewCve]  # the first LISTED, newest first
     alerts: list[UpdateAlert]  # the first LISTED, in the order sent (KEV and new before reminders)
     alerts_total: int
+    schedule: UpdatesSchedule  # B19: "is the schedule on?"
     note: str
 
 
@@ -92,6 +100,7 @@ def run(args: UpdatesArgs, deps, ctx) -> dict:
     empty = {"last_checked": None, "trigger": None, "ok": None, "status": None, "problems": [],
              "counts": UpdateCounts(new=0, updated=0, kev_added=0, rescored=0).model_dump(), "new_cves": [],
              "alerts": [], "alerts_total": 0}
+    empty["schedule"] = schedule_status(deps.refresher, deps.owner_state.settings().alerts)  # B19
     if deps.refresher is None:
         return {"mode": "snapshot", "as_of": deps.as_of, "ran": False, **empty, "note": SNAPSHOT_NOTE,
                 "refusal": {"reason": "snapshot", "next_allowed": None,
@@ -131,7 +140,8 @@ def run(args: UpdatesArgs, deps, ctx) -> dict:
             "status": result.status,
             "problems": [f"{e.source}: {e.message}" for e in result.errors],
             "counts": result.counts.model_dump(), "new_cves": new_cves,
-            "alerts": [{**a, "n": source(a["cve"])} for a in alerts[:LISTED]], "alerts_total": len(alerts)}
+            "alerts": [{**a, "n": source(a["cve"])} for a in alerts[:LISTED]], "alerts_total": len(alerts),
+            "schedule": schedule_status(deps.refresher, deps.owner_state.settings().alerts)}  # after the run: its next due
 
 
 register(ToolSpec(
@@ -139,7 +149,9 @@ register(ToolSpec(
     description="Check the feeds now for what's new: new CVEs, KEV additions, rescored CVEs, and the alerts sent to "
                 "the user. Use it when the user asks what's new, or for anything new since a day or a date. No "
                 "arguments. At most one check per 5 minutes: a refused check returns the last check's results and "
-                "when the next is allowed. Cite the listed CVEs as [n]. It changes no CVE status.",
+                "when the next is allowed. It also says whether the scheduled check is on or paused and when it is "
+                "next due, so use it for 'when did you last check?' and 'is the schedule on?' too. Cite the listed "
+                "CVEs as [n]. It changes no CVE status.",
     args_model=UpdatesArgs,
     result=UpdatesResult,
     run=run,

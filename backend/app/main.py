@@ -13,7 +13,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
-from app import agent, chat_turn, dashboard, page_context, proposals
+from app import agent, chat_turn, dashboard, page_context, proposals, refresh
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.auth import current_user
 from app.config import Settings
@@ -136,6 +136,9 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return {"mode": deps.settings.data_mode,
                 "last_checked": deps.refresher.last_checked() if deps.refresher else None}
 
+    def schedule_status() -> dict:
+        return refresh.schedule_status(deps.refresher, deps.owner_state.settings().alerts)  # B19; the owner's (B09)
+
     @app.get("/health")
     def health():
         return {"status": "ok", "llm": deps.llm.name, "model": deps.llm.label(), "as_of": deps.as_of,
@@ -186,7 +189,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         # The freshness panel: Live or Snapshot, last checked (B02), and the last run for its partial or failed
         # banner (B20). The next try is the run's start + 5 minutes, the one rule for every trigger.
         last = deps.refresher.last_result() if deps.refresher else None
-        return summary | {"data": {**data_status(), "last_result": last.model_dump() if last else None}}
+        return summary | {"data": {**data_status(), "last_result": last.model_dump() if last else None,
+                                    "schedule": schedule_status()}}  # B19: "Schedule paused"
 
     @app.get("/cves")
     def get_cves(request: Request, d: You, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
@@ -290,6 +294,13 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def refresh_status():
         return {**data_status(), **(deps.refresher.status() if deps.refresher else
                                     {"running": False, "next_allowed": None, "last_result": None})}
+
+    @app.get("/refresh/runs")
+    def refresh_runs(d: You):
+        """B19: the "Refresh runs" card: the schedule (paused or not, when next due) and the last 20 runs, with the
+        caller's own alert counts (B09)."""
+        return {**data_status(), "schedule": schedule_status(),
+                "runs": deps.refresher.history(d.user_id) if deps.refresher else []}
 
     if deps.live and deps.settings.feeds == "fake":
         @app.post("/refresh/reset")
