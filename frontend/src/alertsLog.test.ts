@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { AlertLogEntry } from './api.ts'
-import { channelResult, entryReason } from './alertsLog.ts'
+import { channelResult, entryReason, noChannels } from './alertsLog.ts'
 
 const entry = (over: Partial<AlertLogEntry> = {}): AlertLogEntry => ({
   at: '2026-10-15T09:00:00+00:00',
@@ -26,6 +26,12 @@ test('B04.11 each entry says what it was for', () => {
   const three = [1, 2, 3].map((i) => ({ cve: `CVE-2026-${i}0000`, reason: 'new' as const, priority: 3 }))
   assert.equal(entryReason(entry({ kind: 'digest', cve: null, reason: null, alerts: three })), 'Digest')
   assert.equal(entryReason(entry({ kind: 'test', cve: null, reason: null, alerts: [] })), 'Test alert')
+})
+
+test('B09.9 an entry with no channel says why: none picked, held, or another user (the owner gets the channels)', () => {
+  assert.equal(noChannels(entry()), 'No channel picked: recorded only')
+  assert.equal(noChannels(entry({ kind: 'held' })), 'Held: sent when quiet hours end')
+  assert.equal(noChannels(entry({ in_app_only: true })), 'In the app only: alerts go to the owner’s channels')
 })
 
 test('B04.11 each channel says sent, recorded only, not set up or failed', () => {

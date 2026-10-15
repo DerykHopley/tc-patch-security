@@ -7,8 +7,9 @@ Pure functions, with table tests (tests/test_alerts.py):
   priority and due date at the as-of date) -> the alerts, as (CVE, reason, priority, de-duplication key).
 - `in_quiet_hours(t, start, end)` and `digest(alerts, ...)`: when to hold, and one message for many.
 
-`Alerter` (below the pure part) runs them after a refresh for each user: rules, de-duplicate against the state,
-hold in quiet hours, digest above the limit, deliver on the user's channels and log the result per channel.
+`Alerter` (below the pure part) runs them after a refresh for each user (B09): rules, de-duplicate against the
+user's state, hold in quiet hours, digest above the limit, deliver and log the result per channel. Only the owner's
+alerts go to the channels (theirs, from the environment); other users' are recorded and shown in the app only.
 """
 import datetime as dt
 import zoneinfo
@@ -16,6 +17,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.config import DEFAULT_USER
 from app.knowledge import load_knowledge
 from app.notify import Transports, format_alert, send_on
 from app.watched import WatchedCves
@@ -166,41 +168,42 @@ def digest(messages: list[dict], app_url: str) -> dict:
 
 # --- After a refresh: rules, de-duplicate, hold or send, log ---------------------------------------------------------
 
-DEFAULT_USER = "default"  # the one local user; per-user state (B09) runs this per user id
-
-
 class Alerter:
-    """The refresh's step 4 for each user (one today): the alerts for what changed, sent once.
+    """The refresh's step 4 for each user (app.users.Users.ids: the owner and everyone with saved state): the
+    alerts for what changed, sent once.
 
     The alerts log has one entry per message sent, newest first: `kind` "alert" (one alert, with its `cve` and
     `reason`) or "digest" (several, `cve` and `reason` None), `alerts` [{cve, reason, priority}], the message
     (`title`, `body`, `priority`, `tags`, `click`), `at`, and `channels`: per channel, sent or failed with its error.
     Alerts held in quiet hours come back in the run's result as kind "held", with no channels, and are logged when
-    they are sent. Test alerts from Settings share the log as kind "test".
+    they are sent. Test alerts from Settings share the log as kind "test". Another user's entries have no channels
+    and `in_app_only` true: nothing was sent, and quiet hours hold nothing for them.
     """
 
-    def __init__(self, settings, state, transports: Callable[[], Transports]):
-        self.settings, self.state, self.transports = settings, state, transports
+    def __init__(self, settings, users, transports: Callable[[], Transports]):
+        self.settings, self.users, self.transports = settings, users, transports
 
     def __call__(self, previous: dict | None, current: dict | None, folder: Path | None,
                  now: dt.datetime) -> dict[str, list[dict]]:
         """`previous` and `current`: the live versions before and after the run, `folder` the current one's
-        folder (None, None, None after a failed fetch: then only held alerts can go out)."""
-        return {DEFAULT_USER: self._for_user(self.state, previous, current, folder, now)}
+        folder (None, None, None after a failed fetch: then only held alerts can go out). Per user id."""
+        knowledge = load_knowledge(folder) if folder is not None else None
+        return {user: self._for_user(user, self.users.state(user), previous, current, knowledge, now)
+                for user in self.users.ids()}
 
-    def _for_user(self, state, previous, current, folder, now: dt.datetime) -> list[dict]:
+    def _for_user(self, user, state, previous, current, knowledge, now: dt.datetime) -> list[dict]:
         s = state.settings().alerts
         if not s.enabled:
             return []
+        owner = user == self.settings.owner
         at = now.astimezone(dt.UTC).isoformat(timespec="seconds")
         local = now.astimezone(zoneinfo.ZoneInfo(self.settings.alert_tz)).time()
-        quiet = in_quiet_hours(local, s.quiet_start, s.quiet_end)
+        quiet = owner and in_quiet_hours(local, s.quiet_start, s.quiet_end)
         out = []
         if not quiet and (held := state.take_held_alerts()):
-            out += self._send(state, [held], s, at)  # quiet hours are over: what they held, as one message
-        if current is None or previous is None:
+            out += self._send(state, [held], s, at, owner)  # quiet hours are over: what they held, as one message
+        if current is None or previous is None or knowledge is None:
             return out
-        knowledge = load_knowledge(folder)
         as_of = now.astimezone(dt.UTC).date().isoformat()
         rows = {r["id"]: r for r in WatchedCves(knowledge, state, as_of).rows(status="all")}
         alerts = rules(diff(previous, current), rows, s, as_of)
@@ -214,15 +217,18 @@ class Alerter:
         if quiet:
             state.hold_alerts(messages)
             return out + [_entry("held", [m], m, at, []) for m in messages]
-        return out + self._send(state, batch(messages, s.digest_over), s, at)
+        return out + self._send(state, batch(messages, s.digest_over), s, at, owner)
 
-    def _send(self, state, groups: list[list[dict]], s, at: str) -> list[dict]:
+    def _send(self, state, groups: list[list[dict]], s, at: str, owner: bool) -> list[dict]:
         transports, out = self.transports(), []
         for group in groups:
             one = len(group) == 1
             message = group[0] if one else digest(group, self.settings.app_url)
-            channels = [send_on(c, message, self.settings, transports) for c in s.channels]
-            out.append(_entry("alert" if one else "digest", group, message, at, channels))
+            if owner:
+                channels = [send_on(c, message, self.settings, transports) for c in s.channels]
+                out.append(_entry("alert" if one else "digest", group, message, at, channels))
+            else:  # the channels are the owner's: another user's alert stays in the app
+                out.append(_entry("alert" if one else "digest", group, message, at, []) | {"in_app_only": True})
         state.log_alerts(out)  # on top of the log in the order sent: KEV and new CVEs above the reminders
         return out
 

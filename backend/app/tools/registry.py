@@ -23,8 +23,9 @@ log = logging.getLogger(__name__)
 @dataclass
 class Context:
     """Per-request state the tools add to: sources across search calls, the last query, usage. `page`: the checked
-    page context (A18), read by prioritise. `user_id`: whose request it is; the default user while sign-in is off
-    (B09 sets it per user). research_web counts its daily cap by it (B08)."""
+    page context (A18), read by prioritise. `user_id`: whose request it is (B09: the auth dependency's, through
+    Deps.user_id; the default user while sign-in is off). research_web counts its daily cap by it (B08), and
+    check_updates picks the user's alerts by it (B06)."""
     sources: list[Source] = field(default_factory=list)
     query: QueryInfo | None = None
     usage: Usage = field(default_factory=Usage)

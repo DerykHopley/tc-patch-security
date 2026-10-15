@@ -6,6 +6,7 @@ Load a .env file with `uv run --env-file .env ...`.
 import json
 import os
 import pathlib
+import re
 import zoneinfo
 from dataclasses import dataclass, field
 
@@ -20,8 +21,9 @@ DEFAULT_CORS = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:517
 PROVIDERS = ("fake", "openrouter", "local")
 EMBEDDERS = ("hash", "openrouter", "ollama")  # hash: the free test fake; the other two need the index built (A09)
 LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "::1"]
-# The one user while sign-in is off (spec B: per-user state comes with B09). Per-user counters key by this id.
-DEFAULT_USER = "local"
+# The one user while sign-in is off (B09): their state is STATE_PATH. Per-user counters and alerts key by this id.
+DEFAULT_USER = "default"
+USER_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")  # a user id as the state store keys it (Clerk's ids: user_2abc...)
 DATA_MODES = ("snapshot", "live")  # snapshot: frozen data, as of its date (the default and the tests); live: refreshed
 FEED_SOURCES = ("nvd", "kev", "osv", "epss")  # the four feeds, in the order a refresh asks them
 FEED_KINDS = ("fake", "real")  # fake: the made-up day data sets (B02, no network); real: NVD, KEV, EPSS, OSV (B03)
@@ -121,6 +123,14 @@ class Settings:
     # B20: chat tools that time out inside an answer (Try again still runs them), for docs/failure-demo.md
     fail_tools: list[str] = field(default_factory=list)
     nvd_api_key: str = ""  # optional (B03): NVD allows 50 requests per 30 s with it, 5 without. A secret: .env only
+    # B09: the user whose alerts go to the channels (ntfy, email, desktop: the owner's, from this environment). Other
+    # users' alerts are recorded and shown in the app only. Locally, the default user.
+    owner: str = DEFAULT_USER
+
+    @property
+    def users_path(self) -> pathlib.Path:
+        """Other users' state files (B09), next to the default user's: `state.json` -> `state-users/<id>.json`."""
+        return self.state_path.with_name(f"{self.state_path.stem}-users")
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -166,6 +176,7 @@ class Settings:
             fake_feeds_fail=_list(_env("FAKE_FEEDS_FAIL").lower()),
             fail_tools=_list(_env("FAIL_TOOLS").lower()),
             nvd_api_key=_env("NVD_API_KEY"),
+            owner=_env("OWNER", DEFAULT_USER),
         )
 
     def check(self) -> None:
@@ -191,6 +202,8 @@ class Settings:
             zoneinfo.ZoneInfo(self.alert_tz)
         except (zoneinfo.ZoneInfoNotFoundError, ValueError):
             raise ConfigError(f"ALERT_TZ must be a time zone name like UTC or Europe/London, not {self.alert_tz!r}.")
+        if not USER_ID.fullmatch(self.owner):
+            raise ConfigError(f"OWNER must be a user id (letters, digits, _ and -), not {self.owner!r}.")
         if self.fake_feeds_day not in (1, 2):
             raise ConfigError(f"FAKE_FEEDS_DAY must be 1 or 2, not {self.fake_feeds_day}.")
         from app.tools.registry import TOOLS  # here, not at the top: the tools import the config

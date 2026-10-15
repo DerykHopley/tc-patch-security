@@ -32,7 +32,7 @@ from pydantic import BaseModel, model_validator
 from app import cve_build
 from app.config import FIXTURES, Settings
 from app.feeds import FeedError, Feeds, make_feeds
-from app.live_data import LiveData, write_json
+from app.live_data import LiveData
 
 log = logging.getLogger(__name__)
 
@@ -194,13 +194,13 @@ class Refresher:
         self.live, self.feeds, self.clock = live, feeds, clock
         self.alerter = alerter  # step 4 (app.alerts.Alerter); None: no alerts
 
-    # The run log: last checked and the newest runs first, in refresh.json next to the versions.
+    # The run log: last checked and the newest runs first, in refresh.json next to the versions. Shared by every user
+    # (B09), so it lives in the live data's store.
     def _log(self) -> dict:
-        path = self.live.root / "refresh.json"
-        return json.loads(path.read_text()) if path.exists() else {"last_checked": None, "runs": []}
+        return self.live.store.read("refresh.json")[0] or {"last_checked": None, "runs": []}
 
     def _save_log(self, data: dict) -> None:
-        write_json(self.live.root / "refresh.json", data)
+        self.live.store.write("refresh.json", data)
 
     def last_checked(self) -> str | None:
         return self._log()["last_checked"]
@@ -354,10 +354,10 @@ def cli_alerter(settings: Settings):
     from app.alerts import Alerter
     from app.app_settings import default_dev_settings, default_settings
     from app.notify import Transports
-    from app.state import State
+    from app.users import Users
 
-    state = State(settings.state_path, None, default_settings(settings), default_dev_settings(settings))
-    return Alerter(settings, state, Transports)
+    users = Users.local(settings, None, default_settings(settings), default_dev_settings(settings))
+    return Alerter(settings, users, Transports)
 
 
 # --- The schedule (B03): an hourly timer calls this; Settings' schedule_hours decides whether it runs ---------------
@@ -384,10 +384,12 @@ def run_scheduled(refresher: Refresher, schedule_hours: int) -> CheckReply | Non
 
 
 def _schedule_hours(settings: Settings) -> int:
-    from app.app_settings import default_settings
-    from app.state import State
+    """The owner's schedule (B09): the refresh is shared, so one user's Settings decide it."""
+    from app.app_settings import default_dev_settings, default_settings
+    from app.users import Users
 
-    return State(settings.state_path, None, default_settings(settings)).read().settings.alerts.schedule_hours
+    users = Users.local(settings, None, default_settings(settings), default_dev_settings(settings))
+    return users.state(settings.owner).read().settings.alerts.schedule_hours
 
 
 def main(argv: Sequence[str] = ()) -> int:

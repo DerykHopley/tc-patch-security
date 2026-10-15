@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { alertsLog, type AlertLogEntry, type DataStatus } from '../api.ts'
-import { channelResult, entryReason, NO_CHANNELS } from '../alertsLog.ts'
+import { channelResult, entryReason, noChannels } from '../alertsLog.ts'
 import { utcTime } from '../freshness.ts'
 import { followLink } from '../route.ts'
 import { useWatchlistChanged } from '../watchlistEvents.ts'
@@ -25,7 +25,7 @@ export function AlertList({ entries, labelledBy }: { entries: AlertLogEntry[]; l
           {e.kind === 'digest' && <span className="meta">{e.body}</span>}
           <span className="channel-results">
             {e.channels.length === 0 ? (
-              <span className="result muted">{e.kind === 'held' ? 'Held: sent when quiet hours end' : NO_CHANNELS}</span>
+              <span className="result muted">{noChannels(e)}</span>
             ) : (
               e.channels.map((c) => {
                 const r = channelResult(c)

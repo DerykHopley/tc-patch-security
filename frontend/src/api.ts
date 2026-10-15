@@ -482,6 +482,7 @@ export interface AlertLogEntry extends AlertMessage {
   reason: AlertReason | null
   alerts: { cve: string; reason: AlertReason; priority: number }[]
   channels: ChannelResult[]
+  in_app_only?: boolean // B09: another user's alert: recorded and shown here, never sent (the channels are the owner's)
 }
 
 export interface TestAlertReply {

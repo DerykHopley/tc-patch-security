@@ -4,7 +4,7 @@ Run: `uv run uvicorn app.main:app --port 8000` (settings from the environment, s
 """
 import logging
 
-from fastapi import FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
 from app import agent, chat_turn, dashboard, page_context, proposals
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
+from app.auth import current_user
 from app.config import Settings
 from app.cve_filters import CveView, InvalidFilter
 from app.deps import Deps, build_deps
@@ -123,6 +124,13 @@ def create_app(deps: Deps | None = None) -> FastAPI:
                 log.exception("Loading the new live version failed")
             return await call_next(request)
 
+    def you(user: Annotated[str, Depends(current_user)]) -> Deps:
+        """The parts acting for the calling user (B09): their state, their id. Every route that reads or writes a
+        user's state takes this; the live data and the refresh are shared."""
+        return deps.for_user(user)
+
+    You = Annotated[Deps, Depends(you)]
+
     def data_status() -> dict:
         """The data mode and when the live data was last checked (None in snapshot mode, or before the first run)."""
         return {"mode": deps.settings.data_mode,
@@ -136,15 +144,15 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     # --- Chat (A06)
 
     @app.post("/chat", response_model=ChatReply)
-    def chat(req: ChatRequest):
-        return chat_turn.turn(req, deps)  # guard, explain level, page context, step limit (app.chat_turn)
+    def chat(req: ChatRequest, d: You):
+        return chat_turn.turn(req, d)  # guard, explain level, page context, step limit (app.chat_turn)
 
     @app.post("/chat/tool", response_model=ToolCallRecord)
-    def retry_tool(body: ToolRetry):
+    def retry_tool(body: ToolRetry, d: You):
         """Try again (B20): run one tool step again, as the answer did but without the tool-failure switch. Its
         result goes on its card only: the model doesn't see it, so the answer's text is never rewritten by it."""
-        page, _ = page_context.validate(body.page, deps.knowledge.resolve_product)
-        return run_tool(ToolCall(id="retry", name=body.name, args=body.args), deps, Context(page=page))
+        page, _ = page_context.validate(body.page, d.knowledge.resolve_product)
+        return run_tool(ToolCall(id="retry", name=body.name, args=body.args), d, Context(page=page, user_id=d.user_id))
 
     @app.get("/examples")
     def examples():
@@ -153,58 +161,58 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     # --- Changes Patch proposes (B21): nothing changes until you approve the card
 
     @app.get("/proposals/{pid}")
-    def get_proposal(pid: str):
-        return proposals.get(deps, pid)
+    def get_proposal(pid: str, d: You):
+        return proposals.get(d, pid)
 
     @app.post("/proposals/{pid}/approve")
-    def approve_proposal(pid: str):
-        return proposals.approve(deps, pid)
+    def approve_proposal(pid: str, d: You):
+        return proposals.approve(d, pid)
 
     @app.post("/proposals/{pid}/cancel")
-    def cancel_proposal(pid: str):
-        return proposals.cancel(deps, pid)
+    def cancel_proposal(pid: str, d: You):
+        return proposals.cancel(d, pid)
 
     @app.patch("/proposals/{pid}")
-    def edit_proposal(pid: str, body: ProposalEdit):
-        return proposals.edit(deps, pid, body)
+    def edit_proposal(pid: str, body: ProposalEdit, d: You):
+        return proposals.edit(d, pid, body)
 
-    # --- Dashboard (A04). Reads and writes deps.state, the same state the chat's tools use.
+    # --- Dashboard (A04). Reads and writes the caller's state, the same state the chat's tools use.
 
     @app.get("/dashboard")
-    def get_dashboard(product: str | None = None):
+    def get_dashboard(d: You, product: str | None = None):
         """`product`: the dashboard's filter (A15b), `a,b`. Unknown or unwatched products are ignored."""
-        watched = WatchedCves.of(deps)
-        summary = dashboard.summary(deps.knowledge, watched, dashboard.applied_filter(deps.knowledge, watched, product))
+        watched = WatchedCves.of(d)
+        summary = dashboard.summary(d.knowledge, watched, dashboard.applied_filter(d.knowledge, watched, product))
         # The freshness panel: Live or Snapshot, last checked (B02), and the last run for its partial or failed
         # banner (B20). The next try is the run's start + 5 minutes, the one rule for every trigger.
         last = deps.refresher.last_result() if deps.refresher else None
         return summary | {"data": {**data_status(), "last_result": last.model_dump() if last else None}}
 
     @app.get("/cves")
-    def get_cves(request: Request, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
+    def get_cves(request: Request, d: You, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
         """The CVE view's filters by their names (app.cve_filters: product, severity, status, kev, since, verdict;
         the old severity_min and published_since still work), checked by the same rules as the chat's page
         context."""
         try:
-            view = CveView.parse(request.query_params, deps.knowledge.resolve_product)
+            view = CveView.parse(request.query_params, d.knowledge.resolve_product)
         except InvalidFilter as e:
             raise InputError(str(e)) from None
-        rows = WatchedCves.of(deps).rows(**view.filters())
+        rows = WatchedCves.of(d).rows(**view.filters())
         return {"total": len(rows), "rows": rows[offset:offset + limit]}
 
     @app.patch("/cves/{cve_id}")
-    def patch_cve(cve_id: str, body: StatusUpdate):
+    def patch_cve(cve_id: str, body: StatusUpdate, d: You):
         try:
-            cve, record = deps.state.set_status(cve_id, body.status, deps.as_of, "page",
+            cve, record = d.state.set_status(cve_id, body.status, d.as_of, "page",
                                                 **body.model_dump(exclude={"status"}))
         except KeyError:
             return _error(404, "not_found", f"{cve_id} isn't in the snapshot.")
         return {"id": cve["id"], "status": body.status, "decision": record}
 
-    def watchlist_body():
+    def watchlist_body(d: Deps):
         """The watchlist, and every product with its fields (watched first, in watchlist order), so the editor
         can show a product's fields as soon as it's ticked."""
-        stack, k = deps.state.read(), deps.knowledge
+        stack, k = d.state.read(), d.knowledge
         products = []
         for pid in [*stack.watchlist, *(p for p in k.products if not stack.watches(p))]:
             osv = k.osv["products"].get(pid, {"coverage": "none", "packages": []})
@@ -214,49 +222,49 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return {"watchlist": list(stack.watchlist), "products": products}
 
     @app.get("/watchlist")
-    def get_watchlist():
-        return watchlist_body()
+    def get_watchlist(d: You):
+        return watchlist_body(d)
 
     @app.put("/watchlist")
-    def put_watchlist(body: WatchlistUpdate):
+    def put_watchlist(body: WatchlistUpdate, d: You):
         names = [p if isinstance(p, str) else p.product for p in body.products]
         fields = {p.product: p.model_dump(exclude={"product"}) for p in body.products if not isinstance(p, str)}
-        deps.state.set_watchlist(names, fields)
-        return watchlist_body()
+        d.state.set_watchlist(names, fields)
+        return watchlist_body(d)
 
     # --- Settings page (A13): alert rules, channels, test alerts, reset
 
     @app.get("/settings")
-    def get_settings():
-        return {"settings": deps.state.settings().model_dump(),
+    def get_settings(d: You):
+        return {"settings": d.state.settings().model_dump(),
                 "channels": channel_status(deps.settings, deps.transports), "alert_tz": deps.settings.alert_tz}
 
     @app.put("/settings")
-    def put_settings(body: AppSettings):
-        return {"settings": deps.state.save_settings(body).model_dump()}
+    def put_settings(body: AppSettings, d: You):
+        return {"settings": d.state.save_settings(body).model_dump()}
 
     @app.get("/alerts")
-    def get_alerts():
-        return {"alerts": deps.state.alerts_log()[:20]}
+    def get_alerts(d: You):
+        return {"alerts": d.state.alerts_log()[:20]}
 
     @app.post("/alerts/test")
-    def test_alert(body: TestAlertRequest):
+    def test_alert(body: TestAlertRequest, d: You):
         """A real alert from the most urgent open CVE on the watchlist, on one channel. "preview" only records it."""
-        row = WatchedCves.of(deps).most_urgent()  # the top of the priority order, with its due date
+        row = WatchedCves.of(d).most_urgent()  # the top of the priority order, with its due date
         if row is None:
             raise InputError("There are no open CVEs on your watchlist to build a test alert from.")
         cve = deps.knowledge.cves.get(row["id"])
         msg = format_alert(cve, "kev" if row["kev"] else "new", deps.knowledge, deps.settings.app_url, due=row)
         msg["title"] = "Test · " + msg["title"]
-        entry = deliver(body.channel, msg, deps.settings, deps.transports, deps.state)
+        entry = deliver(body.channel, msg, deps.settings, deps.transports, d.state)
         note = ("Recorded only: nothing was sent." if body.channel == "preview"
                 else f"Sent by {body.channel}. Check that it arrived.")
         return {"alert": msg, "channel": body.channel, "sent": entry["sent"], "note": note}
 
     @app.post("/state/reset")
-    def reset_state(body: ResetRequest):
-        deps.state.reset()
-        return {"reset": True, "watchlist": list(deps.state.read().watchlist)}
+    def reset_state(body: ResetRequest, d: You):
+        d.state.reset()  # the caller's state only (B09)
+        return {"reset": True, "watchlist": list(d.state.read().watchlist)}
 
     # --- Live data (B02): Check now and the refresh status. The CLI (python -m app.refresh) runs the same function.
 
@@ -285,7 +293,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
             """The fake feeds only: the live data back to the snapshot, an empty run log and no alerts, so the browser check
             can run Check now again (DECISIONS.md, 2026-10-15). The real feeds have no such route."""
             live_only().reset()
-            deps.state.clear_alerts()  # B04: so the next Check now alerts again
+            for user in deps.users.ids():  # B04: so the next Check now alerts again, for every user (B09)
+                deps.users.state(user).clear_alerts()
             deps.sync()
             return {"reset": True}
 
