@@ -4,9 +4,10 @@ Runs in Firefox and Chromium (run.sh). Expected values come from docs/design/DES
 """
 import pathlib
 import re
+from collections.abc import Callable
 
 import pytest
-from playwright.sync_api import Browser, Page, expect
+from playwright.sync_api import Browser, Locator, Page, expect
 
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
@@ -46,6 +47,26 @@ def sidebar_width(page: Page) -> float:
 
 def no_sideways_scroll(page: Page) -> bool:
     return page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
+
+
+# Waits on the real condition, never a fixed sleep: a slower CI runner can outlast any sleep (review item 11).
+SETTLED = ("el => el.getAnimations({ subtree: true }).every(a => a.playState !== 'running'"
+           " || a.effect.getComputedTiming().iterations === Infinity)")
+
+
+def settled(loc: Locator, timeout: float = 5000) -> None:
+    """Wait until the element's finite animations and transitions (its own and its children's) have finished.
+    Endless ones (Patch idling, the KEV tile's wiggle) don't count."""
+    loc.page.wait_for_function(SETTLED, arg=loc.element_handle(), timeout=timeout)
+
+
+def eventually(page: Page, check: Callable[[], bool], timeout: float = 5000, step: float = 50) -> None:
+    """Poll `check` until it holds, for conditions a locator can't express (geometry, computed styles)."""
+    for _ in range(int(timeout // step)):
+        if check():
+            return
+        page.wait_for_timeout(step)
+    assert check()
 
 
 def contrast(a: str, b: str) -> float:

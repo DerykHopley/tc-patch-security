@@ -8,7 +8,7 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from test_chat import box, fab, window
-from test_shell import DESKTOP, PHONE, SHOTS, contrast, no_sideways_scroll, open_app  # noqa: F401 (fixture)
+from test_shell import DESKTOP, PHONE, SHOTS, contrast, eventually, no_sideways_scroll, open_app, settled  # noqa: F401
 
 REM = 15  # px: the base font size (DESIGN.md §3.4)
 HEIGHT = 900  # the viewport height open_app uses
@@ -17,7 +17,7 @@ HEIGHT = 900  # the viewport height open_app uses
 def open_chat(page: Page) -> Locator:
     fab(page).click()
     expect(window(page)).to_be_visible()
-    page.wait_for_timeout(250)  # the pop (0.16s) scales the window while it runs
+    settled(window(page))  # the pop (0.16s) scales the window while it runs
     return window(page)
 
 
@@ -36,14 +36,14 @@ def test_a07_1_make_larger_is_640px_wide_full_height_minus_5rem_and_only_then_of
     open_chat(page)
     expect(head_button(page, PIN)).to_have_count(0)  # not on the small bubble
     head_button(page, "Make larger").click()
-    page.wait_for_timeout(250)
+    settled(window(page))
     w = box(window(page))
     assert round(w["width"]) == 640
     assert round(w["height"]) == HEIGHT - 5 * REM
     assert round(DESKTOP - (w["x"] + w["width"])) == round(1.25 * REM)
     expect(head_button(page, PIN)).to_be_visible()
     head_button(page, "Make smaller").click()
-    page.wait_for_timeout(250)
+    settled(window(page))
     assert box(window(page))["width"] <= 400
     expect(head_button(page, PIN)).to_have_count(0)
 
@@ -81,7 +81,7 @@ def test_a07_1_pin_docks_the_chat_beside_the_page_with_a_divider(open_app):
     unpin.click()  # floats back as the enlarged bubble
     expect(divider(page)).to_have_count(0)
     expect(fab(page)).to_be_visible()
-    page.wait_for_timeout(250)
+    settled(window(page))
     assert round(box(window(page))["width"]) == 640
     expect(head_button(page, PIN)).to_be_visible()
 
@@ -107,8 +107,7 @@ def test_a07_1_divider_drags_by_mouse_and_moves_by_arrow_keys_within_320px_and_6
     for _ in range(40):
         page.keyboard.press("ArrowRight")
     assert int(divider(page).get_attribute("aria-valuenow") or 0) == 320  # min
-    page.wait_for_timeout(100)
-    assert round(box(chat)["width"]) == 320
+    eventually(page, lambda: round(box(chat)["width"]) == 320)
     for _ in range(60):
         page.keyboard.press("ArrowLeft")
     assert int(divider(page).get_attribute("aria-valuenow") or 0) == int(DESKTOP * 0.6)  # max 60% of the window
@@ -129,14 +128,12 @@ def test_a07_1_divider_turns_purple_on_hover_and_focus(open_app):
     bg = lambda: divider(page).evaluate("el => getComputedStyle(el).backgroundColor")  # noqa: E731
     assert bg() != accent
     divider(page).hover()
-    page.wait_for_timeout(250)
-    assert bg() == accent
+    eventually(page, lambda: bg() == accent)  # a colour transition
     page.mouse.move(10, 10)
     head_button(page, UNPIN).focus()
     page.keyboard.press("Shift+Tab")  # by keyboard: the divider comes just before the chat
     expect(divider(page)).to_be_focused()
-    page.wait_for_timeout(250)
-    assert bg() == accent
+    eventually(page, lambda: bg() == accent)
 
 
 # --- A07.2: remembered; the page underneath is not rebuilt (DESIGN.md §6.3, §11) ---------------------------------

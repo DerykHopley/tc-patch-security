@@ -98,8 +98,12 @@ def test_a12_6_past_runs_listed_and_two_side_by_side(dev_page):
 
 def test_a12_6_save_first_before_a_model_check(dev_page):
     page = dev_page()
+    run = page.get_by_role("button", name="Run model check")
+    # The saved settings load after the heading: a field filled before that is reset by the load (CI race).
+    expect(run).to_be_enabled()
+    expect(page.get_by_label("Sources per search")).not_to_have_value("")
     page.get_by_label("Sources per search").fill("7")
-    expect(page.get_by_role("button", name="Run model check")).to_be_disabled()
+    expect(run).to_be_disabled()
     expect(page.get_by_text("Save your settings first")).to_be_visible()
 
 

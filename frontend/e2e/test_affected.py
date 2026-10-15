@@ -200,15 +200,18 @@ def test_a15_10_light_dark_phone_and_desktop(open_cves, open_dash, api_url, brow
         text, bg = chip.evaluate("el => [getComputedStyle(el).color, getComputedStyle(el).backgroundColor]")
         assert contrast(rgb_list(text)[0], rgb_list(bg)[0]) >= 4.5, (name, text, bg)
     page.get_by_role("combobox", name="Verdict").select_option("not_affected")
-    expect(page.locator("table.cves .verdict").first).to_have_text("Not affected")
-    first = rows(page)[0]
-    b = suggestion(page, first).bounding_box()
+    # The filter reloads the table: wait on the filtered table's own first row, as in A15.9 (CI race, run #62).
+    expect(page).to_have_url(re.compile(r"verdict=not_affected"))
+    first_suggestion = page.locator("table.cves tbody tr").first.get_by_role(
+        "button", name=re.compile(r"Suggested by the version check$"))
+    expect(first_suggestion).to_be_visible()
+    b = first_suggestion.bounding_box()
     assert b and b["x"] >= 0 and b["x"] + b["width"] <= width
     if width == DESKTOP:
         pin(page)
         actions_in_view(page)
         assert no_sideways_scroll(page)
-        b = suggestion(page, first).bounding_box()
+        b = first_suggestion.bounding_box()
         chat = window(page).bounding_box()
         assert b and chat and b["x"] + b["width"] <= chat["x"]
     dash = open_dash(width=width, scheme=scheme, reduced=True)

@@ -8,7 +8,8 @@ import time
 import pytest
 from playwright.sync_api import Locator, Page, Route, expect
 
-from test_shell import DESKTOP, PHONE, SHOTS, contrast, css_var, no_sideways_scroll, open_app  # noqa: F401 (fixture)
+from test_shell import (  # noqa: F401 (fixture)
+    DESKTOP, PHONE, SHOTS, contrast, css_var, eventually, no_sideways_scroll, open_app, settled)
 
 Q2 = "Explain CVE-2024-8309 and how to prevent that kind of bug"
 Q3 = "Which OWASP category is CWE-918?"
@@ -207,7 +208,7 @@ def test_a06_5_opens_above_the_pill_and_patch_steps_off(open_app):
     # Purple: the primary gradient (white passes on it in both modes; dark --accent would give 2.6:1).
     assert pill.evaluate("el => getComputedStyle(el).backgroundImage").startswith("linear-gradient")
     assert pill.evaluate("el => getComputedStyle(el).color") == "rgb(255, 255, 255)"
-    page.wait_for_timeout(300)  # the pop (0.16s) scales the window while it runs
+    settled(chat)  # the pop (0.16s) scales the window while it runs
     w = box(chat)
     assert round(1400 - (w["x"] + w["width"])) == round(1.25 * REM)
     assert round(900 - (w["y"] + w["height"])) == round(3.6 * REM)
@@ -289,8 +290,7 @@ def test_a06_6_citation_opens_the_details_and_scrolls_to_its_source(open_app):
     expect(answer.get_by_role("tab", name=re.compile("Sources"))).to_have_attribute("aria-selected", "true")
     source = answer.locator(f"li.source[data-n='{n}']")
     expect(source).to_be_visible()
-    page.wait_for_timeout(800)  # smooth scroll
-    assert in_view(page, source)
+    eventually(page, lambda: in_view(page, source))  # smooth scroll
     expect(source.locator(".source-n")).to_have_text(n)
 
 
@@ -432,11 +432,10 @@ def test_a06_10_keyboard_open_ask_and_reach_every_chat_control(open_app):
     expect(button).to_be_focused()
     outline = button.evaluate("el => [getComputedStyle(el).outlineStyle, getComputedStyle(el).outlineWidth]")
     assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
-    page.wait_for_timeout(300)  # the pill's 0.15s colour transition
-    pill_border = button.locator(".patch-pill").evaluate("el => getComputedStyle(el).borderTopColor")
+    pill_border = lambda: button.locator(".patch-pill").evaluate("el => getComputedStyle(el).borderTopColor")  # noqa: E731
     accent = page.evaluate("(() => { const d = document.createElement('div'); d.style.color = 'var(--accent)'; "
                            "document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c })()")
-    assert pill_border == accent  # visible focus: the pill's border turns purple
+    eventually(page, lambda: pill_border() == accent)  # visible focus: the border turns purple (a 0.15s transition)
     page.keyboard.press("Enter")
     expect(window(page)).to_be_visible()
     box_ = window(page).get_by_role("textbox", name="Message")

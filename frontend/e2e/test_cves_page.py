@@ -15,6 +15,7 @@ from playwright.sync_api import Browser, Locator, Page, expect
 from test_dashboard import (  # noqa: F401 (fixtures)
     DESKTOP, PHONE, SHOTS, TILES, api, clean_state, confirm, expect_rows, open_dash, rows, tile, tile_value,
 )
+from test_shell import settled
 
 HEIGHT = 900
 PIN = "Pin: dock the chat beside the page"
@@ -60,7 +61,7 @@ def pin(page: Page) -> None:
     head_button(page, "Make larger").click()
     head_button(page, PIN).click()
     expect(head_button(page, UNPIN)).to_be_visible()
-    page.wait_for_timeout(250)
+    settled(window(page))
 
 
 def no_sideways_scroll(page: Page) -> bool:

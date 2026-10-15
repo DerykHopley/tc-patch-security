@@ -258,7 +258,7 @@ def test_a05_5_bars_grow_in_on_first_load_stacked_bars_as_one_piece(open_dash):
     assert column == ["grow-y", "fill-box", "0.2s"]
 
     # Mid-grow, a stacked bar's segments are still joined: each gap is 2px scaled by the same factor.
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(500)  # on purpose: a frame mid-grow (if the grow is already over, the bars are joined too)
     rows = stacked.locator(".bar-row").evaluate_all("""rows => rows.map(r => [...r.querySelectorAll('.fill')]
         .map(el => { const b = el.getBoundingClientRect(); return [b.left, b.right] }))""")
     full = stacked.locator(".bar-row").evaluate_all("""rows => rows.map(r => [...r.querySelectorAll('.fill')]
@@ -279,7 +279,7 @@ def test_a05_5_bars_do_not_grow_again_on_hover_resize_or_reload(open_dash, api_u
     page.wait_for_function(f"!({GROWING})(document.querySelector('.dashboard')).length", timeout=5000)
     chart(page, BY_PRODUCT).locator(".fill").first.hover()
     page.set_viewport_size({"width": 1100, "height": 900})
-    page.wait_for_timeout(100)
+    page.wait_for_timeout(100)  # on purpose: give a wrongly restarted grow time to show
     assert dash.evaluate(GROWING) == []
     # A product added to the watchlist brings a new bar: it appears at full length too.
     rows_before = chart(page, BY_PRODUCT).locator(".bar-row").count()
