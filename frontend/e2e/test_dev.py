@@ -151,7 +151,7 @@ def test_a11_1_a_url_off_this_machine_is_refused(dev_page):
 def test_a11_2_sliders_and_switches_save_and_survive_a_reload(dev_page):
     page = dev_page()
     for label, value in (("Sources per search", "5"), ("Results per query", "10"), ("Chunks per document", "2"),
-                         ("RRF constant k", "60"), ("Keyword vs vector", "0.5"), ("Max agent steps", "4")):
+                         ("RRF constant k", "60"), ("Keyword vs vector", "0.5"), ("Max agent steps", "6")):
         expect(page.get_by_label(label)).to_have_value(value)
     page.get_by_label("Sources per search").fill("3")
     page.get_by_label("RRF constant k").focus()

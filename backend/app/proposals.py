@@ -5,7 +5,7 @@ A proposal's life:
 
 | From      | Action  | To        | Notes                                                                        |
 |-----------|---------|-----------|------------------------------------------------------------------------------|
-| (none)    | propose | proposed  | update_watchlist; checked like the forms; nothing changes                     |
+| (none)    | propose | proposed  | update_watchlist or propose_decision (B22); checked like the forms            |
 | proposed  | edit    | proposed  | the same checks as the CVE decision dialog and the Settings watchlist         |
 | proposed  | approve | approved  | through State's own methods, as the pages; who and when are recorded          |
 | approved  | approve | approved  | the first result again, nothing more changes (a retry, a double click)        |
@@ -67,9 +67,20 @@ class ProposalFields(_Shape):
     internet_facing: bool | None
 
 
+class ProposalSource(_Shape):
+    """A source a proposed decision cites (B22): what it rests on, so you can check it before you approve. A web
+    source is always marked "web result, unverified"."""
+    n: int  # its number in the answer
+    kind: Literal["knowledge", "web"]
+    label: Literal["knowledge base", "web result, unverified"]
+    title: str
+    url: str
+    site: str | None  # a web source's site
+
+
 class Proposal(_Shape):
-    """update_watchlist (B21): a proposed change, not made yet. What, why, before and after; you approve, edit or
-    cancel it in the chat's card."""
+    """update_watchlist (B21) or propose_decision (B22): a proposed change, not made yet. What, why, before and
+    after, and for a proposed decision the sources it rests on; you approve, edit or cancel it in the chat's card."""
     proposal_id: str
     action: Action
     title: str  # what, in words: "Mark CVE-2024-8309 fixed"
@@ -87,6 +98,7 @@ class Proposal(_Shape):
     expires_at: str
     approved_at: str | None
     approved_by: str | None
+    sources: list[ProposalSource]  # what a proposed decision cites (B22); empty for the other proposals
 
 
 class ProposalEdit(BaseModel):
@@ -165,9 +177,10 @@ PENDING = "Nothing has changed yet: approve it in the card, edit it, or cancel i
 
 
 def propose(action: str, deps, *, product: str | None = None, cve_id: str | None = None, why: str | None = None,
-            **fields) -> dict:
+            sources: list[dict] | None = None, **fields) -> dict:
     """A new proposal, saved, as the Proposal view. Nothing raised as Nothing; a bad value as InputError; an
-    unknown CVE as KeyError."""
+    unknown CVE as KeyError. `sources`: what a proposed decision cites (B22), as ProposalSource dicts; approving
+    keeps them in the decision record."""
     k, stack = deps.knowledge, deps.state.read()
     if action == "set_status":
         cve = k.cves.get(cve_id)
@@ -188,7 +201,8 @@ def propose(action: str, deps, *, product: str | None = None, cve_id: str | None
     now = deps.clock()
     rec = {"id": uuid.uuid4().hex, "action": action, "cve_id": cve_id if action == "set_status" else None,
            "product": product, "why": why, "fields": dict(fields), "state": "proposed", "created_at": _iso(now),
-           "expires_at": _iso(now + TTL), "approved_at": None, "approved_by": None, "message": PENDING}
+           "expires_at": _iso(now + TTL), "approved_at": None, "approved_by": None, "message": PENDING,
+           "sources": list(sources or [])}
     rec["before"], rec["after"], rec["fields"] = _preview(rec, deps)
     if action == "set_details" and rec["before"] == rec["after"]:
         raise Nothing(f"{k.products[product]} is already {rec['after']}: nothing to change.")
@@ -232,7 +246,8 @@ def _apply(rec: dict, deps) -> str:
     name = k.products.get(rec["product"], rec["product"])
     if rec["action"] == "set_status":
         given = {x: f[x] for x in STATUS_FIELDS if x != "status" and f.get(x) is not None}
-        cve, _ = state.set_status(rec["cve_id"], f["status"], deps.as_of, "chat", proposal=rec["id"], **given)
+        cve, _ = state.set_status(rec["cve_id"], f["status"], deps.as_of, "chat", proposal=rec["id"],
+                                  sources=rec.get("sources") or None, **given)
         msg = f"Marked {cve['id']} as {STATUS_WORD[f['status']].lower()}."
         if not state.read().watches(cve["product"]):
             msg += f" {name} isn't on your watchlist, so the dashboard won't show it."
@@ -308,4 +323,5 @@ def view(rec: dict, deps) -> dict:
         product=rec["product"], product_name=deps.knowledge.products.get(rec["product"]), before=rec["before"],
         after=rec["after"], fields=ProposalFields(**fields), state=state, message=rec["message"],
         as_of=deps.as_of, created_at=rec["created_at"], expires_at=rec["expires_at"],
-        approved_at=rec["approved_at"], approved_by=rec["approved_by"]).model_dump()
+        approved_at=rec["approved_at"], approved_by=rec["approved_by"],
+        sources=rec.get("sources", [])).model_dump()  # a proposal saved before B22 has none

@@ -148,7 +148,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     @app.get("/examples")
     def examples():
-        return agent.examples()
+        return agent.examples(web=deps.web is not None)
 
     # --- Changes Patch proposes (B21): nothing changes until you approve the card
 

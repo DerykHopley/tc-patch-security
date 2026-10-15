@@ -2,7 +2,7 @@
 // running gives one plain message instead of a raw network error.
 
 import { cvesQuery, type CveView } from './cveView.ts'
-import type { NamedResult, Proposal } from './toolResults.ts'
+import type { NamedResult, Proposal, ProposalSource } from './toolResults.ts'
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
@@ -186,6 +186,7 @@ export interface Decision {
   decided_by: string | null // "owner" until there are users
   via: 'page' | 'chat' | null
   proposal?: string // the proposal you approved, for a change Patch proposed in the chat (B21)
+  sources?: ProposalSource[] // what that proposal cited (B22)
 }
 
 /** What the user enters when changing a status. Which fields a status takes is checked by the backend. */

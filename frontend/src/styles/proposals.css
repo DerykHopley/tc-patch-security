@@ -60,6 +60,27 @@
   font-weight: 700;
 }
 
+/* What a proposed decision rests on (B22): numbered sources, each with where it's from in words. */
+.proposal-sources ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.proposal-sources a {
+  overflow-wrap: anywhere;
+}
+
+.chip.source-kb {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text);
+}
+
 .proposal-buttons {
   display: flex;
   flex-wrap: wrap;

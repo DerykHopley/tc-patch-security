@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, StringConstraints
 
 from app.errors import ToolError
+from app.proposals import ProposalSource
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
 from app.status import JUSTIFICATIONS, STATUSES
@@ -41,6 +42,7 @@ class Decision(ToolResult):
     decided_by: str | None
     via: str | None
     proposal: str | None = None  # the proposal you approved, for a change Patch proposed (B21)
+    sources: list[ProposalSource] | None = None  # what that proposal cited (B22)
 
 
 class Priority(ToolResult):
