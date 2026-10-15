@@ -33,6 +33,8 @@ def test_b20_1_a_failed_nvd_is_partial_and_the_other_feeds_are_kept_and_used(liv
     assert r["counts"]["kev_added"] == 1 and r["new_cves"] == []  # KEV worked: the old Langflow CVE is in KEV now
     assert OLD_TO_KEV in ids(live.client, IN_KEV)
     assert NEW_DAY2 not in ids(live.client, NEW_SINCE)  # NVD's new CVE waits for NVD
+    s = sources(live.client)
+    assert s["nvd"]["retrieved"] == "2026-10-14" and s["kev"]["retrieved"] == "2026-10-15"  # the panel's dates
     # last_checked is the last run where every feed answered, so the next NVD call covers the gap
     assert live.client.get("/health").json()["last_checked"] == f"{DAY1}T09:00:00+00:00"
 

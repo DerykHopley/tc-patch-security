@@ -22,6 +22,7 @@ export type DataMode = 'snapshot' | 'live'
 export interface DataStatus {
   mode: DataMode
   last_checked: string | null
+  last_result?: RefreshResult | null // /dashboard only (B20): the last run, for the partial or failed banner
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -94,6 +95,7 @@ export type ToolCallRecord = NamedResult & {
   status: 'ok' | 'error'
   error: { code: string; message: string } | null
   duration_ms: number
+  retryable: boolean // B20: an error a second try may pass (a timeout, a rate limit): the card offers Try again
 }
 
 export interface Usage {
@@ -152,6 +154,10 @@ export const chat = (message: string, history: Turn[], explainLevel?: ExplainLev
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message, history, ...(explainLevel && { explain_level: explainLevel }), ...(page && { page }) }),
   })
+
+/** Try again on a tool card (B20): that one step, run again with the same arguments. Its result is the card's only. */
+export const retryTool = (call: ToolCallRecord, page: PageContext) =>
+  request<ToolCallRecord>('/chat/tool', json('POST', { name: call.name, args: call.args, page }))
 
 export const examples = () => request<Example[]>('/examples')
 
@@ -352,15 +358,24 @@ export interface RefreshCounts {
   rescored: number // CVEs whose severity or CVSS score changed
 }
 
+/** One feed's step in a refresh (B20): it answered, or why it didn't. */
+export interface FeedResult {
+  source: string // nvd, kev, osv or epss
+  ok: boolean
+  message: string | null
+}
+
 export interface RefreshResult {
   trigger: string // button, chat, schedule or cli
   started: string // ISO 8601, UTC
   finished: string
-  ok: boolean // false: a feed failed and nothing changed
+  ok: boolean // true: a version was written (every feed answered, or some did: see status); false: nothing changed
   counts: RefreshCounts
   new_cves: string[]
   version: number | null
-  errors: { source: string; message: string }[]
+  errors: { source: string; message: string }[] // the feeds that failed
+  status: 'ok' | 'partial' | 'failed' // B20: every feed answered, some did (and were written), or none did
+  feeds: FeedResult[] // B20: each feed's step, in the order asked; empty in runs logged before B20
 }
 
 export interface CheckReply {

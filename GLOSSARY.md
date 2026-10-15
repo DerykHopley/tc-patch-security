@@ -26,6 +26,14 @@ _Avoid_: real-time data, cache
 One run that fetches the feeds (NVD, KEV, EPSS, OSV), builds a new version of the live data and moves *last checked*. Check now, the CLI and later the chat and the schedule all start the same refresh.
 _Avoid_: sync, update, poll
 
+**Partial run**:
+A refresh where some feeds answered and some didn't (B20). What answered is written; a failed feed keeps its data; *last checked* stays. A **failed run** is one where no feed answered: nothing is written.
+_Avoid_: half refresh, degraded run
+
+**Didn't finish** (a step):
+A tool call that stopped short in an answer and may pass on a second try: a timeout, a rate limit, a service that's down. Its card says "Didn't finish" and offers **Try again**, which runs that step only. The answer says the step is missing, never that it worked.
+_Avoid_: partial answer, skipped
+
 **As-of date**:
 The date "today" means for the data: the snapshot date in snapshot mode, today (UTC) in live mode.
 _Avoid_: now, current date

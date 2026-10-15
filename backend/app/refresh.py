@@ -109,20 +109,20 @@ class CheckReply(BaseModel):
 
 # --- Step 2: build the new version on top of the previous one (pure) ------------------------------------------------
 
-def build_version(previous: dict, nvd_rows: list[dict], kev: dict | None, osv_raw: dict[str, list[dict]] | None,
+def build_version(previous: dict, nvd_rows: list[dict] | None, kev: dict | None, osv_raw: dict[str, list[dict]] | None,
                   epss_raw: dict | None, cwe_to_web: dict[str, str], now: dt.datetime) -> tuple[dict, Counts, list[str]]:
     """The previous version's files and the fetched data -> the new version's files, the counts and the new ids.
 
     A fetched NVD row replaces the CVE's record (or adds it); a row that is rejected or no longer names a tracked
     product drops it. KEV is joined again for every CVE, so an old CVE that CISA just added is marked too.
-    A feed that failed is None (B20; a failed NVD is no rows): its part of the previous version is kept as it was.
+    A feed that failed is None (B20): its part of the previous version is kept as it was, and its retrieved date.
     """
     today = now.date().isoformat()
     before = {r["id"]: r for r in previous["cves.json"]["cves"]}
     # KEV failed: the previous version's KEV entries stand in for the catalogue
     catalogue = {v["cveID"]: v for v in (kev["vulnerabilities"] if kev is not None else previous["kev.json"])}
     records = {i: dict(r) for i, r in before.items()}
-    for row in nvd_rows:
+    for row in nvd_rows or []:
         rec = cve_build.cve_record(row, cwe_to_web, set(catalogue))
         if rec is None:
             records.pop(row["id"], None)
@@ -159,7 +159,7 @@ def build_version(previous: dict, nvd_rows: list[dict], kev: dict | None, osv_ra
     manifest["note"] = "Live data: the snapshot, refreshed from the feeds by app/refresh.py."
     manifest["product_check"] = check["counts"]
     refreshed = {  # a failed feed (None) keeps its count and retrieved date
-        "nvd": {"count": len(rows)},
+        "nvd": {"count": len(rows)} if nvd_rows is not None else None,
         "kev": {"count": len(kev_rows), "name": f"CISA KEV {kev.get('catalogVersion')}"} if kev is not None else None,
         "osv": {"count": osv["counts"]["cves"], "as_of": today} if osv_raw is not None else None,
         "epss": {"count": len(scores), "as_of": epss["date"]} if epss_raw is not None else None,
@@ -297,7 +297,7 @@ class Refresher:
         if len(errors) == len(steps):  # no feed answered: nothing to build, nothing written
             return self._result(trigger, now, began, ok=False, errors=errors, feeds=steps)
         cwe_to_web = json.loads((FIXTURES / "owasp.json").read_text())["cwe_to_web"]
-        files, counts, new = build_version(previous, nvd_rows or [], kev, osv_raw, epss_raw, cwe_to_web, now)  # 2
+        files, counts, new = build_version(previous, nvd_rows, kev, osv_raw, epss_raw, cwe_to_web, now)  # step 2
         version = self.live.write(files)  # step 3
         return self._result(trigger, now, began, ok=True, counts=counts, new_cves=new, version=version,
                             errors=errors, feeds=steps)

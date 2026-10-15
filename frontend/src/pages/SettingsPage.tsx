@@ -53,6 +53,16 @@ function outcome(e: AlertLogEntry): ReactNode {
   return e.sent ? 'sent' : 'recorded only'
 }
 
+/** B20: a failed save, shown in each card whose edits it didn't save. The edits stay; Save changes tries again. */
+function NotSaved({ error, show }: { error: string | null; show: boolean }) {
+  if (!error || !show) return null
+  return (
+    <p role="alert" className="form-error">
+      Not saved: {error} Your changes are still here; Save changes tries again.
+    </p>
+  )
+}
+
 export function SettingsPage({ asOf }: { asOf: string | null }) {
   const s = useSettings()
   const w = useWatchlist() // its own route, the same save bar (A15b)
@@ -223,6 +233,7 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
             </div>
             <p className="meta">KEV alerts still come through in quiet hours.</p>
           </fieldset>
+          <NotSaved error={s.error} show={s.changed('alerts', { except: ['channels'] })} />
         </Card>
 
         <Card title="Delivery" kind="live" why="Test alerts are really sent">
@@ -296,6 +307,7 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
               ))}
             </ul>
           )}
+          <NotSaved error={s.error} show={s.changed('alerts', { only: ['channels'] })} />
         </Card>
 
         <Card title="Patch's answers" kind="live" why="Patch uses it on your next question">
@@ -314,6 +326,7 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
               </label>
             ))}
           </fieldset>
+          <NotSaved error={s.error} show={s.changed('explain_level')} />
         </Card>
 
         <Card title="Priority and due dates" kind="live" why="The CVEs page and the dashboard use it at once">
@@ -361,6 +374,7 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
               On an internet-facing product, a CVE at or above this EPSS percentile is high priority.
             </p>
           </fieldset>
+          <NotSaved error={s.error} show={s.changed('policy') || s.changed('priority')} />
         </Card>
 
         <Card title="Data" kind="live" why="The snapshot the app reads">

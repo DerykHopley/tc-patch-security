@@ -64,6 +64,13 @@ const partial = run({
   errors: [{ source: 'nvd', message: 'nvd timed out' }],
 })
 
+test('B20.10 never checked in full, but a partial run wrote data: the line does not say "still the snapshot"', () => {
+  assert.equal(checkedLine({ mode: 'live', last_checked: null, last_result: partial }, '2026-10-15'),
+    'Not checked in full yet: some sources updated (below).')
+  assert.equal(checkedLine({ mode: 'live', last_checked: null, last_result: run({ ok: false, status: 'failed' }) }, '2026-10-15'),
+    'Not checked yet: the live data is still the snapshot.')
+})
+
 test('B20.10 the line after a partial check says it was done in part', () => {
   assert.deepEqual(replyLine(ran(partial)), { tone: 'warn', text: 'Done in part: 1 updated, 1 added to KEV.' })
 })

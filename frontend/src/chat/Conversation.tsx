@@ -160,7 +160,7 @@ function Answer({ reply }: { reply: ChatReply }) {
 export function Conversation({ messages, pending, onSend, greeting, suggestions, examples }: {
   messages: Message[]
   pending: boolean
-  onSend: (text: string) => void
+  onSend: (text: string) => Promise<boolean> // true: answered; false: the request failed (B20)
   greeting: ReactNode
   suggestions: string[]
   examples: Example[]
@@ -184,8 +184,12 @@ export function Conversation({ messages, pending, onSend, greeting, suggestions,
   function submit(e?: FormEvent) {
     e?.preventDefault()
     if (!canSend) return
-    onSend(draft.trim())
+    const text = draft.trim()
     setDraft('')
+    // B20: a failed send puts the message back in the box (unless something new was typed meanwhile), so it isn't lost
+    void onSend(text).then((sent) => {
+      if (!sent) setDraft((d) => d || text)
+    })
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {

@@ -290,6 +290,7 @@ More:
 - [docs/adr/](./docs/adr/): architecture decision records.
 - [docs/SOURCE-CHECKS.md](./docs/SOURCE-CHECKS.md): facts about outside services, checked against their official docs.
 - [docs/mcp-demo.md](./docs/mcp-demo.md): Patch as an MCP server, used from another assistant: the demo steps and transcripts.
+- [docs/failure-demo.md](./docs/failure-demo.md): how to make a feed or a chat tool fail locally, and what partial success and retry look like (B20).
 - [FEASIBILITY.md](./FEASIBILITY.md): the data check behind the domain.
 - [ALERTS-PLAN.md](./ALERTS-PLAN.md): the alert design, built in spec B.
 - [docs/process-map.html](./docs/process-map.html): the system map and its flows. Download and open it in a browser (GitHub shows HTML as source).

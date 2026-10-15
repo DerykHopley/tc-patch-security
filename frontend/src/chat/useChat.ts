@@ -32,9 +32,10 @@ export function useChat(pageContext: () => PageContext) {
   // A level picked in the chat header for the next question only (A19); null = the saved level.
   const [nextLevel, setNextLevel] = useState<ExplainLevel | null>(null)
 
-  /** savedLevel: ignore a level picked for the next question ("Explain it" and "Ask about this" use the saved one). */
-  async function send(text: string, { savedLevel = false }: { savedLevel?: boolean } = {}) {
-    if (pending) return
+  /** savedLevel: ignore a level picked for the next question ("Explain it" and "Ask about this" use the saved one).
+   *  True when Patch answered; false when the request failed or another was on its way (B20: the box gets it back). */
+  async function send(text: string, { savedLevel = false }: { savedLevel?: boolean } = {}): Promise<boolean> {
+    if (pending) return false
     const history = toHistory(messages)
     const level = savedLevel ? undefined : (nextLevel ?? undefined)
     const page = pageContext()
@@ -45,9 +46,11 @@ export function useChat(pageContext: () => PageContext) {
       const reply = await chat(text, history, level, page)
       setMessages((ms) => [...ms, { id: nextId++, role: 'assistant', content: reply.answer, reply }])
       if (changedWatchlist(reply)) announceWatchlistChanged() // the dashboard and Settings show it at once (A15b)
+      return true
     } catch (e) {
       const error = e instanceof Error ? e.message : 'Something went wrong. Try again.'
       setMessages((ms) => [...ms, { id: nextId++, role: 'assistant', content: '', error }])
+      return false
     } finally {
       setPending(false)
     }
