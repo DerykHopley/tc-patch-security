@@ -175,23 +175,33 @@ def ask(live, question: str) -> dict:  # noqa: F811
 
 def test_b19_9_patch_says_when_it_last_checked_and_whether_the_schedule_is_on(live):  # noqa: F811
     live.check_now()
+    live.clock.advance(2)
     body = ask(live, "When did you last check for new CVEs, and is the schedule on?")
     [call] = body["tool_calls"]
-    assert call["name"] == "refresh_status" and call["status"] == "ok"
+    assert call["name"] == "check_updates" and call["status"] == "ok"  # through B06's check_updates
     r = call["result"]
-    assert (r["mode"], r["last_checked"]) == ("live", f"{DAY1}T09:00:00+00:00")
+    assert (r["ran"], r["last_checked"], r["trigger"]) == (False, f"{DAY1}T09:00:00+00:00", "button")  # too soon
     assert r["schedule"] == {"hours": 6, "paused": False, "next_due": f"{DAY1}T14:50:00+00:00"}
-    assert (r["last_run"]["trigger"], r["last_run"]["result"]) == ("button", "ok")
-    assert "Last checked in full 2026-10-14 09:00 UTC" in body["answer"]
-    assert "The schedule is on: every 6 hours" in body["answer"]
+    assert "From the last check (2026-10-14 09:00:00 UTC)" in body["answer"]
+    assert "The schedule is on: every 6 hours, next from 2026-10-14 14:50:00 UTC." in body["answer"]
 
     settings = live.client.get("/settings").json()["settings"]
     settings["alerts"]["schedule_paused"] = True
     live.client.put("/settings", json=settings)
     body = ask(live, "Is the schedule on?")
-    assert body["tool_calls"][0]["result"]["schedule"]["paused"] is True
+    assert body["tool_calls"][0]["result"]["schedule"] == {"hours": 6, "paused": True, "next_due": None}
     assert "The schedule is paused" in body["answer"]
-    assert len(live.client.get("/refresh/runs").json()["runs"]) == 1  # it only reads: no run started
+    runs = live.client.get("/refresh/runs").json()["runs"]  # both asks were too soon: the history shows them
+    assert [(r["trigger"], r["result"]) for r in runs] == [("chat", "skipped"), ("button", "ok")]
+    assert runs[0]["times"] == 2
+
+
+def test_b19_9_paused_check_updates_still_runs_a_check(live):  # noqa: F811
+    settings = live.client.get("/settings").json()["settings"]
+    settings["alerts"]["schedule_paused"] = True
+    live.client.put("/settings", json=settings)
+    r = ask(live, "Anything new since Monday?")["tool_calls"][0]["result"]
+    assert r["ran"] and r["trigger"] == "chat" and r["schedule"]["paused"] is True
 
 
 def test_b19_9_in_snapshot_mode_patch_says_nothing_checks(client):

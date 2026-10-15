@@ -414,6 +414,16 @@ def schedule_due(refresher: Refresher, schedule_hours: int) -> dt.datetime | Non
     return dt.datetime.fromisoformat(last) + dt.timedelta(hours=schedule_hours) - SCHEDULE_SLACK if last else None
 
 
+def schedule_status(refresher: Refresher | None, alerts) -> dict:
+    """B19: the schedule as the user set it (`alerts`: their AlertSettings): every N hours, paused or not, and when
+    the next scheduled run is due (None: paused, snapshot mode, or never checked, so the next tick runs). The
+    dashboard, Settings' "Refresh runs" card and check_updates all say it from here. In the user's settings, so it
+    moves per user with B09."""
+    due = schedule_due(refresher, alerts.schedule_hours) if refresher and not alerts.schedule_paused else None
+    return {"hours": alerts.schedule_hours, "paused": alerts.schedule_paused,
+            "next_due": _iso(due) if due else None}
+
+
 def run_scheduled(refresher: Refresher, schedule_hours: int, paused: bool = False) -> CheckReply | None:
     """The scheduled refresh: the same run as Check now, or None (skipped, nothing fetched) when it isn't due yet
     or the schedule is paused (B19). Either way, what quiet hours held still goes out: pausing stops the fetch, not

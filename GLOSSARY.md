@@ -30,6 +30,14 @@ _Avoid_: sync, update, poll
 A refresh where some feeds answered and some didn't (B20). What answered is written; a failed feed keeps its data; *last checked* stays. A **failed run** is one where no feed answered: nothing is written.
 _Avoid_: half refresh, degraded run
 
+**Skipped run**:
+A refresh that was asked for but refused by the 5-minute rule (or because one was running): nothing was fetched. Shown in the run history as "Skipped: too soon"; the same refusal again counts up instead of adding a line (B19).
+_Avoid_: failed run (a failed run did ask the feeds)
+
+**Paused schedule**:
+The scheduled refresh switched off on Settings (B19). No scheduled run starts; Check now, the CLI and `check_updates` still run one, and alerts held through quiet hours still go out.
+_Avoid_: disabled refresh, alerts off (that's a different switch)
+
 **Didn't finish** (a step):
 A tool call that stopped short in an answer and may pass on a second try: a timeout, a rate limit, a service that's down. Its card says "Didn't finish" and offers **Try again**, which runs that step only. The answer says the step is missing, never that it worked.
 _Avoid_: partial answer, skipped

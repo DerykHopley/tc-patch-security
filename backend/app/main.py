@@ -13,7 +13,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
-from app import agent, chat_turn, dashboard, page_context, proposals
+from app import agent, chat_turn, dashboard, page_context, proposals, refresh
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.config import Settings
 from app.cve_filters import CveView, InvalidFilter
@@ -23,7 +23,7 @@ from app.errors import InputError, LLMError
 from app.notify import NotifyError, channel_status, deliver, format_alert
 from app.one_port import one_port
 from app.proposals import ProposalEdit, ProposalError
-from app.refresh import CheckReply, schedule_due
+from app.refresh import CheckReply
 from app.llm.base import ToolCall
 from app.schemas import ChatReply, ChatRequest, ToolCallRecord
 from app.tools.registry import Context, run_tool
@@ -129,13 +129,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
                 "last_checked": deps.refresher.last_checked() if deps.refresher else None}
 
     def schedule_status() -> dict:
-        """B19: the schedule as the user set it: every N hours, paused or not, and when the next scheduled run is
-        due (None: paused, snapshot mode, or never checked, so the next tick runs). In the user's settings, so it
-        moves per user with B09."""
-        a = deps.state.settings().alerts
-        due = schedule_due(deps.refresher, a.schedule_hours) if deps.refresher and not a.schedule_paused else None
-        return {"hours": a.schedule_hours, "paused": a.schedule_paused,
-                "next_due": due.isoformat(timespec="seconds") if due else None}
+        return refresh.schedule_status(deps.refresher, deps.state.settings().alerts)  # B19
 
     @app.get("/health")
     def health():

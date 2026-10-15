@@ -9,6 +9,8 @@ import re
 import pytest
 from playwright.sync_api import Locator, Page, expect
 
+from test_chat import ask, open_chat
+from test_check_updates import updates_card
 from test_dashboard import api
 from test_live import SHOTS, button, card, line, live_reset, open_live  # noqa: F401 (fixtures)
 from test_partial import text_contrast
@@ -130,3 +132,17 @@ def test_b19_8_the_card_and_the_paused_state_in_both_themes_on_a_phone_and_by_ke
     expect(line(page)).to_have_text("Schedule resumed: a check every 6 hours.")
     assert no_sideways_scroll(page)
     card(page).screenshot(path=SHOTS / f"b19-resumed-{scheme}-{width}.png")
+
+
+# --- B19.10: Patch says whether the schedule is on, through check_updates ------------------------------------------
+
+def test_b19_10_patch_says_the_schedule_is_paused(open_live, live_state):  # noqa: F811
+    settings = api(live_state, "/settings")["settings"]
+    settings["alerts"]["schedule_paused"] = True
+    api(live_state, "/settings", "PUT", settings)
+    page = open_live()
+    open_chat(page)
+    answer = ask(page, "When did you last check, and is the schedule on?")
+    expect(answer.locator(".answer-text")).to_contain_text("The schedule is paused")
+    expect(updates_card(answer).locator(".updates-schedule")).to_have_text(
+        "Schedule paused: no scheduled check starts. Check now and Patch still check.")

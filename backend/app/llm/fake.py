@@ -161,6 +161,61 @@ def _web(r: dict) -> str:
     return "\n".join(lines)
 
 
+REASON_WORDS = {"kev": "added to CISA KEV", "kev_recheck": "added to KEV while marked fixed: recheck it",
+                "new": "new", "new_unscored": "new, not scored yet", "now_critical": "now critical",
+                "due_soon": "due soon", "overdue": "overdue"}
+
+
+def _schedule(s: dict) -> str:
+    """B19: check_updates' `schedule` in one sentence."""
+    every = "every hour" if s["hours"] == 1 else f"every {s['hours']} hours"
+    if s["paused"]:
+        return "The schedule is paused: no scheduled check starts until you resume it on Settings."
+    if s["next_due"]:
+        return f"The schedule is on: {every}, next from {s['next_due'].replace('T', ' ').replace('+00:00', ' UTC')}."
+    return f"The schedule is on: {every}."
+
+
+def _updates(u: dict) -> str:
+    """check_updates (B06): this check or the last one, its counts, the new CVEs and the user's alerts; B19: the
+    schedule."""
+    if u["mode"] == "snapshot":
+        return _updates_only(u)
+    return _updates_only(u) + "\n\n" + _schedule(u["schedule"])
+
+
+def _updates_only(u: dict) -> str:
+    if u["mode"] == "snapshot":
+        return (f"This app runs on a frozen snapshot of the data as of {u['as_of']}, so there's nothing new to "
+                "check. Live mode checks the feeds.")
+    if u["last_checked"] is None:
+        return u["refusal"]["message"] + " There's no earlier check to report yet."
+    when = u["last_checked"].replace("T", " ").replace("+00:00", " UTC")
+    lines = [f"I checked the feeds just now ({when})." if u["ran"] else
+             f"{u['refusal']['message']} From the last check ({when}):"]
+    if u["ok"] is False:
+        lines.append("That check failed, so nothing changed: " + "; ".join(u["problems"]) + ".")
+        return "\n\n".join(lines)
+    if u["status"] == "partial":
+        lines.append("Some feeds didn't answer, so this check is partial: " + "; ".join(u["problems"]) + ".")
+    c = u["counts"]
+    lines.append(f"{c['new']} new, {c['updated']} updated, {c['kev_added']} added to CISA KEV, "
+                 f"{c['rescored']} rescored.")
+    cite = lambda n: f" [{n}]" if n else ""  # noqa: E731
+    if u["new_cves"]:
+        lines.append("New CVEs:\n" + "\n".join(
+            f"- {v['id']} ({v['product']}, {(v['severity'] or 'not scored').lower()}"
+            f"{', on your watchlist' if v['watched'] else ''}){cite(v['n'])}" for v in u["new_cves"]))
+    if u["alerts"]:
+        more = f" (the first {len(u['alerts'])} of {u['alerts_total']})" if u["alerts_total"] > len(u["alerts"]) else ""
+        lines.append(f"Alerts for you{more}:\n" + "\n".join(
+            f"- {a['cve']}: {REASON_WORDS.get(a['reason'], a['reason'])}"
+            f"{' (held for quiet hours)' if a['held'] else ''}{cite(a['n'])}" for a in u["alerts"]))
+    else:
+        lines.append("No alerts for you from it.")
+    return "\n\n".join(lines)
+
+
 def _level(messages: list[dict]) -> str:
     system = next((m["content"] or "" for m in messages if m["role"] == "system"), "")
     found = LEVEL_LINE.search(system)
@@ -208,8 +263,8 @@ class FakeLLM:
             if m := guard.CVE_RE.search(question):
                 args["cve_id"] = m.group(0).upper()
             return [{"name": "research_web", "args": args}]
-        if "refresh_status" in offered and SCHEDULE_QUESTION.search(question) and not guard.CVE_RE.search(question):
-            return [{"name": "refresh_status", "args": {}}]  # B19: "when did you last check?", "is the schedule on?"
+        if "check_updates" in offered and SCHEDULE_QUESTION.search(question) and not guard.CVE_RE.search(question):
+            return [{"name": "check_updates", "args": {}}]  # B19: "when did you last check?", "is the schedule on?"
         if m := guard.CVE_RE.search(question):
             return [{"name": "lookup_cve", "args": {"cve_id": m.group(0).upper()}}]
         if m := (guard.CWE_RE.search(question) or guard.ATLAS_RE.search(question)):
@@ -278,8 +333,8 @@ class FakeLLM:
                 fields["weakness"] = _weakness(data)
             elif name == "research_web":
                 fields["web"] = _web(data)
-            elif name == "refresh_status":  # B19
-                fields["refresh"] = data["message"]
+            elif name == "check_updates":  # B06
+                fields["updates"] = _updates(data)
             elif name == "propose_decision" and "proposal_id" in data:  # B22: a proposed decision, with its sources
                 cites = ", ".join(f"[{x['n']}] ({x['label']})" for x in data["sources"])
                 fields["decision"] = (f"I've proposed this: {data['title']}. {data['before']} → {data['after']}. "
@@ -290,7 +345,7 @@ class FakeLLM:
                                    data["message"] + " Watching: " + ", ".join(data["watchlist"]) + ".")
 
         if script is None:
-            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness", "web", "refresh")
+            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness", "web", "updates")
                      if k in fields]
             if sources:
                 head = "How to prevent this kind of bug:" if "cve" in fields else "From the knowledge base:"

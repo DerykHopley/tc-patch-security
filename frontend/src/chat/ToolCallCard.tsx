@@ -15,8 +15,12 @@ import type {
   Proposal,
   ResearchResult,
   TechniqueResult,
+  UpdatesResult,
   WatchlistResult,
 } from '../toolResults.ts'
+import { utcTime } from '../freshness.ts'
+import { scheduleLine } from '../refreshRuns.ts'
+import { followLink, openPath } from '../route.ts'
 
 // One card per tool call: name, arguments, status, time, and the result drawn for its tool. Errors in red.
 // Result types come from the tools' declared result models (toolResults.ts, generated from backend/app/tools/).
@@ -271,6 +275,84 @@ function ResearchCard({ r }: { r: ResearchResult }) {
   )
 }
 
+// check_updates' card (B06, DESIGN.md §6.2): when it checked (or why it didn't), the counts, the new CVEs and the
+// user's alerts, each with its source number, and a link to the CVEs page filtered to new (B05's `new=1`).
+const REASON_LABEL: Record<string, string> = {
+  kev: 'Added to CISA KEV',
+  kev_recheck: 'In KEV while marked fixed: recheck',
+  new: 'New',
+  new_unscored: 'New, not scored yet',
+  now_critical: 'Now critical',
+  due_soon: 'Due soon',
+  overdue: 'Overdue',
+}
+
+function updatesTitle(r: UpdatesResult): string {
+  if (r.mode === 'snapshot') return `A frozen snapshot, as of ${r.as_of}: nothing to check`
+  if (!r.last_checked) return 'Not checked yet'
+  return `${r.ran ? 'Checked the feeds' : 'Last check'} · ${utcTime(r.last_checked)}`
+}
+
+function UpdatesCard({ r }: { r: UpdatesResult }) {
+  const c = r.counts
+  return (
+    <div className="result-card updates-card">
+      <p className="result-title">{updatesTitle(r)}</p>
+      {r.refusal && r.refusal.reason !== 'snapshot' && <p className="meta">{r.refusal.message}</p>}
+      {r.mode === 'live' && <p className="meta updates-schedule">{scheduleLine(r.schedule, r.mode)}</p>}
+      {r.ok === false && <p className="tool-error">The check failed, nothing changed: {r.problems.join('; ')}</p>}
+      {r.status === 'partial' && <p className="meta">Partial: {r.problems.join('; ')}. The rest was written.</p>}
+      {r.ok && (
+        <p className="meta">
+          {c.new} new · {c.updated} updated · {c.kev_added} added to KEV · {c.rescored} rescored · {r.alerts_total}{' '}
+          {r.alerts_total === 1 ? 'alert' : 'alerts'} for you
+        </p>
+      )}
+      {r.new_cves.length > 0 && (
+        <>
+          <p className="updates-head">New CVEs</p>
+          <ul className="updates-list">
+            {r.new_cves.map((v) => (
+              <li key={v.id}>
+                {v.n && <span className="source-n">{v.n}</span>}
+                <strong>{v.id}</strong>
+                <span className="meta">{v.product}</span>
+                <SeverityBadge severity={v.severity} cvss={null} />
+                {v.kev && <span className="chip kev">KEV</span>}
+                {v.priority ? <PriorityChip level={v.priority} /> : <span className="chip">Not watched</span>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {r.alerts.length > 0 && (
+        <>
+          <p className="updates-head">
+            Alerts for you{r.alerts_total > r.alerts.length ? ` (first ${r.alerts.length} of ${r.alerts_total})` : ''}
+          </p>
+          <ul className="updates-list">
+            {r.alerts.map((a) => (
+              <li key={`${a.cve} ${a.reason}`}>
+                {a.n && <span className="source-n">{a.n}</span>}
+                <strong>{a.cve}</strong>
+                <span className="chip">{REASON_LABEL[a.reason] ?? a.reason}</span>
+                {a.held && <span className="meta">held for quiet hours</span>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {c.new > 0 && r.ok && (
+        <p className="meta">
+          <a href="/cves?new=1" onClick={(e) => followLink(e, openPath)}>
+            See the new CVEs on the CVEs page
+          </a>
+        </p>
+      )}
+    </div>
+  )
+}
+
 function ResultCard({ call }: { call: ToolCallRecord }) {
   // Checking the name narrows the result to that tool's type.
   if (call.name === 'lookup_cve' && call.result) return <CveCard r={call.result} />
@@ -280,6 +362,7 @@ function ResultCard({ call }: { call: ToolCallRecord }) {
   if (call.name === 'update_watchlist' && call.result) return <WatchlistCard r={call.result} />
   if (call.name === 'propose_decision' && call.result) return <WatchlistCard r={call.result} />
   if (call.name === 'research_web' && call.result) return <ResearchCard r={call.result} />
+  if (call.name === 'check_updates' && call.result) return <UpdatesCard r={call.result} />
   return null
 }
 
