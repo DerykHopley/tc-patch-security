@@ -170,6 +170,14 @@ _Avoid_: do not disturb, mute
 The record of every alert message: when, why, and what each channel did with it (sent, recorded only, not set up, failed). The dashboard's "Recent alerts" card shows the last 20.
 _Avoid_: history (that's a CVE's decisions), notifications
 
+**Owner**:
+The one user whose alerts go to the channels, named by `OWNER` in the server's environment (locally the default user). Every other user's alerts are shown in the app only.
+_Avoid_: admin, account holder
+
+**Default user**:
+The one user while sign-in is off (locally and in the tests). Their state is the state file.
+_Avoid_: local user, guest
+
 ### The assistant
 
 **Patch**:
