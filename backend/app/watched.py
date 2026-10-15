@@ -70,12 +70,13 @@ class WatchedCves:
             raise KeyError(cve_id)
         return self._assess(cve)
 
-    def rows(self, product: str | None = None, severity_min: str | None = None, status: str = "open",
-             kev: bool | None = None, published_since: str | None = None, verdict: str | None = None) -> list[dict]:
-        """The CVEs page's rows for a view, most urgent first. Only watched products have rows. Filters, as checked
-        by app.cve_filters: `product` one id or several, comma-separated (`langflow,ollama`, A15b); `severity_min`
-        LOW..CRITICAL; `status` open (open, or accepted with its review due: A16b), all, or one CVE status; `kev`;
-        `published_since` YYYY-MM-DD, inclusive; `verdict`."""
+    def rows(self, product: str | None = None, severity: str | None = None, status: str = "open",
+             kev: bool | None = None, since: str | None = None, verdict: str | None = None) -> list[dict]:
+        """The CVEs page's rows for a view, most urgent first. Only watched products have rows. The filters are the
+        CVE view's (app.cve_filters.CveView, checked there; pass `**view.filters()`): `product` one id or several,
+        comma-separated (`langflow,ollama`, A15b); `severity` LOW..CRITICAL, this or worse; `status` open (open, or
+        accepted with its review due: A16b), all, or one CVE status; `kev`; `since` YYYY-MM-DD, inclusive;
+        `verdict`."""
         k, watch = self.k, set(self._data["watchlist"])
         products = set(product.split(",")) if product else None
 
@@ -83,10 +84,10 @@ class WatchedCves:
             return (c["product"] in watch
                     and (kev is None or bool(k.cves.kev.get(c["id"])) == kev)
                     # inclusive: the dashboard's "new in 30 days" tile links here with kpis.new_since
-                    and (not published_since or c["published"] >= published_since)
+                    and (not since or c["published"] >= since)
                     and (not products or c["product"] in products)
-                    and (not severity_min
-                         or SEVERITY_ORDER.get(c["severity"] or "", 0) >= SEVERITY_ORDER[severity_min]))
+                    and (not severity
+                         or SEVERITY_ORDER.get(c["severity"] or "", 0) >= SEVERITY_ORDER[severity]))
 
         rows = sorted((self._row(self._assess(c)) for c in k.cves.all() if keep(c)), key=_sort_key)
         if status == "open":

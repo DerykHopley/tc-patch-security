@@ -13,7 +13,7 @@ with `answers` has one template per level, with the same facts and citations.
 import json
 import re
 
-from app import guard
+from app import cve_filters, guard
 from app.config import FIXTURES
 from app.llm.base import LLMReply, QueryPlan, ToolCall
 
@@ -97,15 +97,13 @@ def _verdict_counts(p: dict) -> str:
 
 
 PRIORITY_WORD = {"urgent": "Urgent", "high": "High", "normal": "Normal", "low": "Low"}
-FILTER_WORDS = {"product": "{}", "severity": "{} or worse", "verdict": "verdict {}", "kev": "in CISA KEV",
-                "since": "published since {}"}
 
 
 def _fix_first(p: dict) -> str:
     """prioritise's result (A18) in the rules' order: never re-ranked, only explained."""
     words = {k: str(v).lower().replace("_", " ") for k, v in p["filters"].items()} | (
         {"product": p["product"]} if p["product"] else {})
-    view = ", ".join(FILTER_WORDS[k].format(v) for k, v in words.items() if k in FILTER_WORDS)
+    view = ", ".join(cve_filters.WORDS[k].format(v) for k, v in words.items() if k in cve_filters.WORDS)
     where = f" in this view ({view})" if view else " on your watchlist"
     if not p["cves"]:
         return f"Nothing is open{where}, so there's nothing to fix first."

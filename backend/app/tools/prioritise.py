@@ -13,6 +13,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field, StringConstraints
 
+from app.cve_filters import CveView
 from app.errors import ToolError
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
@@ -23,9 +24,6 @@ DEFAULT_LIMIT = 5  # the dashboard's Top 5
 MAX_LIMIT = 10
 NOTE = ("This order comes from fixed priority rules: most urgent level first, then the earliest due date. Explain it "
         "from each CVE's reasons; never change the order, drop or add CVEs, or set a status. The user decides.")
-# The page's filter names (app.page_context) → WatchedCves.rows' parameters
-FILTERS = {"product": "product", "severity": "severity_min", "verdict": "verdict", "kev": "kev",
-           "since": "published_since"}
 
 
 class PrioritiseArgs(BaseModel):
@@ -39,7 +37,9 @@ def _label(key: str, value) -> str:
 
 def run(args: PrioritiseArgs, deps, ctx) -> dict:
     k, watched_cves = deps.knowledge, WatchedCves.of(deps)
-    filters = {key: ctx.page[key] for key in FILTERS if key in ctx.page}
+    # The page's view (its checked context: the CVE view's names) without its status: only open CVEs are ranked
+    filters = {key: v for key, v in CveView.parse(ctx.page, k.resolve_product).filters().items()
+               if key != "status" and v is not None}
     ignored = [f"status={ctx.page['status']}: only open CVEs are ranked"] if ctx.page.get("status") not in (
         None, "open") else []
     names = lambda pids: ", ".join(k.products[p] for p in pids.split(","))  # noqa: E731  # one or several (A15b)
@@ -53,7 +53,7 @@ def run(args: PrioritiseArgs, deps, ctx) -> dict:
         elif pid != filters.get("product"):  # beyond the page's view: its other filters were for what's on screen
             view = names(filters["product"]) if "product" in filters else "all products"
             ignored += [f"{_label(key, filters[key])}: the page's filter for {view}, not {k.products[pid]}"
-                        for key in FILTERS if key != "product" and key in filters]
+                        for key in filters if key != "product"]
             filters = {"product": pid}
     if "product" in filters:  # from the argument or the page: only watched products have open CVEs
         pids = filters["product"].split(",")
@@ -63,7 +63,7 @@ def run(args: PrioritiseArgs, deps, ctx) -> dict:
                             "watchlist, so none of its CVEs are open.", "not_watched")
         ignored += [f"product={p}: {k.products[p]} isn't on the watchlist" for p in pids if p not in watched]
         filters["product"] = ",".join(watched)
-    rows = watched_cves.rows(status="open", **{FILTERS[key]: v for key, v in filters.items()})
+    rows = watched_cves.rows(**filters)  # status open: the default
     cves = []
     for rank, r in enumerate(rows[:args.limit], 1):
         source = to_source(len(ctx.sources) + 1, chunk_cve(k.cves.get(r["id"]), r["product_name"])[0], None)

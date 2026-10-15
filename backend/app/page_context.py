@@ -1,7 +1,7 @@
 """Page context (A18): what the user is looking at when they ask, as fixed fields only.
 
-The chat request may carry the page name, the CVEs page's filters (product, severity, status, verdict, kev, since)
-and the selected CVE id; on the dashboard, its product filter (A15b). Each is checked against a fixed list or an id pattern here; anything else (a value not on
+The chat request may carry the page name, the CVEs page's filters (the CVE view, app.cve_filters: product, severity,
+status, verdict, kev, since, under the same names as the page's URL and GET /cves) and the selected CVE id; on the dashboard, its product filter (A15b). Each is checked against a fixed list or an id pattern here; anything else (a value not on
 the list, another type, an unknown field) is dropped and listed in the reply. So the context can narrow a view but
 never carry free text to Patch: an instruction can't ride in on it.
 
@@ -22,32 +22,21 @@ import re
 from app import cve_filters, guard
 
 PAGES = ("dashboard", "cves", "settings", "dev")
-STATUS_FILTERS = cve_filters.STATUS_FILTERS
 FIELDS = ("page", "product", "severity", "status", "verdict", "kev", "since", "cve")
 CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d{4,7}$", re.IGNORECASE)
 SHOWN = 40  # characters of a dropped value listed back
 
 
 def _check(key: str, value, resolve_product) -> tuple[bool, object]:
-    """(ok, the kept value). ok with None kept: a value that means "no filter" (kev false). The CVE filters use
-    the shared rules in app.cve_filters, the same as the CVEs page's query."""
-    if key == "kev":
-        if value in (True, 1, "1", "true"):
-            return True, True
-        return (True, None) if value in (False, 0, "0", "false") else (False, None)
+    """(ok, the kept value). ok with None kept: a value that means "no filter" (kev false). The CVE view's filters
+    use its rules (app.cve_filters), the same as the CVEs page's query."""
+    if key in cve_filters.FIELDS:
+        kept = cve_filters.check(key, value, resolve_product)
+        return (True, None) if kept is False else (kept is not None, kept)  # kev false: no filter
     if not isinstance(value, str):
         return False, None
     v = value.strip()
-    if key == "page":
-        kept = v if v in PAGES else None
-    elif key == "cve":
-        kept = v.upper() if CVE_ID_RE.match(v) else None
-    elif key == "product":
-        kept = cve_filters.products(v, resolve_product)  # one, or several on the dashboard (A15b)
-    elif key == "since":
-        kept = cve_filters.date(v)
-    else:  # severity, status, verdict
-        kept = getattr(cve_filters, key)(v)
+    kept = (v if v in PAGES else None) if key == "page" else (v.upper() if CVE_ID_RE.match(v) else None)  # cve
     return kept is not None, kept
 
 

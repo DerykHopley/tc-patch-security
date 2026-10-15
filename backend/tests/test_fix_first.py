@@ -64,11 +64,6 @@ def test_a18_1_free_text_and_odd_types_never_pass(client):
     assert [d.split("=")[0] for d in body["dropped_context"]] == ["product", "severity", "since"]
 
 
-# The page context's filter → the /cves query parameter for the same rule
-QUERY = {"product": "product", "severity": "severity_min", "status": "status", "verdict": "verdict",
-         "since": "published_since"}
-
-
 @pytest.mark.parametrize("key,value", [
     ("product", "langflow"), ("product", "LangFlow"), ("product", "Notion"),
     ("product", "langflow,Ollama"), ("product", "langflow,notion"), ("product", "langflow,"),  # A15b
@@ -78,9 +73,9 @@ QUERY = {"product": "product", "severity": "severity_min", "status": "status", "
     ("since", "2025-01-01"), ("since", "20250101"), ("since", "2025-W01-1"), ("since", "2026-02-30"),
 ])
 def test_a18_1_page_context_and_the_cves_query_share_one_set_of_rules(client, key, value):
-    """Review fix 9: one validator for CVE filters, so the chat's page context and the CVEs page never drift."""
+    """Review fix 9: one CVE view (app.cve_filters), so the chat's page context and the CVEs page never drift."""
     kept = key in ask(client, "Explain CWE-918", {key: value})["page_context"]
-    accepted = client.get(f"/cves?{QUERY[key]}={value}").status_code == 200
+    accepted = client.get(f"/cves?{key}={value}").status_code == 200  # one CVE view: the same names
     assert kept == accepted
 
 
@@ -137,7 +132,7 @@ def test_a18_3_the_pages_filters_narrow_the_view(client, deps):
     page = {"page": "cves", "product": "langflow", "severity": "HIGH", "verdict": "unknown", "kev": True,
             "since": "2025-01-01"}
     res = call(deps, page, limit=10)[0].result
-    expected = table(client, "&product=langflow&severity_min=HIGH&verdict=unknown&kev=true&published_since=2025-01-01")
+    expected = table(client, "&product=langflow&severity=HIGH&verdict=unknown&kev=true&since=2025-01-01")
     assert expected and ids(res) == expected[:10]
     assert res["filters"] == {"product": "langflow", "severity": "HIGH", "verdict": "unknown", "kev": True,
                               "since": "2025-01-01"}
@@ -159,7 +154,7 @@ def test_a18_3_a_product_argument_overrides_the_pages_view(client, deps):
 def test_a18_3_the_pages_own_product_as_argument_keeps_its_filters(client, deps):
     res = call(deps, {"product": "langflow", "severity": "HIGH"}, product="Langflow", limit=3)[0].result
     assert res["filters"] == {"product": "langflow", "severity": "HIGH"} and res["ignored"] == []
-    assert ids(res) == table(client, "&product=langflow&severity_min=HIGH")[:3]
+    assert ids(res) == table(client, "&product=langflow&severity=HIGH")[:3]
 
 
 def test_a18_3_an_unwatched_product_from_the_page_says_so(deps):
@@ -249,7 +244,7 @@ def test_a18_3_asking_patch_from_the_cves_page_gives_the_rules_order_for_that_vi
     page = {"page": "cves", "product": "langflow", "severity": "HIGH"}
     body = ask(client, FIX_FIRST, page)
     assert [t["name"] for t in body["tool_calls"]] == ["prioritise"]
-    expected = table(client, "&product=langflow&severity_min=HIGH")
+    expected = table(client, "&product=langflow&severity=HIGH")
     assert cve_ids_in(body["answer"])[:3] == expected[:3]
     assert body["tool_calls"][0]["result"]["filters"] == {"product": "langflow", "severity": "HIGH"}
     assert "[1]" in body["answer"] and not body["bad_citations"]

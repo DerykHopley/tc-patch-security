@@ -12,9 +12,10 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
-from app import agent, cve_filters, dashboard, guard, page_context
+from app import agent, dashboard, guard, page_context
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.config import Settings
+from app.cve_filters import CveView, InvalidFilter
 from app.deps import Deps, build_deps
 from app.dev import dev_router
 from app.errors import InputError, LLMError
@@ -121,28 +122,15 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return dashboard.summary(deps.knowledge, watched, dashboard.applied_filter(deps.knowledge, watched, product))
 
     @app.get("/cves")
-    def get_cves(product: str | None = None, severity_min: str | None = None, status: str = "open",
-                 limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), kev: bool | None = None,
-                 published_since: str | None = None, verdict: str | None = None):
-        pid = None  # the shared rules (app.cve_filters), the same as the chat's page context
-        if product:  # one, or several from a dashboard link (A15b): `langflow,ollama`
-            pid = cve_filters.products(product, deps.knowledge.resolve_product)
-            if not pid:
-                bad = next((p for p in product.split(",")
-                            if not cve_filters.product(p, deps.knowledge.resolve_product)), product)
-                raise InputError(f"{bad.strip()!r} isn't a product I track.")
-        severity = cve_filters.severity(severity_min) if severity_min else None
-        if severity_min and not severity:
-            raise InputError("severity_min must be LOW, MEDIUM, HIGH or CRITICAL.")
-        if not cve_filters.status(status):
-            raise InputError("status must be open, fixed, not_affected, accepted or all.")
-        if published_since:
-            published_since = cve_filters.date(published_since)
-            if not published_since:
-                raise InputError("published_since must be a date, YYYY-MM-DD.")
-        if verdict and not cve_filters.verdict(verdict):
-            raise InputError("verdict must be affected, not_affected or unknown.")
-        rows = WatchedCves.of(deps).rows(pid, severity, status, kev, published_since, verdict)
+    def get_cves(request: Request, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
+        """The CVE view's filters by their names (app.cve_filters: product, severity, status, kev, since, verdict;
+        the old severity_min and published_since still work), checked by the same rules as the chat's page
+        context."""
+        try:
+            view = CveView.parse(request.query_params, deps.knowledge.resolve_product)
+        except InvalidFilter as e:
+            raise InputError(str(e)) from None
+        rows = WatchedCves.of(deps).rows(**view.filters())
         return {"total": len(rows), "rows": rows[offset:offset + limit]}
 
     @app.patch("/cves/{cve_id}")

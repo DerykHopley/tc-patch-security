@@ -111,8 +111,8 @@ def test_rows_take_the_cves_page_filters(knowledge, state):
     w = WatchedCves(knowledge, state, AS_OF)
     assert w.rows(product="dify", status="all") == []  # not watched: no rows, not an error
     assert len(w.rows(kev=True)) == 9 and all(r["kev"] for r in w.rows(kev=True))
-    assert all(r["severity"] == "CRITICAL" for r in w.rows(severity_min="CRITICAL"))
-    assert all(r["published"] >= "2026-09-01" for r in w.rows(published_since="2026-09-01"))
+    assert all(r["severity"] == "CRITICAL" for r in w.rows(severity="CRITICAL"))
+    assert all(r["published"] >= "2026-09-01" for r in w.rows(since="2026-09-01"))
     not_affected = w.rows(verdict="not_affected", status="all")
     assert not_affected and {r["product"] for r in not_affected} == {"langflow"}
 
