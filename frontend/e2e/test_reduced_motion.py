@@ -10,7 +10,7 @@ import re
 import pytest
 from playwright.sync_api import Page, expect
 
-from test_affected import editor, set_stack
+from test_affected import set_stack
 from test_chat import Q3, ask, head_bot, hold_chat, release, send, window
 from test_chat import open_chat as open_bubble
 from test_chat_layout import ALERT_CVE, PIN, UNPIN, divider, head_button
@@ -26,6 +26,7 @@ from test_priority import open_settings  # noqa: F401 (fixture)
 from test_settings import settings_page  # noqa: F401 (fixture)
 from test_shell import CURSOR_OPACITIES, WIDTHS_DURING_COLLAPSE, open_app  # noqa: F401 (fixture)
 from test_snapshot_additions import RECENT, table
+from test_watchlist import card, chip_button, open_watchlist, save  # noqa: F401 (fixture)
 
 RUNNING = "document.getAnimations().map(a => a.animationName || a.transitionProperty || 'script animation')"
 
@@ -59,10 +60,8 @@ def a02_10_shell(fx):
 
 def a04_9_dashboard(fx):
     page = fx("open_dash")(reduced=True)
-    ed = page.get_by_role("region", name="Watchlist", exact=True)
-    ed.get_by_label("vLLM").check()
-    ed.get_by_role("button", name="Save watchlist").click()  # a reload must not animate either
-    expect(ed.get_by_text("Saved.")).to_be_visible()
+    chip_button(page, "Langflow").click()  # a reload must not animate either (the product filter, A15b)
+    expect(page.locator(".chart").first.locator(".bar-row")).to_have_count(1)
     still(page, "after a reload")
     transforms = tile(page, TILES[2][0]).evaluate("""async el => { const seen = new Set();
         for (let i = 0; i < 10; i++) { seen.add(getComputedStyle(el).transform); await new Promise(r => setTimeout(r, 50)) }
@@ -182,7 +181,7 @@ def a14_12_snapshot_additions(fx):
 
 
 def a15_9_verdict(fx):
-    open_page, open_board = fx("open_cves"), fx("open_dash")  # first: their set-up resets the watchlist
+    open_page, open_stack = fx("open_cves"), fx("open_watchlist")  # first: their set-up resets the watchlist
     set_stack(fx("api_url"), langflow={"version": "99.0.0"})
     page = open_page("?product=langflow", reduced=True)
     page.get_by_role("combobox", name="Verdict").select_option("not_affected")
@@ -197,13 +196,28 @@ def a15_9_verdict(fx):
     confirm(page)
     expect(page.locator("table.cves tbody tr").first).to_be_visible()
     still(page, "after the decision")
+    settings = open_stack(reduced=True)  # the watchlist's fields, on Settings since A15b
+    card(settings).get_by_label("Dify", exact=True).check()
+    card(settings).get_by_role("group", name="Langflow").get_by_label("Internet-facing").check()
+    save(settings)
+    still(settings, "the watchlist card")
+
+
+def a15b_8_watchlist(fx):
+    open_board, open_stack = fx("open_dash"), fx("open_watchlist")
     dash = open_board(reduced=True)
-    dash_editor = editor(dash)
-    dash_editor.get_by_label("Dify", exact=True).check()
-    dash_editor.get_by_role("group", name="Langflow").get_by_label("Internet-facing").check()
-    dash_editor.get_by_role("button", name="Save watchlist").click()
-    expect(dash_editor.get_by_text("Saved.")).to_be_visible()
-    still(dash, "the watchlist editor")
+    for name in ("Langflow", "Ollama", "All"):
+        chip_button(dash, name).click()
+        expect(chip_button(dash, name)).to_have_attribute("aria-pressed", "true")
+        still(dash, f"the product filter at {name}")
+    settings = open_stack(reduced=True)
+    card(settings).get_by_label("vLLM", exact=True).check()
+    expect(card(settings).get_by_role("group", name="vLLM")).to_be_visible()
+    still(settings, "a new product's fields")
+    card(settings).get_by_role("group", name="Ollama").get_by_label("Version").fill("latest")
+    settings.get_by_role("button", name="Save changes").click()
+    expect(card(settings).get_by_role("alert")).to_be_visible()
+    still(settings, "the card's error")
 
 
 def a16_12_priority(fx):
@@ -258,8 +272,8 @@ def a19_6_explain_levels(fx):
 
 SCENES = {f.__name__: f for f in (
     a02_10_shell, a04_9_dashboard, a04b_9_cves_page, a05_8_charts_and_banner, a06_8_chat, a07_8_chat_layout,
-    a11_7_dev_page, a13_7_settings, a14_12_snapshot_additions, a15_9_verdict, a16_12_priority, a16b_13_decisions,
-    a18_6_fix_first, a19_6_explain_levels,
+    a11_7_dev_page, a13_7_settings, a14_12_snapshot_additions, a15_9_verdict, a15b_8_watchlist, a16_12_priority,
+    a16b_13_decisions, a18_6_fix_first, a19_6_explain_levels,
 )}
 
 

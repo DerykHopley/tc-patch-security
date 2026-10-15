@@ -101,7 +101,7 @@ export interface ChatReply {
 // Page context (A18): fixed fields only, each checked by the backend (app/page_context.py). Never free text.
 export interface PageContext {
   page?: 'dashboard' | 'cves' | 'settings' | 'dev'
-  product?: string
+  product?: string // one id, or the dashboard's several (A15b): `langflow,ollama`
   severity?: Severity
   status?: CveStatus | 'all'
   verdict?: Verdict
@@ -174,6 +174,8 @@ export interface Dashboard {
   as_of: string
   watchlist: string[] // product ids
   products: Product[] // every product in the snapshot: the watchlist is chosen from these
+  filter: string[] // the product filter applied (A15b): watched ids in watchlist order; [] = every watched product
+  watched: WatchedCounts[] // one per watched product, whatever the filter: the filter's chips
   kpis: {
     open: number
     critical: number
@@ -194,6 +196,14 @@ export interface Dashboard {
   owasp_unmapped: number // open CVEs whose CWE isn't in OWASP's lists
   latest_incidents: Incident[] // the 5 latest MITRE ATLAS incidents
   freshness: Source[] // one per snapshot source
+}
+
+/** A watched product's open CVEs and how many of them are in CISA KEV (A15b: the dashboard filter's chips). */
+export interface WatchedCounts {
+  product: string
+  name: string
+  open: number
+  kev: number
 }
 
 export type ProductCounts = { product: string; name: string; total: number } & Record<Severity, number>
@@ -295,7 +305,7 @@ export interface Watchlist {
 }
 
 export interface CveQuery {
-  product?: string
+  product?: string // one id, or several comma-separated from a dashboard link (A15b): `langflow,ollama`
   severity_min?: Severity
   status: CveStatus | 'all'
   kev?: boolean // only CVEs in CISA KEV (A04b: the KEV tile's link)
@@ -314,7 +324,9 @@ function json(method: string, body: unknown): RequestInit {
   return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
 }
 
-export const dashboard = () => request<Dashboard>('/dashboard')
+/** products: the dashboard's filter (A15b); unknown or unwatched ones are ignored by the backend. */
+export const dashboard = (products: string[] = []) =>
+  request<Dashboard>(products.length ? `/dashboard?${new URLSearchParams({ product: products.join(',') })}` : '/dashboard')
 
 export function cves(q: CveQuery): Promise<CvePage> {
   const params = new URLSearchParams({ status: q.status, limit: String(q.limit), offset: String(q.offset) })

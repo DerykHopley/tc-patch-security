@@ -1,72 +1,91 @@
-import { useCallback, useEffect, useState, type FormEvent, type MouseEvent } from 'react'
-import {
-  cves as fetchCves,
-  dashboard as fetchDashboard,
-  getWatchlist,
-  setWatchlist,
-  type CveRow,
-  type Dashboard as DashboardData,
-  type ProductFields,
-  type ProductUsage,
-  type Watchlist,
-} from '../api.ts'
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
+import { cves as fetchCves, dashboard as fetchDashboard, type CveRow, type Dashboard as DashboardData } from '../api.ts'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
 import { Bars, ChartCard, Columns, SeverityLegend, StackedBars, Tooltip, type Tip } from '../components/charts.tsx'
 import { WarningIcon } from '../components/Icons.tsx'
 import { OverdueMark, PriorityChip, PriorityReasons } from '../components/Priority.tsx'
 import { NoFixMark } from '../components/Decision.tsx'
 import { PossibleMatch } from '../components/SnapshotFacts.tsx'
-import { USAGE_LABEL, USAGES } from '../components/Verdict.tsx'
 import { WelcomeBanner } from '../components/WelcomeBanner.tsx'
+import type { CveView } from '../pageContext.ts'
 import { followLink } from '../route.ts'
 import { SEVERITIES, sevLabel } from '../severity.ts'
+import { useWatchlistChanged } from '../watchlistEvents.ts'
 import '../styles/dashboard.css'
 
 // The dashboard (DESIGN.md §5): "how exposed am I?". Patch's welcome banner, four candy tiles (each a link to the
-// CVEs page with its filter), three charts and the top 5 open CVEs; beside them the watchlist editor, the latest
-// ATLAS incidents and the data's freshness. The full CVE table is the CVEs page (A04b).
-// Every change goes to the backend's one state module, which the chat's tools share; then tiles and charts reload.
+// CVEs page with its filter), three charts and the top 5 open CVEs; beside them the watchlist as a product filter,
+// the latest ATLAS incidents and the data's freshness. The full CVE table is the CVEs page (A04b).
+// The watchlist is edited on Settings (A15b); here its chips narrow the tiles, charts and Top 5 to some products.
+// The filter lives in the URL only (`/?product=langflow,ollama`): a fresh dashboard shows every watched product.
 
-type Note = { ok: boolean; text: string }
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
+const PRODUCT_ID = /^[a-z0-9][a-z0-9.-]{0,40}$/
 
-// onNavigate: opens an in-app link (a tile, "See all CVEs"). onAskPatch: the welcome banner's "Ask Patch".
-export function DashboardPage({ onNavigate, onAskPatch }: {
+/** The product filter in a query string. Malformed ids are dropped: the URL is text from outside. */
+function filterFromSearch(search: string): string[] {
+  const ids = (new URLSearchParams(search).get('product') ?? '').split(',').filter((p) => PRODUCT_ID.test(p))
+  return [...new Set(ids)]
+}
+
+/** A link with the filter added (the ids are checked, so the comma can stay readable): `/cves?kev=1&product=a,b`. */
+function withFilter(href: string, filter: string[]): string {
+  if (!filter.length) return href
+  return `${href}${href.includes('?') ? '&' : '?'}product=${filter.join(',')}`
+}
+
+// search: the query string the page was opened with. onNavigate: opens an in-app link (a tile, "See all CVEs").
+// onAskPatch: the welcome banner's "Ask Patch". onView: the product filter Patch is told about (A15b).
+export function DashboardPage({ search, onNavigate, onAskPatch, onView }: {
+  search: string
   onNavigate: (href: string) => void
   onAskPatch: () => void
+  onView?: (view: CveView) => void
 }) {
+  const [filter, setFilter] = useState<string[]>(() => filterFromSearch(search))
   const [data, setData] = useState<DashboardData | null>(null)
   const [top, setTop] = useState<CveRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [watchNote, setWatchNote] = useState<Note | null>(null) // kept here: saving remounts the editor
   const [tip, setTip] = useState<Tip | null>(null)
+  const latest = useRef(0) // a quick second click must not be overwritten by the first click's late reply
 
-  // The top 5 come from the table's own endpoint, so they are always the CVEs page's first 5 rows.
-  const load = useCallback(
-    () =>
-      Promise.all([
-        fetchDashboard().then(setData),
-        fetchCves({ status: 'open', limit: 5, offset: 0 }).then((p) => setTop(p.rows)),
-      ]),
-    [],
-  )
+  // Replace, not push: a filter change isn't a new page for Back, but a reload keeps it.
+  const choose = useCallback((next: string[]) => {
+    setFilter(next)
+    const s = next.length ? `?product=${next.join(',')}` : ''
+    history.replaceState(null, '', window.location.pathname + s + window.location.hash)
+  }, [])
+
+  // The backend applies only watched products; the URL follows what it applied, so a product removed from the
+  // watchlist (on Settings or by Patch) drops out of the filter. The top 5 come from the table's own endpoint, so
+  // they are always the CVEs page's first 5 rows for the same filter.
+  const load = useCallback(() => {
+    const call = ++latest.current
+    return fetchDashboard(filter).then((d) =>
+      fetchCves({ status: 'open', limit: 5, offset: 0, product: d.filter.join(',') || undefined }).then((page) => {
+        if (call !== latest.current) return
+        setData(d)
+        setTop(page.rows)
+        if (d.filter.join() !== filter.join()) choose(d.filter)
+      }),
+    )
+  }, [filter, choose])
 
   useEffect(() => {
-    load().catch((e: unknown) => setError(message(e)))
+    load().then(
+      () => setError(null),
+      (e: unknown) => setError(message(e)),
+    )
   }, [load])
+  useWatchlistChanged(() => {
+    load().catch((e: unknown) => setError(message(e)))
+  })
 
-  async function saveWatchlist(products: ProductFields[]): Promise<boolean> {
-    setWatchNote(null)
-    try {
-      await setWatchlist(products)
-      await load()
-      setWatchNote({ ok: true, text: 'Saved.' })
-      return true
-    } catch (e) {
-      setWatchNote({ ok: false, text: message(e) })
-      return false
-    }
-  }
+  const names = data ? filter.flatMap((id) => data.watched.find((w) => w.product === id)?.name ?? []) : []
+  const productName = names.join(' + ')
+  useEffect(() => {
+    onView?.({ filters: { status: 'open', product: filter.join(',') || undefined }, productName })
+  }, [filter, productName, onView])
 
   if (!data) {
     return (
@@ -94,7 +113,7 @@ export function DashboardPage({ onNavigate, onAskPatch }: {
           </button>
         </p>
       )}
-      <Tiles data={data} onNavigate={onNavigate} />
+      <Tiles data={data} filter={filter} onNavigate={onNavigate} />
       <div className="dash-grid">
         <div className="dash-main">
           <ChartCard
@@ -133,7 +152,7 @@ export function DashboardPage({ onNavigate, onAskPatch }: {
           <ChartCard
             id="chart-month"
             title="CVEs per month"
-            note="Watched products, all statuses, by publication date."
+            note={`${names.length ? names.join(', ') : 'Watched products'}, all statuses, by publication date.`}
             table={
               <table className="data">
                 <thead>
@@ -182,11 +201,10 @@ export function DashboardPage({ onNavigate, onAskPatch }: {
           >
             <Bars data={data.by_owasp.map((o) => ({ label: o.title.replace(':2025', ''), count: o.count }))} onTip={setTip} />
           </ChartCard>
-          <TopCves rows={top} onNavigate={onNavigate} />
+          <TopCves rows={top} filter={filter} onNavigate={onNavigate} />
         </div>
         <aside className="dash-side" aria-label="Dashboard side panels">
-          {/* key: a newly saved watchlist resets the editor's unsaved picks */}
-          <WatchlistEditor key={data.watchlist.join()} data={data} note={watchNote} onSave={saveWatchlist} />
+          <ProductFilter data={data} filter={filter} onChoose={choose} onNavigate={onNavigate} />
           <section className="card" aria-labelledby="incidents-title">
             <h2 id="incidents-title">Latest AI incidents (MITRE ATLAS)</h2>
             <ul className="side-list">
@@ -228,22 +246,27 @@ export function DashboardPage({ onNavigate, onAskPatch }: {
 }
 
 // Each tile links to the CVEs page with the tile's filter (A04b), so the number leads to its rows.
-function Tiles({ data, onNavigate }: { data: DashboardData; onNavigate: (href: string) => void }) {
+// With a product filter, each link carries it (A15b), so the CVEs page shows the tile's number.
+function Tiles({ data, filter, onNavigate }: {
+  data: DashboardData
+  filter: string[]
+  onNavigate: (href: string) => void
+}) {
   const k = data.kpis
   const overdue = k.kev_next_due?.overdue ?? false // against your due date (A16), not CISA's deadline
   const go = (e: MouseEvent<HTMLAnchorElement>) => followLink(e, onNavigate)
   return (
     <section className="tiles" aria-label="Summary">
-      <a className="tile tile-open" href="/cves" onClick={go}>
+      <a className="tile tile-open" href={withFilter('/cves', filter)} onClick={go}>
         <span className="tile-value">{k.open}</span>
         <span className="tile-label">Open CVEs</span>
       </a>
-      <a className="tile tile-critical" href="/cves?severity=CRITICAL" onClick={go}>
+      <a className="tile tile-critical" href={withFilter('/cves?severity=CRITICAL', filter)} onClick={go}>
         <span className="tile-value">{k.critical}</span>
         <span className="tile-label">Open and critical</span>
       </a>
       {/* Wiggles (DESIGN.md §7.1) only while open KEV CVEs exist. */}
-      <a className={`tile tile-kev${k.kev > 0 ? ' alert' : ''}`} href="/cves?kev=1" onClick={go}>
+      <a className={`tile tile-kev${k.kev > 0 ? ' alert' : ''}`} href={withFilter('/cves?kev=1', filter)} onClick={go}>
         <span className="tile-value">{k.kev}</span>
         <span className="tile-label">Open and exploited in the wild (CISA KEV)</span>
         {k.kev_next_due && (
@@ -254,7 +277,7 @@ function Tiles({ data, onNavigate }: { data: DashboardData; onNavigate: (href: s
           </span>
         )}
       </a>
-      <a className="tile tile-new" href={`/cves?status=all&since=${k.new_since}`} onClick={go}>
+      <a className="tile tile-new" href={withFilter(`/cves?status=all&since=${k.new_since}`, filter)} onClick={go}>
         <span className="tile-value">{k.new_30d}</span>
         <span className="tile-label">New in the last 30 days</span>
       </a>
@@ -263,14 +286,18 @@ function Tiles({ data, onNavigate }: { data: DashboardData; onNavigate: (href: s
 }
 
 // The work list's head: the CVEs page's first 5 rows, in its order, with a link to the rest.
-function TopCves({ rows, onNavigate }: { rows: CveRow[] | null; onNavigate: (href: string) => void }) {
+function TopCves({ rows, filter, onNavigate }: {
+  rows: CveRow[] | null
+  filter: string[]
+  onNavigate: (href: string) => void
+}) {
   return (
     <section className="card top-cves" aria-labelledby="top-cves-title">
       <h2 id="top-cves-title">Top 5 open CVEs</h2>
       {rows === null ? (
         <p className="meta">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="meta">No open CVEs on your watchlist.</p>
+        <p className="meta">{filter.length ? 'No open CVEs for these products.' : 'No open CVEs on your watchlist.'}</p>
       ) : (
         <ol>
           {rows.map((r) => (
@@ -299,166 +326,74 @@ function TopCves({ rows, onNavigate }: { rows: CveRow[] | null; onNavigate: (hre
           ))}
         </ol>
       )}
-      <a className="see-all" href="/cves" onClick={(e) => followLink(e, onNavigate)}>
+      <a className="see-all" href={withFilter('/cves', filter)} onClick={(e) => followLink(e, onNavigate)}>
         See all CVEs <span aria-hidden="true">→</span>
       </a>
     </section>
   )
 }
 
-// The watchlist and, per ticked product, how you run it (A15): usage, your version (optional) and internet-facing.
-// The version is checked by the product's ecosystem on save; a product without version data says so, because a
-// version won't help its verdict there.
-const VERSION_EXAMPLE: Record<'PyPI' | 'npm' | 'Go', string> = { PyPI: '0.3.27', npm: '3.1.0', Go: 'v0.12.3' }
-type Fields = Record<string, ProductFields>
-
-function fieldsOf(w: Watchlist): Fields {
-  return Object.fromEntries(
-    w.products.map((p) => [
-      p.product,
-      { product: p.product, usage: p.usage, version: p.version, internet_facing: p.internet_facing },
-    ]),
-  )
+// The watchlist as a filter (A15b): "All" and a toggle chip per watched product. Picking every product is the
+// same as All, so the URL stays clean. A red dot (and words in its name and title) marks products with open KEV CVEs.
+// Editing the watchlist is on Settings.
+function Tick({ on }: { on: boolean }) {
+  // Picked isn't told by colour alone; aria-pressed says it to screen readers, so the tick is hidden from them.
+  return on ? (
+    <span className="tick" aria-hidden="true">
+      ✓
+    </span>
+  ) : null
 }
 
-function WatchlistEditor({
-  data,
-  note,
-  onSave,
-}: {
+function ProductFilter({ data, filter, onChoose, onNavigate }: {
   data: DashboardData
-  note: Note | null
-  onSave: (products: ProductFields[]) => Promise<boolean>
+  filter: string[]
+  onChoose: (next: string[]) => void
+  onNavigate: (href: string) => void
 }) {
-  const [picked, setPicked] = useState<string[]>(data.watchlist)
-  const [saved, setSaved] = useState<Watchlist | null>(null)
-  const [fields, setFields] = useState<Fields>({})
-  const [saving, setSaving] = useState(false)
-
-  const loadFields = useCallback(
-    () =>
-      getWatchlist().then(
-        (w) => {
-          setSaved(w)
-          setFields(fieldsOf(w))
-        },
-        () => setSaved(null), // the dashboard already shows a load error; the checkboxes still work
-      ),
-    [],
-  )
-  useEffect(() => {
-    loadFields()
-  }, [loadFields])
-
-  const product = (id: string) => saved?.products.find((p) => p.product === id)
-  const body = () => picked.map((id) => fields[id] ?? { product: id, usage: 'self_hosted', version: null, internet_facing: false })
-  const changed =
-    picked.toSorted().join() !== data.watchlist.toSorted().join() ||
-    (saved !== null && picked.some((id) => JSON.stringify(fields[id]) !== JSON.stringify(fieldsOf(saved)[id])))
-
-  function set(id: string, patch: Partial<ProductFields>) {
-    setFields((f) => ({ ...f, [id]: { ...f[id], ...patch } }))
+  function toggle(id: string) {
+    const next = new Set(filter)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    const ids = data.watchlist.filter((p) => next.has(p))
+    onChoose(ids.length === data.watchlist.length ? [] : ids)
   }
-
-  async function save(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    const ok = await onSave(body()) // never throws: failures come back as the note
-    if (ok) await loadFields()
-    setSaving(false)
-  }
-
-  // Ticked products, in the list's order, each with its fields.
-  const ticked = data.products.filter((p) => picked.includes(p.id))
-
   return (
-    <section className="card" aria-labelledby="watchlist-title">
+    <section className="card filter-card" aria-labelledby="watchlist-title">
       <h2 id="watchlist-title">Watchlist</h2>
-      <p className="meta">The products you use. The tiles and the table count only these.</p>
-      <form onSubmit={save}>
-        <ul className="watchlist">
-          {data.products.map((p) => (
-            <li key={p.id}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={picked.includes(p.id)}
-                  onChange={(e) =>
-                    setPicked((w) => (e.target.checked ? [...w, p.id] : w.filter((x) => x !== p.id)))
-                  }
-                />
+      {data.watched.length === 0 ? (
+        <p className="meta">Your watchlist is empty: add the products you use.</p>
+      ) : (
+        <fieldset className="product-chips">
+          <legend className="meta">Show the tiles, charts and Top 5 for</legend>
+          <button type="button" className="product-chip" aria-pressed={filter.length === 0} onClick={() => onChoose([])}>
+            <Tick on={filter.length === 0} />
+            All
+          </button>
+          {data.watched.map((p) => {
+            const on = filter.includes(p.product)
+            const kev = p.kev > 0 ? `${p.name}: open CVEs in CISA KEV` : undefined
+            return (
+              <button
+                key={p.product}
+                type="button"
+                className="product-chip"
+                aria-pressed={on}
+                aria-label={kev}
+                title={kev}
+                onClick={() => toggle(p.product)}
+              >
+                <Tick on={on} />
                 {p.name}
-              </label>
-            </li>
-          ))}
-        </ul>
-        {saved && ticked.length > 0 && (
-          <>
-            <p className="meta">How you run them: for the verdict (am I affected?) and who acts.</p>
-            <div className="stack-fields">
-              {ticked.map((p) => {
-                const info = product(p.id)
-                const f = fields[p.id]
-                if (!info || !f) return null
-                return (
-                  <fieldset key={p.id} className="product-fields">
-                    <legend>{p.name}</legend>
-                    <label>
-                      Usage
-                      <select value={f.usage} onChange={(e) => set(p.id, { usage: e.target.value as ProductUsage })}>
-                        {USAGES.map((u) => (
-                          <option key={u} value={u}>
-                            {USAGE_LABEL[u]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="field-row">
-                      <label>
-                        Version
-                        <input
-                          type="text"
-                          inputMode="text"
-                          autoComplete="off"
-                          spellCheck={false}
-                          maxLength={40}
-                          placeholder={info.ecosystem ? `e.g. ${VERSION_EXAMPLE[info.ecosystem]}` : 'optional'}
-                          value={f.version ?? ''}
-                          onChange={(e) => set(p.id, { version: e.target.value || null })}
-                        />
-                      </label>
-                      <label className="check">
-                        <input
-                          type="checkbox"
-                          checked={f.internet_facing}
-                          onChange={(e) => set(p.id, { internet_facing: e.target.checked })}
-                        />
-                        Internet-facing
-                      </label>
-                    </div>
-                    {info.coverage === 'none' && (
-                      <p className="meta field-note">No version data for {p.name}, so its verdicts stay unknown.</p>
-                    )}
-                    {info.coverage === 'commits' && (
-                      <p className="meta field-note">
-                        {p.name} fixes are listed as only code commits, so its verdicts stay unknown.
-                      </p>
-                    )}
-                  </fieldset>
-                )
-              })}
-            </div>
-          </>
-        )}
-        <button type="submit" disabled={!changed || saving}>
-          {saving ? 'Saving…' : 'Save watchlist'}
-        </button>
-        {note && (
-          <p className={note.ok ? 'meta save-note' : 'dash-error save-note'} role={note.ok ? 'status' : 'alert'}>
-            {note.text}
-          </p>
-        )}
-      </form>
+                {kev && <span className="kev-dot" aria-hidden="true" />}
+              </button>
+            )
+          })}
+        </fieldset>
+      )}
+      <a className="edit-link" href="/settings" onClick={(e) => followLink(e, onNavigate)}>
+        Edit watchlist in Settings <span aria-hidden="true">→</span>
+      </a>
     </section>
   )
 }

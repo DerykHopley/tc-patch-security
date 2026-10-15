@@ -1,4 +1,5 @@
-"""Browser check (seam 3) for the dashboard: tiles and the watchlist editor. Check ids: A04.n (#6).
+"""Browser check (seam 3) for the dashboard: tiles and the watchlist filter. Check ids: A04.n (#6).
+The watchlist editor moved to Settings (A15b, #30): its checks (A04.8) are in test_watchlist.py.
 The CVE table moved to its own page (A04b, #26): its checks are in test_cves_page.py, with their A04.n ids.
 
 Runs in Firefox and Chromium (run.sh). Expected numbers come from the backend's API (tested on its own in
@@ -167,37 +168,7 @@ def test_a04_6_kev_tile_wiggles_every_4s_only_with_open_kev(open_dash):
     expect(tile(calm, TILES[2][0]).locator(".tile-note")).to_have_count(0)
 
 
-# --- Watchlist editor ---------------------------------------------------------------------------------------------
-
-def test_a04_8_watchlist_add_and_remove(open_dash, api_url):
-    page = open_dash()
-    editor = page.get_by_role("region", name="Watchlist", exact=True)
-    save = editor.get_by_role("button", name="Save watchlist")
-    expect(save).to_be_disabled()  # nothing changed yet
-    editor.get_by_label("vLLM").check()
-    editor.get_by_label("LangChain").uncheck()
-    save.click()
-    expect(editor.get_by_text("Saved.")).to_be_visible()
-    watchlist = api(api_url, "/watchlist")["watchlist"]
-    assert "vllm" in watchlist and "langchain" not in watchlist
-    expect(tile(page, "Open CVEs").locator(".tile-value")).to_have_text(str(api(api_url, "/dashboard")["kpis"]["open"]))
-    page.get_by_role("button", name="CVEs", exact=True).click()  # the CVEs page filters on the new watchlist
-    product = page.get_by_role("combobox", name="Product")
-    expect(product.locator("option", has_text="vLLM")).to_have_count(1)
-    expect(product.locator("option", has_text="LangChain")).to_have_count(0)
-
-
-def test_a04_8_unknown_product_rejected_with_a_plain_message(open_dash):
-    page = open_dash()
-
-    def sneak_in(route):
-        route.continue_(post_data=json.dumps({"products": ["ollama", "notion"]}))
-
-    page.route("**/watchlist", sneak_in)
-    editor = page.get_by_role("region", name="Watchlist", exact=True)
-    editor.get_by_label("vLLM").check()
-    editor.get_by_role("button", name="Save watchlist").click()
-    expect(page.get_by_role("alert")).to_contain_text("'notion' isn't a product I track. Choose from:")
+# --- Watchlist: A04.8's editor moved to Settings (A15b); its checks are in test_watchlist.py -------------------
 
 
 # --- Motion (DESIGN.md §7.1) --------------------------------------------------------------------------------------
@@ -233,17 +204,18 @@ def test_a04_10_light_dark_phone_and_desktop(open_dash, browser_name, width, sch
     # The row actions' check (with and without the pinned chat) moved to the CVEs page: test_cves_page.py.
 
 
-def test_a04_11_keyboard_reaches_the_watchlist(open_dash):
-    # The filters, row actions and paging moved to the CVEs page (test_cves_page.py keeps A04.11 for them).
+def test_a04_11_keyboard_reaches_the_watchlist_filter(open_dash):
+    # The filters, row actions and paging moved to the CVEs page (test_cves_page.py keeps A04.11 for them); the
+    # watchlist is a filter now (A15b): its chips and the link to Settings.
     page = open_dash()
     page.get_by_role("link", name="See all CVEs").focus()
     seen = []
     for _ in range(40):
         page.keyboard.press("Tab")
         seen.append(page.evaluate("(() => { const a = document.activeElement;"
-                                  " return a.labels?.[0]?.textContent.trim() || a.textContent.trim() })()"))
-        if seen[-1] == "LangChain":
+                                  " return a.getAttribute('aria-label') || a.textContent.trim() })()"))
+        if seen[-1].startswith("Edit watchlist in Settings"):
             break
-    assert seen[-1] == "LangChain", seen
+    assert "LangChain" in seen and seen[-1].startswith("Edit watchlist in Settings"), seen
     outline = page.evaluate("(() => { const s = getComputedStyle(document.activeElement); return [s.outlineStyle, s.outlineWidth] })()")
     assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2

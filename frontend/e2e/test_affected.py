@@ -1,6 +1,7 @@
 """Browser check (seam 3) for "Am I affected?": the verdict column, its filter and the "Mark not affected?" suggestion
-on the CVEs page, the watchlist editor's usage, version and internet-facing fields, and the check_affected card in
-the chat. Check ids: A15.n, from ticket #17.
+on the CVEs page, and the check_affected card in the chat. Check ids: A15.n, from ticket #17. The watchlist editor's
+usage, version and internet-facing fields moved to Settings (A15b, #30): their checks (A15.6, A15.10, A15.11) are in
+test_watchlist.py.
 
 Runs in Firefox and Chromium (run.sh). Expected verdicts come from the backend's API (the rules are table-tested in
 backend/tests/test_verdict.py); expected looks from docs/design/DESIGN.md §5.3, §5.9, §7 and §10.
@@ -32,10 +33,6 @@ def verdict_cell(page: Page, cve: str) -> Locator:
 
 def suggestion(page: Page, cve: str) -> Locator:
     return page.get_by_role("button", name=f"Mark {cve} not affected? Suggested by the version check")
-
-
-def editor(page: Page) -> Locator:
-    return page.get_by_role("region", name="Watchlist", exact=True)
 
 
 # --- A15.5: the CVEs page: verdict column, filter, the one-click suggestion -------------------------------------------
@@ -95,43 +92,7 @@ def test_a15_5_mark_not_affected_is_a_suggestion_only_the_user_clicks(open_cves,
     expect(unknown.get_by_role("button", name=re.compile(r"Suggested by the version check$"))).to_have_count(0)
 
 
-# --- A15.6: the watchlist editor's fields ----------------------------------------------------------------------------
-
-def test_a15_6_usage_version_and_internet_facing_per_product(open_dash, api_url):
-    page = open_dash()
-    langflow = editor(page).get_by_role("group", name="Langflow")
-    expect(langflow.get_by_label("Usage")).to_have_value("self_hosted")
-    expect(editor(page).get_by_role("group", name="LangChain").get_by_label("Usage")).to_have_value("library")
-    langflow.get_by_label("Usage").select_option(label="Comes in through another package")
-    langflow.get_by_label("Version").fill("1.2.0")
-    langflow.get_by_label("Internet-facing").check()
-    editor(page).get_by_role("button", name="Save watchlist").click()
-    expect(editor(page).get_by_text("Saved.")).to_be_visible()
-    saved = next(p for p in api(api_url, "/watchlist")["products"] if p["product"] == "langflow")
-    assert (saved["usage"], saved["version"], saved["internet_facing"]) == ("transitive", "1.2.0", True)
-    expect(editor(page).get_by_role("group", name="Langflow").get_by_label("Version")).to_have_value("1.2.0")
-    page.get_by_role("button", name="CVEs", exact=True).click()
-    expect(verdict_cell(page, LANGFLOW_KEV).locator(".verdict")).to_have_text("Affected")
-
-
-def test_a15_6_a_ticked_product_shows_its_fields_and_why_a_version_wont_help(open_dash):
-    page = open_dash()
-    expect(editor(page).get_by_role("group", name="Dify")).to_have_count(0)
-    editor(page).get_by_label("Dify", exact=True).check()
-    dify = editor(page).get_by_role("group", name="Dify")
-    expect(dify).to_contain_text("No version data for Dify, so its verdicts stay unknown.")
-    editor(page).get_by_label("llama.cpp", exact=True).check()
-    expect(editor(page).get_by_role("group", name="llama.cpp")).to_contain_text("only code commits")
-    expect(editor(page).get_by_role("group", name="Ollama").get_by_label("Version")).to_have_attribute(
-        "placeholder", "e.g. v0.12.3")
-
-
-def test_a15_6_a_bad_version_is_rejected_with_a_plain_message(open_dash, api_url):
-    page = open_dash()
-    editor(page).get_by_role("group", name="Ollama").get_by_label("Version").fill("latest")
-    editor(page).get_by_role("button", name="Save watchlist").click()
-    expect(editor(page).get_by_role("alert")).to_contain_text("'latest' isn't a Go module version, which Ollama uses.")
-    assert next(p for p in api(api_url, "/watchlist")["products"] if p["product"] == "ollama")["version"] is None
+# --- A15.6: the watchlist's fields moved to the Settings card (A15b): test_watchlist.py ---------------------------
 
 
 # --- A15.7: the chat: check_affected and its card ------------------------------------------------------------------
@@ -164,7 +125,7 @@ def test_a15_7_am_i_affected_shows_the_verdict_card_and_changes_nothing(open_cve
 
 @pytest.mark.parametrize("width", [PHONE, DESKTOP])
 @pytest.mark.parametrize("scheme", ["light", "dark"])
-def test_a15_10_light_dark_phone_and_desktop(open_cves, open_dash, api_url, browser_name, width, scheme):
+def test_a15_10_light_dark_phone_and_desktop(open_cves, api_url, browser_name, width, scheme):
     set_stack(api_url, langflow={"version": "99.0.0"}, langchain={"version": "0.2.10"})
     page = open_cves(width=width, scheme=scheme, reduced=True)
     SHOTS.mkdir(exist_ok=True)
@@ -192,15 +153,7 @@ def test_a15_10_light_dark_phone_and_desktop(open_cves, open_dash, api_url, brow
         b = first_suggestion.bounding_box()
         chat = window(page).bounding_box()
         assert b and chat and b["x"] + b["width"] <= chat["x"]
-    dash = open_dash(width=width, scheme=scheme, reduced=True)
-    ed = editor(dash)
-    ed.scroll_into_view_if_needed()
-    dash.screenshot(path=SHOTS / f"a15-{browser_name}-{width}-{scheme}-watchlist.png", full_page=True)
-    assert no_sideways_scroll(dash)
-    card = ed.bounding_box()
-    for group in ed.get_by_role("group").all():
-        g = group.bounding_box()
-        assert card and g and g["x"] >= card["x"] and g["x"] + g["width"] <= card["x"] + card["width"] + 0.5
+    # The watchlist card's look at both widths and themes: test_watchlist.py (A15b.8).
 
 
 # --- A15.11: keyboard and names ------------------------------------------------------------------------------------
@@ -228,23 +181,4 @@ def test_a15_11_keyboard_reaches_the_verdict_filter_and_the_suggestion(open_cves
     expect(page.get_by_role("link", name=first, exact=True)).to_have_count(0)
 
 
-def test_a15_11_keyboard_reaches_each_products_fields(open_dash):
-    page = open_dash()
-    editor(page).get_by_label("LangChain", exact=True).focus()
-    seen = []
-    for _ in range(80):
-        page.keyboard.press("Tab")
-        # Stop where focus leaves the editor: Save watchlist is disabled (skipped) while nothing changed, and a
-        # loop that wrapped round the page would count the fields twice now the charts are one stop each.
-        if not editor(page).evaluate("el => el.contains(document.activeElement)"):
-            break
-        seen.append(focused(page))
-        if seen[-1] == "Save watchlist":
-            break
-    def count(name):  # a select's label text includes its options
-        return sum(s.startswith(name) for s in seen)
-
-    n = len(DEFAULT_WATCHLIST)
-    assert (count("Usage"), count("Version"), count("Internet-facing")) == (n, n, n), seen
-    editor(page).get_by_role("group", name="Langflow").get_by_label("Version").focus()
-    assert visible_focus(page)
+# The watchlist fields by keyboard (A15.11) moved to the Settings card: test_watchlist.py (A15b.5).

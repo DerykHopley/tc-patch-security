@@ -147,7 +147,7 @@ def test_a14_14_keyboard_reaches_the_epss_credit_and_the_source_links(open_cves,
                             " return [s.outlineStyle, s.outlineWidth] })()")
     assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
     dash = open_dash()  # the freshness panel's EPSS source link, on the dashboard
-    dash.get_by_role("region", name="Watchlist", exact=True).get_by_label("vLLM").focus()
+    dash.get_by_role("link", name="Edit watchlist in Settings").focus()
     seen = []
     for _ in range(40):
         dash.keyboard.press("Tab")
