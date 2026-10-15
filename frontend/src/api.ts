@@ -12,6 +12,16 @@ export interface Health {
   model: string // the model in use, as shown to the user
   as_of: string // the as-of date, YYYY-MM-DD
   dev_panel: boolean // the Dev page is shown only when this is true
+  mode: DataMode // B02: frozen snapshot or live data
+  last_checked: string | null // B02: when the live data was last checked (ISO 8601, UTC); null before the first check
+}
+
+// B02: the data mode. "snapshot": frozen data, as of the snapshot date. "live": refreshed by Check now, as of today.
+export type DataMode = 'snapshot' | 'live'
+
+export interface DataStatus {
+  mode: DataMode
+  last_checked: string | null
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -199,6 +209,7 @@ export interface Dashboard {
   owasp_unmapped: number // open CVEs whose CWE isn't in OWASP's lists
   latest_incidents: Incident[] // the 5 latest MITRE ATLAS incidents
   freshness: SnapshotSource[] // one per snapshot source
+  data: DataStatus // B02: Live or Snapshot, and the last check, for the freshness panel
 }
 
 /** A watched product's open CVEs and how many of them are in CISA KEV (A15b: the dashboard filter's chips). */
@@ -323,6 +334,34 @@ export const dashboard = (products: string[] = []) =>
 
 /** One page of the CVE view's rows: the view's names are the query's (cveView.ts). */
 export const cves = (view: CveView, limit: number, offset = 0) => request<CvePage>(cvesQuery(view, limit, offset))
+
+// --- Live data (B02): Check now. The backend's app/refresh.py has the same shapes (RefreshResult, CheckReply).
+
+export interface RefreshCounts {
+  new: number // CVEs not there before
+  updated: number // CVEs whose record changed (rescored and added to KEV included)
+  kev_added: number // CVEs newly in CISA KEV
+  rescored: number // CVEs whose severity or CVSS score changed
+}
+
+export interface RefreshResult {
+  trigger: string // button, chat, schedule or cli
+  started: string // ISO 8601, UTC
+  finished: string
+  ok: boolean // false: a feed failed and nothing changed
+  counts: RefreshCounts
+  new_cves: string[]
+  version: number | null
+  errors: { source: string; message: string }[]
+}
+
+export interface CheckReply {
+  ran: boolean
+  result: RefreshResult | null // this run's result; when refused, the last run's (null before any run)
+  refusal: { reason: 'too_soon' | 'running'; next_allowed: string; message: string } | null
+}
+
+export const checkNow = () => request<CheckReply>('/refresh', { method: 'POST' })
 
 export const setStatus = (id: string, body: DecisionInput) =>
   request<{ id: string; status: CveStatus; decision: Decision }>(`/cves/${encodeURIComponent(id)}`, json('PATCH', body))

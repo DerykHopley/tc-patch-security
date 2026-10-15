@@ -51,7 +51,7 @@ class WatchedCves:
 
     @classmethod
     def of(cls, deps) -> "WatchedCves":
-        return cls(deps.knowledge, deps.state, deps.settings.as_of)
+        return cls(deps.knowledge, deps.state, deps.as_of)
 
     @property
     def watchlist(self) -> list[str]:

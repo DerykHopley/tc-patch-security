@@ -141,7 +141,7 @@ def _preview(rec: dict, deps) -> tuple[str, str, dict]:
     f = rec["fields"]
     if rec["action"] == "set_status":
         given = {x: f.get(x) for x in STATUS_FIELDS if x != "status"}
-        checked = decision(f.get("status") or "", given, deps.settings.as_of)  # the CVE decision dialog's rules
+        checked = decision(f.get("status") or "", given, deps.as_of)  # the CVE decision dialog's rules
         before = STATUS_WORD[stack.statuses.get(rec["cve_id"], "open")]
         return before, _status_words(checked), {x: checked.get(x) for x in STATUS_FIELDS}
     if rec["action"] == "set_details":
@@ -232,7 +232,7 @@ def _apply(rec: dict, deps) -> str:
     name = k.products.get(rec["product"], rec["product"])
     if rec["action"] == "set_status":
         given = {x: f[x] for x in STATUS_FIELDS if x != "status" and f.get(x) is not None}
-        cve, _ = state.set_status(rec["cve_id"], f["status"], deps.settings.as_of, "chat", proposal=rec["id"], **given)
+        cve, _ = state.set_status(rec["cve_id"], f["status"], deps.as_of, "chat", proposal=rec["id"], **given)
         msg = f"Marked {cve['id']} as {STATUS_WORD[f['status']].lower()}."
         if not state.read().watches(cve["product"]):
             msg += f" {name} isn't on your watchlist, so the dashboard won't show it."
@@ -307,5 +307,5 @@ def view(rec: dict, deps) -> dict:
         proposal_id=rec["id"], action=rec["action"], title=_title(rec, deps), why=rec["why"], cve_id=rec["cve_id"],
         product=rec["product"], product_name=deps.knowledge.products.get(rec["product"]), before=rec["before"],
         after=rec["after"], fields=ProposalFields(**fields), state=state, message=rec["message"],
-        as_of=deps.settings.as_of, created_at=rec["created_at"], expires_at=rec["expires_at"],
+        as_of=deps.as_of, created_at=rec["created_at"], expires_at=rec["expires_at"],
         approved_at=rec["approved_at"], approved_by=rec["approved_by"]).model_dump()

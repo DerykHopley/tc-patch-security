@@ -85,7 +85,7 @@ def run(args: CveArgs, deps, ctx) -> dict:
     cve = k.cves.get(args.cve_id)
     if cve is None:
         raise ToolError(f"{args.cve_id} isn't in my snapshot ({len(k.cves.all())} CVEs for "
-                        f"{len(k.products)} LLM products, as of {deps.settings.as_of}).", "cve_not_in_snapshot")
+                        f"{len(k.products)} LLM products, as of {deps.as_of}).", "cve_not_in_snapshot")
     kev = k.cves.kev.get(cve["id"])
     a = WatchedCves.of(deps).assess(cve["id"])  # verdict (advice, never the status), decision, priority
     v, p = a.verdict, a.priority

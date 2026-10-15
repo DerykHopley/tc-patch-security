@@ -407,6 +407,82 @@ a.tile {
   font-size: 0.78rem;
 }
 
+/* ---------- Data freshness: Live or Snapshot, Check now (DESIGN.md §5.10, B02) ---------- */
+
+.freshness .checked-line {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+
+.check-now-row {
+  display: flex;
+  margin-bottom: 0.4rem;
+}
+
+/* A plain pill (§5.3). While it runs it stays at full strength: "Checking…" must stay readable, not 50% faded. */
+button.check-now {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+}
+
+button.check-now:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+
+/* The spinner: a ring in --accent-soft with an --accent arc, turning once a second. The word "Checking…" says the
+   same, so with reduced motion (the ring stands still) nothing is lost. */
+.spinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The line Check now leaves: text in --text, the tone as a coloured edge (§5.7: soft fills keep --text). */
+.check-line {
+  display: block;
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+}
+
+.check-line:empty {
+  display: none;
+}
+
+.check-line.ok,
+.check-line.warn,
+.check-line.error {
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-input);
+  border-left: 3px solid;
+}
+
+.check-line.ok {
+  background: var(--accent-soft);
+  border-color: var(--ok);
+}
+
+.check-line.warn {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+}
+
+.check-line.error {
+  background: var(--error-soft);
+  border-color: var(--error);
+}
+
 /* ---------- Motion (DESIGN.md §7.1). The global reduced-motion rule in tokens.css stops all of it. ---------- */
 
 .tile,

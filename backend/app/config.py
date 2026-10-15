@@ -19,6 +19,8 @@ DEFAULT_CORS = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:517
 PROVIDERS = ("fake", "openrouter", "local")
 EMBEDDERS = ("hash", "openrouter", "ollama")  # hash: the free test fake; the other two need the index built (A09)
 LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "::1"]
+DATA_MODES = ("snapshot", "live")  # snapshot: frozen data, as of its date (the default and the tests); live: refreshed
+FEED_KINDS = ("fake",)  # the fake feeds (B02); the real ones come with B03 (#36)
 
 
 def snapshot_date() -> str:
@@ -97,6 +99,11 @@ class Settings:
     index_path: pathlib.Path = ROOT / "data" / "index"
     search_min_score: float | None = None  # empty = the embedder's default threshold
     ollama_url: str = "http://localhost:11434"
+    # Live data (B02). In live mode the as-of date is today and Check now refreshes the CVE data from the feeds.
+    data_mode: str = "snapshot"
+    live_path: pathlib.Path = ROOT / "data" / "live"  # the live data's versions and the refresh log
+    feeds: str = "fake"
+    fake_feeds_day: int = 2  # which data set the fake feeds serve (fixtures/fake_feeds/day<n>.json)
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -128,6 +135,10 @@ class Settings:
             index_path=_path("INDEX_PATH", cls.index_path),
             search_min_score=_float("SEARCH_MIN_SCORE"),
             ollama_url=_env("OLLAMA_URL", cls.ollama_url).rstrip("/"),
+            data_mode=_env("DATA_MODE", cls.data_mode).lower(),
+            live_path=_path("LIVE_PATH", cls.live_path),
+            feeds=_env("FEEDS", cls.feeds).lower(),
+            fake_feeds_day=_int("FAKE_FEEDS_DAY", cls.fake_feeds_day),
         )
 
     def check(self) -> None:
@@ -145,6 +156,12 @@ class Settings:
                                   f"LOCAL_LLM_HOSTS), not {self.local_llm_url!r}.")
             if not self.local_llm_model:
                 raise ConfigError("LLM_PROVIDER=local needs LOCAL_LLM_MODEL, e.g. the name `ollama list` shows.")
+        if self.data_mode not in DATA_MODES:
+            raise ConfigError(f"DATA_MODE must be one of {', '.join(DATA_MODES)}, not {self.data_mode!r}.")
+        if self.feeds not in FEED_KINDS:
+            raise ConfigError(f"FEEDS must be one of {', '.join(FEED_KINDS)}, not {self.feeds!r}.")
+        if self.fake_feeds_day not in (1, 2):
+            raise ConfigError(f"FAKE_FEEDS_DAY must be 1 or 2, not {self.fake_feeds_day}.")
         if self.frontend_dir is not None and not (self.frontend_dir / "index.html").is_file():
             raise ConfigError(f"FRONTEND_DIR is {self.frontend_dir}, but there's no index.html there. Build the "
                               "frontend first (cd frontend && npm run build), or leave FRONTEND_DIR empty.")
