@@ -25,3 +25,9 @@
 - `docs/report/architecture-review.html`, published at https://derykhopley.github.io/tc-patch-security/architecture-review.html.
 - Candidates for discussion from the `improve-codebase-architecture` review of `spec-a` (2026-10-15): nothing in it is built. Decisions on it go in DECISIONS.md or an ADR.
 - Unlike the model-check report, it loads Tailwind and Mermaid from CDNs, so it needs a network connection to show its styles and diagrams.
+
+## The retro
+
+- `docs/report/retro.html`, published at https://derykhopley.github.io/tc-patch-security/retro.html.
+- What slowed the coding agents down during spec A and what to change in their environment (2026-10-15). Its "Decided" column records what the owner chose: CLAUDE.md in #23, guardrails in #56, the rest as agent memory.
+- Like the architecture review, it loads Tailwind and Mermaid from CDNs.

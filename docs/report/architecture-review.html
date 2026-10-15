@@ -21,7 +21,7 @@
 
 <header class="space-y-3">
   <h1 class="font-serif text-3xl">Architecture review: <span class="text-indigo-700">tc-patch-security</span>, <code class="text-xl">spec-a</code> at 54cd6c9</h1>
-  <p class="text-sm"><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">For discussion</span> Candidates only: nothing here is built yet. Made with the <code>improve-codebase-architecture</code> review; claims checked against the code on 2026-10-15. Companion to the <a class="underline text-indigo-700" href="./">model-check report</a>.</p>
+  <p class="text-sm"><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">For discussion</span> Candidates for discussion. Each card shows its status (updated 2026-10-15). Made with the <code>improve-codebase-architecture</code> review; claims checked against the code on 2026-10-15. Companions: the <a class="underline text-indigo-700" href="./">model-check report</a> and the <a class="underline text-indigo-700" href="retro.html">retro</a>.</p>
   <p class="text-sm text-slate-500">2026-10-15 · hot spots from the git log since 2026-10-13 · skips DECISIONS.md, ADR-0001, the 20 fixed review items, #25, #28, #50–#55</p>
   <div class="flex flex-wrap gap-4 text-xs text-slate-600">
     <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 border border-slate-500 bg-white"></span> module</span>
@@ -40,6 +40,7 @@
     <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
     <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
   </div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Built and merged into <code>spec-a</code>. <code>backend/app/watched.py</code>: <code>WatchedCves</code> with <code>assess(cve_id)</code> (a typed <code>Assessment</code>; unwatched is a normal answer), <code>rows(view)</code> and <code>most_urgent()</code>. Moved onto it: the dashboard, <code>/cves</code>, the test alert, <code>lookup_cve</code>, <code>check_affected</code>, <code>prioritise</code>. Deleted: eight helpers in <code>dashboard.py</code>, <code>notify.most_urgent_open</code> and <code>State.status_of</code>. HTTP and tool outputs checked identical before and after; 15 new tests through the new interface; GLOSSARY gains "Assessment".</p>
   <p class="font-mono text-sm text-slate-600">backend/app/dashboard.py (affected, decided, prioritised, _row, watched_rows) · tools/cve.py · tools/affected.py · tools/prioritise.py · notify.py · main.py (test alert)</p>
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">Before</div>
@@ -89,6 +90,7 @@ flowchart TB
     <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
     <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
   </div>
+  <p class="rounded border bg-violet-100 text-violet-800 border-violet-200 px-3 py-2 text-sm"><b>Status (Next, 2026-10-15):</b> Unblocked: #30 is merged into <code>spec-a</code> (3d0556c). It added the dashboard's product filter to the page context, through <code>App.tsx</code>, so this module now has two pages to cover. To discuss after candidate 1.</p>
   <p class="font-mono text-sm text-slate-600">frontend/src/App.tsx:46-110 · pageContext.ts · pages/CvesPage.tsx:108-111 · chat/useChat.ts:36-40</p>
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">Before: rules spread over the app shell</div>
@@ -108,16 +110,16 @@ flowchart TB
         <div class="border-t border-slate-600 pt-1">interface: context · chip words · report view · select CVE</div>
       </div>
       <div class="border border-slate-400 rounded p-2 text-xs">App.tsx: wires it, knows nothing about visits</div>
-      <p class="text-xs text-slate-500">#30's dashboard filter lands here, not in App.</p></div>
+      <p class="text-xs text-slate-500">#30's dashboard filter, now in App, moves in here.</p></div>
   </div>
   <p><b>Problem.</b> <code>pageContext.ts</code> was pulled out as pure functions, but the rules ("a selection belongs to one visit and one filter set", "no selection while a reply is pending") live as state and refs in App.tsx. Those are where the bugs were.</p>
   <p><b>Solution.</b> A page context module owns the visit, the view, the selected CVE and those rules, behind a small interface.</p>
   <ul class="list-disc pl-6 text-sm text-slate-700">
     <li>Tests: reducer cases under <code>node --test</code></li>
     <li>Locality: the rules sit in one module</li>
-    <li>#30 extends one module, not App</li>
+    <li>Covers the CVEs page and #30's dashboard filter</li>
   </ul>
-  <p class="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-sm">Touches the same files as #30, which is being built now: do this after #30 merges.</p>
+  <p class="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-sm">Touches the same files as #30, which is now merged: no longer blocked.</p>
 </article>
 
 <!-- 3 -->
@@ -127,6 +129,7 @@ flowchart TB
     <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
     <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
   </div>
+  <p class="rounded border bg-slate-100 text-slate-700 border-slate-200 px-3 py-2 text-sm"><b>Status (Not started, 2026-10-15):</b> To discuss after candidates 1 and 2.</p>
   <p class="font-mono text-sm text-slate-600">backend/app/main.py:99-108 (/chat) · evals/model_check.py:61-70 (_ask) · agent.py:64-110 (answer, 7 parameters)</p>
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-lg border border-slate-200 p-3 space-y-1 text-xs"><div class="lbl text-slate-500 mb-1">Before: two copies of the sequence</div>
@@ -164,6 +167,7 @@ flowchart TB
     <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
     <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">local-substitutable</span>
   </div>
+  <p class="rounded border bg-slate-100 text-slate-700 border-slate-200 px-3 py-2 text-sm"><b>Status (Not started, 2026-10-15):</b> To discuss. Candidate 1 (merged) took part of it: State now gives merged settings from one snapshot read, and the pseudo-status is gone. Raw JSON reads remain in a few places.</p>
   <p class="font-mono text-sm text-slate-600">backend/app/state.py:51-53, 107-115, 197-211 · raw reads in dashboard.py, main.py, tools/affected.py, tools/prioritise.py, tools/watchlist.py · evals/model_check.py:123 (state._save)</p>
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-2">Before: interface ≈ the whole file schema</div>
@@ -195,6 +199,7 @@ flowchart TB
     <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
     <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
   </div>
+  <p class="rounded border bg-slate-100 text-slate-700 border-slate-200 px-3 py-2 text-sm"><b>Status (Not started, 2026-10-15):</b> To discuss. #30 added several products (<code>?product=a,b</code>) to the URL, <code>/cves</code> and the page context, so there is one more filter shape to unify.</p>
   <p class="font-mono text-sm text-slate-600">pages/CvesPage.tsx:41-69 · api.ts:297-327 · pageContext.ts:23-51 · main.py:121-124 · page_context.py · tools/prioritise.py:24-26 · llm/fake.py:100 · cve_filters.py</p>
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">Before: four encodings</div>
@@ -236,6 +241,7 @@ flowchart LR
     <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-xs font-semibold">Speculative</span>
     <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
   </div>
+  <p class="rounded border bg-slate-100 text-slate-700 border-slate-200 px-3 py-2 text-sm"><b>Status (Not started, 2026-10-15):</b> To discuss; payoff grows when spec B adds tools (B06, B15).</p>
   <p class="font-mono text-sm text-slate-600">tools/registry.py:33-43 (ToolSpec) · tools/cve.py, affected.py, prioritise.py · llm/fake.py:221-238 · evals/checks.py:106, 138-143 · chat/ToolCallCard.tsx</p>
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">Before</div>
@@ -274,13 +280,14 @@ flowchart LR
     <li><b>cve_filters.py:</b> small, but deleting it would spread its rules back into three callers. Candidate 5 builds on it.</li>
     <li><b>usePatch with patchPose:</b> the random pick is injectable and tested.</li>
   </ul>
-  <p class="rounded bg-red-50 border border-red-200 px-3 py-2"><b>Bug, not a deepening:</b> <code>api.ts</code> declares <code>interface Source</code> twice (lines 41 and 209: a chat source and a snapshot source). TypeScript merges them, so both are typed as the union of all fields. Rename the second (for example <code>SnapshotSource</code>).</p>
+  <p class="rounded bg-red-50 border border-red-200 px-3 py-2"><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> <b>Bug, not a deepening:</b> <code>api.ts</code> declares <code>interface Source</code> twice (lines 41 and 209: a chat source and a snapshot source). TypeScript merges them, so both are typed as the union of all fields. Rename the second (for example <code>SnapshotSource</code>).</p>
 </article>
 
 </section>
 
 <section id="top-recommendation" class="rounded-xl deep p-8 space-y-2">
   <div class="lbl text-slate-400">Top recommendation</div>
+  <div class="text-sm text-sky-300">Status: done and merged (2026-10-15).</div>
   <h2 class="font-serif text-2xl"><a href="#c1" class="underline decoration-indigo-400">1 · Deepen the watched-CVE assessment</a></h2>
   <p class="text-slate-300">It's the domain's core concept, and every recent ticket changed it in several places at once. It's a backend change behind unchanged HTTP and tool outputs, so the existing tests pin the behaviour. It also does part of candidate 4 and gives B04 alerts (#37) one interface to use.</p>
 </section>

@@ -1,7 +1,7 @@
 """prioritise (A18): "what should I fix first?" The priority rules' order (A16) for the watchlist and the page's view.
 
 Rules decide, Patch explains. The order is the CVEs page's: most urgent level first, then the earliest due date
-(app.priority.sort_key, via dashboard.list_cves). Only open CVEs (app.status: open, or accepted with its review due).
+(app.priority.sort_key, via app.watched). Only open CVEs (app.status: open, or accepted with its review due).
 The page's checked filters (app.page_context) narrow the view; its status filter doesn't apply, since only open CVEs
 are ranked. A `product` argument other than the page's product is a question beyond the view: the page's other
 filters are dropped and listed as not applied. A product that isn't watched (from either) is an error that says so.
@@ -13,17 +13,17 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field, StringConstraints
 
-from app.dashboard import list_cves
 from app.errors import ToolError
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
 from app.tools.registry import ToolSpec, register
+from app.watched import WatchedCves
 
 DEFAULT_LIMIT = 5  # the dashboard's Top 5
 MAX_LIMIT = 10
 NOTE = ("This order comes from fixed priority rules: most urgent level first, then the earliest due date. Explain it "
         "from each CVE's reasons; never change the order, drop or add CVEs, or set a status. The user decides.")
-# The page's filter names (app.page_context) → list_cves' parameters
+# The page's filter names (app.page_context) → WatchedCves.rows' parameters
 FILTERS = {"product": "product", "severity": "severity_min", "verdict": "verdict", "kev": "kev",
            "since": "published_since"}
 
@@ -38,7 +38,7 @@ def _label(key: str, value) -> str:
 
 
 def run(args: PrioritiseArgs, deps, ctx) -> dict:
-    k, data = deps.knowledge, deps.state.snapshot()
+    k, watched_cves = deps.knowledge, WatchedCves.of(deps)
     filters = {key: ctx.page[key] for key in FILTERS if key in ctx.page}
     ignored = [f"status={ctx.page['status']}: only open CVEs are ranked"] if ctx.page.get("status") not in (
         None, "open") else []
@@ -57,16 +57,15 @@ def run(args: PrioritiseArgs, deps, ctx) -> dict:
             filters = {"product": pid}
     if "product" in filters:  # from the argument or the page: only watched products have open CVEs
         pids = filters["product"].split(",")
-        watched = [p for p in pids if p in data["watchlist"]]
+        watched = [p for p in pids if p in watched_cves.watchlist]
         if not watched:
             raise ToolError(f"{names(filters['product'])} {'is' if len(pids) == 1 else 'are'} not on the user's "
                             "watchlist, so none of its CVEs are open.", "not_watched")
         ignored += [f"product={p}: {k.products[p]} isn't on the watchlist" for p in pids if p not in watched]
         filters["product"] = ",".join(watched)
-    page = list_cves(k, data, deps.settings.as_of, status="open", limit=args.limit,
-                     **{FILTERS[key]: v for key, v in filters.items()})
+    rows = watched_cves.rows(status="open", **{FILTERS[key]: v for key, v in filters.items()})
     cves = []
-    for rank, r in enumerate(page["rows"], 1):
+    for rank, r in enumerate(rows[:args.limit], 1):
         source = to_source(len(ctx.sources) + 1, chunk_cve(k.cves.get(r["id"]), r["product_name"])[0], None)
         ctx.sources.append(source)
         cves.append({
@@ -79,7 +78,7 @@ def run(args: PrioritiseArgs, deps, ctx) -> dict:
     return {
         "filters": filters, "ignored": ignored,
         "product": names(filters["product"]) if "product" in filters else None,
-        "total_open": page["total"], "cves": cves, "note": NOTE,
+        "total_open": len(rows), "cves": cves, "note": NOTE,
     }
 
 

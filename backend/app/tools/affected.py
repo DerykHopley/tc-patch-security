@@ -7,13 +7,12 @@ from typing import Annotated
 
 from pydantic import BaseModel, StringConstraints, model_validator
 
-from app.dashboard import affected, watched_rows
 from app.errors import ToolError
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
-from app.state import State
 from app.tools.registry import ToolSpec, register
 from app.verdict import USAGE_LABELS
+from app.watched import WatchedCves
 
 ORDER = ("affected", "unknown", "not_affected")  # what needs you first
 LISTED = 10
@@ -32,21 +31,22 @@ class AffectedArgs(BaseModel):
         return self
 
 
-def _one(cve: dict, deps, ctx, data: dict) -> dict:
+def _one(cve: dict, deps, ctx, watched: WatchedCves) -> dict:
     k = deps.knowledge
-    v = affected(k, cve, data)
+    a = watched.assess(cve["id"])
+    v = a.verdict
     source = to_source(len(ctx.sources) + 1, chunk_cve(cve, k.products[cve["product"]])[0], None)
     ctx.sources.append(source)
     return {
         "n": source.n, "id": cve["id"], "product": k.products[cve["product"]], "severity": cve["severity"],
-        "verdict": v["verdict"], "reason": v["verdict_reason"], "fixed_version": v["fixed_version"],
-        "who_acts": v["who_acts"], "usage": USAGE_LABELS[v["usage"]], "version": v["version"],
-        "watch_status": State.status_of(cve, data), "possible_match": k.possible_match(cve["id"]), "note": NOTE,
+        "verdict": v.verdict, "reason": v.reason, "fixed_version": v.fixed_version,
+        "who_acts": v.who_acts, "usage": USAGE_LABELS[a.usage], "version": a.version,
+        "watch_status": a.status if a.watched else "not_watched", "possible_match": k.possible_match(cve["id"]), "note": NOTE,
     }
 
 
 def run(args: AffectedArgs, deps, ctx) -> dict:
-    k, data = deps.knowledge, deps.state.snapshot()
+    k, watched = deps.knowledge, WatchedCves.of(deps)
     pid = None
     if args.product:
         pid = k.resolve_product(args.product)
@@ -60,13 +60,13 @@ def run(args: AffectedArgs, deps, ctx) -> dict:
         if pid and cve["product"] != pid:
             raise ToolError(f"{cve['id']} is a {k.products[cve['product']]} CVE, not {k.products[pid]}.",
                             "bad_value")
-        return _one(cve, deps, ctx, data)
-    if pid not in data["watchlist"]:
+        return _one(cve, deps, ctx, watched)
+    if pid not in watched.watchlist:
         raise ToolError(f"{k.products[pid]} isn't on the user's watchlist, so none of its CVEs are open.",
                         "not_watched")
-    rows = [r for r in watched_rows(k, data, deps.settings.as_of) if r["product"] == pid and r["open"]]
+    rows = watched.rows(product=pid)  # open only, in the CVEs page's order
     rows.sort(key=lambda r: ORDER.index(r["verdict"]))  # stable: keeps the table's order inside each verdict
-    f = State.fields_of(pid, data)
+    f = watched.fields_of(pid)
     return {
         "product": k.products[pid], "usage": USAGE_LABELS[f["usage"]], "version": f["version"],
         "open": len(rows), "counts": {v: sum(r["verdict"] == v for r in rows) for v in ORDER},
