@@ -7,13 +7,17 @@ throwaway state folder: tests look for their own run, never count all of them. E
 """
 import json
 import re
-import urllib.request
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from playwright.sync_api import Browser, Page, expect
 
 from test_dev import DESKTOP, PHONE, SHOTS, api, css_var, resolved, style
+
+# The model check's questions: the scripts with an `expect`. Not /examples: a question asked from a page isn't one.
+SCRIPT = Path(__file__).resolve().parents[2] / "backend" / "fixtures" / "fake_script.json"
+QUESTIONS = [s for s in json.loads(SCRIPT.read_text())["scripts"] if "expect" in s]
 
 
 @pytest.fixture(autouse=True)
@@ -65,11 +69,11 @@ def no_sideways_scroll(page: Page) -> bool:
 
 # --- A12.6: the model check in the dev panel -----------------------------------------------------------------------
 
-def test_a12_6_fakellm_passes_every_question_in_the_dev_panel(dev_page, api_url):
+def test_a12_6_fakellm_passes_every_question_in_the_dev_panel(dev_page):
     page = dev_page()
     expect(page.get_by_text("Asks the scripted questions of FakeLLM (scripted)")).to_be_visible()
     result = run_model_check(page)
-    n = len(json.load(urllib.request.urlopen(api_url + "/examples")))
+    n = len(QUESTIONS)
     expect(result.locator(".eval-numbers")).to_contain_text(f"{n} / {n}questions passed")
     expect(result.locator(".verdict.pass")).to_have_count(n)
     expect(result.get_by_text("$0").first).to_be_visible()  # FakeLLM is free
