@@ -173,3 +173,41 @@ input[type='range']:focus-visible {
   color: var(--text);
   font-size: 0.85rem;
 }
+
+/* Severity: text plus a swatch on the one-hue ramp (DESIGN.md §3.2). One badge (components/SeverityBadge.tsx) for
+   every page and the chat. */
+.sev {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+
+.sev .cvss {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 3px;
+  background: var(--border);
+}
+
+.sev-critical .swatch {
+  background: var(--sev-critical);
+}
+
+.sev-high .swatch {
+  background: var(--sev-high);
+}
+
+.sev-medium .swatch {
+  background: var(--sev-medium);
+}
+
+.sev-low .swatch {
+  background: var(--sev-low);
+}

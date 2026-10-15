@@ -1,6 +1,6 @@
 import { useId, type KeyboardEvent } from 'react'
 import type { ChatReply, DocType, QueryInfo, Source } from '../api.ts'
-import { SeverityBadge } from './SeverityBadge.tsx'
+import { SeverityBadge } from '../components/SeverityBadge.tsx'
 import { ToolCallCard } from './ToolCallCard.tsx'
 
 export type DetailTab = 'sources' | 'tools' | 'query'

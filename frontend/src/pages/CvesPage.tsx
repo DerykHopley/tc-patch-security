@@ -10,7 +10,7 @@ import {
   type Severity,
   type Verdict,
 } from '../api.ts'
-import { SeverityBadge } from '../chat/SeverityBadge.tsx'
+import { SeverityBadge } from '../components/SeverityBadge.tsx'
 import { EPSS_URL, epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { DueFacts, PriorityChip, PriorityReasons } from '../components/Priority.tsx'
 import {

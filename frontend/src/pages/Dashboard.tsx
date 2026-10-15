@@ -10,7 +10,7 @@ import {
   type ProductUsage,
   type Watchlist,
 } from '../api.ts'
-import { SeverityBadge } from '../chat/SeverityBadge.tsx'
+import { SeverityBadge } from '../components/SeverityBadge.tsx'
 import { Bars, ChartCard, Columns, SeverityLegend, StackedBars, Tooltip, type Tip } from '../components/charts.tsx'
 import { WarningIcon } from '../components/Icons.tsx'
 import { OverdueMark, PriorityChip, PriorityReasons } from '../components/Priority.tsx'

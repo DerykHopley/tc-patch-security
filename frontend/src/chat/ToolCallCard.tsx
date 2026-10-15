@@ -5,7 +5,7 @@ import { OverdueMark, PriorityChip } from '../components/Priority.tsx'
 import { NoFixMark, STATUS_LABEL as CVE_STATUS_LABEL } from '../components/Decision.tsx'
 import { epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { VERDICT_LABEL, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
-import { SeverityBadge } from './SeverityBadge.tsx'
+import { SeverityBadge } from '../components/SeverityBadge.tsx'
 
 // One card per tool call: name, arguments, status, time, and the result drawn for its tool. Errors in red.
 // Result shapes come from backend/app/tools/*.py.

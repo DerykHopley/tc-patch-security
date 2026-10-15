@@ -513,7 +513,7 @@
   margin: 0.2rem 0;
 }
 
-/* Chips, severity swatches and .meta are shared with the dashboard (dashboard.css, controls.css). */
+/* Chips, severity badges and .meta are shared with the pages (controls.css, dashboard.css). */
 .chips .chip {
   margin: 0;
 }
