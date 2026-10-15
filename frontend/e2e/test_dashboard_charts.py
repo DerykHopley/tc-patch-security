@@ -281,7 +281,7 @@ def test_a05_5_bars_do_not_grow_again_on_hover_resize_or_reload(open_dash, api_u
     page.wait_for_function(f"!({GROWING})(document.querySelector('.dashboard')).length", timeout=5000)
     chart(page, BY_PRODUCT).locator(".fill").first.hover()
     page.set_viewport_size({"width": 1100, "height": 900})
-    page.wait_for_timeout(100)  # on purpose: give a wrongly restarted grow time to show
+    page.wait_for_timeout(100)  # allowed: proving nothing starts: give a wrongly restarted grow time to show
     assert dash.evaluate(GROWING) == []
     # Bars that come back with the product filter (A15b) appear at full length too.
     rows_before = chart(page, BY_PRODUCT).locator(".bar-row").count()

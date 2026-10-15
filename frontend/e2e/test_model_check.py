@@ -45,13 +45,18 @@ def run_model_check(page: Page):
     page.get_by_role("button", name="Run model check").click()
     result = page.get_by_role("region", name="Model check result")
     expect(result.get_by_text("questions passed")).to_be_visible()
+    # The list of past runs reloads after the result shows and grows the card: wait for this run in it, or a click
+    # below the card can land where a button was a moment ago (slow mode, #56).
+    expect(page.locator("section.model-check tr.current")).to_be_visible()
     return result
 
 
 def run_retrieval_check(page: Page):
-    """Click and wait for this run to finish: the button reads "Running…" until then (older runs are listed already)."""
-    page.get_by_role("button", name="Run retrieval check").click()
+    """Click and wait for this run to come back and open to its misses (older runs are listed already)."""
+    with page.expect_response(lambda r: r.url.endswith("/dev/retrieval-check") and r.request.method == "POST"):
+        page.get_by_role("button", name="Run retrieval check").click()
     expect(page.get_by_role("button", name="Run retrieval check")).to_be_enabled()
+    expect(page.get_by_role("button", name=re.compile(r": show the misses$"), expanded=True)).to_be_visible()
 
 
 def no_sideways_scroll(page: Page) -> bool:

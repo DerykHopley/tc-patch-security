@@ -74,15 +74,16 @@ cd frontend && npm install && npm run dev
 - It uses the same ports as the prototype: stop one before starting the other, or pass other ports (`--port`, and `VITE_API_URL` for the frontend).
 - Settings come from the environment. Every one is listed in `backend/.env.example` and `frontend/.env.example`; copy to `.env` (git-ignored) and run the backend with `uv run --env-file .env ...`.
 - A real model (A08): `LLM_PROVIDER=openrouter` with `OPENROUTER_API_KEY` in `backend/.env` (default model `anthropic/claude-haiku-5.5`, picked in A20; set a spending cap on the key), or `LLM_PROVIDER=local` with `LOCAL_LLM_MODEL` for Ollama on `http://localhost:11434/v1`. A missing key or a non-local URL stops the start-up with a plain message.
-- Tests, the same ones CI runs on every push and pull request ([.github/workflows/ci.yml](./.github/workflows/ci.yml)):
+- Tests, the same ones CI runs ([.github/workflows/ci.yml](./.github/workflows/ci.yml): on a push to `main` or `spec-*`, and on pull requests from other branches):
 
 ```bash
 cd backend && uv run pytest                            # no key, no network
 cd frontend && npx tsc -b && npm run lint && npm test  # types, lint (oxlint), unit tests (node --test)
+python3 frontend/e2e/check_waits.py                    # no fixed wait in the browser check without a reason
 frontend/e2e/run.sh                                    # browser check, Firefox and Chromium
 ```
 
-- `frontend/e2e/run.sh` starts its own servers on 8001/5174 with FakeLLM and a throwaway state file, so it never touches an app on 8000/5173. First time: `uv run --project frontend/e2e playwright install firefox chromium`.
+- `frontend/e2e/run.sh` starts its own servers on two free ports with FakeLLM and a throwaway state file, so it never touches an app on 8000/5173. `run.sh -k a02` still runs both browsers; `E2E_LATENCY_MS=300` is slow mode, to find timing races. First time: `uv run --project frontend/e2e playwright install firefox chromium`.
 - Review rules that lint can't check: [CODING_STANDARDS.md](./CODING_STANDARDS.md).
 
 ## Stack

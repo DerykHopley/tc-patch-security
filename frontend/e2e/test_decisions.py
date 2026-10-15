@@ -301,6 +301,8 @@ def test_a16b_14_keyboard_reaches_accept_and_the_history(open_cves, api_url):
     page = open_cves("?product=langflow&kev=1")
     accept(page, NO_FIX)
     page.get_by_role("combobox", name="Status").select_option(label="All")
+    # The accepted CVE comes back once the list for "All" has loaded: tab through that list, not the old one.
+    expect(cell(page, NO_FIX, "Status").get_by_text("History (1)")).to_be_visible()
     page.get_by_role("combobox", name="Product").focus()
     seen = []
     for _ in range(120):
