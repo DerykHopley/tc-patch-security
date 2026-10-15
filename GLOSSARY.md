@@ -140,6 +140,10 @@ _Avoid_: external content
 To mark a message as looking like an injection attempt, log it, and still answer it.
 _Avoid_: block, reject (a flagged message is never blocked)
 
+**Proposal** (proposed change):
+A change Patch suggests to your watchlist, a CVE's status or a product's details. Nothing changes until you approve it; you can edit or cancel it. It expires after an hour.
+_Avoid_: action, pending change, request
+
 ### Alerts
 
 **Alert**:

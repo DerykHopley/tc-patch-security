@@ -1,0 +1,145 @@
+/* A change Patch proposes (DESIGN.md §6.6, B21): before → after, then Approve, Edit, Cancel. Tokens only, so dark
+   mode follows. No animation: nothing here moves, with or without reduced motion. */
+
+.proposal-card {
+  margin: 0.6rem 0 0.2rem;
+  padding: 0.7rem 0.9rem;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-nested);
+  background: var(--nested-fill);
+  overflow-wrap: anywhere;
+}
+
+.proposal-card.approved {
+  border-left-color: var(--ok);
+}
+
+.proposal-card.cancelled,
+.proposal-card.expired {
+  border-left-color: var(--muted);
+}
+
+.proposal-card p {
+  margin: 0.25rem 0;
+}
+
+.proposal-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* The state in words, in --text; the colour is only an edge (§5.7). */
+.chip.proposal-state {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.chip.proposal-state.approved {
+  box-shadow: inset 0 0 0 1px var(--ok);
+}
+
+.chip.proposal-state.cancelled,
+.chip.proposal-state.expired {
+  background: var(--border);
+}
+
+.before-after {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.before-after .before {
+  color: var(--muted);
+}
+
+.before-after .after {
+  font-weight: 700;
+}
+
+.proposal-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.proposal-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.4rem;
+}
+
+.proposal-edit label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.proposal-edit label.check,
+.proposal-edit fieldset label {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400;
+}
+
+.proposal-edit fieldset {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border: none;
+  border-radius: var(--radius-input);
+  background: var(--surface);
+}
+
+.proposal-edit legend {
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.proposal-edit .meta {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+/* The line after Approve or Cancel, or an error: --text on a soft fill, the tone as the edge (as §5.10's line). */
+.proposal-line {
+  display: block;
+  font-size: 0.85rem;
+}
+
+.proposal-line:empty {
+  display: none;
+}
+
+.proposal-line.ok,
+.proposal-line.warn,
+.proposal-line.error {
+  margin: 0.4rem 0 0;
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid;
+  border-radius: var(--radius-input);
+  color: var(--text);
+}
+
+.proposal-line.ok {
+  background: var(--accent-soft);
+  border-color: var(--ok);
+}
+
+.proposal-line.warn {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+}
+
+.proposal-line.error {
+  background: var(--error-soft);
+  border-color: var(--error);
+}

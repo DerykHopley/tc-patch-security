@@ -269,8 +269,10 @@ class FakeLLM:
                 fields["weakness"] = _weakness(data)
             elif name == "research_web":
                 fields["web"] = _web(data)
-            elif name == "update_watchlist":
-                fields["watch"] = data["message"] + " Watching: " + ", ".join(data["watchlist"]) + "."
+            elif name == "update_watchlist":  # a proposal (B21), or nothing to change
+                fields["watch"] = (f"I've proposed this: {data['title']}. {data['before']} → {data['after']}. "
+                                   f"{data['message']}" if "proposal_id" in data else
+                                   data["message"] + " Watching: " + ", ".join(data["watchlist"]) + ".")
 
         if script is None:
             parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness", "web") if k in fields]

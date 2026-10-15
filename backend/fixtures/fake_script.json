@@ -247,10 +247,10 @@
   },
   {
    "id": "Q9",
-   "question": "Add Ollama to my watchlist",
+   "question": "Add vLLM to my watchlist",
    "keywords": [
     "add",
-    "ollama",
+    "vllm",
     "watchlist"
    ],
    "tool_calls": [
@@ -258,7 +258,7 @@
      "name": "update_watchlist",
      "args": {
       "action": "watch",
-      "product": "Ollama"
+      "product": "vLLM"
      }
     }
    ],
@@ -268,8 +268,10 @@
      "update_watchlist"
     ],
     "contains_any": [
-     "Ollama"
-    ]
+     "vLLM"
+    ],
+    "proposed": true,
+    "state_unchanged": true
    }
   },
   {
@@ -297,7 +299,9 @@
     ],
     "contains_any": [
      "fixed"
-    ]
+    ],
+    "proposed": true,
+    "state_unchanged": true
    }
   },
   {

@@ -1,7 +1,7 @@
 """Run the scripted questions against the saved model and score each answer with the exact checks (checks.py).
 
-A run happens in a background thread, on a copy of the state: Q9 and Q10 change the watchlist, and the real one must
-not change. The model is fixed when the run starts, so switching models on the Dev page mid-run doesn't mix two
+A run happens in a background thread, on a copy of the state: Q9 and Q10 only propose changes now (B21), but a model
+that misbehaves must still never reach the real state. The model is fixed when the run starts, so switching models on the Dev page mid-run doesn't mix two
 models in one run. Each run is saved (runs.py) with model, provider, per-check scores, per-question cost and time,
 and totals.
 
@@ -18,7 +18,7 @@ from pathlib import Path
 from app.chat_turn import turn
 from app.config import FIXTURES
 from app.errors import InputError, LLMError
-from app.evals.checks import cited, fix_first_lists, score, score_levels
+from app.evals.checks import cited, fix_first_lists, score, score_levels, state_unchanged
 from app.evals.readability import flesch_reading_ease
 from app.evals.runs import LISTED, RunStore, new_id, now
 from app.schemas import ChatRequest
@@ -64,11 +64,14 @@ def _ask(q: dict, deps) -> dict:
     start = time.perf_counter()
     try:
         levels = q["expect"].get("levels") or ["normal"]  # A19: asked once per explain level, never the saved one
+        before = deps.state.read()
         # the same turn as /chat, with the question's page context if it has one, and its tools made to fail (B20)
         replies = {lv: turn(ChatRequest(message=q["question"], explain_level=lv, page=q.get("page")), deps,
                             fail_tools=q.get("fail_tools", ())) for lv in levels}
         reply = replies["normal"] if "normal" in replies else next(iter(replies.values()))
         checks = score_levels(q["expect"], replies) if len(replies) > 1 else score(q["expect"], reply)
+        if unchanged := state_unchanged(q["expect"], before, deps.state.read()):  # B21: needs the state
+            checks.append(unchanged)
         every = list(replies.values())
         row |= {"checks": {c.name: c.passed for c in checks},
                 "failures": [c.to_dict() for c in checks if not c.passed],

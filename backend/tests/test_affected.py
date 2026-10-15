@@ -185,8 +185,10 @@ def test_a15_7_lookup_cve_returns_verdict_who_acts_fixed_version_and_epss(deps):
 def test_a15_7_update_watchlist_sets_usage_version_and_internet_facing(deps):
     r = call(deps, "update_watchlist", action="set_details", product="Ollama", version="v0.1.29",
              internet_facing=True)
-    assert r.status == "ok" and r.result["message"] == \
-        "Ollama: self-hosted app, version v0.1.29, internet-facing."
+    from app import proposals
+
+    assert r.status == "ok" and proposals.approve(deps, r.result["proposal_id"])["message"] == \
+        "Ollama: self-hosted app, version v0.1.29, internet-facing."  # once you approve it (B21)
     f = deps.state.read().fields("ollama")
     assert (f.usage, f.version, f.internet_facing) == ("self_hosted", "v0.1.29", True)
     assert call(deps, "update_watchlist", action="set_details", product="Ollama", version="latest").error["code"] \
