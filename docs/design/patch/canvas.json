@@ -1,0 +1,60 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "AnimAlert.dc.html": {
+      "h": 340,
+      "title": "Alert — animation options",
+      "w": 1120,
+      "x": 447,
+      "y": -232
+    },
+    "AnimHappy.dc.html": {
+      "h": 340,
+      "title": "Happy — animation options",
+      "w": 1120,
+      "x": 447,
+      "y": -692
+    },
+    "AnimIdle.dc.html": {
+      "h": 340,
+      "title": "Idle — animation options",
+      "w": 1120,
+      "x": 447,
+      "y": -1612
+    },
+    "AnimThinking.dc.html": {
+      "h": 340,
+      "title": "Thinking — animation options",
+      "w": 1120,
+      "x": 447,
+      "y": -1152
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-14T10:00:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "anims": {
+      "kind": "title1",
+      "maxW": 1120,
+      "text": "Squircle · animation options",
+      "w": 240,
+      "x": 447,
+      "y": -1912
+    }
+  },
+  "order": [
+    "AnimIdle.dc.html",
+    "AnimThinking.dc.html",
+    "AnimHappy.dc.html",
+    "AnimAlert.dc.html"
+  ],
+  "pages": [],
+  "title": "Robot Style Explorations"
+}

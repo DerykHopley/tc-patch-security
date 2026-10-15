@@ -78,7 +78,7 @@ cd frontend && npm install && npm run dev
 
 ```bash
 cd backend && uv run pytest                            # no key, no network
-cd frontend && npx tsc -b && npm run lint              # types and lint (oxlint)
+cd frontend && npx tsc -b && npm run lint && npm test  # types, lint (oxlint), unit tests (node --test)
 frontend/e2e/run.sh                                    # browser check, Firefox and Chromium
 ```
 

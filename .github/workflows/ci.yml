@@ -49,6 +49,7 @@ jobs:
       - run: npm ci
       - run: npx tsc -b
       - run: npm run lint
+      - run: npm test # unit tests (node --test): Patch's pose pick
 
   browser:
     name: Browser check (Firefox and Chromium)

@@ -17,6 +17,7 @@ import { OverdueMark, PriorityChip, PriorityReasons } from '../components/Priori
 import { NoFixMark } from '../components/Decision.tsx'
 import { PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { USAGE_LABEL, USAGES } from '../components/Verdict.tsx'
+import type { Variant } from '../components/patchPose.ts'
 import { WelcomeBanner } from '../components/WelcomeBanner.tsx'
 import { followLink } from '../route.ts'
 import { SEVERITIES, sevLabel } from '../severity.ts'
@@ -31,9 +32,11 @@ type Note = { ok: boolean; text: string }
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
 
 // onNavigate: opens an in-app link (a tile, "See all CVEs"). onAskPatch: the welcome banner's "Ask Patch".
-export function DashboardPage({ onNavigate, onAskPatch }: {
+// patchVariant: Patch's idle animation in the banner, picked on page load (DESIGN.md §8.3).
+export function DashboardPage({ onNavigate, onAskPatch, patchVariant }: {
   onNavigate: (href: string) => void
   onAskPatch: () => void
+  patchVariant: Variant
 }) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [top, setTop] = useState<CveRow[] | null>(null)
@@ -71,7 +74,7 @@ export function DashboardPage({ onNavigate, onAskPatch }: {
   if (!data) {
     return (
       <div className="page dashboard">
-        <WelcomeBanner onAsk={onAskPatch} />
+        <WelcomeBanner onAsk={onAskPatch} variant={patchVariant} />
         {error ? (
           <p className="dash-error" role="alert">
             {error}
@@ -85,7 +88,7 @@ export function DashboardPage({ onNavigate, onAskPatch }: {
 
   return (
     <div className="page dashboard">
-      <WelcomeBanner onAsk={onAskPatch} />
+      <WelcomeBanner onAsk={onAskPatch} variant={patchVariant} />
       {error && (
         <p className="dash-error" role="alert">
           {error}{' '}

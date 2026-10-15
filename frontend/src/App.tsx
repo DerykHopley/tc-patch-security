@@ -69,7 +69,7 @@ export default function App() {
   const [alertCve, alertDone] = useAlertLink()
   const chatOpen = layout.open
   const [examples, setExamples] = useState<Example[]>([])
-  const patch = usePatch(chat, chatOpen) // one mood for the button and the chat header
+  const patch = usePatch(chat, chatOpen) // one mood and one animation for the button and the chat header
   const patchButton = useRef<HTMLButtonElement>(null)
 
   // After the Dev page saves a model choice, the snapshot card shows the new model.
@@ -193,7 +193,7 @@ export default function App() {
           </button>
         </nav>
         <div className="side-card">
-          <Robot size={64} />
+          <Robot size={64} variant={patch.restVariant} />
           <strong>Snapshot</strong>
           <span>{status ? `Data as of ${status.as_of}` : offline ? 'Backend offline' : 'Loading…'}</span>
           <span className="side-model">{status?.model ?? '—'}</span>
@@ -237,7 +237,7 @@ export default function App() {
         )}
         <main>
           {page === 'dashboard' ? (
-            <DashboardPage onNavigate={navigate} onAskPatch={openChat} />
+            <DashboardPage onNavigate={navigate} onAskPatch={openChat} patchVariant={patch.restVariant} />
           ) : page === 'cves' ? (
             // keyed by the visit: a link followed again with other filters starts from them
             <CvesPage
@@ -261,6 +261,8 @@ export default function App() {
         <ChatWindow
           chat={chat}
           mood={patch.mood}
+          variant={patch.variant}
+          restVariant={patch.restVariant}
           pageTitle={current.title}
           context={context}
           productName={page === 'cves' ? cveView?.productName : undefined}
@@ -276,6 +278,7 @@ export default function App() {
           ref={patchButton}
           open={chatOpen}
           mood={patch.mood}
+          variant={patch.variant}
           unread={patch.unread}
           onClick={() => (chatOpen ? layout.setOpen(false) : openChat())}
         />

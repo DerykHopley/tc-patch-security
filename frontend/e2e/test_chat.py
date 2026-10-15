@@ -95,7 +95,7 @@ def release(page: Page, held: list[Route]) -> None:
 
 # --- Patch: the drawing and where he appears (DESIGN.md §8.1, §8.2) ----------------------------------------------
 
-def test_a06_3_patch_drawn_hidden_from_screen_readers_with_unique_gradient_ids(open_app):
+def test_a06b_2_patch_is_the_squircle_hidden_from_screen_readers_with_unique_ids(open_app):
     page = open_app()
     open_chat(page)
     fab(page).focus()  # still on the page while open (just the pill)
@@ -104,13 +104,16 @@ def test_a06_3_patch_drawn_hidden_from_screen_readers_with_unique_gradient_ids(o
     for i in range(robots.count()):
         r = robots.nth(i)
         assert r.get_attribute("aria-hidden") == "true"
-        assert r.get_attribute("viewBox") == "0 0 120 130"
+        assert r.get_attribute("viewBox") == "0 0 160 170"
         w, h = float(r.get_attribute("width") or 0), float(r.get_attribute("height") or 0)
-        assert h == pytest.approx(w * 1.08)
+        assert h == pytest.approx(w * 170 / 160)
+        # The canvas colours (DESIGN.md §8.1): body, visor, eyes, antenna light.
+        assert r.locator("rect[rx='44']").get_attribute("fill") == "#9483FF"
+        assert r.locator("rect[rx='20']").get_attribute("fill") == "#2A2457"
+        assert r.locator("[fill='#7FF0DD']").count() == 2
+        assert r.locator("circle[cx='80'][cy='19'][r='7']").last.get_attribute("fill") == "#FFC94D"
     ids = page.evaluate("[...document.querySelectorAll('svg.robot [id]')].map(e => e.id)")
-    assert ids and len(ids) == len(set(ids)), ids
-    refs = page.evaluate("[...document.querySelectorAll('svg.robot [fill^=\"url(\"]')].map(e => e.getAttribute('fill'))")
-    assert all(ref[5:-1] in ids for ref in refs), refs  # every gradient points at its own instance
+    assert len(ids) == len(set(ids)), ids  # several Patches on one page never share an id
 
 
 def test_a06_3_patch_on_the_chat_button_stands_in_front_of_the_pill(open_app):
@@ -137,7 +140,7 @@ def test_a06_3_patch_in_the_header_and_behind_the_greeting_bubble(open_app):
     expect(chat.locator(".chat-head")).to_contain_text("Patch")
     greeting_bot = chat.locator(".greeting svg.robot")
     assert greeting_bot.get_attribute("width") == "92"
-    assert "wave" in (greeting_bot.get_attribute("class") or "")  # always waving
+    assert greeting_bot.get_attribute("data-mood") == "idle"  # no mood here: idle (A06b)
     bubble = chat.locator(".greeting-bubble")
     expect(bubble).to_have_text(GREETING)
     gb, bb = box(greeting_bot), box(bubble)
@@ -370,14 +373,296 @@ def test_a06_6_answers_render_markdown_but_never_raw_html(open_app):
 # --- Motion (DESIGN.md §7, §8.3) ---------------------------------------------------------------------------------
 
 def test_a06_8_normal_motion_patch_moves(open_app):
-    page = open_app()
+    page = open_app(init_script=pick(0))  # idle A, float
     names = fab_bot(page).evaluate("el => [...el.querySelectorAll('*')].map(c => getComputedStyle(c).animationName)")
-    assert {"bot-bob", "bot-blink", "bot-hand", "bot-shadow"} <= set(names)
+    assert {"pb-float-7", "pb-blink", "pb-wiggle", "pb-shadow"} <= set(names)
     running = fab_bot(page).evaluate("el => el.getAnimations({ subtree: true }).length")
     assert running > 0
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a06_8).
+# Reduced motion: in the shared check, test_reduced_motion.py (scenes a06_8 and a06b_7).
+
+
+# --- A06b: the squircle robot, four animations per mood, one picked at random (ticket #29) -----------------------
+
+OPTIONS = {  # the canvas order, A to D (docs/design/patch/)
+    "idle": ["float", "breathe", "look", "hop"],
+    "thinking": ["scan", "typing", "ponder", "radar"],
+    "happy": ["bounce", "spin", "dance", "hearts"],
+    "alert": ["shake", "startle", "siren", "pop"],
+}
+
+# Each variant's keyframes as "name duration delay", read from the canvas artboards (docs/design/patch/*.dc.html).
+KEYFRAMES = {
+    "float": {"pb-shadow 2.6s 0s", "pb-float-7 2.6s 0s", "pb-wiggle 1.8s 0s", "pb-blink 4s 0s"},
+    "breathe": {"pb-breathe 3.2s 0s", "pb-glow 3.2s 0s", "pb-blink 6s 0s"},
+    "look": {"pb-lean 5s 0s", "pb-look 5s 0s", "pb-blink 4s 0s"},
+    "hop": {"pb-hopshadow 3s 0s", "pb-hop 3s 0s", "pb-blink 4s 0s"},
+    "scan": {"pb-pulse 1.2s 0s", "pb-pulse 1.2s 0.2s", "pb-pulse 1.2s 0.4s", "pb-scan 1.6s 0s"},
+    "typing": {"pb-float-5 2.6s 0s", "pb-typing 1.2s 0s", "pb-typing 1.2s 0.15s", "pb-typing 1.2s 0.3s"},
+    "ponder": {"pb-rock 3s 0s", "pb-pulse 1.2s 0s", "pb-blink 4s 0s"},
+    "radar": {"pb-ping 1.8s 0s", "pb-ping 1.8s 0.9s", "pb-blink 4s 0s"},
+    "bounce": {"pb-pulse 1.2s 0s", "pb-pulse 1.2s 0.4s", "pb-squish 1s 0s", "pb-wiggle 0.45s 0s"},
+    "spin": {"pb-spinshadow 2.2s 0s", "pb-spinjump 2.2s 0s"},
+    "dance": {"pb-rise 1.8s 0s", "pb-rise 1.8s 0.9s", "pb-dance 0.9s 0s", "pb-wiggle 0.45s 0s"},
+    "hearts": {"pb-rise 1.8s 0s", "pb-rise 1.8s 0.9s", "pb-float-6 2.6s 0s", "pb-beat 1.2s 0s"},
+    "shake": {"pb-shake 0.5s 0s"},
+    "startle": {"pb-startleshadow 2.4s 0s", "pb-startle 2.4s 0s"},
+    "siren": {"pb-spin 1.2s 0s", "pb-halo 0.6s 0s", "pb-siren 0.6s 0s"},
+    "pop": {"pb-pop 2.6s 0s", "pb-freeze 2.6s 0s", "pb-widen 2.6s 0s"},
+}
+
+# Each variant's face and extras (selector: how many), as on the canvas. They must also show in the still pose.
+EYE = "#7FF0DD"
+FACES = {
+    "float": {f"ellipse[fill='{EYE}']": 2},
+    "breathe": {f"ellipse[fill='{EYE}']": 2, "ellipse[fill='#FFB3CF']": 2},  # cheeks
+    "look": {f"ellipse[fill='{EYE}']": 2},
+    "hop": {f"ellipse[fill='{EYE}']": 2, "ellipse[fill='#FFB3CF']": 2},
+    "scan": {f"circle[fill='{EYE}']": 2, ".bot-extra circle": 3},  # scanning eyes, three thought dots
+    "typing": {f"circle[fill='{EYE}'][r='5']": 3},  # the eyes are a loader
+    "ponder": {f"ellipse[fill='{EYE}']": 2},
+    "radar": {f"ellipse[fill='{EYE}']": 2, ".bot-extra circle[stroke='#FFC94D']": 2},  # pings
+    "bounce": {f"path[stroke='{EYE}']": 2, ".bot-extra path[fill='#FFC94D']": 2},  # arc eyes, sparkles
+    "spin": {f"path[stroke='{EYE}']": 2},
+    "dance": {f"path[stroke='{EYE}']": 2, ".bot-extra text": 2},  # arc eyes, notes
+    "hearts": {".pb-beat": 2, ".bot-extra path": 2},  # heart eyes, hearts floating up
+    "shake": {f"circle[r='9'][fill='{EYE}']": 2, "path.bot-extra": 1},  # wide eyes, alarm lines
+    "startle": {f"circle[r='9'][fill='{EYE}']": 2, "circle[r='3.5']": 2},  # pinprick pupils
+    "siren": {f"circle[r='9'][fill='{EYE}']": 2, ".pb-beam path": 3},  # the siren beam
+    "pop": {f"circle[r='9'][fill='{EYE}']": 2, ".pb-pop circle[fill='#FF4D6D']": 1},  # the "!" badge
+}
+
+
+def pick(option: int) -> str:
+    """Init script: Patch's random source (Math.random) gives option 0-3 (A-D) until a test calls set_pick."""
+    return (f"(() => {{ window.__patchPick = {option / 4 + 0.01}; const real = Math.random;"
+            " Math.random = () => window.__patchPick ?? real() })()")
+
+
+def set_pick(page: Page, option: int) -> None:
+    page.evaluate(f"window.__patchPick = {option / 4 + 0.01}")
+
+
+def variant(robot: Locator) -> str:
+    return robot.get_attribute("data-variant") or ""
+
+
+def keyframes(robot: Locator) -> set[str]:
+    return set(robot.evaluate("""el => [...el.querySelectorAll('*')].map(c => getComputedStyle(c))
+        .filter(s => s.animationName !== 'none')
+        .map(s => `${s.animationName} ${s.animationDuration} ${s.animationDelay}`)"""))
+
+
+def has_face(robot: Locator, name: str) -> None:
+    for selector, count in FACES[name].items():
+        expect(robot.locator(selector)).to_have_count(count)
+
+
+def to_thinking(page: Page) -> list[Route]:
+    held = hold_chat(page)
+    send(page, Q3)
+    expect(head_bot(page)).to_have_attribute("data-mood", "thinking")
+    return held
+
+
+def to_alert(page: Page) -> None:
+    page.route("**/chat", lambda route: route.fulfill(
+        status=502, headers={"Access-Control-Allow-Origin": "*"}, json={"error": {"code": "x", "message": "Down."}}))
+    send(page, Q3)
+    expect(head_bot(page)).to_have_attribute("data-mood", "alert")
+    page.unroute("**/chat")
+
+
+@pytest.mark.parametrize("option", range(4), ids="ABCD")
+def test_a06b_3_every_variant_has_its_canvas_keyframes_and_face(open_app, option):
+    page = open_app(init_script=pick(option))
+    open_chat(page)
+    seen = []
+
+    def check(mood_: str) -> None:
+        name = OPTIONS[mood_][option]
+        expect(head_bot(page)).to_have_attribute("data-variant", name)
+        assert keyframes(head_bot(page)) == KEYFRAMES[name], name
+        has_face(head_bot(page), name)
+        seen.append(name)
+
+    check("idle")
+    held = to_thinking(page)
+    check("thinking")
+    release(page, held)
+    expect(head_bot(page)).to_have_attribute("data-mood", "happy")
+    check("happy")
+    to_alert(page)
+    check("alert")
+    assert seen == [OPTIONS[m][option] for m in OPTIONS]
+
+
+def test_a06b_4_a_new_pick_only_on_entering_a_mood_and_the_button_and_header_agree(open_app):
+    page = open_app(init_script=pick(1))
+    expect(fab_bot(page)).to_have_attribute("data-variant", "breathe")
+    open_chat(page)
+    expect(head_bot(page)).to_have_attribute("data-variant", "breathe")  # still idle: no new pick
+    held = to_thinking(page)
+    expect(head_bot(page)).to_have_attribute("data-variant", "typing")
+    set_pick(page, 3)  # the random source moves on; staying in "thinking" must not pick again
+    window(page).get_by_role("textbox", name="Message").fill("re-renders while typing")
+    expect(head_bot(page)).to_have_attribute("data-variant", "typing")
+    fab(page).click()  # close: the button shows the same mood and the same animation
+    expect(fab_bot(page)).to_have_attribute("data-mood", "thinking")
+    expect(fab_bot(page)).to_have_attribute("data-variant", "typing")
+    release(page, held)  # entering "happy" picks: option D
+    expect(fab_bot(page)).to_have_attribute("data-mood", "happy")
+    expect(fab_bot(page)).to_have_attribute("data-variant", "hearts")
+    set_pick(page, 2)
+    open_chat(page)
+    to_alert(page)
+    expect(head_bot(page)).to_have_attribute("data-variant", "siren")
+    fab(page).click()
+    expect(fab_bot(page)).to_have_attribute("data-variant", "siren")
+
+
+def test_a06b_5_places_without_a_mood_show_idle_picked_on_page_load(open_app):
+    page = open_app(init_script=pick(3))
+    places = [page.locator(".hello svg.robot"), page.locator(".side-card svg.robot")]
+    open_chat(page)
+    places.append(window(page).locator(".greeting svg.robot"))
+    for robot in places:
+        expect(robot).to_have_attribute("data-mood", "idle")
+        expect(robot).to_have_attribute("data-variant", "hop")
+    set_pick(page, 0)
+    to_thinking(page)  # Patch's mood changes; the places without one keep the pick from page load
+    for robot in places[:2]:
+        expect(robot).to_have_attribute("data-variant", "hop")
+
+
+# The motion envelope: every part's box, sampled through each animation's cycle (paused and stepped with the Web
+# Animations API, so no waiting). `extra` is the same for the parts outside the body (`.bot-extra`).
+ENVELOPE = """svg => {
+    const parts = [...svg.querySelectorAll('ellipse, rect, circle, path, line, text')]
+    const empty = () => ({ left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity })
+    const all = empty(), extra = empty()
+    const grow = (u, r) => { u.left = Math.min(u.left, r.left); u.top = Math.min(u.top, r.top);
+        u.right = Math.max(u.right, r.right); u.bottom = Math.max(u.bottom, r.bottom) }
+    const anims = svg.getAnimations({ subtree: true })
+    anims.forEach(a => a.pause())
+    const steps = anims.length ? 48 : 1
+    for (let i = 0; i < steps; i++) {
+        for (const a of anims) {
+            const t = a.effect.getComputedTiming()
+            a.currentTime = (a.effect.getTiming().delay || 0) + t.duration * i / steps
+        }
+        for (const el of parts) {
+            const r = el.getBoundingClientRect()
+            if (!r.width && !r.height) continue
+            grow(all, r)
+            if (el.closest('.bot-extra')) grow(extra, r)
+        }
+    }
+    anims.forEach(a => a.play())
+    return { all, extra: extra.left === Infinity ? null : extra }
+}"""
+
+# Every ancestor that cuts off what sticks out of it (overflow other than visible), and the window.
+CLIPS = """svg => {
+    const out = [{ name: 'the window', left: 0, top: 0, right: innerWidth, bottom: innerHeight }]
+    for (let el = svg.parentElement; el && el !== document.documentElement; el = el.parentElement) {
+        const s = getComputedStyle(el)
+        if (s.overflowX === 'visible' && s.overflowY === 'visible') continue
+        const r = el.getBoundingClientRect()
+        out.push({ name: el.className || el.tagName, left: r.left, top: r.top, right: r.right, bottom: r.bottom })
+    }
+    return out
+}"""
+
+
+def close_chat(page: Page) -> None:
+    """With the header's ✕: on a phone the sheet covers Patch's button."""
+    window(page).locator(".chat-head").get_by_role("button", name="Close the chat").click()
+    expect(window(page)).to_have_count(0)
+
+
+def overlaps(a: dict, b: dict) -> bool:
+    return a["left"] < b["right"] and b["left"] < a["right"] and a["top"] < b["bottom"] and b["top"] < a["bottom"]
+
+
+def rect(loc: Locator) -> dict:
+    return loc.evaluate("el => { const r = el.getBoundingClientRect(); "
+                        "return { left: r.left, top: r.top, right: r.right, bottom: r.bottom } }")
+
+
+def fits(robot: Locator, avoid: list[Locator], extras_only: bool = False) -> None:
+    """Patch, through all of his animation, isn't cut off, and doesn't cover the controls next to him."""
+    env = robot.evaluate(ENVELOPE)
+    where = f"{robot.get_attribute('data-mood')} {variant(robot)}"
+    for clip in robot.evaluate(CLIPS):
+        for side in ("left", "top"):
+            assert env["all"][side] >= clip[side] - 0.5, (where, "cut off by", clip, env["all"])
+        for side in ("right", "bottom"):
+            assert env["all"][side] <= clip[side] + 0.5, (where, "cut off by", clip, env["all"])
+    mine = env["extra"] if extras_only else env["all"]
+    for control in avoid:
+        for i in range(control.count()):
+            if mine and control.nth(i).is_visible():
+                assert not overlaps(mine, rect(control.nth(i))), (where, "covers", control.nth(i), mine)
+
+
+@pytest.mark.parametrize("width", [PHONE, DESKTOP])
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+@pytest.mark.parametrize("option", range(4), ids="ABCD")
+def test_a06b_6_every_variant_fits_its_places_in_both_themes(open_app, browser_name, option, width, scheme):
+    page = open_app(width=width, scheme=scheme, init_script=pick(option))
+    SHOTS.mkdir(exist_ok=True)
+
+    def name(mood_: str) -> str:
+        return OPTIONS[mood_][option]
+
+    def shot(what: str) -> None:
+        if browser_name == "chromium":
+            page.screenshot(path=SHOTS / f"a06b-{width}-{scheme}-{'ABCD'[option]}-{what}.png")
+
+    dot = fab(page).locator(".unread-dot")
+    head_buttons = window(page).locator(".chat-head button")
+
+    # Idle: the button, the welcome banner, the snapshot card (desktop: on a phone it's the tab bar).
+    expect(fab_bot(page)).to_have_attribute("data-variant", name("idle"))
+    fits(fab_bot(page), [dot], extras_only=True)
+    hello = page.locator(".hello")
+    fits(hello.locator("svg.robot"), [hello.get_by_role("button")])
+    if width == DESKTOP:
+        fits(page.locator(".side-card svg.robot"), [page.locator(".side-links button")])
+    shot("idle")
+    # Open: the header (34px) and the greeting (92px, behind the bubble).
+    open_chat(page)
+    settled(window(page))
+    fits(head_bot(page), [head_buttons])
+    fits(window(page).locator(".greeting svg.robot"), [])
+    # Thinking in the header, then on the button.
+    held = to_thinking(page)
+    expect(head_bot(page)).to_have_attribute("data-variant", name("thinking"))
+    fits(head_bot(page), [head_buttons])
+    shot("thinking")
+    close_chat(page)
+    expect(fab_bot(page)).to_have_attribute("data-variant", name("thinking"))
+    fits(fab_bot(page), [dot], extras_only=True)
+    # Happy with an unread answer: his extras keep clear of the unread dot.
+    release(page, held)
+    expect(dot).to_be_visible()
+    expect(fab_bot(page)).to_have_attribute("data-variant", name("happy"))
+    fits(fab_bot(page), [dot], extras_only=True)
+    shot("happy")
+    # Happy in the header, then alert in the header and on the button.
+    open_chat(page)
+    release(page, to_thinking(page))
+    expect(head_bot(page)).to_have_attribute("data-mood", "happy")
+    fits(head_bot(page), [head_buttons])
+    to_alert(page)
+    expect(head_bot(page)).to_have_attribute("data-variant", name("alert"))
+    fits(head_bot(page), [head_buttons])
+    shot("alert")
+    close_chat(page)
+    expect(fab_bot(page)).to_have_attribute("data-variant", name("alert"))
+    fits(fab_bot(page), [dot], extras_only=True)
 
 
 # --- Light, dark, phone, desktop (DESIGN.md §9, §4.2) ------------------------------------------------------------

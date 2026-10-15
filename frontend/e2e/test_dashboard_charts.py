@@ -161,9 +161,8 @@ def test_a05_7_welcome_banner_with_waving_patch_over_its_top_edge(open_dash):
     robot = hello.locator("svg.robot")
     expect(robot).to_have_attribute("aria-hidden", "true")
     assert robot.evaluate("el => el.getAttribute('width')") == "110"
-    assert "wave" in (robot.get_attribute("class") or "")
-    hand = robot.locator(".bot-hand.right").evaluate("el => getComputedStyle(el).animationName")
-    assert hand == "bot-wave"
+    assert robot.get_attribute("data-mood") == "idle"  # no mood here: idle, one of its four animations (A06b)
+    assert robot.evaluate("el => el.getAnimations({ subtree: true }).length") > 0
     rb, hb = robot.bounding_box(), hello.bounding_box()
     # His head rises over the banner's top edge (margin −2.4rem inside the 0.9rem padding): a fifth of him sticks out.
     assert rb and hb and 20 <= hb["y"] - rb["y"] <= rb["height"] / 2, (rb, hb)
