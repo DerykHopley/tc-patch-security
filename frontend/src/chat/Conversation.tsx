@@ -13,6 +13,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { EXPLAIN_LEVELS, type ChatReply, type Example, type ExplainLevel } from '../api.ts'
 import { AnswerDetails, firstTab, sourceId, type DetailTab } from './AnswerDetails.tsx'
+import { ProposalCard } from './ProposalCard.tsx'
 import type { Message } from './useChat.ts'
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
@@ -119,6 +120,12 @@ function Answer({ reply }: { reply: ChatReply }) {
           </Markdown>
         </CiteContext>
       </div>
+      {reply.tool_calls.map((c) =>
+        // A change Patch proposes (B21): its card under the answer, not folded in the details
+        c.name === 'update_watchlist' && c.result && 'proposal_id' in c.result ? (
+          <ProposalCard key={c.id} proposal={c.result} />
+        ) : null,
+      )}
       {reply.flags.includes('injection_phrasing') && (
         <p className="flag-note">This message looks like an injection attempt. It was answered, and logged.</p>
       )}

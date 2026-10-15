@@ -112,7 +112,7 @@ def test_a12_1_fakellm_passes_every_question(client):
 
 def test_a12_1_runs_on_a_copy_of_the_state(client, deps):
     before = deps.state.read()
-    run_check(client)  # Q9 adds Ollama to the watchlist, Q10 marks a CVE fixed: on the copy only
+    run_check(client)  # Q9 and Q10 only propose (B21); a misbehaving model would write to the copy only
     assert deps.state.read() == before
 
 

@@ -411,6 +411,19 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 
 - The chat is a full-screen sheet (bubble or pinned). No pin button and no Make larger: the sheet is already full screen. Patch's button sits above the bottom tab bar.
 
+### 6.6 A change Patch proposes (B21, 2026-10-15)
+
+- When you ask Patch to watch or unwatch a product, change a CVE's status or a product's details, it **proposes** the change. The card sits **under the answer** (not folded into the details), so the next step is in view (`frontend/src/chat/ProposalCard.tsx`, `styles/proposals.css`).
+- The card: `--nested-fill`, radius 18px, a 3px left edge (`--accent` while proposed, `--ok` when done, `--muted` when cancelled or expired). A state chip in words, `--text` on `--accent-soft` ("Proposed", "Done"; "Cancelled" and "Expired" on `--border`), then "Patch proposes a change" (muted). The title says what: "Mark CVE-2024-8309 fixed", "Add vLLM to your watchlist". Then "Why: …" when the model gave a reason.
+- **Before → after** on one line that wraps: the before in `--muted`, an arrow hidden from screen readers, the after in bold. Screen readers hear "Before: Open After: Fixed".
+- Under it, while proposed: "Nothing has changed yet. Approve it by 21:40 UTC, or ask Patch again later." (the 1-hour expiry, in UTC as elsewhere).
+- Buttons (§5.3 pills): **Approve** (primary), **Edit** (only for a status or product details; a watch has nothing to correct), **Cancel**. While a request runs, all three are off and Approve says "Approving…" with `aria-busy`: a double click sends one request (and the backend returns the first result anyway).
+- **Edit** opens the form inside the card: for a status, a Status select and the CVE decision dialog's own fields (`DecisionFields`: justification radios, note, reason, review date, compensating control, with the same limits); for product details, usage, version, internet-facing. Focus goes to the first field; Save changes or Back return focus to Approve.
+- After the action, one line in an `<output>` (the §5.10 line rule: `--text` on a soft fill, the tone as the edge): "Done: Marked CVE-2024-8309 as fixed. See CVE-2024-8309 on the CVEs page" (`--ok` edge; the link opens `/cves?product=…&status=all` in the app, the chat stays open; a watchlist change links to Settings), "Cancelled: nothing was changed." or "Expired: …" (`--warn` edge). A refused approve (stale, expired) shows the backend's sentence as an alert (`--error` edge).
+- No animation: nothing moves, with or without reduced motion. Light and dark come from the tokens.
+- In the Tool calls tab, the update_watchlist card says "Proposed: {title}" and the before → after.
+- *Checked* by the browser check B21.9 (light and dark, 400px and 1400px, keyboard, the chip's and the line's contrast at least 4.5:1) and the reduced-motion scene `b21_9_proposal_card`.
+
 ### Checklist: chat
 
 - [ ] Patch on the pill, in front, with shadow; mood and unread dot as specified.
@@ -419,6 +432,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - [ ] Pin only on the enlarged bubble; divider by mouse and keyboard; Esc rules; remembered; page not rebuilt.
 - [ ] Ctrl/Cmd+K, Esc, "Ask about this".
 - [ ] Phone: full-screen sheet, no pin, no Make larger.
+- [ ] A proposed change (§6.6): card under the answer, before → after, Approve/Edit/Cancel by keyboard, nothing changes until Approve, one request per double click.
 - [ ] Web research (B08): the research card (query, results, time) and the web facts on each web source ("Web result, unverified", site, date, "Flagged" on an injection page), in light and dark at 4.5:1, at 400px with no sideways scroll, links by keyboard, still with reduced motion (checks B08.10 to B08.13).
 
 ---

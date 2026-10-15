@@ -244,26 +244,31 @@ def test_a15b_2_chips_flag_open_kev_and_link_to_settings(open_dash):
     expect(card(page).get_by_role("group", name="Langflow")).to_be_visible()
 
 
+def approve(answer) -> None:
+    """Approve the change Patch proposed in this answer (B21) and wait until it's done."""
+    card = answer.locator(".proposal-card")
+    card.get_by_role("button", name="Approve", exact=True).click()
+    expect(card.locator("output.proposal-line")).to_contain_text("Done:")
+
+
 # --- A15b.4: one truth: Settings, Patch and the dashboard ---------------------------------------------------------------
 
 def test_a15b_4_a_product_patch_adds_shows_on_the_dashboard_at_once(open_dash, api_url, ui_url):
-    api(api_url, "/watchlist", "PUT", {"products": [p for p in DEFAULT_WATCHLIST if p != "ollama"]})
     page = open_dash()
     page.goto(f"{ui_url}/?product=langflow")
-    expect(chip_button(page, "Ollama")).to_have_count(0)
+    expect(chip_button(page, "vLLM")).to_have_count(0)
     open_chat(page)
-    ask(page, "Add Ollama to my watchlist")
-    expect(chip_button(page, "Ollama")).to_have_attribute("aria-pressed", "false")  # no reload needed
+    approve(ask(page, "Add vLLM to my watchlist"))  # Patch proposes; it lands once you approve (B21)
+    expect(chip_button(page, "vLLM")).to_have_attribute("aria-pressed", "false")  # no reload needed
     expect(chip_button(page, "Langflow")).to_have_attribute("aria-pressed", "true")  # the filter stays
 
 
 def test_a15b_4_a_product_patch_adds_shows_in_the_settings_card_at_once(open_watchlist, api_url):
-    api(api_url, "/watchlist", "PUT", {"products": [p for p in DEFAULT_WATCHLIST if p != "ollama"]})
     page = open_watchlist()
-    expect(card(page).get_by_label("Ollama", exact=True)).not_to_be_checked()
+    expect(card(page).get_by_label("vLLM", exact=True)).not_to_be_checked()
     open_chat(page)
-    ask(page, "Add Ollama to my watchlist")
-    expect(card(page).get_by_label("Ollama", exact=True)).to_be_checked()
+    approve(ask(page, "Add vLLM to my watchlist"))  # Patch proposes; it lands once you approve (B21)
+    expect(card(page).get_by_label("vLLM", exact=True)).to_be_checked()
     expect(bar(page)).to_have_text("All changes saved")  # the saved state moved, not a draft
 
 

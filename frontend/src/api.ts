@@ -2,7 +2,7 @@
 // running gives one plain message instead of a raw network error.
 
 import { cvesQuery, type CveView } from './cveView.ts'
-import type { NamedResult } from './toolResults.ts'
+import type { NamedResult, Proposal } from './toolResults.ts'
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
@@ -179,6 +179,7 @@ export interface Decision {
   decided_at: string | null // ISO date and time (UTC); null for a status saved before decision records
   decided_by: string | null // "owner" until there are users
   via: 'page' | 'chat' | null
+  proposal?: string // the proposal you approved, for a change Patch proposed in the chat (B21)
 }
 
 /** What the user enters when changing a status. Which fields a status takes is checked by the backend. */
@@ -374,6 +375,17 @@ export const checkNow = () => request<CheckReply>('/refresh', { method: 'POST' }
 
 export const setStatus = (id: string, body: DecisionInput) =>
   request<{ id: string; status: CveStatus; decision: Decision }>(`/cves/${encodeURIComponent(id)}`, json('PATCH', body))
+
+// Changes Patch proposes (B21): nothing changes until you approve. Approving again returns the first result.
+/** Your corrections to a proposal: a status's decision fields, or a product's usage, version, internet-facing. */
+export type ProposalEdit =
+  | DecisionInput
+  | { usage?: ProductUsage; version?: string; internet_facing?: boolean }
+const proposalPath = (id: string) => `/proposals/${encodeURIComponent(id)}`
+export const getProposal = (id: string) => request<Proposal>(proposalPath(id))
+export const approveProposal = (id: string) => request<Proposal>(`${proposalPath(id)}/approve`, { method: 'POST' })
+export const cancelProposal = (id: string) => request<Proposal>(`${proposalPath(id)}/cancel`, { method: 'POST' })
+export const editProposal = (id: string, body: ProposalEdit) => request<Proposal>(proposalPath(id), json('PATCH', body))
 
 export const getWatchlist = () => request<Watchlist>('/watchlist')
 

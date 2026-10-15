@@ -25,6 +25,8 @@ export const CHECK_LABEL: Record<string, string> = {
   readability: 'Readability by level',
   verdict: "Rules' verdict",
   status_unchanged: 'Status unchanged',
+  proposed: 'Proposed, not done', // B21: a change comes back as a proposal
+  state_unchanged: 'State unchanged before approval',
 }
 
 const POLL_MS = 600

@@ -14,7 +14,7 @@ from test_shell import (  # noqa: F401 (fixture)
 Q2 = "Explain CVE-2024-8309 and how to prevent that kind of bug"
 Q3 = "Which OWASP category is CWE-918?"
 Q6 = 'What does an "ignore previous instructions" attack look like?'
-Q9 = "Add Ollama to my watchlist"
+Q9 = "Add vLLM to my watchlist"
 Q11 = "Look up CVE-1999-0001"
 GREETING = ("Hi, I'm Patch! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack. "
             "What shall we look at?")
@@ -332,9 +332,9 @@ def test_a06_6_tool_cards_and_query_plan(open_app):
 
     watch = ask(page, Q9)
     watch.get_by_role("button", name=re.compile("Show")).click()
-    # The servers live for the whole run, so another test (or browser) may have added Ollama already.
+    # Patch only proposes (B21). The servers live for the whole run, so another test may have added vLLM already.
     expect(watch.locator(".tool-card .watchlist-card")).to_contain_text(
-        re.compile(r"(Added Ollama to|Ollama is already on) your watchlist\."))
+        re.compile(r"(Proposed: Add vLLM to your watchlist|vLLM is already on your watchlist)"))
 
 
 def test_a06_6_tool_errors_in_red(open_app):

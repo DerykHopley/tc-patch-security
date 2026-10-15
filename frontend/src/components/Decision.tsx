@@ -57,6 +57,106 @@ const NOTE_HINT: Partial<Record<CveStatus, string>> = {
 
 const FOCUSABLE = 'button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])'
 
+/** A status's decision record fields as the form sends them: blank ones left out. */
+export function readDecision(formEl: HTMLFormElement, status: CveStatus): DecisionInput {
+  const form = new FormData(formEl)
+  const text = (name: string) => {
+    const v = form.get(name)
+    return typeof v === 'string' && v.trim() ? v.trim() : undefined
+  }
+  const body: DecisionInput = { status }
+  if (status === 'accepted') {
+    body.reason = text('reason')
+    body.review_date = text('review_date')
+    body.compensating_control = text('compensating_control')
+  } else {
+    body.note = text('note')
+    if (status === 'not_affected') body.justification = text('justification') as Justification | undefined
+  }
+  return body
+}
+
+/** The fields a status's decision record takes, with the same limits everywhere: the CVEs page's dialog and the
+ *  chat's proposal card when you edit it (B21). `values`: what to start from. The first field has data-autofocus. */
+export function DecisionFields({ status, asOf, values }: {
+  status: CveStatus
+  asOf: string
+  values?: Partial<Pick<Decision, 'justification' | 'reason' | 'note' | 'review_date' | 'compensating_control'>> | null
+}) {
+  if (status === 'accepted') {
+    return (
+      <>
+        <p className="meta">
+          It leaves the open list and the counts until its review date. Then it comes back as "review due".
+        </p>
+        <label>
+          Reason (required)
+          <input
+            name="reason"
+            required
+            maxLength={300}
+            data-autofocus
+            defaultValue={values?.reason ?? undefined}
+            placeholder="Why the risk is acceptable for now"
+          />
+        </label>
+        <label>
+          Review date (required)
+          <input
+            name="review_date"
+            type="date"
+            required
+            min={addDays(asOf, 1)}
+            defaultValue={values?.review_date ?? addDays(asOf, REVIEW_DAYS)}
+          />
+        </label>
+        <label>
+          Compensating control (optional)
+          <input
+            name="compensating_control"
+            maxLength={300}
+            defaultValue={values?.compensating_control ?? undefined}
+            placeholder='For example "behind auth", "WAF rule"'
+          />
+        </label>
+      </>
+    )
+  }
+  return (
+    <>
+      {status === 'not_affected' && (
+        <fieldset className="justifications">
+          <legend>Why isn't it affected? (required)</legend>
+          {JUSTIFICATIONS.map((j, i) => (
+            <label key={j}>
+              <input
+                type="radio"
+                name="justification"
+                value={j}
+                required
+                defaultChecked={values?.justification === j}
+                data-autofocus={(values?.justification ? values.justification === j : i === 0) || undefined}
+              />
+              {JUSTIFICATION_LABEL[j]}
+            </label>
+          ))}
+        </fieldset>
+      )}
+      <label>
+        Note (optional)
+        <textarea
+          name="note"
+          rows={2}
+          maxLength={500}
+          defaultValue={values?.note ?? undefined}
+          placeholder={NOTE_HINT[status]}
+          data-autofocus={status === 'fixed' || status === 'open' || undefined}
+        />
+      </label>
+    </>
+  )
+}
+
 /** A modal dialog: focus stays inside (Tab wraps), Esc closes it, focus goes back to the button that opened it. */
 export function DecisionDialog({ request, asOf, onSubmit, onClose }: {
   request: DecisionRequest
@@ -97,20 +197,7 @@ export function DecisionDialog({ request, asOf, onSubmit, onClose }: {
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const form = new FormData(e.currentTarget)
-    const text = (name: string) => {
-      const v = form.get(name)
-      return typeof v === 'string' && v.trim() ? v.trim() : undefined
-    }
-    const body: DecisionInput = { status }
-    if (status === 'accepted') {
-      body.reason = text('reason')
-      body.review_date = text('review_date')
-      body.compensating_control = text('compensating_control')
-    } else {
-      body.note = text('note')
-      if (status === 'not_affected') body.justification = text('justification') as Justification | undefined
-    }
+    const body = readDecision(e.currentTarget, status)
     setBusy(true)
     try {
       await onSubmit(body)
@@ -135,62 +222,7 @@ export function DecisionDialog({ request, asOf, onSubmit, onClose }: {
     >
       <form method="dialog" onSubmit={submit}>
         <h2 id={titleId}>{TITLE[status](cve, again)}</h2>
-        {status === 'accepted' && (
-          <>
-            <p className="meta">
-              It leaves the open list and the counts until its review date. Then it comes back as "review due".
-            </p>
-            <label>
-              Reason (required)
-              <input name="reason" required maxLength={300} data-autofocus placeholder="Why the risk is acceptable for now" />
-            </label>
-            <label>
-              Review date (required)
-              <input
-                name="review_date"
-                type="date"
-                required
-                min={addDays(asOf, 1)}
-                defaultValue={addDays(asOf, REVIEW_DAYS)}
-              />
-            </label>
-            <label>
-              Compensating control (optional)
-              <input name="compensating_control" maxLength={300} placeholder='For example "behind auth", "WAF rule"' />
-            </label>
-          </>
-        )}
-        {status === 'not_affected' && (
-          <fieldset className="justifications">
-            <legend>Why isn't it affected? (required)</legend>
-            {JUSTIFICATIONS.map((j, i) => (
-              <label key={j}>
-                <input
-                  type="radio"
-                  name="justification"
-                  value={j}
-                  required
-                  defaultChecked={preset?.justification === j}
-                  data-autofocus={(preset ? preset.justification === j : i === 0) || undefined}
-                />
-                {JUSTIFICATION_LABEL[j]}
-              </label>
-            ))}
-          </fieldset>
-        )}
-        {status !== 'accepted' && (
-          <label>
-            Note (optional)
-            <textarea
-              name="note"
-              rows={2}
-              maxLength={500}
-              defaultValue={preset?.note}
-              placeholder={NOTE_HINT[status]}
-              data-autofocus={status === 'fixed' || status === 'open' || undefined}
-            />
-          </label>
-        )}
+        <DecisionFields status={status} asOf={asOf} values={preset} />
         {error && (
           <p className="dialog-error" role="alert">
             {error}
