@@ -46,6 +46,10 @@ _Avoid_: exploit score, risk score
 A numbered piece of the knowledge base that an answer cites as `[n]`.
 _Avoid_: reference, document, chunk (a chunk is how it's stored)
 
+**Web source**:
+A numbered web page from `research_web` (B08), cited as `[n]` like a source but always marked "Web result, unverified". It's untrusted text.
+_Avoid_: search result, link
+
 ### Your stack
 
 **Watchlist**:

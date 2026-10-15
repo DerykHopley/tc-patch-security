@@ -25,6 +25,7 @@ from app.rag.pipeline import SearchOptions
 from app.rag.vector import ChromaIndex, IndexMismatch, build_index, open_index, sync_index
 from app.refresh import Refresher, make_refresher, utc_now
 from app.state import State
+from app.web_research import WebResearch
 
 log = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ class Deps:
     transports: Transports = field(default_factory=Transports)  # how alerts leave the machine; tests pass fakes
     keyword: BM25Index | None = None  # the keyword retriever (A10); built from the index's chunks when not given
     http_client: object = None  # httpx.Client for model servers and model discovery; tests pass an in-memory one
+    web: WebResearch | None = None  # web research (B08); None without a Tavily key: research_web is off
     clock: Callable[[], dt.datetime] = utc_now  # the time; tests pass one they move (live mode's today, B02)
     refresher: Refresher | None = None  # live mode only (B02): fetch, build, write a new live version
     version: int | None = None  # the live version loaded; None in snapshot mode
@@ -154,6 +156,7 @@ def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge 
         state=state,
         index=index or load_index(settings, knowledge),
         http_client=http_client,
+        web=WebResearch(settings) if settings.tavily_api_key else None,
         clock=clock,
         refresher=refresher,
         version=version,

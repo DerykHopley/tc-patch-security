@@ -19,5 +19,5 @@ def turn(req: ChatRequest, deps, fail_tools: Collection[str] | None = None) -> C
     page, dropped = page_context.validate(req.page, deps.knowledge.resolve_product)  # fixed fields only (A18)
     reply = agent.answer(message, history, deps, level=level, page=page,
                          fail_tools=deps.fail_tools if fail_tools is None else fail_tools)
-    reply.flags, reply.dropped_context = flags, dropped
+    reply.flags, reply.dropped_context = flags + reply.flags, dropped  # the message's flags, then the sources'
     return reply

@@ -35,6 +35,9 @@ class Source(BaseModel):
     severity: str | None = None
     cvss: float | None = None
     kev: bool | None = None
+    # Web only (B08): the page's site, and "injection_phrasing" when its text tries to give instructions
+    site: str | None = None
+    flags: list[str] = Field(default_factory=list)
 
 
 class QueryInfo(BaseModel):
