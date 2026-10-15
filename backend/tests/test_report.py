@@ -3,6 +3,7 @@
 Built in CI from FakeLLM runs (plus a scripted bad model, so the failure list has something in it) and two fake
 embedders. The real runs (OpenRouter, Ollama) are A20's, by hand.
 """
+import json
 import re
 from html import escape
 
@@ -138,6 +139,74 @@ def test_a12_5_the_dev_panel_serves_the_report(client, runs):
     picked = client.get("/dev/report", params={"models": runs["lazy"]["id"], "retrieval": runs["small"]["id"]})
     assert "Local · lazy-model" in picked.text and "hash-4096" not in section(picked.text, "embedders")
     assert client.get("/dev/report", params={"models": "../../etc"}).status_code == 400
+
+
+# --- A56.1: the runs to show come from a file, never a silent fallback (#56) ---------------------------------------
+
+def report_cli(deps, monkeypatch, *args: str) -> int:
+    """`python -m app.evals report ...` against the test's saved runs."""
+    from app.evals.__main__ import main
+
+    monkeypatch.setenv("STATE_PATH", str(deps.settings.state_path))
+    return main(["report", *args])
+
+
+def test_a56_1_report_shows_exactly_the_runs_the_file_names(deps, runs, tmp_path, monkeypatch):
+    newer = retrieval.run(deps, deps.index, deps.keyword)  # a newer run the file doesn't name: must not show
+    (tmp_path / "findings.html").write_text("<p>Read from the file next to runs.json.</p>")
+    runs_file = tmp_path / "runs.json"
+    runs_file.write_text(json.dumps({"models": [runs["lazy"]["id"]], "retrieval": [runs["small"]["id"]],
+                                     "findings": "findings.html"}))
+    out = tmp_path / "report.html"
+    assert report_cli(deps, monkeypatch, "--runs", str(runs_file), "--out", str(out)) == 0
+    html = out.read_text()
+    assert "Local · lazy-model" in html and "FakeLLM (scripted)" not in section(html, "models")
+    assert "hash-256" in html and "hash-4096" not in section(html, "embedders") and newer["id"] not in html
+    assert "Read from the file next to runs.json." in section(html, "findings")
+
+
+def test_a56_1_a_missing_id_is_an_error_that_names_it(deps, runs, tmp_path, monkeypatch, capsys):
+    runs_file = tmp_path / "runs.json"
+    runs_file.write_text(json.dumps({"models": [runs["fake"]["id"], "20990101-000000-000-dead"],
+                                     "retrieval": [runs["big"]["id"]]}))
+    out = tmp_path / "report.html"
+    assert report_cli(deps, monkeypatch, "--runs", str(runs_file), "--out", str(out)) == 1
+    assert "20990101-000000-000-dead" in capsys.readouterr().err
+    assert not out.exists()
+
+
+@pytest.mark.parametrize("content", [
+    {"models": ["x"]},  # no retrieval list: would fall back to the latest
+    {"models": [], "retrieval": ["x"]},  # an empty list: the same
+    {"models": "x", "retrieval": ["x"]},  # not a list
+    ["x"],  # not an object
+])
+def test_a56_1_a_file_without_both_lists_is_an_error_not_a_fallback(deps, runs, tmp_path, monkeypatch, capsys,
+                                                                    content):
+    runs_file = tmp_path / "runs.json"
+    runs_file.write_text(json.dumps(content))
+    out = tmp_path / "report.html"
+    assert report_cli(deps, monkeypatch, "--runs", str(runs_file), "--out", str(out)) == 1
+    assert "runs.json" in capsys.readouterr().err
+    assert not out.exists()
+
+
+def test_a56_1_the_published_reports_runs_file_reads():
+    """The runs themselves aren't in git (they need the key and the GPU), but the file naming them must read."""
+    from app.config import ROOT
+
+    models, retrieval_ids, findings = report.runs_file(ROOT.parent / "docs" / "report-src" / "runs.json")
+    assert len(models) == len(set(models)) and len(retrieval_ids) == len(set(retrieval_ids))
+    assert findings and "<" in findings
+
+
+def test_a56_1_a_missing_or_broken_runs_file_is_an_error(deps, tmp_path, monkeypatch, capsys):
+    assert report_cli(deps, monkeypatch, "--runs", str(tmp_path / "nope.json")) == 1
+    assert "nope.json" in capsys.readouterr().err
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json")
+    assert report_cli(deps, monkeypatch, "--runs", str(broken)) == 1
+    assert "broken.json" in capsys.readouterr().err
 
 
 class Cloudy(Lazy):

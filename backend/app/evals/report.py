@@ -12,6 +12,7 @@ frontend/src/styles/tokens.css, inlined: the page loads nothing from anywhere, s
 published as one file. Everything from a model or the data is escaped: answers are untrusted text.
 """
 import datetime as dt
+import json
 from html import escape
 from pathlib import Path
 
@@ -564,6 +565,30 @@ def from_store(store: RunStore, as_of: str, model_ids: list[str] | None = None,
     models = _pick(store, "models", model_ids) if model_ids else _latest(store.all("models"), "model")
     retrieval = _pick(store, "retrieval", retrieval_ids) if retrieval_ids else _latest(store.all("retrieval"), "embedder")
     return build(models, retrieval, as_of, findings)
+
+
+def runs_file(path: Path) -> tuple[list[str], list[str], str | None]:
+    """The run ids a published report shows, and its findings, from a JSON file (docs/report-src/runs.json):
+    {"models": [ids], "retrieval": [ids], "findings": "findings.html"}. The findings path is relative to the file
+    and optional. Both id lists must be there and non-empty: a report from a file never falls back to the latest
+    runs, so it never publishes a run nobody reviewed."""
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError) as e:
+        raise InputError(f"Can't read the runs file {str(path)!r}: {e}") from e
+    ids = {}
+    for kind in ("models", "retrieval"):
+        value = data.get(kind) if isinstance(data, dict) else None
+        if not value or not isinstance(value, list) or not all(isinstance(i, str) for i in value):
+            raise InputError(f"The runs file {str(path)!r} needs {kind!r}: a non-empty list of run ids.")
+        ids[kind] = value
+    findings = None
+    if data.get("findings"):
+        try:
+            findings = (path.parent / data["findings"]).read_text()
+        except (OSError, TypeError) as e:
+            raise InputError(f"Can't read the findings the runs file {str(path)!r} names: {e}") from e
+    return ids["models"], ids["retrieval"], findings
 
 
 def write(html: str, out: Path) -> Path:

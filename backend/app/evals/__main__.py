@@ -9,6 +9,8 @@
     EMBEDDER=ollama INDEX_PATH=data/index-ollama uv run --env-file .env python -m app.evals retrieval
     # The report: the latest run per model and per embedder, or the runs named
     uv run python -m app.evals report --findings findings.html --out data/reports/model-check-report.html
+    # The published report: exactly the runs and findings docs/report-src/runs.json names (a missing id is an error)
+    uv run python -m app.evals report --runs ../docs/report-src/runs.json --out ../docs/report/index.html
     # FakeLLM and two fake embedders in a temporary folder, then the report (what CI builds; no key, no network)
     uv run python -m app.evals fake-report --out /tmp/model-check-report.html
 
@@ -86,9 +88,13 @@ def main(argv: list[str] | None = None) -> int:
     rp.add_argument("--findings", type=Path, help="an HTML fragment with the written findings")
     rp.add_argument("--models", nargs="*", help="model-check run ids (default: the latest per model)")
     rp.add_argument("--retrieval", nargs="*", help="retrieval run ids (default: the latest per embedder)")
+    rp.add_argument("--runs", type=Path, help="a JSON file naming the model-check and retrieval runs and the "
+                    "findings (docs/report-src/runs.json): the published report. No fallback to the latest")
     fr = sub.add_parser("fake-report", help="FakeLLM and fake embedders in a temp folder, then the report (CI)")
     fr.add_argument("--out", type=Path, default=DEFAULT_OUT)
     args = p.parse_args(argv)
+    if args.command == "report" and args.runs and (args.models or args.retrieval or args.findings):
+        p.error("--runs names the runs and the findings itself: drop --models, --retrieval and --findings")
 
     try:
         if args.command == "fake-report":
@@ -102,8 +108,12 @@ def main(argv: list[str] | None = None) -> int:
             _print_retrieval_run(retrieval.run(deps, deps.index, deps.keyword))
         else:
             settings = Settings.from_env()
-            findings = args.findings.read_text() if args.findings else None
-            html = report.from_store(report.store_of(settings), settings.as_of, args.models, args.retrieval, findings)
+            if args.runs:
+                models, retrieval_ids, findings = report.runs_file(args.runs)
+            else:
+                models, retrieval_ids = args.models, args.retrieval
+                findings = args.findings.read_text() if args.findings else None
+            html = report.from_store(report.store_of(settings), settings.as_of, models, retrieval_ids, findings)
             print(f"Report: {report.write(html, args.out)}")
     except (ConfigError, InputError) as e:
         print(e, file=sys.stderr)
