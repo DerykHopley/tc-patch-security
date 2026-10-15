@@ -52,19 +52,20 @@ def system_prompt(level: ExplainLevel = "normal") -> str:
     return f"{SYSTEM_PROMPT}\n{LEVEL_LINES[level]}"
 
 
-MAX_STEPS = 4  # the default; the dev panel tunes it (A11)
-
-
 def examples() -> list[dict]:
-    """The example questions shown under "More examples": the scripted questions the model check also asks."""
+    """The example questions shown under "More examples": the scripted questions the model check also asks. Not
+    those asked from a page: without the page they repeat another example."""
     scripts = json.loads((FIXTURES / "fake_script.json").read_text())["scripts"]
-    return [{"id": s["id"], "question": s["question"]} for s in scripts]
+    return [{"id": s["id"], "question": s["question"]} for s in scripts if "page" not in s]
 
 
-def answer(message: str, history: list[dict], deps, max_steps: int = MAX_STEPS,
-           flags: list[str] | None = None, level: ExplainLevel = "normal", page: dict | None = None) -> ChatReply:
-    """`page`: the page context, already checked by app.page_context (A18). The tools read it from the Context."""
+def answer(message: str, history: list[dict], deps, level: ExplainLevel = "normal",
+           page: dict | None = None) -> ChatReply:
+    """The agent loop for a message the guard has passed (app.chat_turn runs the guard and sets the flags).
+    `page`: the page context, already checked by app.page_context (A18); the tools read it from the Context.
+    The step limit is the dev panel's (A11)."""
     page = page or {}
+    max_steps = deps.dev().max_steps
     ctx = Context(page=page)
     records = []
     # One system message: some local models' chat templates accept only one, and only first.
@@ -105,6 +106,6 @@ def answer(message: str, history: list[dict], deps, max_steps: int = MAX_STEPS,
     final = final.translate(PLAIN_HYPHENS)
     checked = check_citations(final, {s.n for s in ctx.sources})
     return ChatReply(answer=checked.answer, sources=ctx.sources, tool_calls=records, query=ctx.query,
-                     usage=ctx.usage, steps=steps, flags=flags or [], bad_citations=checked.bad,
+                     usage=ctx.usage, steps=steps, bad_citations=checked.bad,
                      no_citations=bool(ctx.sources) and not checked.cited, explain_level=level,
                      page_context=page)

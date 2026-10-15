@@ -327,6 +327,37 @@ def test_a18_5_the_question_is_in_the_model_check_and_fakellm_passes_it(deps):
     assert row["fix_first"]["rules"] == row["fix_first"]["answer"] and len(row["fix_first"]["rules"]) == 3
 
 
+def test_a18_5_a_question_can_carry_a_page_context_and_is_scored_in_that_view(client, deps):
+    """Architecture review 3: the model check runs the same chat turn as /chat, so a question can be asked from a
+    page. "What should I fix first?" on the CVEs page filtered to Langflow: the rules' top 3 within Langflow."""
+    from app.evals import model_check
+
+    q = next(q for q in model_check.questions() if q["question"] == FIX_FIRST and q.get("page"))
+    assert q["page"] == {"page": "cves", "product": "Langflow"} and q["expect"]["fix_first"]
+    row = model_check.start(deps, [q["id"]], wait=True)["results"][0]
+    langflow, everything = table(client, "&product=langflow"), table(client)
+    assert langflow[:3] != everything[:3]  # the view matters for this question
+    assert row["passed"] and row["fix_first"]["rules"] == row["fix_first"]["answer"] == langflow[:3]
+    assert row["fix_first"]["total_open"] == client.get("/cves?status=open&product=langflow").json()["total"]
+    assert row["page"] == {"page": "cves", "product": "langflow"}  # the checked page context, for the report
+
+
+def test_a18_5_the_reports_fix_first_table_says_which_view_each_row_is_for(deps):
+    import re
+
+    from app.evals import model_check, report
+
+    model_check.start(deps, ["Q-fix-first", "Q-fix-first-view"], wait=True)
+    html = report.from_store(report.store_of(deps.settings), as_of=deps.settings.as_of)
+    sec = re.search(r'<section id="fix-first".*?</section>', html, re.S).group(0)
+    assert '<th scope="col">View</th>' in sec
+    assert "Whole watchlist" in sec and "cves page: product=langflow" in sec
+
+
+def test_a18_5_a_question_that_needs_a_page_is_not_a_chat_example(client):
+    assert len({e["question"] for e in client.get("/examples").json()}) == len(client.get("/examples").json())
+
+
 class Reranker(FakeLLM):
     """Answers the fix-first question with the rules' 2nd CVE first: a model that re-ranks."""
     name = "local"

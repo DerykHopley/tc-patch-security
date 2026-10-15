@@ -12,7 +12,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
-from app import agent, cve_filters, dashboard, guard, page_context
+from app import agent, chat_turn, cve_filters, dashboard
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.config import Settings
 from app.deps import Deps, build_deps
@@ -99,14 +99,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     @app.post("/chat", response_model=ChatReply)
     def chat(req: ChatRequest):
-        history = [t.model_dump() for t in req.history]
-        message, flags = guard.check_message(req.message, history)  # limits and flags, before any LLM call
-        level = req.explain_level or deps.state.settings().explain_level  # an override is for this message only
-        page, dropped = page_context.validate(req.page, deps.knowledge.resolve_product)  # fixed fields only (A18)
-        reply = agent.answer(message, history, deps, max_steps=deps.dev().max_steps, flags=flags, level=level,
-                             page=page)
-        reply.dropped_context = dropped
-        return reply
+        return chat_turn.turn(req, deps)  # guard, explain level, page context, step limit (app.chat_turn)
 
     @app.get("/examples")
     def examples():
