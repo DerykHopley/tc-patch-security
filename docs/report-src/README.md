@@ -2,15 +2,15 @@
 
 - `findings.html`: the written findings, an HTML fragment. A draft by Claude, reviewed by Deryk (A20, #22).
 - The report is built locally, because the runs need the OpenRouter key and the GPU. The runs themselves stay in `backend/data/evals/` (not in git).
-- Rebuild it from `backend/`, naming the runs to show:
+- `runs.json` names the runs the report shows: the model-check runs (`models`), the retrieval runs (`retrieval`, in the order the charts list them) and the findings file. To show other runs, edit it and commit it with the new report.
+- Rebuild it from `backend/`:
 
   ```bash
-  uv run python -m app.evals report --findings ../docs/report-src/findings.html \
-    --models 20261015-105401-709-f2d4 20261015-112001-004-88bf 20261015-112000-988-44d7 20261015-115024-997-fcbb 20261015-112000-983-bc97 20261015-112001-026-8be3 20261015-105558-693-322e 20261015-105401-689-8695 20261015-122143-312-e97b 20261015-110149-704-d6a4 20261015-122447-896-9db4 \
-    --out ../docs/report/index.html
+  uv run python -m app.evals report --runs ../docs/report-src/runs.json --out ../docs/report/index.html
   ```
 
-- The "Off-topic threshold" chart needs retrieval runs made since it was added (2026-10-15): older runs show "No threshold data". Run the retrieval check again for each embedder first. It asks about 60 questions and no model. Ollama is free; OpenRouter costs a fraction of a cent. Then build the report as above. It picks the newest run per embedder unless `--retrieval <ids>` names others.
+- With `--runs` there is no fallback: a run id that isn't saved, or a missing or empty list, stops the build with an error that names it. Why: a fallback to "the latest run per model" once published a run nobody had reviewed (retro, 2026-10-15). Checked 2026-10-15: the command rebuilds the published page byte for byte except the "Generated" time.
+- The "Off-topic threshold" chart needs retrieval runs made since it was added (2026-10-15): older runs show "No threshold data". To refresh them, run the retrieval check again for each embedder. It asks about 60 questions and no model. Ollama is free; OpenRouter costs a fraction of a cent. Then put the new run ids in `runs.json` and build the report as above.
 
   ```bash
   EMBEDDER=ollama EMBED_MODEL=nomic-embed-text INDEX_PATH=data/index-ollama-nomic uv run --env-file .env python -m app.evals retrieval
