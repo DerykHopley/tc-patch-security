@@ -100,9 +100,9 @@ def test_a06_1_q8_no_exploit(client):
 def test_a06_1_q9_q10_watchlist_changes_land_in_the_shared_state(client, deps):
     deps.state.set_watchlist(["langchain"])
     assert "Added Ollama" in chat(client, Q["Q9"]).json()["answer"]
-    assert "ollama" in deps.state.snapshot()["watchlist"]  # the same state the dashboard reads
+    assert deps.state.read().watches("ollama")  # the same state the dashboard reads
     chat(client, Q["Q10"])
-    assert deps.state.snapshot()["statuses"] == {"CVE-2024-8309": "fixed"}
+    assert deps.state.read().statuses == {"CVE-2024-8309": "fixed"}
 
 
 def test_a06_1_q11_not_in_snapshot(client):

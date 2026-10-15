@@ -96,9 +96,9 @@ def test_a12_1_fakellm_passes_every_question(client):
 
 
 def test_a12_1_runs_on_a_copy_of_the_state(client, deps):
-    before = deps.state.snapshot()
+    before = deps.state.read()
     run_check(client)  # Q9 adds Ollama to the watchlist, Q10 marks a CVE fixed: on the copy only
-    assert deps.state.snapshot() == before
+    assert deps.state.read() == before
 
 
 def test_a12_1_uses_the_saved_dev_settings(client):

@@ -128,8 +128,8 @@ def test_a04_5_one_state_shared_with_what_the_chat_uses(client, deps):
     assert [r["id"] for r in client.get("/cves?status=fixed").json()["rows"]] == ["CVE-2024-8309"]
     client.put("/watchlist", json={"products": ["ollama"]})
     client.patch("/cves/CVE-2025-1975", json={"status": "not_affected", "justification": "component_not_present"})
-    snap = deps.state.snapshot()
-    assert snap["watchlist"] == ["ollama"] and snap["statuses"]["CVE-2025-1975"] == "not_affected"
+    stack = deps.state.read()
+    assert stack.watchlist == ("ollama",) and stack.statuses["CVE-2025-1975"] == "not_affected"
 
 
 # --- A04b (#26): the tiles link to the CVEs page with their filter, so the API needs two more ---------------------

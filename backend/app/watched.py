@@ -1,7 +1,7 @@
 """Your watched CVEs: everything Patch knows about a CVE for your stack, in one place.
 
-Built once per request from the knowledge base, the state (read once: watchlist, product fields, decisions and the
-merged settings) and the as-of date. It answers three questions:
+Built once per request from the knowledge base, your stack (one State.read(): watchlist, product fields, decisions
+and the merged settings) and the as-of date. It answers three questions:
 
 - assess(cve_id): one CVE's assessment: the verdict (A15), your decision record (A16b), its priority and due date
   (A16). A CVE whose product isn't on your watchlist is a normal answer: watched False, no status, no priority.
@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 from app.knowledge import SEVERITY_ORDER
 from app.priority import CveFacts, Priority, priority, sort_key
-from app.state import State
+from app.state import ProductFields, State
 from app.status import is_open, review_due
 from app.verdict import Verdict, no_fix, verdict
 
@@ -45,10 +45,9 @@ class WatchedCves:
     def __init__(self, knowledge, state: State, as_of: str):
         self.k = knowledge
         self.as_of = as_of
-        self._data = state.snapshot()
-        settings = state.settings(self._data)  # saved over the defaults, from the same read
-        self._policy = settings.policy
-        self._epss_threshold = settings.priority.epss_percentile
+        self._stack = state.read()  # one read per request: everything below agrees with it
+        self._policy = self._stack.settings.policy
+        self._epss_threshold = self._stack.settings.priority.epss_percentile
 
     @classmethod
     def of(cls, deps) -> "WatchedCves":
@@ -57,11 +56,11 @@ class WatchedCves:
     @property
     def watchlist(self) -> list[str]:
         """Watched product ids, in watchlist order."""
-        return list(self._data["watchlist"])
+        return list(self._stack.watchlist)
 
-    def fields_of(self, pid: str) -> dict:
+    def fields_of(self, pid: str) -> ProductFields:
         """A product's usage, version and internet-facing."""
-        return State.fields_of(pid, self._data)
+        return self._stack.fields(pid)
 
     def assess(self, cve_id: str) -> Assessment:
         """KeyError when the CVE isn't in the snapshot."""
@@ -76,7 +75,7 @@ class WatchedCves:
         by app.cve_filters: `product` one id or several, comma-separated (`langflow,ollama`, A15b); `severity_min`
         LOW..CRITICAL; `status` open (open, or accepted with its review due: A16b), all, or one CVE status; `kev`;
         `published_since` YYYY-MM-DD, inclusive; `verdict`."""
-        k, watch = self.k, set(self._data["watchlist"])
+        k, watch = self.k, set(self._stack.watchlist)
         products = set(product.split(",")) if product else None
 
         def keep(c: dict) -> bool:  # the filters that need only the snapshot: applied before the assessment
@@ -122,29 +121,29 @@ class WatchedCves:
         }
 
     def _assess(self, cve: dict) -> Assessment:
-        k, data, as_of = self.k, self._data, self.as_of
-        watched = cve["product"] in data["watchlist"]
-        status = data["statuses"].get(cve["id"], "open") if watched else None
-        f = State.fields_of(cve["product"], data)
+        k, stack, as_of = self.k, self._stack, self.as_of
+        watched = stack.watches(cve["product"])
+        status = stack.statuses.get(cve["id"], "open") if watched else None
+        f = stack.fields(cve["product"])
         coverage = k.osv["products"].get(cve["product"], {}).get("coverage", "none")
         entries = [e for e in k.osv["cves"].get(cve["id"], []) if e["product"] == cve["product"]]
-        v = verdict(coverage, entries, f["usage"], f["version"])
+        v = verdict(coverage, entries, f.usage, f.version)
         nf = no_fix(coverage, entries)
-        d = State.decision_of(cve["id"], data)
+        d = stack.decision(cve["id"])
         review_date = d["review_date"] if d and status == "accepted" else None
         p = None
         if watched:
             kev, epss = k.cves.kev.get(cve["id"]), k.epss_of(cve["id"])
             p = priority(CveFacts(severity=cve["severity"], kev=bool(kev),
                                   epss_percentile=epss["percentile"] if epss else None, verdict=v.verdict,
-                                  internet_facing=f["internet_facing"], status=status, published=cve["published"],
+                                  internet_facing=f.internet_facing, status=status, published=cve["published"],
                                   kev_added=kev["dateAdded"] if kev else None,
                                   kev_deadline=kev["dueDate"] if kev else None, review_date=review_date, no_fix=nf),
                          self._policy, as_of, self._epss_threshold)
         return Assessment(
-            cve=cve, watched=watched, status=status, verdict=v, no_fix=nf, usage=f["usage"], version=f["version"],
-            internet_facing=f["internet_facing"], decision=d, review_date=review_date,
-            history=State.history_of(cve["id"], data),
+            cve=cve, watched=watched, status=status, verdict=v, no_fix=nf, usage=f.usage, version=f.version,
+            internet_facing=f.internet_facing, decision=d, review_date=review_date,
+            history=stack.history(cve["id"]),
             open=watched and is_open(status, review_date, as_of),
             review_due=watched and review_due(status, review_date, as_of),
             open_days=(dt.date.fromisoformat(as_of) - dt.date.fromisoformat(cve["published"])).days,

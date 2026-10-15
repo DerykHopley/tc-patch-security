@@ -68,7 +68,7 @@ def run(args: AffectedArgs, deps, ctx) -> dict:
     rows.sort(key=lambda r: ORDER.index(r["verdict"]))  # stable: keeps the table's order inside each verdict
     f = watched.fields_of(pid)
     return {
-        "product": k.products[pid], "usage": USAGE_LABELS[f["usage"]], "version": f["version"],
+        "product": k.products[pid], "usage": USAGE_LABELS[f.usage], "version": f.version,
         "open": len(rows), "counts": {v: sum(r["verdict"] == v for r in rows) for v in ORDER},
         "cves": [{"id": r["id"], "severity": r["severity"], "verdict": r["verdict"], "reason": r["verdict_reason"],
                   "fixed_version": r["fixed_version"]} for r in rows[:LISTED]],
