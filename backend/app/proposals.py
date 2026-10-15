@@ -137,7 +137,7 @@ def _based_on(rec: dict, deps) -> dict:
 
 def _preview(rec: dict, deps) -> tuple[str, str, dict]:
     """Before, after and the checked fields for a proposal record. InputError if a field isn't allowed."""
-    k, stack = deps.knowledge, deps.state.read()
+    stack = deps.state.read()
     f = rec["fields"]
     if rec["action"] == "set_status":
         given = {x: f.get(x) for x in STATUS_FIELDS if x != "status"}
