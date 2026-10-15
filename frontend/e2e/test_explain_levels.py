@@ -111,7 +111,7 @@ def test_a19_4_explain_it_uses_the_saved_level(open_app, api_url):
     save_level(api_url, "deep_dive")
     page = open_app(query=f"#cve={ALERT_CVE}")
     bodies = chat_bodies(page)
-    page.get_by_role("region", name="Alert").get_by_role("button", name="Explain it").click()
+    page.get_by_role("region", name="Alert", exact=True).get_by_role("button", name="Explain it").click()
     answer = window(page).locator(".message.assistant").first
     expect(answer).to_be_visible(timeout=10_000)
     assert bodies[-1].get("explain_level") is None
@@ -124,7 +124,7 @@ def test_a19_4_explain_it_ignores_a_level_picked_for_the_next_question(open_app,
     open_chat(page)
     switch(page).get_by_role("radio", name="Simple").check()
     page.evaluate(f"location.hash = 'cve={ALERT_CVE}'")
-    page.get_by_role("region", name="Alert").get_by_role("button", name="Explain it").click()
+    page.get_by_role("region", name="Alert", exact=True).get_by_role("button", name="Explain it").click()
     answer = window(page).locator(".message.assistant").first
     expect(answer).to_be_visible(timeout=10_000)
     expect(level_note(answer)).to_contain_text("Deep dive")

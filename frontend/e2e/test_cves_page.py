@@ -268,7 +268,7 @@ def test_a04b_5_dashboard_keeps_its_other_parts(open_dash):
     assert titles == ["Open CVEs by product and severity", "CVEs per month", "Open CVEs by OWASP category",
                       "Top 5 open CVEs"]
     side = page.locator(".dash-side > .card h2").all_inner_texts()
-    assert side == ["Watchlist", "Latest AI incidents (MITRE ATLAS)", "Data freshness"]
+    assert side == ["Watchlist", "Latest AI incidents (MITRE ATLAS)", "Recent alerts", "Data freshness"]  # B04
 
 
 # --- A04b.6: "Ask about this" over the CVEs page; the alert link still works ------------------------------------------
@@ -278,7 +278,7 @@ def test_a04b_5_dashboard_keeps_its_other_parts(open_dash):
 
 def test_a04b_6_alert_link_works_on_the_cves_page(open_cves):
     page = open_cves("#cve=CVE-2024-8309")
-    banner = page.get_by_role("region", name="Alert")
+    banner = page.get_by_role("region", name="Alert", exact=True)
     expect(banner).to_contain_text("You opened an alert for CVE-2024-8309.")
     banner.get_by_role("button", name="Explain it").click()
     expect(window(page).locator(".message.user")).to_have_text("Explain CVE-2024-8309 and how to defend against it.")

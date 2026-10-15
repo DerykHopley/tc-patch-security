@@ -6,6 +6,7 @@ Load a .env file with `uv run --env-file .env ...`.
 import json
 import os
 import pathlib
+import zoneinfo
 from dataclasses import dataclass, field
 
 from app.llm.urls import local_url_allowed
@@ -96,6 +97,8 @@ class Settings:
     smtp_starttls: bool = True
     alert_email_from: str = ""
     alert_email_to: str = ""
+    alert_tz: str = "UTC"  # the time zone of quiet hours (B04): an IANA name, e.g. Europe/London
+    notify_dry_run: bool = False  # on: every channel records only, nothing is sent (the browser check's live pair)
     # Search (A09). The index is built by `python -m app.rag.build_index` and loaded at start-up.
     embedder: str = "hash"
     embed_model: str = ""  # empty = the embedder's default
@@ -144,6 +147,8 @@ class Settings:
             smtp_starttls=_flag(os.environ.get("SMTP_STARTTLS", ""), default=True),
             alert_email_from=_env("ALERT_EMAIL_FROM"),
             alert_email_to=_env("ALERT_EMAIL_TO"),
+            alert_tz=_env("ALERT_TZ", cls.alert_tz),
+            notify_dry_run=_flag(os.environ.get("NOTIFY_DRY_RUN", ""), default=False),
             embedder=_env("EMBEDDER", cls.embedder).lower(),
             embed_model=_env("EMBED_MODEL"),
             index_path=_path("INDEX_PATH", cls.index_path),
@@ -182,6 +187,10 @@ class Settings:
             raise ConfigError(f"DATA_MODE must be one of {', '.join(DATA_MODES)}, not {self.data_mode!r}.")
         if self.feeds not in FEED_KINDS:
             raise ConfigError(f"FEEDS must be one of {', '.join(FEED_KINDS)}, not {self.feeds!r}.")
+        try:
+            zoneinfo.ZoneInfo(self.alert_tz)
+        except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+            raise ConfigError(f"ALERT_TZ must be a time zone name like UTC or Europe/London, not {self.alert_tz!r}.")
         if self.fake_feeds_day not in (1, 2):
             raise ConfigError(f"FAKE_FEEDS_DAY must be 1 or 2, not {self.fake_feeds_day}.")
         from app.tools.registry import TOOLS  # here, not at the top: the tools import the config

@@ -9,6 +9,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from app.alerts import Alerter
 from app.app_settings import DevSettings, default_dev_settings, default_settings
 from app.config import Settings
 from app.feeds import Feeds
@@ -163,4 +164,6 @@ def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge 
     )
     if llm is None:
         deps.llm = LLMRouter(settings, deps.dev, http_client)
+    if refresher is not None:  # step 4 of the refresh (B04): read deps.transports at send time, so tests' fakes apply
+        refresher.alerter = Alerter(settings, state, lambda: deps.transports)
     return deps

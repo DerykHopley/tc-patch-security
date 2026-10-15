@@ -1,6 +1,14 @@
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def no_real_alerts(monkeypatch):
+    """No test ever sends a real alert (B04: a refresh sends alerts). Settings from the environment record only,
+    and the default transports find no desktop command. Tests that check a channel pass fake transports."""
+    monkeypatch.setenv("NOTIFY_DRY_RUN", "1")
+    monkeypatch.setattr("app.notify.desktop_command", lambda: None)
+
+
 @pytest.fixture(scope="session")
 def knowledge():
     """The snapshot, loaded once per test run."""

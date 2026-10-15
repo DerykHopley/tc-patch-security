@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   alertsLog,
   EXPLAIN_LEVELS,
@@ -11,6 +11,7 @@ import {
   type Severity,
   type TestAlertReply,
 } from '../api.ts'
+import { AlertList } from '../components/AlertsLog.tsx'
 import { SaveBar } from '../components/SaveBar.tsx'
 import { Card } from '../components/StatusCard.tsx'
 import { useSettings } from '../components/useSettings.ts'
@@ -18,7 +19,7 @@ import { useWatchlist } from '../components/useWatchlist.ts'
 import { WatchlistCard } from '../components/WatchlistCard.tsx'
 import '../styles/settings.css'
 
-// The Settings page (DESIGN.md §5.7): alert rules saved for spec B's refresh, delivery channels with real test
+// The Settings page (DESIGN.md §5.7): the alert rules a live refresh uses (B04), delivery channels with real test
 // sends, the watchlist (A15b: edited here, the dashboard only filters by it), the data and a safe reset. Each card says what it really does today.
 
 const SEVERITIES: { value: Severity; label: string }[] = [
@@ -42,16 +43,6 @@ const POLICY_DAYS: { key: keyof PolicySettings & `${string}_days`; label: string
   { key: 'low_days', label: 'Low' },
 ]
 const clampDays = (v: string) => Math.max(1, Math.min(730, Math.round(Number(v)) || 1))
-
-function when(iso: string): string {
-  return iso.replace('T', ' ').replace(/(:\d\d)?\+00:00$/, ' UTC')
-}
-
-function outcome(e: AlertLogEntry): ReactNode {
-  if (e.error_code === 'not_configured') return <span className="log-error">not set up</span>
-  if (e.error) return <span className="log-error">failed: {e.error}</span>
-  return e.sent ? 'sent' : 'recorded only'
-}
 
 /** B20: a failed save, shown in each card whose edits it didn't save. The edits stay; Save changes tries again. */
 function NotSaved({ error, show }: { error: string | null; show: boolean }) {
@@ -95,6 +86,7 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
   }
   const a = s.draft.alerts
   const channels = s.reply.channels
+  const quietTz = s.reply.alert_tz ?? 'UTC'
   const set = (v: Partial<AlertSettings>) => s.patch('alerts', v)
   const policy = s.draft.policy
   const daysInOrder = policy.urgent_days <= policy.high_days && policy.high_days <= policy.normal_days &&
@@ -149,8 +141,11 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
       <div className="settings-grid">
         <WatchlistCard w={w} />
 
-        <Card title="Alerts" kind="saved" why="Saved now; the refresh worker (spec B) will read them">
-          <p className="meta">The refresh worker will read these. Nothing checks for new CVEs yet.</p>
+        <Card title="Alerts" kind="live" why="Each live check uses them">
+          <p className="meta">
+            Each live check sends these alerts once per CVE and reason. A CVE due in 3 days, or overdue (again each
+            week), always alerts while alerts are on.
+          </p>
 
           <div className="check-row switch-row">
             <input type="checkbox" id="al-enabled" checked={a.enabled} onChange={(e) => set({ enabled: e.target.checked })}
@@ -231,7 +226,10 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
                 </button>
               )}
             </div>
-            <p className="meta">KEV alerts still come through in quiet hours.</p>
+            <p className="meta">
+              Alerts found in quiet hours are held and sent as one digest when they end. Times are in the server's alert
+              time zone ({quietTz}).
+            </p>
           </fieldset>
           <NotSaved error={s.error} show={s.changed('alerts', { except: ['channels'] })} />
         </Card>
@@ -296,16 +294,7 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
           {log.length === 0 ? (
             <p className="meta">No alerts yet.</p>
           ) : (
-            <ul className="alert-log" aria-labelledby="recent-alerts">
-              {log.map((e, i) => (
-                <li key={`${e.at}-${i}`}>
-                  <span>{e.title}</span>
-                  <span className="meta">
-                    {e.channel} · {when(e.at)} · {outcome(e)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <AlertList entries={log} labelledBy="recent-alerts" />
           )}
           <NotSaved error={s.error} show={s.changed('alerts', { only: ['channels'] })} />
         </Card>

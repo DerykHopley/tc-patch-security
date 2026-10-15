@@ -6,7 +6,8 @@ the schedule (B03) all call `Refresher.run(trigger)`. Its steps:
 1. Fetch: NVD rows modified since the last check, the KEV catalogue, OSV by package, EPSS for every CVE.
 2. Build with the shared code (app.cve_build), on top of the current live version.
 3. Write the new live version (app.live_data). The server picks it up on its next request (Deps.sync).
-4. (B04: for each user, diff, alert rules, de-duplicate, deliver, log.)
+4. For each user: diff, alert rules, de-duplicate, deliver, log (app.alerts, B04). After a failed fetch, only
+   alerts held through quiet hours can go out.
 5. Move `last_checked`, and log the run.
 
 Each feed is its own step with its own result (B20). A feed that fails leaves its own data as it was; the feeds that
@@ -79,9 +80,11 @@ class RefreshResult(BaseModel):
     counts: Counts
     new_cves: list[str]  # the new CVEs' ids, newest first
     version: int | None  # the live version written; None when nothing was
-    errors: list[FeedProblem]  # the feeds that failed
-    alerts: dict[str, list[dict]] = {}  # per user id, the alerts this run sent (B04 fills it)
-    # B20: ok (every feed answered), partial (some did; their data was written) or failed (none did; nothing written)
+    # the feeds that failed (ok False: every one did), and failed alerts ("alerts": the data was still written)
+    errors: list[FeedProblem]
+    alerts: dict[str, list[dict]] = {}  # per user id, this run's alerts-log entries, and those held (app.alerts)
+    # B20: ok (every feed answered), partial (some did; their data was written) or failed (none did; nothing written).
+    # Only the feeds decide it: a failed alert doesn't make a run partial.
     status: Status = "ok"
     feeds: list[FeedResult] = []  # each feed's step; empty in runs logged before B20
 
@@ -186,8 +189,10 @@ def build_version(previous: dict, nvd_rows: list[dict] | None, kev: dict | None,
 class Refresher:
     """The refresh over one live folder. `clock` gives the time (tests move it)."""
 
-    def __init__(self, live: LiveData, feeds: Feeds, clock: Callable[[], dt.datetime] = utc_now):
+    def __init__(self, live: LiveData, feeds: Feeds, clock: Callable[[], dt.datetime] = utc_now,
+                 alerter: Callable[..., dict[str, list[dict]]] | None = None):
         self.live, self.feeds, self.clock = live, feeds, clock
+        self.alerter = alerter  # step 4 (app.alerts.Alerter); None: no alerts
 
     # The run log: last checked and the newest runs first, in refresh.json next to the versions.
     def _log(self) -> dict:
@@ -293,22 +298,40 @@ class Refresher:
                                         for p in cve_build.PACKAGES.values() for e, n in p["packages"]})
         ids = sorted({r["id"] for r in previous["cves.json"]["cves"]} | {r["id"] for r in nvd_rows or []})
         epss_raw = fetch("epss", lambda: self.feeds.epss(ids))
-        errors = [FeedProblem(source=f.source, message=f.message or "") for f in steps if not f.ok]
-        if len(errors) == len(steps):  # no feed answered: nothing to build, nothing written
-            return self._result(trigger, now, began, ok=False, errors=errors, feeds=steps)
+        failed = [FeedProblem(source=f.source, message=f.message or "") for f in steps if not f.ok]
+        if len(failed) == len(steps):  # no feed answered: nothing to build, nothing written
+            alerts, problems = self._alerts(None, None, None, now)  # quiet hours may have ended: held alerts go
+            return self._result(trigger, now, began, ok=False, alerts=alerts, errors=[*failed, *problems],
+                                feeds=steps)
         cwe_to_web = json.loads((FIXTURES / "owasp.json").read_text())["cwe_to_web"]
         files, counts, new = build_version(previous, nvd_rows, kev, osv_raw, epss_raw, cwe_to_web, now)  # step 2
         version = self.live.write(files)  # step 3
+        alerts, problems = self._alerts(previous, files, self.live.folder(version), now)  # step 4, partial runs too
         return self._result(trigger, now, began, ok=True, counts=counts, new_cves=new, version=version,
-                            errors=errors, feeds=steps)
+                            alerts=alerts, errors=[*failed, *problems], feeds=steps)
+
+    def send_held(self) -> dict[str, list[dict]]:
+        """Send what quiet hours held, if they are over, without fetching (a scheduled tick that isn't due)."""
+        with self._lock() as held:
+            return self._alerts(None, None, None, self.clock())[0] if held else {}
+
+    def _alerts(self, previous, files, folder, now) -> tuple[dict[str, list[dict]], list[FeedProblem]]:
+        """Step 4. A failure here is logged and reported, but the new data stays written."""
+        if self.alerter is None:
+            return {}, []
+        try:
+            return self.alerter(previous, files, folder, now), []
+        except Exception as e:
+            log.exception("Alerts after the refresh failed")
+            return {}, [FeedProblem(source="alerts", message=f"{type(e).__name__}: {e}")]
 
     def _result(self, trigger, now, began, ok, counts=None, new_cves=(), version=None, errors=(),
-                feeds=()) -> RefreshResult:
+                alerts=None, feeds=()) -> RefreshResult:
         finished = now + dt.timedelta(seconds=time.monotonic() - began)
-        status = "failed" if not ok else "partial" if errors else "ok"
+        status = "failed" if not ok else "partial" if any(not f.ok for f in feeds) else "ok"  # the feeds decide
         return RefreshResult(trigger=trigger, started=_iso(now), finished=_iso(finished), ok=ok,
                              counts=counts or Counts(), new_cves=list(new_cves), version=version, errors=list(errors),
-                             status=status, feeds=list(feeds))
+                             alerts=alerts or {}, status=status, feeds=list(feeds))
 
     def reset(self) -> None:
         """The fake feeds only: the live data back to the snapshot and an empty run log (the browser check)."""
@@ -322,8 +345,19 @@ def _took(result: RefreshResult) -> str:
     return f"{seconds:.1f} s"
 
 
-def make_refresher(settings: Settings, feeds: Feeds | None = None, clock=utc_now) -> Refresher:
-    return Refresher(LiveData(settings.live_path), feeds or make_feeds(settings), clock)
+def make_refresher(settings: Settings, feeds: Feeds | None = None, clock=utc_now, alerter=None) -> Refresher:
+    return Refresher(LiveData(settings.live_path), feeds or make_feeds(settings), clock, alerter)
+
+
+def cli_alerter(settings: Settings):
+    """The CLI's alerts: the state file and the real channels, as the server's (app.deps)."""
+    from app.alerts import Alerter
+    from app.app_settings import default_dev_settings, default_settings
+    from app.notify import Transports
+    from app.state import State
+
+    state = State(settings.state_path, None, default_settings(settings), default_dev_settings(settings))
+    return Alerter(settings, state, Transports)
 
 
 # --- The schedule (B03): an hourly timer calls this; Settings' schedule_hours decides whether it runs ---------------
@@ -344,6 +378,7 @@ def run_scheduled(refresher: Refresher, schedule_hours: int) -> CheckReply | Non
     if due and refresher.clock() < due:
         log.info("Scheduled refresh skipped: last checked %s, next due %s (every %d h).",
                  refresher.last_checked(), _iso(due), schedule_hours)
+        refresher.send_held()  # B04: quiet hours may have ended since the last run
         return None
     return refresher.run("schedule")
 
@@ -371,7 +406,7 @@ def main(argv: Sequence[str] = ()) -> int:
     if settings.data_mode != "live":
         print("DATA_MODE is snapshot: the data is frozen. Set DATA_MODE=live to refresh it.", file=sys.stderr)
         return 2
-    refresher = make_refresher(settings)
+    refresher = make_refresher(settings, alerter=cli_alerter(settings))
     if args.schedule:
         hours = _schedule_hours(settings)
         reply = run_scheduled(refresher, hours)

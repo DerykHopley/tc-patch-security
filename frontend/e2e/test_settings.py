@@ -83,7 +83,8 @@ def panel(page: Page, title: str):
 
 def test_a13_2_each_panel_says_whether_it_is_live_saved_for_later_or_a_mock(settings_page):
     page = settings_page()
-    for title, chip in (("Alerts", "Saved for later"), ("Delivery", "Live"), ("Watchlist", "Live"), ("Data", "Live")):
+    # Alerts went live with B04: a live check uses them
+    for title, chip in (("Alerts", "Live"), ("Delivery", "Live"), ("Watchlist", "Live"), ("Data", "Live")):
         expect(panel(page, title).locator(".status-chip")).to_have_text(chip)
     check_now = page.get_by_role("button", name="Check for new CVEs now")
     expect(check_now).to_be_disabled()
