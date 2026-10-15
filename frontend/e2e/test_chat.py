@@ -130,20 +130,32 @@ def test_a06_3_patch_on_the_chat_button_stands_in_front_of_the_pill(open_app):
     assert z(robot) > z(pill)  # Patch in front, the pill behind
 
 
-def test_a06_3_patch_in_the_header_and_behind_the_greeting_bubble(open_app):
+def test_a06_3_patch_in_the_header_and_at_the_greeting_bubble_s_corner(open_app):
+    """The greeting's Patch is the chat button's Patch (58px, in front), on the bubble's top-left corner; only the
+    first line of text sits beside him (Deryk, 2026-10-15: at 92px behind the bubble, half of him was hidden)."""
     page = open_app()
     chat = open_chat(page)
     assert head_bot(page).get_attribute("width") == "34"
     expect(chat.locator(".chat-head")).to_contain_text("Patch")
     greeting_bot = chat.locator(".greeting svg.robot")
-    assert greeting_bot.get_attribute("width") == "92"
+    assert greeting_bot.get_attribute("width") == "58"
     assert greeting_bot.get_attribute("data-mood") == "idle"  # no mood here: idle (A06b)
     bubble = chat.locator(".greeting-bubble")
     expect(bubble).to_have_text(GREETING)
     gb, bb = box(greeting_bot), box(bubble)
-    assert gb["y"] + gb["height"] - bb["y"] == pytest.approx(2.1 * REM, abs=3)  # tucked behind, 2.1rem overlap
+    assert gb["x"] < bb["x"] < gb["x"] + gb["width"]  # over the left edge
+    assert gb["y"] < bb["y"] < gb["y"] + gb["height"]  # over the top edge
     z = lambda loc: int(loc.evaluate("el => getComputedStyle(el).zIndex"))  # noqa: E731
-    assert z(bubble) > z(chat.locator(".greeting .robot-slot"))  # the bubble in front
+    assert z(chat.locator(".greeting .robot-slot")) > z(bubble)  # Patch in front, as on the button
+    lines = bubble.locator("p").evaluate(
+        "p => { const r = document.createRange(); r.selectNodeContents(p);"
+        " const seen = new Map(); for (const b of r.getClientRects()) {"
+        "   const k = Math.round(b.top); if (!seen.has(k) || b.left < seen.get(k)) seen.set(k, b.left); }"
+        " return [...seen.entries()].sort((a, b) => a[0] - b[0]).map(e => e[1]); }")
+    assert len(lines) >= 2
+    right_of_patch = gb["x"] + gb["width"]
+    assert lines[0] >= right_of_patch - 2  # the first line beside him
+    assert all(left < right_of_patch for left in lines[1:])  # the rest under him, from the bubble's left
 
 
 # --- Moods and the unread dot (DESIGN.md §8.3) -------------------------------------------------------------------

@@ -268,32 +268,35 @@
 
 /* Empty chat: Patch (92px, waving) tucked behind a speech bubble, 2.1rem overlap (§8.2). */
 .greeting {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.6rem 0.5rem 0;
-  text-align: center;
-}
-
-.robot-slot {
-  position: relative;
-  z-index: 0;
-  margin-bottom: -2.1rem;
-}
-
-.robot-slot .robot {
-  display: block;
+  padding: 2.5rem 0.5rem 0 1.4rem; /* room for Patch above and left of the bubble */
 }
 
 .greeting-bubble {
   position: relative;
-  z-index: 1; /* in front of Patch */
+  z-index: 0;
   max-width: 22rem;
-  margin: 0;
+  margin: 0 auto;
   padding: 0.9rem 1rem 0.7rem;
   border-radius: var(--radius-nested);
   background: var(--accent-soft);
   box-shadow: 0 6px 16px rgba(108, 76, 245, 0.12);
+}
+
+.greeting-bubble p {
+  margin: 0;
+}
+
+/* Patch as on the chat button (58px, in front), over the bubble's top-left corner. He floats high enough that
+   only the first line of text sits beside him; the rest runs under him. */
+.greeting .robot-slot {
+  float: left;
+  position: relative;
+  z-index: 1;
+  margin: -2.75rem 0.45rem 0 -1.7rem;
+}
+
+.greeting .robot-slot .robot {
+  display: block;
 }
 
 .suggestions,

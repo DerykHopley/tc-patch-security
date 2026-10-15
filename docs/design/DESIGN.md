@@ -347,7 +347,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - **Fix-first card (A18)**: `prioritise`'s tool card. Title "N open · {view} · in the rules' order", then a numbered list in the rules' order (never re-sorted): id, priority chip, severity, KEV, "Review due", "No fix yet · open N days" or the overdue mark; under it the product, the reasons and "due" (or "decide by") date. A status filter that doesn't apply is listed as "Not applied: …".
 - **Dropped page context (A18)**: under an answer, "Page context not used (not a valid value): severity=EXTREME" in `--text` on `--warn-soft` with a `--warn` edge. The app never sends such values; it shows when a request was crafted.
 - **Explain-level switch** (A19), a row under the header's buttons: "Explain level" and three pills (radios: Simple, Normal, Deep dive) showing the saved level. Picked pill: `--text` on `--accent-soft` with an `--accent` edge. Another level applies to the next question only ("next question only" note, muted italic), then the switch goes back to the saved level. Each answer shows the level it used as a small chip (`--muted` on `--accent-soft`) before the usage line.
-- **Empty chat**: Patch (92px, idle in a variant picked on page load, §8.3) tucked behind a soft purple speech bubble: "Hi, I'm Patch! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack. What shall we look at?" Below: 1–2 suggested questions for the current page, and "More examples" (folded).
+- **Empty chat**: Patch (58px, as on the chat button; idle in a variant picked on page load, §8.3) on the top-left corner of a soft purple speech bubble, in front of it, with only the first line of text beside him: "Hi, I'm Patch! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack. What shall we look at?" Below: 1–2 suggested questions for the current page, and "More examples" (folded).
 - **Messages**: user on the right in `--user`, assistant on the left on the surface. Each answer can open "Show N sources · N tool calls": tabs (Sources, Tool calls, Query plan) inline under the answer. Citations `[1]` open those details and scroll to the source.
 - **Under each answer** (A08): the citation check's note, quiet (`--muted`, italic, no fill; unlike the warning-coloured flag note): "No sources cited." when a sourced answer cites none, "Removed citation [9]: no matching source." when the check took one out. Then the usage line: tokens in and out, LLM calls, steps, and the cost in dollars to two significant figures ("$0.00061"; "$0" for local models and FakeLLM).
 
@@ -451,7 +451,7 @@ He always **overlaps what he sits on**, so he looks like he's in the scene, not 
 |---|---|---|---|
 | Chat button | 58px | stands **in front** of the pill, overlapping its top edge, shadow on the pill | his mood |
 | Chat header | 34px | sits in the title row | his mood (the same animation as the button) |
-| Empty-chat greeting | 92px | sits **behind** the speech bubble (bubble in front, 2.1rem overlap) | idle, picked on page load |
+| Empty-chat greeting | 58px | **in front of** the speech bubble, over its top-left corner; floats so only the first line of text sits beside him, the rest runs under him (changed 2026-10-15: at 92px behind the bubble, the squircle was half hidden) | idle, picked on page load |
 | Welcome banner | 110px | head rises **over the banner's top edge** (−2.4rem) | idle, picked on page load |
 | Sidebar snapshot card | 64px | head pokes **over the card's top edge** (−2.6rem) | idle, picked on page load |
 
