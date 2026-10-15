@@ -75,26 +75,28 @@ def _neg_date(iso: str) -> int:
     return -dt.date.fromisoformat(iso).toordinal()
 
 
-def watched_rows(k, data: dict, as_of: str) -> list[dict]:
-    """Every CVE of a watched product, sorted by priority."""
+def watched_rows(k, data: dict, as_of: str, keep=lambda cve: True) -> list[dict]:
+    """Every CVE of a watched product, sorted by priority. `keep`: a cheap test on the snapshot's CVE record, run
+    before the row (verdict, decision, priority) is built."""
     from app.state import State
 
     watch = set(data["watchlist"])
-    rows = [_row(c, State.status_of(c, data), k, data, as_of) for c in k.cves.all() if c["product"] in watch]
+    rows = [_row(c, State.status_of(c, data), k, data, as_of) for c in k.cves.all()
+            if c["product"] in watch and keep(c)]
     return sorted(rows, key=_sort_key)
 
 
 def list_cves(k, data: dict, as_of: str, product=None, severity_min=None, status="open", limit=50, offset=0,
               kev=None, published_since=None, verdict=None) -> dict:
-    rows = watched_rows(k, data, as_of)
-    if kev is not None:
-        rows = [r for r in rows if r["kev"] == kev]
-    if published_since:  # inclusive, YYYY-MM-DD: the "new in 30 days" tile links here with kpis.new_since
-        rows = [r for r in rows if r["published"] >= published_since]
-    if product:
-        rows = [r for r in rows if r["product"] == product]
-    if severity_min:
-        rows = [r for r in rows if SEVERITY_ORDER.get(r["severity"] or "", 0) >= SEVERITY_ORDER[severity_min]]
+    def keep(c: dict) -> bool:  # the filters that need only the snapshot: applied before the rows are built
+        return ((kev is None or bool(k.cves.kev.get(c["id"])) == kev)
+                # inclusive, YYYY-MM-DD: the "new in 30 days" tile links here with kpis.new_since
+                and (not published_since or c["published"] >= published_since)
+                and (not product or c["product"] == product)
+                and (not severity_min
+                     or SEVERITY_ORDER.get(c["severity"] or "", 0) >= SEVERITY_ORDER[severity_min]))
+
+    rows = watched_rows(k, data, as_of, keep)
     if status == "open":  # open, or accepted with its review due (A16b)
         rows = [r for r in rows if r["open"]]
     elif status != "all":

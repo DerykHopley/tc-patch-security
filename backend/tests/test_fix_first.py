@@ -135,10 +135,30 @@ def test_a18_3_the_pages_filters_narrow_the_view(client, deps):
                               "since": "2025-01-01"}
 
 
-def test_a18_3_a_product_argument_overrides_the_pages_product(client, deps):
-    res = call(deps, {"product": "langflow", "severity": "CRITICAL"}, product="Ollama", limit=3)[0].result
-    assert ids(res) == table(client, "&product=ollama&severity_min=CRITICAL")[:3]
-    assert res["filters"]["product"] == "ollama" and res["product"] == "Ollama"
+def test_a18_3_a_product_argument_overrides_the_pages_view(client, deps):
+    """Review fix 4: another product than the page's is a question beyond the view, so the page's other filters
+    (for Langflow) don't narrow it; they're listed as not applied, like the status filter."""
+    page = {"product": "langflow", "severity": "CRITICAL", "kev": True, "verdict": "affected", "since": "2025-01-01"}
+    res = call(deps, page, product="Ollama", limit=3)[0].result
+    assert ids(res) == table(client, "&product=ollama")[:3]
+    assert res["filters"] == {"product": "ollama"} and res["product"] == "Ollama"
+    assert len(res["ignored"]) == 4
+    assert all("Langflow" in i and "Ollama" in i for i in res["ignored"])
+    assert [i.split(":")[0] for i in res["ignored"]] == [
+        "severity=CRITICAL", "verdict=affected", "kev=true", "since=2025-01-01"]
+
+
+def test_a18_3_the_pages_own_product_as_argument_keeps_its_filters(client, deps):
+    res = call(deps, {"product": "langflow", "severity": "HIGH"}, product="Langflow", limit=3)[0].result
+    assert res["filters"] == {"product": "langflow", "severity": "HIGH"} and res["ignored"] == []
+    assert ids(res) == table(client, "&product=langflow&severity_min=HIGH")[:3]
+
+
+def test_a18_3_an_unwatched_product_from_the_page_says_so(deps):
+    """Review fix 3: the CVEs page takes any product from the URL; prioritise says it isn't watched instead of
+    "nothing open", which would suggest the product is safe."""
+    rec = call(deps, {"product": "vllm"})[0]
+    assert rec.error["code"] == "not_watched" and "vLLM" in rec.error["message"]
 
 
 def test_a18_3_only_open_cves_whatever_the_status_filter(client, deps):

@@ -3,7 +3,9 @@
 Rules decide, Patch explains. The order is the CVEs page's: most urgent level first, then the earliest due date
 (app.priority.sort_key, via dashboard.list_cves). Only open CVEs (app.status: open, or accepted with its review due).
 The page's checked filters (app.page_context) narrow the view; its status filter doesn't apply, since only open CVEs
-are ranked. A `product` argument replaces the page's product. Read-only: it changes no status.
+are ranked. A `product` argument other than the page's product is a question beyond the view: the page's other
+filters are dropped and listed as not applied. A product that isn't watched (from either) is an error that says so.
+Read-only: it changes no status.
 """
 from typing import Annotated
 
@@ -29,18 +31,28 @@ class PrioritiseArgs(BaseModel):
     limit: int = Field(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT)
 
 
+def _label(key: str, value) -> str:
+    return f"{key}={str(value).lower() if isinstance(value, bool) else value}"
+
+
 def run(args: PrioritiseArgs, deps, ctx) -> dict:
     k, data = deps.knowledge, deps.state.snapshot()
     filters = {key: ctx.page[key] for key in FILTERS if key in ctx.page}
+    ignored = [f"status={ctx.page['status']}: only open CVEs are ranked"] if ctx.page.get("status") not in (
+        None, "open") else []
     if args.product:
         pid = k.resolve_product(args.product)
         if not pid:
             raise ToolError(f"{args.product!r} isn't a product I track. Choose from: "
                             f"{', '.join(k.products.values())}.", "bad_value")
-        if pid not in data["watchlist"]:
-            raise ToolError(f"{k.products[pid]} isn't on the user's watchlist, so none of its CVEs are open.",
-                            "not_watched")
-        filters["product"] = pid
+        if pid != filters.get("product"):  # beyond the page's view: its other filters were for what's on screen
+            view = k.products[filters["product"]] if "product" in filters else "all products"
+            ignored += [f"{_label(key, filters[key])}: the page's filter for {view}, not {k.products[pid]}"
+                        for key in FILTERS if key != "product" and key in filters]
+            filters = {"product": pid}
+    if "product" in filters and filters["product"] not in data["watchlist"]:  # from the argument or the page
+        raise ToolError(f"{k.products[filters['product']]} isn't on the user's watchlist, so none of its CVEs are "
+                        "open.", "not_watched")
     page = list_cves(k, data, deps.settings.as_of, status="open", limit=args.limit,
                      **{FILTERS[key]: v for key, v in filters.items()})
     cves = []
@@ -54,8 +66,6 @@ def run(args: PrioritiseArgs, deps, ctx) -> dict:
             "priority": r["priority"], "reasons": r["priority_reasons"], "due_date": r["due_date"],
             "due_from": r["due_from"], "overdue": r["overdue"], "no_fix": r["no_fix"], "open_days": r["open_days"],
         })
-    ignored = [f"status={ctx.page['status']}: only open CVEs are ranked"] if ctx.page.get("status") not in (
-        None, "open") else []
     return {
         "filters": filters, "ignored": ignored,
         "product": k.products[filters["product"]] if "product" in filters else None,
