@@ -7,6 +7,7 @@ Each function returns the value normalised, or None when it isn't allowed. Calle
 | Filter   | Allowed                                                      | Normalised to        |
 |----------|--------------------------------------------------------------|----------------------|
 | product  | a product I track (name or id, with aliases)                 | its id: `langflow`   |
+| products | one or more of those, comma-separated (A15b)                 | ids: `langflow,ollama` |
 | severity | LOW, MEDIUM, HIGH, CRITICAL (any case): "this or worse"      | upper case           |
 | status   | open, fixed, not_affected, accepted, all                     | as is                |
 | verdict  | affected, not_affected, unknown                              | as is                |
@@ -21,12 +22,23 @@ from app.verdict import VERDICTS
 
 STATUS_FILTERS = (*STATUSES, "all")
 PRODUCT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .-]{0,39}$")
+MAX_PRODUCTS = 20  # more than the snapshot tracks
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")  # strict: fromisoformat alone also takes 20250101 and week dates
 
 
 def product(value: str, resolve_product) -> str | None:
     v = value.strip()
     return resolve_product(v) if PRODUCT_RE.match(v) else None
+
+
+def products(value: str, resolve_product) -> str | None:
+    """One product or several, comma-separated (A15b: the dashboard's filter, carried by its tile links). Every one
+    must be a product I track; kept as ids, without repeats: `langflow,ollama`."""
+    parts = value.split(",")
+    if len(parts) > MAX_PRODUCTS:
+        return None
+    ids = [product(v, resolve_product) for v in parts]
+    return ",".join(dict.fromkeys(ids)) if all(ids) else None
 
 
 def severity(value: str) -> str | None:

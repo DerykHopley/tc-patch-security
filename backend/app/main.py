@@ -114,18 +114,23 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     # --- Dashboard (A04). Reads and writes deps.state, the same state the chat's tools use.
 
     @app.get("/dashboard")
-    def get_dashboard():
-        return dashboard.summary(deps.knowledge, deps.state.snapshot(), deps.settings.as_of)
+    def get_dashboard(product: str | None = None):
+        """`product`: the dashboard's filter (A15b), `a,b`. Unknown or unwatched products are ignored."""
+        data = deps.state.snapshot()
+        return dashboard.summary(deps.knowledge, data, deps.settings.as_of,
+                                 dashboard.applied_filter(deps.knowledge, data, product))
 
     @app.get("/cves")
     def get_cves(product: str | None = None, severity_min: str | None = None, status: str = "open",
                  limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), kev: bool | None = None,
                  published_since: str | None = None, verdict: str | None = None):
         pid = None  # the shared rules (app.cve_filters), the same as the chat's page context
-        if product:
-            pid = cve_filters.product(product, deps.knowledge.resolve_product)
+        if product:  # one, or several from a dashboard link (A15b): `langflow,ollama`
+            pid = cve_filters.products(product, deps.knowledge.resolve_product)
             if not pid:
-                raise InputError(f"{product!r} isn't a product I track.")
+                bad = next((p for p in product.split(",")
+                            if not cve_filters.product(p, deps.knowledge.resolve_product)), product)
+                raise InputError(f"{bad.strip()!r} isn't a product I track.")
         severity = cve_filters.severity(severity_min) if severity_min else None
         if severity_min and not severity:
             raise InputError("severity_min must be LOW, MEDIUM, HIGH or CRITICAL.")

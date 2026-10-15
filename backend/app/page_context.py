@@ -1,14 +1,14 @@
 """Page context (A18): what the user is looking at when they ask, as fixed fields only.
 
 The chat request may carry the page name, the CVEs page's filters (product, severity, status, verdict, kev, since)
-and the selected CVE id. Each is checked against a fixed list or an id pattern here; anything else (a value not on
+and the selected CVE id; on the dashboard, its product filter (A15b). Each is checked against a fixed list or an id pattern here; anything else (a value not on
 the list, another type, an unknown field) is dropped and listed in the reply. So the context can narrow a view but
 never carry free text to Patch: an instruction can't ride in on it.
 
 | Field    | Allowed                                                       | Kept as              |
 |----------|---------------------------------------------------------------|----------------------|
 | page     | dashboard, cves, settings, dev                                | as is                |
-| product  | a product I track (name or id, aliases as in search filters)  | its id: `langflow`   |
+| product  | products I track, comma-separated (the dashboard's filter, A15b) | ids: `langflow,ollama` |
 | severity | LOW, MEDIUM, HIGH, CRITICAL (any case): "this or worse"       | upper case           |
 | status   | open, fixed, not_affected, accepted, all                      | as is                |
 | verdict  | affected, not_affected, unknown                               | as is                |
@@ -43,7 +43,7 @@ def _check(key: str, value, resolve_product) -> tuple[bool, object]:
     elif key == "cve":
         kept = v.upper() if CVE_ID_RE.match(v) else None
     elif key == "product":
-        kept = cve_filters.product(v, resolve_product)
+        kept = cve_filters.products(v, resolve_product)  # one, or several on the dashboard (A15b)
     elif key == "since":
         kept = cve_filters.date(v)
     else:  # severity, status, verdict

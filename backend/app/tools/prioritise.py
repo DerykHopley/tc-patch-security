@@ -5,6 +5,8 @@ Rules decide, Patch explains. The order is the CVEs page's: most urgent level fi
 The page's checked filters (app.page_context) narrow the view; its status filter doesn't apply, since only open CVEs
 are ranked. A `product` argument other than the page's product is a question beyond the view: the page's other
 filters are dropped and listed as not applied. A product that isn't watched (from either) is an error that says so.
+On the dashboard the page's product filter may hold several products (A15b, `langflow,ollama`): unwatched ones are
+left out and listed; a `product` argument among them narrows the view and keeps its other filters.
 Read-only: it changes no status.
 """
 from typing import Annotated
@@ -40,19 +42,27 @@ def run(args: PrioritiseArgs, deps, ctx) -> dict:
     filters = {key: ctx.page[key] for key in FILTERS if key in ctx.page}
     ignored = [f"status={ctx.page['status']}: only open CVEs are ranked"] if ctx.page.get("status") not in (
         None, "open") else []
+    names = lambda pids: ", ".join(k.products[p] for p in pids.split(","))  # noqa: E731  # one or several (A15b)
     if args.product:
         pid = k.resolve_product(args.product)
         if not pid:
             raise ToolError(f"{args.product!r} isn't a product I track. Choose from: "
                             f"{', '.join(k.products.values())}.", "bad_value")
-        if pid != filters.get("product"):  # beyond the page's view: its other filters were for what's on screen
-            view = k.products[filters["product"]] if "product" in filters else "all products"
+        if "product" in filters and pid in filters["product"].split(","):  # within the page's view: narrow it
+            filters["product"] = pid
+        elif pid != filters.get("product"):  # beyond the page's view: its other filters were for what's on screen
+            view = names(filters["product"]) if "product" in filters else "all products"
             ignored += [f"{_label(key, filters[key])}: the page's filter for {view}, not {k.products[pid]}"
                         for key in FILTERS if key != "product" and key in filters]
             filters = {"product": pid}
-    if "product" in filters and filters["product"] not in data["watchlist"]:  # from the argument or the page
-        raise ToolError(f"{k.products[filters['product']]} isn't on the user's watchlist, so none of its CVEs are "
-                        "open.", "not_watched")
+    if "product" in filters:  # from the argument or the page: only watched products have open CVEs
+        pids = filters["product"].split(",")
+        watched = [p for p in pids if p in data["watchlist"]]
+        if not watched:
+            raise ToolError(f"{names(filters['product'])} {'is' if len(pids) == 1 else 'are'} not on the user's "
+                            "watchlist, so none of its CVEs are open.", "not_watched")
+        ignored += [f"product={p}: {k.products[p]} isn't on the watchlist" for p in pids if p not in watched]
+        filters["product"] = ",".join(watched)
     page = list_cves(k, data, deps.settings.as_of, status="open", limit=args.limit,
                      **{FILTERS[key]: v for key, v in filters.items()})
     cves = []
@@ -68,7 +78,7 @@ def run(args: PrioritiseArgs, deps, ctx) -> dict:
         })
     return {
         "filters": filters, "ignored": ignored,
-        "product": k.products[filters["product"]] if "product" in filters else None,
+        "product": names(filters["product"]) if "product" in filters else None,
         "total_open": page["total"], "cves": cves, "note": NOTE,
     }
 

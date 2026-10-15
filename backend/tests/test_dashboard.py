@@ -152,3 +152,70 @@ def test_a04b_2_published_since_filter_matches_the_new_tile(client):
 def test_a04b_2_bad_published_since_gets_a_plain_400(client):
     r = client.get("/cves?published_since=last-week")
     assert r.status_code == 400 and "published_since must be a date" in r.json()["error"]["message"]
+
+
+# --- A15b (#30): the dashboard's watchlist becomes a product filter ------------------------------------------------
+
+def _all(client, query: str) -> list[dict]:
+    """Every row of a /cves query, across pages."""
+    total = client.get(f"/cves?{query}&limit=1").json()["total"]
+    return [r for offset in range(0, total, 200)
+            for r in client.get(f"/cves?{query}&limit=200&offset={offset}").json()["rows"]]
+
+
+def test_a15b_3_dashboard_filtered_by_several_products(client):
+    whole = client.get("/dashboard").json()
+    d = client.get("/dashboard?product=ollama,langflow").json()
+    assert d["filter"] == ["langflow", "ollama"]  # applied, in watchlist order
+    assert d["watchlist"] == whole["watchlist"]  # the filter narrows the view; it never changes the watchlist
+    assert [p["product"] for p in d["by_product"]] == ["langflow", "ollama"]
+    open_rows = [r for p in ("langflow", "ollama") for r in _all(client, f"status=open&product={p}")]
+    assert 0 < d["kpis"]["open"] == len(open_rows) < whole["kpis"]["open"]
+    assert d["kpis"]["critical"] == sum(r["severity"] == "CRITICAL" for r in open_rows)
+    assert 0 < d["kpis"]["kev"] == sum(r["kev"] for r in open_rows)
+    every = [r for p in ("langflow", "ollama") for r in _all(client, f"status=all&product={p}")]
+    assert sum(m["count"] for m in d["per_month"]) == sum(r["published"] <= d["as_of"] for r in every)
+    assert sum(o["count"] for o in d["by_owasp"]) + d["owasp_unmapped"] == len(open_rows)
+    assert d["latest_incidents"] == whole["latest_incidents"] and d["freshness"] == whole["freshness"]
+
+
+def test_a15b_3_no_filter_means_every_watched_product(client):
+    d = client.get("/dashboard").json()
+    assert d["filter"] == []
+    assert [p["product"] for p in d["by_product"]] == d["watchlist"]
+
+
+def test_a15b_3_unknown_or_unwatched_products_are_ignored(client):
+    whole = client.get("/dashboard").json()
+    d = client.get("/dashboard?product=Open WebUI,notion,vllm,;drop table").json()
+    assert d["filter"] == ["open-webui"]  # by name too, as the CVEs page takes it; the rest ignored, no error
+    assert d["kpis"]["open"] == len(_all(client, "status=open&product=open-webui"))
+    for query in ("product=notion", "product=vllm", "product=", "product=,,"):
+        r = client.get(f"/dashboard?{query}")
+        assert r.status_code == 200 and r.json()["filter"] == [] and r.json()["kpis"] == whole["kpis"], query
+
+
+def test_a15b_3_each_chip_says_whether_its_product_has_open_kev_cves(client):
+    d = client.get("/dashboard?product=ollama").json()  # not narrowed by the filter: a chip per watched product
+    chips = {c["product"]: c for c in d["watched"]}
+    assert list(chips) == d["watchlist"]
+    langflow = _all(client, "status=open&product=langflow")
+    assert chips["langflow"] == {"product": "langflow", "name": "Langflow", "open": len(langflow),
+                                 "kev": sum(r["kev"] for r in langflow)}
+    assert chips["langflow"]["kev"] > 0 and chips["langchain"]["kev"] == 0
+
+
+def test_a15b_3_the_cves_query_takes_the_dashboards_products_so_tile_links_carry_them(client):
+    d = client.get("/dashboard?product=langflow,ollama").json()
+    both = client.get("/cves?product=langflow,Ollama&limit=200").json()
+    assert both["total"] == d["kpis"]["open"] and {r["product"] for r in both["rows"]} == {"langflow", "ollama"}
+    assert client.get("/cves?product=langflow,ollama&kev=true").json()["total"] == d["kpis"]["kev"]
+    for bad in ("langflow,notion", "langflow,,ollama", ","):  # the CVEs page's rule: an unknown product is a 400
+        r = client.get(f"/cves?product={bad}")
+        assert r.status_code == 400 and "isn't a product I track" in r.json()["error"]["message"], bad
+
+
+def test_a15b_4_the_filter_follows_the_watchlist(client, deps):
+    deps.state.unwatch("langflow")  # what Patch's update_watchlist and the Settings card both do: one state
+    d = client.get("/dashboard?product=langflow,ollama").json()
+    assert d["filter"] == ["ollama"] and "langflow" not in {c["product"] for c in d["watched"]}
