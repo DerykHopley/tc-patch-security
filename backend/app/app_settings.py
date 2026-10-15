@@ -81,7 +81,7 @@ class DevSettings(BaseModel):
     saved change applies on the next call with no restart. Only used while DEV_PANEL is on; off, the env defaults apply.
     """
     provider: Literal["fake", "openrouter", "local"] = "fake"
-    openrouter_model: str = Field("openai/gpt-oss-120b", min_length=3, max_length=100,
+    openrouter_model: str = Field("anthropic/claude-haiku-5.5", min_length=3, max_length=100,
                                   pattern=r"^[\w.\-]+/[\w.:\-]+$")
     local_url: str = Field("http://localhost:11434/v1", max_length=200)  # checked by the SSRF guard on save
     local_model: str = Field("", max_length=200, pattern=r"^[\w.:/@\-]*$")

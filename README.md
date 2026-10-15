@@ -73,7 +73,7 @@ cd frontend && npm install && npm run dev
 
 - It uses the same ports as the prototype: stop one before starting the other, or pass other ports (`--port`, and `VITE_API_URL` for the frontend).
 - Settings come from the environment. Every one is listed in `backend/.env.example` and `frontend/.env.example`; copy to `.env` (git-ignored) and run the backend with `uv run --env-file .env ...`.
-- A real model (A08): `LLM_PROVIDER=openrouter` with `OPENROUTER_API_KEY` in `backend/.env` (default model `openai/gpt-oss-120b`; set a spending cap on the key), or `LLM_PROVIDER=local` with `LOCAL_LLM_MODEL` for Ollama on `http://localhost:11434/v1`. A missing key or a non-local URL stops the start-up with a plain message.
+- A real model (A08): `LLM_PROVIDER=openrouter` with `OPENROUTER_API_KEY` in `backend/.env` (default model `anthropic/claude-haiku-5.5`, picked in A20; set a spending cap on the key), or `LLM_PROVIDER=local` with `LOCAL_LLM_MODEL` for Ollama on `http://localhost:11434/v1`. A missing key or a non-local URL stops the start-up with a plain message.
 - Tests, the same ones CI runs on every push and pull request ([.github/workflows/ci.yml](./.github/workflows/ci.yml)):
 
 ```bash

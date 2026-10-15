@@ -70,7 +70,7 @@ def test_a09_2_ollama_embedder_is_a_second_implementation():
 
 @pytest.mark.parametrize("embedder,model,score", [
     ("openrouter", "", 0.35),
-    ("ollama", "", 0.58),  # nomic-embed-text, the Ollama default
+    ("ollama", "", 0.58),  # mxbai-embed-large, the Ollama default since A20
     ("ollama", "qwen3-embedding:0.6b", 0.55),
     ("ollama", "mxbai-embed-large", 0.58),
     ("ollama", "mxbai-embed-large:latest", 0.58),  # Ollama's implicit tag
@@ -80,6 +80,11 @@ def test_a20_thresholds_tuned_per_model(embedder, model, score):
     e = make_embedder(Settings(embedder=embedder, embed_model=model, openrouter_api_key="k"),
                       http_client=fake_server([]))
     assert e.min_score == score
+
+
+def test_a20_ollama_embedder_defaults_to_mxbai_embed_large():
+    """Picked in A20 (2026-10-15): tied best hit rate, widest gap between on- and off-topic scores."""
+    assert make_embedder(Settings(embedder="ollama"), http_client=fake_server([])).name == "ollama/mxbai-embed-large"
 
 
 def test_a09_2_hash_embedder_is_the_default():

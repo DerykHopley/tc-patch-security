@@ -79,7 +79,7 @@ def chat_server(answer="Hello from the model."):
 def test_a11_1_defaults_come_from_the_environment(client):
     body = client.get("/dev/settings").json()
     assert body["settings"] == {
-        "provider": "fake", "openrouter_model": "openai/gpt-oss-120b", "local_url": "http://localhost:11434/v1",
+        "provider": "fake", "openrouter_model": "anthropic/claude-haiku-5.5", "local_url": "http://localhost:11434/v1",
         "local_model": "", "temperature": 0.2, "max_steps": 4, "top_n": 5, "per_query_k": 10, "per_doc_cap": 2,
         "rrf_k": 60, "keyword_weight": 0.5, "use_rewrites": True, "use_filters": True}
     assert body["defaults"] == body["settings"] and body["openrouter_key"] is False

@@ -2,7 +2,7 @@
 
     cd backend
     # A model: LLM_PROVIDER, OPENROUTER_MODEL or LOCAL_LLM_URL/LOCAL_LLM_MODEL pick it (not the Dev page's choice)
-    LLM_PROVIDER=openrouter OPENROUTER_MODEL=openai/gpt-oss-120b uv run --env-file .env python -m app.evals model-check
+    LLM_PROVIDER=openrouter OPENROUTER_MODEL=anthropic/claude-haiku-5.5 uv run --env-file .env python -m app.evals model-check
     LLM_PROVIDER=local LOCAL_LLM_MODEL=qwen3:8b uv run --env-file .env python -m app.evals model-check --ids Q1 Q2
     # An embedder: the index at INDEX_PATH must have been built with it (python -m app.rag.build_index)
     EMBEDDER=openrouter INDEX_PATH=data/index-openrouter uv run --env-file .env python -m app.evals retrieval

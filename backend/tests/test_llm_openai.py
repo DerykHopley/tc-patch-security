@@ -104,12 +104,13 @@ def test_a08_1_a_bad_plan_falls_back_to_the_question():
 
 # --- A08.2: OpenRouter and local servers from the settings
 
-def test_a08_2_openrouter_by_default_uses_gpt_oss_120b():
+def test_a08_2_openrouter_by_default_uses_claude_haiku_5_5():
+    """The default since A20 (2026-10-15): the best model-check score of 11 models."""
     s = Settings(llm_provider="openrouter", openrouter_api_key="test-not-a-key")
     s.check()
     llm = make_llm(s)
-    assert (llm.name, llm.base_url, llm.model) == ("openrouter", "https://openrouter.ai/api/v1", "openai/gpt-oss-120b")
-    assert llm.label() == "OpenRouter · openai/gpt-oss-120b"
+    assert (llm.name, llm.base_url, llm.model) == ("openrouter", "https://openrouter.ai/api/v1", "anthropic/claude-haiku-5.5")
+    assert llm.label() == "OpenRouter · anthropic/claude-haiku-5.5"
 
 
 def test_a08_2_openrouter_without_a_key_fails_at_start_up(tmp_path):
@@ -145,7 +146,7 @@ def test_a08_2_health_names_the_real_model(tmp_path, knowledge, index):
 
     s = Settings(llm_provider="openrouter", openrouter_api_key="test-not-a-key", state_path=tmp_path / "s.json")
     health = TestClient(create_app(build_deps(s, knowledge=knowledge, index=index))).get("/health").json()
-    assert (health["llm"], health["model"]) == ("openrouter", "OpenRouter · openai/gpt-oss-120b")  # no call made
+    assert (health["llm"], health["model"]) == ("openrouter", "OpenRouter · anthropic/claude-haiku-5.5")  # no call made
 
 
 # --- A08.3: local servers only on this machine (the SSRF guard)

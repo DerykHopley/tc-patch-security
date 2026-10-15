@@ -78,7 +78,7 @@ class OpenAICompatibleEmbedder:
 # Defaults per embedder: (model, threshold). SEARCH_MIN_SCORE overrides the threshold.
 REAL_EMBEDDERS = {
     "openrouter": ("openai/text-embedding-3-small", 0.35),
-    "ollama": ("nomic-embed-text", 0.58),
+    "ollama": ("mxbai-embed-large", 0.58),  # A20: tied best hit rate, widest on/off-topic gap
 }
 # Off-topic thresholds tuned per model (A20, 2026-10-15): about halfway between the highest top-1 cosine of 15
 # off-topic questions and the lowest of 47 security ones. Untuned models get their provider's default above.

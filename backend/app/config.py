@@ -69,7 +69,7 @@ class Settings:
     llm_provider: str = "fake"
     # The real model (A08). The key is a secret: .env only, never in the state file or an API reply.
     openrouter_api_key: str = ""
-    openrouter_model: str = "openai/gpt-oss-120b"
+    openrouter_model: str = "anthropic/claude-haiku-5.5"  # A20: best of 11 models in the model check
     local_llm_url: str = "http://localhost:11434/v1"  # Ollama; LM Studio is :1234, llama.cpp :8080
     local_llm_model: str = ""
     local_llm_hosts: list[str] = field(default_factory=lambda: list(LOOPBACK_HOSTS))  # plus LOCAL_LLM_HOSTS
