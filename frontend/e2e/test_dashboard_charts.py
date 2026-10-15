@@ -224,9 +224,9 @@ def test_a05_6_data_freshness_with_date_and_licence_per_source(open_dash, api_ur
         expect(item.get_by_role("link", name=s["name"])).to_have_attribute("href", s["url"])
         expect(item).to_contain_text(s["licence"])
         expect(item).to_contain_text(f"retrieved {s['retrieved']}")
-    # Side column: the watchlist (a product filter since A15b), then the incidents, then freshness.
+    # Side column: the watchlist (a product filter since A15b), the incidents, recent alerts (B04), freshness.
     titles = page.locator(".dash-side > .card h2").all_inner_texts()
-    assert titles == ["Watchlist", "Latest AI incidents (MITRE ATLAS)", "Data freshness"]
+    assert titles == ["Watchlist", "Latest AI incidents (MITRE ATLAS)", "Recent alerts", "Data freshness"]
 
 
 # --- Motion (DESIGN.md §7.1) ---------------------------------------------------------------------------------------

@@ -334,7 +334,7 @@ ALERT_CVE = "CVE-2024-8309"
 
 
 def alert_banner(page: Page) -> Locator:
-    return page.get_by_role("region", name="Alert")
+    return page.get_by_role("region", name="Alert", exact=True)
 
 
 def test_a07_6_alert_link_shows_a_banner_and_explain_it_asks_patch(open_app):
