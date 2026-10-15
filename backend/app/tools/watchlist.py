@@ -33,6 +33,7 @@ class WatchArgs(BaseModel):
 
 
 class WatchlistResult(ToolResult):
+    """update_watchlist: what changed, and the watchlist after it."""
     message: str
     watchlist: list[str]  # the products' names, after the change
 

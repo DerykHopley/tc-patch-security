@@ -27,6 +27,7 @@ class FoundSource(ToolResult):
 
 
 class SearchResult(ToolResult):
+    """search_security: the translated query and the numbered sources."""
     query: QueryInfo
     sources: list[FoundSource]
 

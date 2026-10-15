@@ -2,6 +2,7 @@
 // running gives one plain message instead of a raw network error.
 
 import { cvesQuery, type CveView } from './cveView.ts'
+import type { NamedResult } from './toolResults.ts'
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
@@ -67,12 +68,11 @@ export interface QueryInfo {
   found_by: Record<string, string[]> // source n → the retrievers that found it: "keyword" (BM25), "vector"
 }
 
-export interface ToolCallRecord {
+// `name` and `result` come as a pair (NamedResult): check the name, and the result has that tool's type.
+export type ToolCallRecord = NamedResult & {
   id: string
-  name: string
   args: Record<string, unknown>
   status: 'ok' | 'error'
-  result: Record<string, unknown> | null
   error: { code: string; message: string } | null
   duration_ms: number
 }

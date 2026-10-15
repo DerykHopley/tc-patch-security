@@ -52,6 +52,7 @@ class Priority(ToolResult):
 
 
 class CveResult(ToolResult):
+    """lookup_cve: one CVE with its OWASP, KEV, EPSS and watchlist context, the verdict and the priority."""
     n: int
     id: str
     product: str

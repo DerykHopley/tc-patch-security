@@ -19,6 +19,7 @@ class CweExample(ToolResult):
 
 
 class CweResult(ToolResult):
+    """explain_weakness for a CWE: its OWASP Top 10 category and the snapshot's CVEs with it."""
     kind: Literal["cwe"]
     id: str
     url: str
@@ -38,6 +39,7 @@ class CitedBy(ToolResult):
 
 
 class TechniqueResult(ToolResult):
+    """explain_weakness for an ATLAS technique: tactics, mitigations and the LLM Top 10 risks citing it."""
     kind: Literal["atlas_technique"]
     id: str
     name: str

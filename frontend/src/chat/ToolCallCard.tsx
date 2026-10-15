@@ -1,114 +1,23 @@
 import type { ReactNode } from 'react'
-import type { Decision, Epss, PageContext, PriorityLevel, Severity, ToolCallRecord, Verdict, WhoActs } from '../api.ts'
+import type { ToolCallRecord, Verdict } from '../api.ts'
 import { contextWords, STATUS_LABEL as CVE_STATUS_LABEL } from '../cveView.ts'
 import { OverdueMark, PriorityChip } from '../components/Priority.tsx'
 import { NoFixMark } from '../components/Decision.tsx'
 import { epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { VERDICT_LABEL, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
+import type {
+  AffectedOne,
+  AffectedProduct,
+  CveResult,
+  CweResult,
+  FixFirstResult,
+  TechniqueResult,
+  WatchlistResult,
+} from '../toolResults.ts'
 
 // One card per tool call: name, arguments, status, time, and the result drawn for its tool. Errors in red.
-// Result shapes come from backend/app/tools/*.py.
-
-interface CveResult {
-  id: string
-  product: string
-  published: string
-  severity: Severity | null
-  cvss: number | null
-  cwes: string[]
-  owasp: { code: string; title: string; url: string } | null
-  url: string
-  kev: { date_added: string; deadline: string } | null
-  watch_status: 'open' | 'fixed' | 'not_affected' | 'accepted' | 'not_watched'
-  no_fix: boolean // A16b: no fixed version in OSV, so not overdue
-  decision: Decision | null
-  review_due: boolean
-  open_days: number
-  epss: Epss | null
-  possible_match: boolean
-  verdict: Verdict
-  verdict_reason: string
-  fixed_version: string | null
-  who_acts: WhoActs
-  priority: {
-    level: PriorityLevel
-    reasons: string[]
-    due_date: string
-    due_from: string
-    overdue: boolean
-    alert_priority: number
-  } | null // A16; null off the watchlist
-}
-
-// check_affected (A15): one CVE's verdict, or a product's open CVEs by verdict.
-interface AffectedOne {
-  id: string
-  product: string
-  severity: Severity | null
-  verdict: Verdict
-  reason: string
-  fixed_version: string | null
-  who_acts: WhoActs
-  usage: string
-  version: string | null
-  possible_match: boolean
-}
-
-interface AffectedProduct {
-  product: string
-  usage: string
-  version: string | null
-  open: number
-  counts: Record<Verdict, number>
-  cves: { id: string; severity: Severity | null; verdict: Verdict; reason: string; fixed_version: string | null }[]
-}
-
-interface WeaknessResult {
-  kind: 'cwe' | 'atlas_technique'
-  id: string
-  url: string
-  name?: string
-  category?: { code: string; title: string; url: string } | null
-  cves_in_snapshot?: number
-  tactics?: string[]
-  maturity?: string
-  mitigations?: { id: string; name: string }[]
-  cited_by_llm_top10?: { code: string; title: string }[]
-}
-
-// prioritise (A18): the rules' order for the watchlist and the page's view. Drawn in that order, never re-sorted.
-interface FixFirstCve {
-  rank: number
-  n: number
-  id: string
-  product: string
-  severity: Severity | null
-  kev: boolean
-  verdict: Verdict
-  status: 'open' | 'accepted'
-  review_due: boolean
-  priority: PriorityLevel
-  reasons: string[]
-  due_date: string
-  due_from: string
-  overdue: boolean
-  no_fix: boolean
-  open_days: number
-}
-
-interface FixFirstResult {
-  filters: Record<string, string | boolean>
-  ignored: string[]
-  product: string | null
-  total_open: number
-  cves: FixFirstCve[]
-}
-
-interface WatchlistResult {
-  message: string
-  watchlist: string[]
-}
+// Result types come from the tools' declared result models (toolResults.ts, generated from backend/app/tools/).
 
 const STATUS_LABEL = { ...CVE_STATUS_LABEL, not_watched: 'Not watched' }
 
@@ -208,7 +117,7 @@ function AffectedCard({ r }: { r: AffectedOne | AffectedProduct }) {
   )
 }
 
-function WeaknessCard({ r }: { r: WeaknessResult }) {
+function WeaknessCard({ r }: { r: CweResult | TechniqueResult }) {
   if (r.kind === 'cwe') {
     return (
       <div className="result-card weakness-card">
@@ -256,7 +165,7 @@ function WeaknessCard({ r }: { r: WeaknessResult }) {
 }
 
 function FixFirstCard({ r }: { r: FixFirstResult }) {
-  const view = contextWords(r.filters as PageContext, r.product ?? undefined).join(', ')
+  const view = contextWords(r.filters, r.product ?? undefined).join(', ')
   return (
     <div className="result-card fix-first-card">
       <p className="result-title">
@@ -302,14 +211,18 @@ function WatchlistCard({ r }: { r: WatchlistResult }) {
   )
 }
 
+function ResultCard({ call }: { call: ToolCallRecord }) {
+  // Checking the name narrows the result to that tool's type.
+  if (call.name === 'lookup_cve' && call.result) return <CveCard r={call.result} />
+  if (call.name === 'explain_weakness' && call.result) return <WeaknessCard r={call.result} />
+  if (call.name === 'check_affected' && call.result) return <AffectedCard r={call.result} />
+  if (call.name === 'prioritise' && call.result) return <FixFirstCard r={call.result} />
+  if (call.name === 'update_watchlist' && call.result) return <WatchlistCard r={call.result} />
+  return null
+}
+
 export function ToolCallCard({ call }: { call: ToolCallRecord }) {
   const r = call.result
-  let body = null
-  if (r && call.name === 'lookup_cve') body = <CveCard r={r as unknown as CveResult} />
-  else if (r && call.name === 'explain_weakness') body = <WeaknessCard r={r as unknown as WeaknessResult} />
-  else if (r && call.name === 'check_affected') body = <AffectedCard r={r as unknown as AffectedOne | AffectedProduct} />
-  else if (r && call.name === 'prioritise') body = <FixFirstCard r={r as unknown as FixFirstResult} />
-  else if (r && call.name === 'update_watchlist') body = <WatchlistCard r={r as unknown as WatchlistResult} />
   return (
     <article className={`tool-card ${call.status}`}>
       <header>
@@ -323,7 +236,7 @@ export function ToolCallCard({ call }: { call: ToolCallRecord }) {
           <strong>{call.error.code}</strong>: {call.error.message}
         </p>
       )}
-      {body}
+      <ResultCard call={call} />
       {r && (
         <details className="raw">
           <summary>Raw result</summary>

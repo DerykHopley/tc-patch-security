@@ -61,6 +61,7 @@ class FixFirstCve(ToolResult):
 
 
 class FixFirstResult(ToolResult):
+    """prioritise: the top open CVEs in the rules' order, and the view they come from."""
     filters: Filters
     ignored: list[str]  # the page's filters not applied, each with why
     product: str | None  # the products' names, comma-separated
