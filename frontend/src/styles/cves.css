@@ -2,11 +2,22 @@
    becomes when narrow. Tokens only. The fade-up keyframes and the shared chips and severity badge live in
    dashboard.css; the global reduced-motion rule in tokens.css stops all motion. */
 
-/* The table decides its own layout from its width (a container query), not the window's: it is narrow on a phone
-   and also beside a pinned chat at 1400px. */
+/* Stacked cards (the @container rules below) are for phones (the tab-bar layout, <= 800px) and for the chat pinned
+   beside the page, when the table's card is 760px or less. Only then is the card a size container: without one the
+   @container rules never match, so a 820-1050px window with the sidebar open keeps the table (scrolling sideways
+   inside its card if it must). */
 .cves-card {
-  container-type: inline-size;
   animation: fade-up 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.app.docked .cves-card {
+  container-type: inline-size;
+}
+
+@media (max-width: 800px) {
+  .cves-card {
+    container-type: inline-size;
+  }
 }
 
 .cves-card h2 {

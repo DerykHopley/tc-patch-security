@@ -302,6 +302,19 @@ def test_a04b_7_phone_rows_are_stacked_cards(open_cves):
     actions_in_view(page)
 
 
+@pytest.mark.parametrize("width,cards", [(800, True), (820, False), (900, False), (1050, False), (1400, False)])
+def test_a04b_7_cards_only_on_phones_or_beside_the_pinned_chat(open_cves, width, cards):
+    """Review item 16: the table's own width (760px) also caught 820-1050px windows with the sidebar open. Stacked
+    cards are for phones (the tab-bar layout, <= 800px) and the chat pinned beside the page; any other window gets
+    the table, scrolling sideways inside its card if it must, never the page."""
+    page = open_cves(width=width)
+    first = page.locator("table.cves tbody tr").first
+    assert (first.evaluate("el => getComputedStyle(el).display") != "table-row") is cards
+    expect(page.locator("table.cves thead")).to_be_hidden() if cards else expect(
+        page.locator("table.cves thead")).to_be_visible()
+    assert no_sideways_scroll(page)
+
+
 def test_a04b_8_pinned_chat_at_1400_keeps_the_row_actions_in_view(open_cves):
     page = open_cves()
     pin(page)
