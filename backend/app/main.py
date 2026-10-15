@@ -13,7 +13,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
-from app import agent, chat_turn, dashboard
+from app import agent, chat_turn, dashboard, page_context
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.config import Settings
 from app.cve_filters import CveView, InvalidFilter
@@ -23,7 +23,9 @@ from app.errors import InputError, LLMError
 from app.notify import NotifyError, channel_status, deliver, format_alert
 from app.one_port import one_port
 from app.refresh import CheckReply
-from app.schemas import ChatReply, ChatRequest
+from app.llm.base import ToolCall
+from app.schemas import ChatReply, ChatRequest, ToolCallRecord
+from app.tools.registry import Context, run_tool
 from app.verdict import USAGES
 from app.watched import WatchedCves
 
@@ -54,6 +56,18 @@ class WatchedProduct(BaseModel):
 
 class WatchlistUpdate(BaseModel):
     products: list[Annotated[str, StringConstraints(max_length=40)] | WatchedProduct]  # a plain name keeps its fields
+
+
+class ToolRetry(BaseModel):
+    """Try again on a tool card (B20): one step of an answer, run again with the same arguments."""
+    name: str
+    args: dict
+    page: dict | None = None  # the answer's page context; checked again, as for /chat
+
+
+class FakeFeedsRequest(BaseModel):
+    """The fake feeds that fail from now on (B20). The fake feeds only."""
+    fail: list[Literal["nvd", "kev", "osv", "epss"]]
 
 
 def _error(status: int, code: str, message: str) -> JSONResponse:
@@ -120,6 +134,13 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def chat(req: ChatRequest):
         return chat_turn.turn(req, deps)  # guard, explain level, page context, step limit (app.chat_turn)
 
+    @app.post("/chat/tool", response_model=ToolCallRecord)
+    def retry_tool(body: ToolRetry):
+        """Try again (B20): run one tool step again, as the answer did but without the tool-failure switch. Its
+        result goes on its card only: the model doesn't see it, so the answer's text is never rewritten by it."""
+        page, _ = page_context.validate(body.page, deps.knowledge.resolve_product)
+        return run_tool(ToolCall(id="retry", name=body.name, args=body.args), deps, Context(page=page))
+
     @app.get("/examples")
     def examples():
         return agent.examples()
@@ -131,7 +152,10 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         """`product`: the dashboard's filter (A15b), `a,b`. Unknown or unwatched products are ignored."""
         watched = WatchedCves.of(deps)
         summary = dashboard.summary(deps.knowledge, watched, dashboard.applied_filter(deps.knowledge, watched, product))
-        return summary | {"data": data_status()}  # the freshness panel: Live or Snapshot, last checked (B02)
+        # The freshness panel: Live or Snapshot, last checked (B02), and the last run for its partial or failed
+        # banner (B20). The next try is the run's start + 5 minutes, the one rule for every trigger.
+        last = deps.refresher.last_result() if deps.refresher else None
+        return summary | {"data": {**data_status(), "last_result": last.model_dump() if last else None}}
 
     @app.get("/cves")
     def get_cves(request: Request, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
@@ -240,6 +264,13 @@ def create_app(deps: Deps | None = None) -> FastAPI:
             live_only().reset()
             deps.sync()
             return {"reset": True}
+
+        @app.post("/refresh/fake-feeds")
+        def fail_fake_feeds(body: FakeFeedsRequest):
+            """The fake feeds only: which of them fail from now on (B20, the browser check's partial run). Like
+            FAKE_FEEDS_FAIL, for this server until it restarts; `[]` makes every feed answer again."""
+            live_only().feeds.fail = ",".join(body.fail) or None
+            return {"fail": body.fail}
 
     # --- Dev panel (A11): only when DEV_PANEL is on, because it shows internals. Off, every /dev route is a 404.
     if deps.settings.dev_panel:

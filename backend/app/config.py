@@ -20,6 +20,7 @@ PROVIDERS = ("fake", "openrouter", "local")
 EMBEDDERS = ("hash", "openrouter", "ollama")  # hash: the free test fake; the other two need the index built (A09)
 LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "::1"]
 DATA_MODES = ("snapshot", "live")  # snapshot: frozen data, as of its date (the default and the tests); live: refreshed
+FEED_SOURCES = ("nvd", "kev", "osv", "epss")  # the four feeds, in the order a refresh asks them
 FEED_KINDS = ("fake", "real")  # fake: the made-up day data sets (B02, no network); real: NVD, KEV, EPSS, OSV (B03)
 
 
@@ -104,6 +105,9 @@ class Settings:
     live_path: pathlib.Path = ROOT / "data" / "live"  # the live data's versions and the refresh log
     feeds: str = "fake"
     fake_feeds_day: int = 2  # which data set the fake feeds serve (fixtures/fake_feeds/day<n>.json)
+    fake_feeds_fail: list[str] = field(default_factory=list)  # B20: fake feeds that fail, for docs/failure-demo.md
+    # B20: chat tools that time out inside an answer (Try again still runs them), for docs/failure-demo.md
+    fail_tools: list[str] = field(default_factory=list)
     nvd_api_key: str = ""  # optional (B03): NVD allows 50 requests per 30 s with it, 5 without. A secret: .env only
 
     @classmethod
@@ -140,6 +144,8 @@ class Settings:
             live_path=_path("LIVE_PATH", cls.live_path),
             feeds=_env("FEEDS", cls.feeds).lower(),
             fake_feeds_day=_int("FAKE_FEEDS_DAY", cls.fake_feeds_day),
+            fake_feeds_fail=_list(_env("FAKE_FEEDS_FAIL").lower()),
+            fail_tools=_list(_env("FAIL_TOOLS").lower()),
             nvd_api_key=_env("NVD_API_KEY"),
         )
 
@@ -164,6 +170,14 @@ class Settings:
             raise ConfigError(f"FEEDS must be one of {', '.join(FEED_KINDS)}, not {self.feeds!r}.")
         if self.fake_feeds_day not in (1, 2):
             raise ConfigError(f"FAKE_FEEDS_DAY must be 1 or 2, not {self.fake_feeds_day}.")
+        from app.tools.registry import TOOLS  # here, not at the top: the tools import the config
+
+        if unknown := [t for t in self.fail_tools if t not in TOOLS]:
+            raise ConfigError(f"FAIL_TOOLS lists chat tools to fail, from {', '.join(TOOLS)}; "
+                              f"not {', '.join(unknown)}.")
+        if unknown := [s for s in self.fake_feeds_fail if s not in FEED_SOURCES]:
+            raise ConfigError(f"FAKE_FEEDS_FAIL lists feeds to fail, from {', '.join(FEED_SOURCES)}; "
+                              f"not {', '.join(unknown)}.")
         if self.frontend_dir is not None and not (self.frontend_dir / "index.html").is_file():
             raise ConfigError(f"FRONTEND_DIR is {self.frontend_dir}, but there's no index.html there. Build the "
                               "frontend first (cd frontend && npm run build), or leave FRONTEND_DIR empty.")

@@ -1,5 +1,5 @@
 {
- "_note": "FakeLLM scripts. keywords: all must appear in the lowercased question. Answers are templates filled from real tool results. expect: what the model check (app/evals/checks.py) scores for a real model; tools null = not checked. answers: one template per explain level (simple, normal, deep_dive) in place of answer; expect.levels asks the question at each level and compares the answers (A19). expect.fix_first: the answer's top 3 CVEs must be prioritise's top 3, in order (A18). page: a page context as the frontend sends it; the model check asks the question from that page, and it isn't a chat example. FakeLLM runs the first script whose keywords fit.",
+ "_note": "FakeLLM scripts. keywords: all must appear in the lowercased question. Answers are templates filled from real tool results. expect: what the model check (app/evals/checks.py) scores for a real model; tools null = not checked. answers: one template per explain level (simple, normal, deep_dive) in place of answer; expect.levels asks the question at each level and compares the answers (A19). expect.fix_first: the answer's top 3 CVEs must be prioritise's top 3, in order (A18). page: a page context as the frontend sends it; the model check asks the question from that page, and it isn't a chat example. FakeLLM runs the first script whose keywords fit. fail_tools: tools that time out when the model check asks this question (B20); expect.admits_failure names the failed tool: the answer must say that step didn't finish, never that it worked. It isn't a chat example.",
  "scripts": [
   {
    "id": "Q1",
@@ -449,6 +449,44 @@
     ],
     "fix_first": true,
     "status_unchanged": true,
+    "cites": true
+   }
+  },
+  {
+   "id": "Q-partial",
+   "question": "Is CVE-2025-3248 in CISA KEV, and how do I defend against code injection?",
+   "keywords": [
+    "cve-2025-3248",
+    "kev",
+    "defend"
+   ],
+   "fail_tools": [
+    "search_security"
+   ],
+   "tool_calls": [
+    {
+     "name": "lookup_cve",
+     "args": {
+      "cve_id": "CVE-2025-3248"
+     }
+    },
+    {
+     "name": "search_security",
+     "args": {
+      "query": "How to defend against code injection"
+     }
+    }
+   ],
+   "answer": "{cve}\n\nHow to defend against code injection:\n\n{sources}",
+   "expect": {
+    "tools": [
+     "lookup_cve",
+     "search_security"
+    ],
+    "admits_failure": "search_security",
+    "contains_any": [
+     "CVE-2025-3248"
+    ],
     "cites": true
    }
   }

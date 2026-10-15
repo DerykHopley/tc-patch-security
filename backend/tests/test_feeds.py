@@ -259,16 +259,19 @@ def test_b03_6_a_503_or_timeout_leaves_the_data_and_last_checked_alone_and_the_n
     with caplog.at_level("WARNING", logger="app.refresh"):
         failed = refresher.run("schedule").result
 
-    assert not failed.ok and failed.version is None and failed.errors[0].source == failing
-    assert "failed after" in caplog.text and f"{failing}: {failing.upper()} " in caplog.text
-    assert refresher.live.version() == 2
+    # B20: one feed down is a partial run. The other three are written; the failed one's data and last_checked stay.
+    assert failed.status == "partial" and failed.version == 3 and [e.source for e in failed.errors] == [failing]
+    assert "was partial: 3 of 4 sources updated" in caplog.text and f"{failing}: {failing.upper()} " in caplog.text
+    assert refresher.live.version() == 3
     assert refresher.last_checked() == "2026-10-15T09:00:00+00:00"
 
     _all_four(fake_http, nvd=nvd_pages({"2026-10-15T09:00:00.000Z": [nvd_vuln("CVE-2026-99201")]}))
     refresher.clock.at += dt.timedelta(hours=1)
     again = refresher.run("schedule").result
 
-    assert again.ok and again.version == 3 and again.new_cves == ["CVE-2026-99201"]
+    # the new CVE came with the partial run unless NVD was the feed that failed
+    assert again.status == "ok" and again.version == 4
+    assert again.new_cves == (["CVE-2026-99201"] if failing == "nvd" else [])
     assert fake_http.hits("/nvd")[-1].query["lastModStartDate"] == "2026-10-15T09:00:00.000Z"  # from the last good run
 
 
@@ -332,11 +335,11 @@ def test_b03_8_a_failed_scheduled_run_is_tried_again_on_the_next_tick(scheduled)
     run_scheduled(scheduled, schedule_hours=24)
     scheduled.feeds.fail = "nvd"
     scheduled.clock.at += dt.timedelta(hours=24)
-    assert not run_scheduled(scheduled, schedule_hours=24).result.ok
+    assert run_scheduled(scheduled, schedule_hours=24).result.status == "partial"  # NVD down (B20)
 
     scheduled.feeds.fail = None
     scheduled.clock.at += dt.timedelta(hours=1)
-    assert run_scheduled(scheduled, schedule_hours=24).result.ok  # last_checked didn't move, so it's still due
+    assert run_scheduled(scheduled, schedule_hours=24).result.status == "ok"  # last_checked didn't move, so it's still due
 
 
 def test_b03_8_the_cli_with_schedule_reads_schedule_hours_from_settings(tmp_path, monkeypatch, capsys):

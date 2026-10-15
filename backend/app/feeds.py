@@ -53,8 +53,8 @@ class FakeFeeds:
     """What the four services say on `day` (1 or 2): the snapshot's raw downloads with that day's data set on top.
 
     NVD answers with the day's rows only (nothing else was modified since the snapshot), whatever the dates; the
-    other three answer in full, as the real services do. `calls` records each call, for tests. `fail`: a source
-    that raises FeedError, to test a failed fetch.
+    other three answer in full, as the real services do. `calls` records each call, for tests. `fail`: the
+    sources (comma-separated) that raise FeedError, to test a failed fetch.
     """
 
     def __init__(self, day: int = 2, fail: str | None = None):
@@ -67,7 +67,7 @@ class FakeFeeds:
 
     def _call(self, source: str, *args) -> dict:
         self.calls.append((source, *args))
-        if self.fail == source:
+        if source in (self.fail or "").split(","):
             raise FeedError(source, f"The fake {source} feed is set to fail.")
         return self._day()
 
@@ -272,4 +272,4 @@ def make_feeds(settings) -> Feeds:
     """The feeds FEEDS names: the fake (B02, the default) or the real services (B03)."""
     if settings.feeds == "real":
         return HttpFeeds(nvd_api_key=settings.nvd_api_key)
-    return FakeFeeds(day=settings.fake_feeds_day)
+    return FakeFeeds(day=settings.fake_feeds_day, fail=",".join(settings.fake_feeds_fail) or None)

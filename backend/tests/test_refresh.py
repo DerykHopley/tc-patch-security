@@ -214,15 +214,17 @@ def test_b02_6_status_says_last_checked_running_and_the_last_result(live):
     after = live.client.get("/refresh").json()
     assert (after["last_checked"], after["running"], after["last_result"]) == (result["started"], False, result)
     assert after["next_allowed"] == f"{DAY1}T09:05:00+00:00"
-    assert live.client.get("/dashboard").json()["data"] == {"mode": "live", "last_checked": result["started"]}
+    assert live.client.get("/dashboard").json()["data"] == {"mode": "live", "last_checked": result["started"],
+                                                           "last_result": result}  # B20: for its banner
 
 
 def test_b02_6_snapshot_mode_has_nothing_to_check(client):
     r = client.post("/refresh")
     assert r.status_code == 400 and r.json()["error"]["code"] == "snapshot_mode"
     assert client.get("/refresh").json()["mode"] == "snapshot"
-    assert client.get("/dashboard").json()["data"] == {"mode": "snapshot", "last_checked": None}
+    assert client.get("/dashboard").json()["data"] == {"mode": "snapshot", "last_checked": None, "last_result": None}
     assert client.post("/refresh/reset", json={"confirm": "reset"}).status_code == 404
+    assert client.post("/refresh/fake-feeds", json={"fail": []}).status_code == 404  # B20: the fake live feeds only
 
 
 def test_b02_6_the_cli_runs_the_same_refresh_and_the_server_picks_it_up(live, monkeypatch, capsys):
@@ -264,14 +266,16 @@ def test_b02_7_each_run_is_logged_with_trigger_timing_and_counts(live, caplog):
 
 
 def test_b02_7_a_failed_fetch_leaves_the_data_and_last_checked_alone(live, caplog):
+    # Every feed failing: nothing is written. One feed failing is a partial run (B20, test_partial.py).
     live.check_now()
     live.clock.advance(60 * 24)
-    live.feeds.day, live.feeds.fail = 2, "epss"
+    live.feeds.day, live.feeds.fail = 2, "nvd,kev,osv,epss"
     with caplog.at_level("WARNING", logger="app.refresh"):
         reply = live.check_now()
     r = reply["result"]
-    assert reply["ran"] and not r["ok"] and r["version"] is None
-    assert r["errors"] == [{"source": "epss", "message": "The fake epss feed is set to fail."}]
+    assert reply["ran"] and not r["ok"] and r["status"] == "failed" and r["version"] is None
+    assert r["errors"][-1] == {"source": "epss", "message": "The fake epss feed is set to fail."}
+    assert [e["source"] for e in r["errors"]] == ["nvd", "kev", "osv", "epss"]
     assert "failed" in caplog.text and "epss: The fake epss feed is set to fail." in caplog.text
     assert NEW_DAY2 not in ids(live.client, NEW_SINCE)
     assert live.client.get("/health").json()["last_checked"] == f"{DAY1}T09:00:00+00:00"

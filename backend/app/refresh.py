@@ -9,7 +9,9 @@ the schedule (B03) all call `Refresher.run(trigger)`. Its steps:
 4. (B04: for each user, diff, alert rules, de-duplicate, deliver, log.)
 5. Move `last_checked`, and log the run.
 
-A fetch failure stops before step 3: the data and `last_checked` stay as they were, so the next run covers the gap.
+Each feed is its own step with its own result (B20). A feed that fails leaves its own data as it was; the feeds that
+answered are built and written, and the run is "partial". Only when every feed fails is nothing written ("failed").
+`last_checked` moves only when every feed answered, so the next run asks NVD again from there and covers the gap.
 One lock (a file lock, so the CLI and the server share it) and at most one run per 5 minutes, whoever triggers it.
 A refused run says when the next one is allowed, with the last run's result.
 """
@@ -24,7 +26,7 @@ import time
 from collections.abc import Callable, Iterator, Sequence
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from app import cve_build
 from app.config import FIXTURES, Settings
@@ -58,17 +60,38 @@ class FeedProblem(BaseModel):
     message: str
 
 
+class FeedResult(BaseModel):
+    """One feed's step in a run (B20): it answered, or why it didn't."""
+    source: str  # nvd, kev, osv or epss, in the order they are asked
+    ok: bool
+    message: str | None = None  # why it failed; None when it answered
+
+
+Status = Literal["ok", "partial", "failed"]
+
+
 class RefreshResult(BaseModel):
     """One run: what it found, or why it stopped."""
     trigger: str
     started: str  # ISO 8601, UTC
     finished: str
-    ok: bool  # False: a fetch failed, nothing was written
+    ok: bool  # True: a version was written (every feed answered, or some did: see status). False: nothing written
     counts: Counts
     new_cves: list[str]  # the new CVEs' ids, newest first
     version: int | None  # the live version written; None when nothing was
-    errors: list[FeedProblem]
+    errors: list[FeedProblem]  # the feeds that failed
     alerts: dict[str, list[dict]] = {}  # per user id, the alerts this run sent (B04 fills it)
+    # B20: ok (every feed answered), partial (some did; their data was written) or failed (none did; nothing written)
+    status: Status = "ok"
+    feeds: list[FeedResult] = []  # each feed's step; empty in runs logged before B20
+
+    @model_validator(mode="before")
+    @classmethod
+    def _status_of_older_runs(cls, data):
+        """A run logged before B20 has no status: it was ok or failed."""
+        if isinstance(data, dict) and "status" not in data:
+            data = data | {"status": "ok" if data.get("ok") else "failed"}
+        return data
 
 
 class Refusal(BaseModel):
@@ -86,16 +109,18 @@ class CheckReply(BaseModel):
 
 # --- Step 2: build the new version on top of the previous one (pure) ------------------------------------------------
 
-def build_version(previous: dict, nvd_rows: list[dict], kev: dict, osv_raw: dict[str, list[dict]], epss_raw: dict,
-                  cwe_to_web: dict[str, str], now: dt.datetime) -> tuple[dict, Counts, list[str]]:
+def build_version(previous: dict, nvd_rows: list[dict], kev: dict | None, osv_raw: dict[str, list[dict]] | None,
+                  epss_raw: dict | None, cwe_to_web: dict[str, str], now: dt.datetime) -> tuple[dict, Counts, list[str]]:
     """The previous version's files and the fetched data -> the new version's files, the counts and the new ids.
 
     A fetched NVD row replaces the CVE's record (or adds it); a row that is rejected or no longer names a tracked
     product drops it. KEV is joined again for every CVE, so an old CVE that CISA just added is marked too.
+    A feed that failed is None (B20; a failed NVD is no rows): its part of the previous version is kept as it was.
     """
     today = now.date().isoformat()
     before = {r["id"]: r for r in previous["cves.json"]["cves"]}
-    catalogue = {v["cveID"]: v for v in kev["vulnerabilities"]}
+    # KEV failed: the previous version's KEV entries stand in for the catalogue
+    catalogue = {v["cveID"]: v for v in (kev["vulnerabilities"] if kev is not None else previous["kev.json"])}
     records = {i: dict(r) for i, r in before.items()}
     for row in nvd_rows:
         rec = cve_build.cve_record(row, cwe_to_web, set(catalogue))
@@ -119,33 +144,37 @@ def build_version(previous: dict, nvd_rows: list[dict], kev: dict, osv_raw: dict
                      for i in kept),
     )
 
-    epss = cve_build.epss_scores(epss_raw, ids)
-    old_scores = previous["epss.json"]["scores"]
+    old_epss, old_osv = previous["epss.json"], previous["osv.json"]
+    epss = cve_build.epss_scores(epss_raw, ids) if epss_raw is not None else {"date": old_epss["date"], "scores": {}}
+    old_scores = old_epss["scores"]
     scores = {i: epss["scores"].get(i) or old_scores[i] for i in sorted(ids) if i in epss["scores"] or i in old_scores}
-    osv = cve_build.osv_versions(osv_raw, set(ids), today)
+    if osv_raw is not None:
+        osv = cve_build.osv_versions(osv_raw, set(ids), today)
+    else:  # OSV failed: the previous version's versions, for the CVEs still there
+        osv = {"counts": old_osv["counts"], "cves": {i: v for i, v in old_osv["cves"].items() if i in records}}
     check = cve_build.product_check(rows, osv["cves"])
 
     manifest = json.loads(json.dumps(previous["manifest.json"]))
     manifest["as_of"] = today
     manifest["note"] = "Live data: the snapshot, refreshed from the feeds by app/refresh.py."
     manifest["product_check"] = check["counts"]
-    refreshed = {
+    refreshed = {  # a failed feed (None) keeps its count and retrieved date
         "nvd": {"count": len(rows)},
-        "kev": {"count": len(kev_rows), "name": f"CISA KEV {kev.get('catalogVersion')}"},
-        "osv": {"count": osv["counts"]["cves"], "as_of": today},
-        "epss": {"count": len(scores), "as_of": epss["date"]},
+        "kev": {"count": len(kev_rows), "name": f"CISA KEV {kev.get('catalogVersion')}"} if kev is not None else None,
+        "osv": {"count": osv["counts"]["cves"], "as_of": today} if osv_raw is not None else None,
+        "epss": {"count": len(scores), "as_of": epss["date"]} if epss_raw is not None else None,
     }
     for source in manifest["sources"]:
-        if source["id"] in refreshed:
+        if refreshed.get(source["id"]):
             source.update(refreshed[source["id"]], retrieved=today)
 
     files = {
         "cves.json": previous["cves.json"] | {"cves": rows},
         "kev.json": kev_rows,
-        "epss.json": {"date": epss["date"], "retrieved": today,
+        "epss.json": {"date": epss["date"], "retrieved": today if epss_raw is not None else old_epss["retrieved"],
                       "counts": {"scored": len(scores), "missing": len(ids) - len(scores)}, "scores": scores},
-        "osv.json": previous["osv.json"] | {"as_of": today, "retrieved": today, "counts": osv["counts"],
-                                            "cves": osv["cves"]},
+        "osv.json": old_osv | ({"as_of": today, "retrieved": today} if osv_raw is not None else {})
+                    | {"counts": osv["counts"], "cves": osv["cves"]},
         "product_check.json": check,
         "manifest.json": manifest,
     }
@@ -222,14 +251,18 @@ class Refresher:
             result = self._run(trigger, now)
             log_data = self._log()
             log_data["runs"] = [result.model_dump(), *log_data["runs"]][:RUNS_KEPT]
-            if result.ok:
-                log_data["last_checked"] = result.started  # step 5; a failed fetch leaves it alone
+            if result.status == "ok":
+                log_data["last_checked"] = result.started  # step 5; a run where any feed failed leaves it alone
             self._save_log(log_data)
         c = result.counts
         if result.ok:
             log.info("Refresh (%s) at %s: %d new, %d updated, %d added to KEV, %d rescored, version %s, %s",
                      trigger, result.started, c.new, c.updated, c.kev_added, c.rescored, result.version,
                      _took(result))
+            if result.status == "partial":
+                log.warning("Refresh (%s) at %s was partial: %d of %d sources updated; %s", trigger, result.started,
+                            sum(f.ok for f in result.feeds), len(result.feeds),
+                            "; ".join(f"{e.source}: {e.message}" for e in result.errors))
         else:
             log.warning("Refresh (%s) at %s failed after %s: %s", trigger, result.started, _took(result),
                         "; ".join(f"{e.source}: {e.message}" for e in result.errors))
@@ -241,29 +274,41 @@ class Refresher:
         since = self.last_checked()
         start = dt.datetime.fromisoformat(since) if since else dt.datetime.fromisoformat(
             previous["manifest.json"]["as_of"]).replace(tzinfo=dt.UTC)
-        source = "nvd"
-        try:  # step 1: fetch
-            nvd_rows = self.feeds.nvd_modified(start, now)
-            source = "kev"
-            kev = self.feeds.kev()
-            source = "osv"
-            osv_raw = {cve_build.package_key(e, n): self.feeds.osv(e, n)
-                       for p in cve_build.PACKAGES.values() for e, n in p["packages"]}
-            source = "epss"
-            ids = sorted({r["id"] for r in previous["cves.json"]["cves"]} | {r["id"] for r in nvd_rows})
-            epss_raw = self.feeds.epss(ids)
-        except Exception as e:  # any feed failure: stop before writing anything
-            message = str(e) if isinstance(e, FeedError) else f"{type(e).__name__}: {e}"
-            return self._result(trigger, now, began, ok=False, errors=[FeedProblem(source=source, message=message)])
-        cwe_to_web = json.loads((FIXTURES / "owasp.json").read_text())["cwe_to_web"]
-        files, counts, new = build_version(previous, nvd_rows, kev, osv_raw, epss_raw, cwe_to_web, now)  # step 2
-        version = self.live.write(files)  # step 3
-        return self._result(trigger, now, began, ok=True, counts=counts, new_cves=new, version=version)
+        steps: list[FeedResult] = []
 
-    def _result(self, trigger, now, began, ok, counts=None, new_cves=(), version=None, errors=()) -> RefreshResult:
+        def fetch(source: str, call: Callable):
+            """Step 1, one feed: its data, or None when it failed (recorded, and the other feeds still run)."""
+            try:
+                data = call()
+            except Exception as e:  # any failure of this feed: its data stays as it was
+                steps.append(FeedResult(source=source, ok=False,
+                                        message=str(e) if isinstance(e, FeedError) else f"{type(e).__name__}: {e}"))
+                return None
+            steps.append(FeedResult(source=source, ok=True))
+            return data
+
+        nvd_rows = fetch("nvd", lambda: self.feeds.nvd_modified(start, now))
+        kev = fetch("kev", self.feeds.kev)
+        osv_raw = fetch("osv", lambda: {cve_build.package_key(e, n): self.feeds.osv(e, n)
+                                        for p in cve_build.PACKAGES.values() for e, n in p["packages"]})
+        ids = sorted({r["id"] for r in previous["cves.json"]["cves"]} | {r["id"] for r in nvd_rows or []})
+        epss_raw = fetch("epss", lambda: self.feeds.epss(ids))
+        errors = [FeedProblem(source=f.source, message=f.message or "") for f in steps if not f.ok]
+        if len(errors) == len(steps):  # no feed answered: nothing to build, nothing written
+            return self._result(trigger, now, began, ok=False, errors=errors, feeds=steps)
+        cwe_to_web = json.loads((FIXTURES / "owasp.json").read_text())["cwe_to_web"]
+        files, counts, new = build_version(previous, nvd_rows or [], kev, osv_raw, epss_raw, cwe_to_web, now)  # 2
+        version = self.live.write(files)  # step 3
+        return self._result(trigger, now, began, ok=True, counts=counts, new_cves=new, version=version,
+                            errors=errors, feeds=steps)
+
+    def _result(self, trigger, now, began, ok, counts=None, new_cves=(), version=None, errors=(),
+                feeds=()) -> RefreshResult:
         finished = now + dt.timedelta(seconds=time.monotonic() - began)
+        status = "failed" if not ok else "partial" if errors else "ok"
         return RefreshResult(trigger=trigger, started=_iso(now), finished=_iso(finished), ok=ok,
-                             counts=counts or Counts(), new_cves=list(new_cves), version=version, errors=list(errors))
+                             counts=counts or Counts(), new_cves=list(new_cves), version=version, errors=list(errors),
+                             status=status, feeds=list(feeds))
 
     def reset(self) -> None:
         """The fake feeds only: the live data back to the snapshot and an empty run log (the browser check)."""
@@ -338,7 +383,7 @@ def main(argv: Sequence[str] = ()) -> int:
     else:
         reply = refresher.run("cli")
     print(reply.model_dump_json(indent=1))
-    return 0 if reply.ran and reply.result and reply.result.ok else 1
+    return 0 if reply.ran and reply.result and reply.result.status == "ok" else 1  # partial is 1 too: a feed failed
 
 
 if __name__ == "__main__":

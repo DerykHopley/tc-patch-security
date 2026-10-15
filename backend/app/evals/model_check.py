@@ -64,8 +64,9 @@ def _ask(q: dict, deps) -> dict:
     start = time.perf_counter()
     try:
         levels = q["expect"].get("levels") or ["normal"]  # A19: asked once per explain level, never the saved one
-        replies = {lv: turn(ChatRequest(message=q["question"], explain_level=lv, page=q.get("page")), deps)
-                   for lv in levels}  # the same turn as /chat, with the question's page context if it has one
+        # the same turn as /chat, with the question's page context if it has one, and its tools made to fail (B20)
+        replies = {lv: turn(ChatRequest(message=q["question"], explain_level=lv, page=q.get("page")), deps,
+                            fail_tools=q.get("fail_tools", ())) for lv in levels}
         reply = replies["normal"] if "normal" in replies else next(iter(replies.values()))
         checks = score_levels(q["expect"], replies) if len(replies) > 1 else score(q["expect"], reply)
         every = list(replies.values())

@@ -16,6 +16,7 @@ from app.evals import model_check, report, retrieval
 from app.llm.urls import local_url_allowed
 from app.rag.pipeline import search_security
 from app.rag.projection import projection_for
+from app.tools.registry import TOOLS
 
 FUSED_SHOWN = 15  # the fused column: enough to see what the per-document cap and top-n cut
 MODELS_TIMEOUT = 5  # seconds: listing models is quick even when loading one is slow
@@ -55,6 +56,10 @@ def _not_found(message: str) -> JSONResponse:
     return JSONResponse(status_code=404, content={"error": {"code": "not_found", "message": message}})
 
 
+class FailTools(BaseModel):
+    tools: list[str]
+
+
 def dev_router(deps) -> APIRouter:
     r = APIRouter(prefix="/dev")
     openrouter_list = openrouter_models.ModelList()  # one per app: tests each get a fresh cache
@@ -74,6 +79,15 @@ def dev_router(deps) -> APIRouter:
         if body.provider == "local" and not body.local_model:
             raise InputError("Choose a local model first: Find models lists the ones the server has.")
         return {"settings": deps.state.save_dev_settings(body).model_dump()}
+
+    @r.post("/fail-tools")
+    def fail_tools(body: FailTools):
+        """The tool-failure switch (B20, docs/failure-demo.md): these chat tools time out in every answer until the
+        server restarts or the list is emptied; Try again still runs them. Starts as FAIL_TOOLS."""
+        if unknown := [t for t in body.tools if t not in TOOLS]:
+            raise InputError(f"No chat tool called {', '.join(unknown)}. Choose from: {', '.join(TOOLS)}.")
+        deps.fail_tools = set(body.tools)
+        return {"tools": sorted(deps.fail_tools)}
 
     @r.get("/info")
     def info():
