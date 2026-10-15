@@ -13,12 +13,25 @@ from playwright.sync_api import Browser, BrowserContext, Error, Route
 
 UI_URL = os.environ.get("UI_URL", "http://localhost:5174")
 API_URL = os.environ.get("API_URL", "http://localhost:8001")
+# The live pair (B02): live mode on the fake feeds, for Check now. run.sh starts it next to the snapshot pair.
+LIVE_UI_URL = os.environ.get("LIVE_UI_URL", "http://localhost:5175")
+LIVE_API_URL = os.environ.get("LIVE_API_URL", "http://localhost:8002")
 LATENCY_MS = float(os.environ.get("E2E_LATENCY_MS") or 0)
 
 
 @pytest.fixture
 def ui_url() -> str:
     return UI_URL
+
+
+@pytest.fixture
+def live_ui_url() -> str:
+    return LIVE_UI_URL
+
+
+@pytest.fixture
+def live_api_url() -> str:
+    return LIVE_API_URL
 
 
 @pytest.fixture
@@ -43,6 +56,7 @@ def _slow(route: Route) -> None:
 
 def slow_down(ctx: BrowserContext) -> BrowserContext:
     ctx.route(f"{API_URL}/**", _slow)
+    ctx.route(f"{LIVE_API_URL}/**", _slow)
     return ctx
 
 

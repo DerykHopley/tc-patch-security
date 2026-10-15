@@ -59,6 +59,7 @@ Spec A's tickets ([#2](https://github.com/DerykHopley/tc-patch-security/issues/2
 | Settings: watchlist, alert rules, channels, policy, explain level | `frontend/src/pages/SettingsPage.tsx`, `backend/app/app_settings.py`, `notify.py` | A13 #15, A15b #30 |
 | Snapshot additions: OSV versions, EPSS, product-match check, licences | `backend/scripts/snapshot_additions.py` | A14 #16 |
 | Shared build code for the snapshot and the live refresh | `backend/app/cve_build.py` | B01 #32 |
+| Live mode and Check now on the fake feeds; the refresh CLI (`uv run python -m app.refresh`) | `backend/app/refresh.py`, `live_data.py`, `feeds.py`, `frontend/src/components/Freshness.tsx` | B02 #35 |
 | Am I affected? Usage, version, verdict, `check_affected` | `backend/app/verdict.py`, `tools/affected.py` | A15 #17 |
 | Priority by rules, policy, due dates | `backend/app/priority.py` | A16 #18, gate A17 #19 |
 | Accepted status, decision records, "no fix yet" | `backend/app/status.py`, `frontend/src/components/Decision.tsx` | A16b #27 |

@@ -318,6 +318,19 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
   - **History**: a `<details>` "History (n)" (accent, bold; named "History of CVE-…: n decisions") under the actions; open, an ordered list, oldest first: date and time in UTC (muted), the status in bold, its facts, "by owner, on the CVEs page" or "in the chat". Stacked cards: full width.
   - **No fix yet**: in the Due cell of an open CVE with no fixed version, "Decide by" (muted, small) above the date, then a **"No fix yet · open N days"** chip (`--text` on `--warn-soft`, `--warn` edge; a rounded box, radius 14px, when it wraps) instead of "Overdue", and "accept, mitigate or replace · by your policy: …". The Top 5 card says "Decide by …" with the same chip; the KEV tile says "No fix yet, decide by …" when its CVE has no fix. Patch's CVE card says "decide by" and shows the chip, and an accepted CVE's reason and review date.
 
+### 5.10 Data freshness and Check now (B02, 2026-10-15)
+
+- The dashboard's last side card, "Data freshness" (`frontend/src/components/Freshness.tsx`). In the head, a status chip (§5.2): **Live** (`live`: `--accent` on `--accent-soft`) or **Snapshot** (`mock`: `--text` on `--border`). The sidebar's card says "Live data" or "Snapshot" the same way.
+- Under the head, one muted line: "Last checked 2026-10-15 09:00 UTC.", "Not checked yet: the live data is still the snapshot." or, in snapshot mode, "A frozen snapshot, as of 2026-10-13." Times are in UTC, as in the backend's messages and run log, so every place says the same time.
+- **Check now** (live mode only): a plain pill (§5.3), 2.25rem high. While the check runs it says **"Checking…"** with a **spinner** before the word, is disabled and `aria-busy`, at full strength (not the 50% of a disabled button: the word must stay readable). The spinner is a 0.9rem ring in `--accent-soft` with an `--accent` arc, hidden from screen readers; the word tells the state, so with reduced motion (the ring stands still) nothing is lost.
+- Then **one line** in an `<output>` (a status region, so a screen reader hears it), `--text` on a soft fill with a 3px coloured left edge (the §5.7 edge rule), radius 14px:
+  - Ran: "Done: 2 new CVEs, 1 updated, 1 added to KEV." (zero counts left out) or "Done: nothing new since the last check." `--ok` edge on `--accent-soft`.
+  - Refused: "Checked less than 5 minutes ago. The next check is allowed at 09:05 UTC." or "A check is running already. …" `--warn` edge on `--warn-soft`.
+  - Failed: "The check failed (EPSS: …). The data is unchanged." `--error` edge on `--error-soft`.
+- After a check that ran, the dashboard loads again (the watchlist-changed event), so the tiles, charts, Top 5 and the last-checked line show the new data at once.
+- The sources list follows, as before: name, count, licence, retrieved, attribution, and NVD's notice, in both modes.
+- *Checked* by the browser check B02.9 and B02.10 against the live pair (light and dark, 400px and 1400px, Enter on the focused button, the line's contrast at least 4.5:1) and the reduced-motion scene `b02_9_check_now`; the words by `npm test` (`src/freshness.test.ts`).
+
 ### Checklist: components
 
 - [ ] Tiles: gradients, circles, contrast as in the table; KEV tile wiggles only when KEV > 0.
@@ -331,6 +344,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - [ ] Dashboard product filter (A15b): toggle pills with `aria-pressed`, a tick as well as colour, in the URL only, carried by the tile links and "See all CVEs"; the watchlist is edited on Settings, in a card that shares the save bar.
 - [ ] CVEs page: full width; filters in the URL survive a reload; stacked cards when narrow; row actions always in view.
 - [ ] Dev page OpenRouter model (A11.10): a native select with price, score and "(default)" per option; the picked model in full under it; "Other…" opens a focused text field; a saved id not listed shows as Other, unchanged; a loading state; no list = the text field and the reason; never wider than its card at 400px.
+- [ ] Data freshness (B02): Live or Snapshot chip; the last-checked line in UTC; Check now only in live mode, "Checking…" with the spinner while it runs (readable, `aria-busy`); one result line in a status region with its edge colour; the NVD notice and attributions in both modes.
 - [ ] Decision dialog (A16b): named fields, focus trapped, Esc closes, focus back on the opener, server errors inside it, fits at 400px, nothing moves with reduced motion; the justification picker has all five; accepted rows show reason, review date and control; review due shows its chip; the history opens by keyboard; "No fix yet · open N days" replaces "Overdue" (CVEs page, Top 5, Patch's card).
 
 ---
@@ -412,6 +426,7 @@ All motion is part of the spec. **It stops with `prefers-reduced-motion: reduce`
 | Sidebar collapse | width 250 ↔ 78px; chevron rotates 180° | 0.2s, ease | — | on toggle |
 | Pin icon | rotates from 35° to 0° when pinned | 0.15s, ease | — | on toggle |
 | Patch's pill | background and border colour | 0.15s | — | on hover / open |
+| Check now spinner (§5.10) | rotate 360° | 1s, linear | — | while a check runs |
 
 ![The dashboard mid-animation: bars still growing](img/motion-midway.png)
 
