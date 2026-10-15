@@ -4,6 +4,7 @@ Built in CI from FakeLLM runs (plus a scripted bad model, so the failure list ha
 embedders. The real runs (OpenRouter, Ollama) are A20's, by hand.
 """
 import re
+from html import escape
 
 import pytest
 
@@ -137,6 +138,114 @@ def test_a12_5_the_dev_panel_serves_the_report(client, runs):
     picked = client.get("/dev/report", params={"models": runs["lazy"]["id"], "retrieval": runs["small"]["id"]})
     assert "Local · lazy-model" in picked.text and "hash-4096" not in section(picked.text, "embedders")
     assert client.get("/dev/report", params={"models": "../../etc"}).status_code == 400
+
+
+class Cloudy(Lazy):
+    """A paid cloud model: costs something per answer."""
+    name = "openrouter"
+
+    def label(self):
+        return "OpenRouter · acme/cloud-model"
+
+    def step(self, messages, tools):
+        return LLMReply(content="Nothing to cite.", cost=0.002)
+
+
+def ids_of(html: str) -> list[str]:
+    return re.findall(r'<section id="([^"]+)"', html)
+
+
+# --- A20: at a glance --------------------------------------------------------------------------------------------
+
+def test_a20_at_a_glance_comes_first_with_quality_against_cost_and_time(deps, runs):
+    deps.llm = Cloudy()
+    model_check.start(deps, ids=["Q2"], wait=True)
+    html = page(deps)
+    assert ids_of(html)[0] == "glance"
+    assert re.search(r'<nav class="toc"[^>]*><a href="#glance">At a glance</a>', html)
+    glance = section(html, "glance")
+    cost = re.search(r'<svg[^>]*id="glance-cost"[^>]*>.*?</svg>', glance, re.S).group(0)
+    time = re.search(r'<svg[^>]*id="glance-time"[^>]*>.*?</svg>', glance, re.S).group(0)
+    assert "hidden" not in cost.split(">")[0] and "hidden" in time.split(">")[0]  # without JS, the cost view
+    for svg in (cost, time):
+        assert 'role="img"' in svg and "aria-labelledby" in svg
+        for name in ("FakeLLM (scripted)", "lazy-model", "acme/cloud-model"):
+            assert name in svg, name  # every point is labelled
+    assert "free" in cost  # $0 models sit in a labelled free lane
+    # Cloud and local differ by shape as well as colour: circles and squares
+    assert '<circle class="mark cloud"' in cost and '<rect class="mark local"' in cost
+    assert 'aria-pressed="true"' in glance and "Seconds per question" in glance  # the switch
+    assert "<figcaption" in glance and "<table" in glance  # a text alternative and the data as a table
+
+
+def test_a20_a_pass_fail_grid_of_questions_by_model_with_the_failed_checks(deps, runs):
+    html = page(deps)
+    grid = section(html, "grid")
+    assert "#grid" in html.split("</nav>")[0]
+    head = re.search(r"<thead>.*?</thead>", grid, re.S).group(0)
+    assert "FakeLLM (scripted)" in head and "lazy-model" in head  # a column per model
+    q2 = re.search(r'<tr><th scope="row">Q2 .*?</tr>', grid, re.S).group(0)
+    assert "Explain CVE-2024-8309" in q2  # the row names the question
+    assert q2.count('class="cell pass"') == 1 and q2.count('class="cell fail"') == 1  # FakeLLM passes, lazy fails
+    assert "✓" in q2 and "✕" in q2
+    failed = re.search(r'<td class="cell fail".*?</td>', q2, re.S).group(0)
+    # The failed checks by name: on hover (title) and in the cell's details, which a screen reader reads
+    assert re.search(r'title="Failed: [^"]*Right tools', failed)
+    assert re.search(r"<details>.*Right tools.*</details>", failed, re.S)
+    assert "<summary>" in failed
+    missing = re.search(r'<tr><th scope="row">Q1 .*?</tr>', grid, re.S).group(0)
+    assert "not asked" in missing  # the lazy run only asked Q2 and Q7
+
+
+def test_a20_embedder_bars_hit_rate_and_mrr_vector_against_hybrid(deps, runs):
+    emb = section(page(deps), "embedders")
+    for metric, key in (("hit", "hit_rate_at_5"), ("mrr", "mrr")):
+        svg = re.search(rf'<svg[^>]*id="bars-{metric}"[^>]*>.*?</svg>', emb, re.S).group(0)
+        assert 'role="img"' in svg
+        assert svg.count('class="bar s1"') == 2 and svg.count('class="bar s2"') == 2  # 2 embedders × vector, hybrid
+        for r in (runs["big"], runs["small"]):
+            for mode in ("vector", "hybrid"):
+                assert f'{r["modes"][mode][key]:.2f}' in svg  # each bar's value, labelled
+        assert "hash-4096" in svg and "hash-256" in svg
+    assert "Vector only" in emb and "Hybrid" in emb  # the legend
+    assert "Show as table" in emb
+
+
+def test_a20_the_off_topic_threshold_between_on_and_off_topic_scores(deps, runs):
+    html = page(deps)
+    assert "#threshold" in html.split("</nav>")[0]
+    t = section(html, "threshold")
+    svg = re.search(r"<svg[^>]*>.*</svg>", t, re.S).group(0)
+    assert 'role="img"' in svg and "<desc" in svg
+    on = len(runs["big"]["threshold"]["on_topic"]) + len(runs["small"]["threshold"]["on_topic"])
+    assert svg.count('class="mark on-topic"') == on
+    assert svg.count('class="mark off-topic"') == 2 * 15
+    assert svg.count('class="threshold"') == 2  # one line per embedder, at its threshold
+    assert f'{runs["big"]["threshold"]["min_score"]:.2f}' in svg
+    assert "On-topic" in t and "Off-topic" in t  # the legend
+    assert escape("What's a good pasta recipe?") in t  # the off-topic questions, in the table
+    assert "<figcaption" in t and "Show as table" in t
+
+
+def test_a20_an_older_retrieval_run_without_threshold_data_still_renders(deps, runs):
+    from app.evals.runs import RunStore, new_id
+
+    old = {k: v for k, v in runs["small"].items() if k != "threshold"} | {"id": new_id()}
+    RunStore.for_settings(deps.settings).save(retrieval.KIND, old)
+    html = page(deps)
+    t = section(html, "threshold")
+    assert "hash-256" in t and "No threshold data" in t  # said, not dropped
+    assert t.count('class="threshold"') == 1  # the newer-format run still draws
+    assert "hash-256" in section(html, "embedders")
+
+
+def test_a20_the_order_is_at_a_glance_then_findings_then_the_details_and_the_nav_follows_it(deps, runs):
+    html = page(deps)
+    order = ids_of(html)
+    assert order[:2] == ["glance", "findings"]
+    assert set(order) >= {"models", "grid", "failures", "embedders", "threshold", "explain-levels", "fix-first"}
+    nav = re.search(r'<nav class="toc".*?</nav>', html, re.S).group(0)
+    assert re.findall(r'href="#([^"]+)"', nav) == order
 
 
 def section(html: str, sid: str) -> str:

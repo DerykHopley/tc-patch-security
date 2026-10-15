@@ -11,7 +11,12 @@ Each question runs on two modes: `vector` (the embedder alone: what the comparis
 BM25 fused by RRF, as the chat searches, without the LLM's rewrites or filters). Rankings are by document: chunks are
 mapped to their document and repeats dropped. Hit rate at 5: share of questions with a right document in the top 5.
 MRR: the mean of 1 / rank of the first right document, counted to rank 10 (0 below that). The off-topic threshold is
-ignored here (it's tuned separately, A20): this measures the order.
+ignored here: this measures the order.
+
+Each run also records what the off-topic threshold (`vector.min_score`) is tuned on (A20): the top-1 vector score of
+every question above, threshold ignored; the same for the fixed OFF_TOPIC questions; and the threshold in use. A good
+threshold sits between the two groups. For each off-topic question it also counts BM25's matches: keyword search has
+no threshold, so this shows what hybrid search lets through.
 """
 import re
 import time
@@ -25,6 +30,17 @@ TOP = 5  # hit rate at 5
 DEPTH = 10  # MRR counts ranks up to here
 CHUNKS_K = 40  # chunks fetched per retriever: enough for 10 distinct documents
 MODES = ("vector", "hybrid")
+# The off-topic questions the thresholds in rag/embed.py MIN_SCORES were tuned on (2026-10-15). Fixed: change them
+# and old runs no longer compare.
+OFF_TOPIC = (
+    "What's a good pasta recipe?", "Who won the football world cup in 2022?",
+    "What's the weather like in Berlin tomorrow?", "Write me a poem about autumn leaves",
+    "How do I bake sourdough bread?", "Recommend a good science fiction novel", "What is the capital of Australia?",
+    "How many calories are in a banana?", "Explain how photosynthesis works",
+    "What are some tips for learning to play guitar?", "How do I change a flat tyre on a bicycle?",
+    "Plan a three-day trip to Rome", "What's the best way to train a puppy?", "How does the stock market work?",
+    "Translate 'good morning' into Spanish",
+)
 
 
 def _risk_name(title: str) -> str:
@@ -105,28 +121,41 @@ def _documents(chunk_ids: list[str], doc_of: dict[str, str]) -> list[str]:
     return list(dict.fromkeys(doc_of[c] for c in chunk_ids))[:DEPTH]
 
 
-def rank(question: str, vector, keyword, doc_of: dict[str, str]) -> dict[str, list[str]]:
-    """Document ids, best first, per mode."""
-    vec = [h.chunk.chunk_id for h in vector.search(question, CHUNKS_K, None, min_score=-1.0)]
+def rank(question: str, vector, keyword, doc_of: dict[str, str]) -> tuple[dict[str, list[str]], float | None]:
+    """Document ids, best first, per mode; and the top-1 vector score, threshold ignored (None: nothing to compare)."""
+    hits = vector.search(question, CHUNKS_K, None, min_score=-1.0)
+    vec = [h.chunk.chunk_id for h in hits]
     kw = [h.chunk.chunk_id for h in keyword.search(question, CHUNKS_K)]
     fused = [cid for cid, _ in rrf([vec, kw])]
-    return {"vector": _documents(vec, doc_of), "hybrid": _documents(fused, doc_of)}
+    return {"vector": _documents(vec, doc_of), "hybrid": _documents(fused, doc_of)}, _top(hits)
+
+
+def _top(hits) -> float | None:
+    return round(hits[0].score, 4) if hits else None
+
+
+def off_topic_scores(vector, keyword) -> list[dict]:
+    """Each off-topic question's top-1 vector score (threshold ignored) and how many chunks BM25 matches at all."""
+    return [{"question": q, "score": _top(vector.search(q, 1, None, min_score=-1.0)),
+             "keyword_hits": len(keyword.search(q, len(keyword.chunks)))} for q in OFF_TOPIC]
 
 
 def run(deps, vector, keyword) -> dict:
     """Ask every retrieval question of these retrievers (vector: a ChromaIndex), save the run and return it.
-    Synchronous: about 40 query embeddings, a few seconds even on a real embedder."""
+    Synchronous: about 60 query embeddings, a few seconds even on a real embedder."""
     started, clock = now(), time.perf_counter()
     doc_of = {c.chunk_id: c.doc_id for c in vector.chunks}
-    rows = []
+    rows, on_topic = [], []
     for q in retrieval_questions(deps.knowledge):
-        ranked = rank(q["question"], vector, keyword, doc_of)
+        ranked, top = rank(q["question"], vector, keyword, doc_of)
         rows.append({k: q[k] for k in ("id", "kind", "question", "expected")} | {"ranked": ranked})
+        on_topic.append({"id": q["id"], "score": top})
     modes = {m: metrics([r | {"ranked": r["ranked"][m]} for r in rows]) for m in MODES}
+    threshold = {"min_score": vector.min_score, "on_topic": on_topic, "off_topic": off_topic_scores(vector, keyword)}
     result = {"id": new_id(), "kind": "retrieval", "embedder": vector.embedder_name, "dim": vector.dim,
               "chunks": len(vector.chunks), "started": started, "finished": now(),
               "seconds": round(time.perf_counter() - clock, 3), "questions": len(rows), "modes": modes,
-              "results": rows}
+              "threshold": threshold, "results": rows}
     RunStore.for_settings(deps.settings).save(KIND, result)
     return result
 

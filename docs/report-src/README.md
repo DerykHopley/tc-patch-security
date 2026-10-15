@@ -10,5 +10,12 @@
     --out ../docs/report/index.html
   ```
 
+- The "Off-topic threshold" chart needs retrieval runs made since it was added (2026-10-15): older runs show "No threshold data". Run the retrieval check again for each embedder first. It asks about 60 questions and no model. Ollama is free; OpenRouter costs a fraction of a cent. Then build the report as above. It picks the newest run per embedder unless `--retrieval <ids>` names others.
+
+  ```bash
+  EMBEDDER=ollama EMBED_MODEL=nomic-embed-text INDEX_PATH=data/index-ollama-nomic uv run --env-file .env python -m app.evals retrieval
+  EMBEDDER=openrouter INDEX_PATH=data/index-openrouter uv run --env-file .env python -m app.evals retrieval
+  ```
+
 - `docs/report/index.html` is the published page. `.github/workflows/pages.yml` uploads only `docs/report/` to GitHub Pages, on a push to `main` or `spec-a` that changes it.
 - Before committing a new report, check it holds no key, no `.env` content and no course-brief text.

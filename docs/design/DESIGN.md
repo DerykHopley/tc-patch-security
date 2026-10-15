@@ -252,6 +252,8 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - Gridlines `--grid`, axis labels 11px `--muted`, value labels 11px `--text`.
 - Tooltip: `--text` background, `--surface` text, 4px radius, above the pointer.
 - Bars **grow in** on load (section 7). Horizontal bars grow from the chart's axis: the chart sets `--x0` (its label width) on the `<svg>`, so a stacked bar grows as one piece.
+- **Two series**: `--cat-1` circles, then `--cat-2` squares (the 3.2 order), so the shape tells them apart as well as the colour. `--cat-2` is 3.0:1 on the light surface: fine for marks, never for text (*checked*, 2026-10-15). Labels and values stay in `--text` or `--muted`.
+- **The model-check report** (`backend/app/evals/charts.py`, A20) is a static page, so its charts differ in three ways: no grow-in (a report is read, not watched); a native `<title>` tooltip instead of the app's tooltip; and a fixed viewBox with a minimum width, so on a narrow screen the chart scrolls inside its card ("Scroll sideways" hint) rather than shrinking its text below about 10px.
 
 ### 5.5 Embedding map (Dev panel)
 

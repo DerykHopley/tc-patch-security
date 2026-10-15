@@ -110,3 +110,23 @@ def test_a12_3_two_embedders_side_by_side(deps, knowledge, tmp_path):
     # The same questions for both, so the numbers compare. (Chroma's HNSW search is approximate, so the exact scores
     # can move a little between index builds: no test pins them.)
     assert [r["id"] for r in big["results"]] == [r["id"] for r in other["results"]]
+
+
+# --- A20: the off-topic threshold, seen from both sides ---------------------------------------------------------
+
+def test_a20_a_run_records_top_scores_for_on_and_off_topic_questions_and_the_threshold(deps):
+    from app.evals import retrieval
+
+    run = retrieval.run(deps, deps.index, deps.keyword)
+    t = run["threshold"]
+    assert t["min_score"] == deps.index.min_score
+    # Every on-topic question, scored with the threshold ignored: a cosine in [-1, 1]
+    assert [x["id"] for x in t["on_topic"]] == [r["id"] for r in run["results"]]
+    assert all(-1.0 <= x["score"] <= 1.0 for x in t["on_topic"])
+    # The 15 off-topic questions the thresholds were tuned on (2026-10-15), each with a BM25 hit count
+    assert len(t["off_topic"]) == 15
+    assert t["off_topic"][0]["question"] == "What's a good pasta recipe?"
+    assert t["off_topic"][-1]["question"] == "Translate 'good morning' into Spanish"
+    for x in t["off_topic"]:
+        assert -1.0 <= x["score"] <= 1.0 and isinstance(x["keyword_hits"], int) and x["keyword_hits"] >= 0
+    assert retrieval.listing(deps)[0]["threshold"]["min_score"] == t["min_score"]  # the listing keeps it
