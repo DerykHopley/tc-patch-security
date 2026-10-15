@@ -181,3 +181,13 @@ def test_a12_2_model_check_routes_are_404_when_the_dev_panel_is_off(settings, kn
     off = TestClient(create_app(build_deps(replace(settings, dev_panel=False), knowledge=knowledge, index=index)))
     assert off.post("/dev/model-check", json={}).status_code == 404
     assert off.get("/dev/model-checks").status_code == 404
+
+
+# --- A20: what the first real runs showed ------------------------------------------------------------------------
+
+def test_a20_key_fact_accepts_curly_apostrophes():
+    """Real models write "can’t" and "couldn’t" (U+2019); the expected phrases use a straight apostrophe."""
+    refusal = {"contains_any": ["can't", "won't"]}
+    assert by_name(score(refusal, reply("I’m sorry, but I can’t help with that.")))["key_fact"].passed
+    missing = {"contains_any": ["couldn't find"]}
+    assert by_name(score(missing, reply("I couldn’t find CVE-1999-0001.")))["key_fact"].passed

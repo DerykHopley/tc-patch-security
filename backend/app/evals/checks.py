@@ -57,7 +57,7 @@ def _filters(expect: dict, r: ChatReply) -> Check | None:
 def _key_fact(expect: dict, r: ChatReply) -> Check | None:
     if "contains_any" not in expect:
         return None
-    text = r.answer.lower()
+    text = r.answer.lower().replace("\u2019", "'")  # real models write "can’t": the phrases use a straight '
     passed = any(p.lower() in text for p in expect["contains_any"])
     return Check("key_fact", passed, "one of: " + " | ".join(expect["contains_any"]), _short(r.answer))
 

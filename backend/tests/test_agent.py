@@ -50,3 +50,27 @@ def test_a06_1_unscripted_weakness_question(deps):
 
 def test_a06_1_flags_passed_through(deps):
     assert answer("hi", [], deps, flags=["injection_phrasing"]).flags == ["injection_phrasing"]
+
+
+class HyphenLLM(FakeLLM):
+    """Answers as gpt-oss and granite did: CVE ids with non-breaking hyphens (U+2011)."""
+
+    def step(self, messages, tools):
+        return LLMReply(content="Fix CVE‑2025‑3248 first, then CVE‐2026‐33017.", input_tokens=1,
+                        output_tokens=1, estimated=True)
+
+
+def test_a20_unicode_hyphens_in_answers_become_plain_hyphens(deps):
+    """A CVE id with U+2011 looks right but isn't searchable or copyable into NVD: the answer uses plain hyphens."""
+    deps.llm = HyphenLLM()
+    reply = answer("What should I fix first?", [], deps)
+    assert reply.answer == "Fix CVE-2025-3248 first, then CVE-2026-33017."
+
+
+def test_a20_the_citation_rule_covers_every_tool():
+    """The first real runs: no model cited prioritise's or lookup_cve's sources, because the [n] rule sat in the
+    search_security line. It now stands on its own and names the other tools' sources."""
+    from app.agent import SYSTEM_PROMPT
+    rule = next(line for line in SYSTEM_PROMPT.splitlines() if "[n]" in line)
+    assert "search_security" not in rule.split("[n]")[0]
+    assert "every tool" in rule

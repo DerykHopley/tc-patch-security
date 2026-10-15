@@ -14,8 +14,9 @@ from app.tools.registry import Context, run_tool, tool_schemas
 SYSTEM_PROMPT = """You are a security assistant for people who build applications with large language models.
 You cover LLM application risks (OWASP Top 10 for LLM apps), web application risks (OWASP Top 10), attacks on AI
 systems (MITRE ATLAS), and vulnerabilities in LLM products such as LangChain, Langflow, Ollama and vLLM.
-- Use search_security for questions about risks, attacks, defences and vulnerabilities. Cite sources as [n], using
-  the numbers the tools give you. Never cite a number a tool didn't give.
+- Use search_security for questions about risks, attacks, defences and vulnerabilities.
+- Cite sources as [n], using the numbers every tool gives you: search_security, lookup_cve, check_affected and
+  prioritise all number their sources. Never cite a number a tool didn't give.
 - Use lookup_cve for a specific CVE id, explain_weakness for a CWE or ATLAS technique id, and update_watchlist when
   the user wants to watch a product or mark a CVE as fixed, not affected or open.
 - Use prioritise when the user asks what to fix first. Its order comes from fixed priority rules, not from you.
@@ -32,6 +33,10 @@ systems (MITRE ATLAS), and vulnerabilities in LLM products such as LangChain, La
 - Politely refuse questions outside application and AI security. Keep the refusal short.
 - Pitch the answer at the explain level below. Every level uses the same tools, sources, facts and citations; only
   the wording changes."""
+
+# Some models (gpt-oss, granite) write CVE-2025-3248 with U+2010/U+2011 hyphens: it looks right but can't be searched
+# or pasted into NVD. Answers use the plain hyphen (A20).
+PLAIN_HYPHENS = str.maketrans({"\u2010": "-", "\u2011": "-"})
 
 # One line per explain level (A19), added at the end of the system prompt. Nothing else changes with the level.
 LEVEL_LINES: dict[str, str] = {
@@ -97,6 +102,7 @@ def answer(message: str, history: list[dict], deps, max_steps: int = MAX_STEPS,
         if found:
             final += f" Here is what I found so far:\n\n{found}"
 
+    final = final.translate(PLAIN_HYPHENS)
     checked = check_citations(final, {s.n for s in ctx.sources})
     return ChatReply(answer=checked.answer, sources=ctx.sources, tool_calls=records, query=ctx.query,
                      usage=ctx.usage, steps=steps, flags=flags or [], bad_citations=checked.bad,
