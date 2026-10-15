@@ -1,17 +1,81 @@
 """lookup_cve (T2): one CVE from the snapshot, with OWASP, KEV and watchlist context."""
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, StringConstraints
 
 from app.errors import ToolError
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
-from app.tools.registry import ToolSpec, register
+from app.status import JUSTIFICATIONS, STATUSES
+from app.tools.registry import (Category, PriorityLevel, Severity, ToolResult, ToolSpec, Verdict, WatchStatus,
+                                WhoActs, register)
 from app.watched import WatchedCves
 
 
 class CveArgs(BaseModel):
     cve_id: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, pattern=r"(?i)^CVE-\d{4}-\d{4,}$")]
+
+
+class Kev(ToolResult):
+    date_added: str
+    deadline: str  # CISA's date, not the user's due date
+    ransomware: str
+    required_action: str
+
+
+class Epss(ToolResult):
+    score: float
+    percentile: float
+    date: str
+
+
+class Decision(ToolResult):
+    """The user's current decision record (app.status, A16b)."""
+    status: Literal[STATUSES]  # type: ignore[valid-type]
+    justification: Literal[JUSTIFICATIONS] | None  # type: ignore[valid-type]
+    reason: str | None
+    note: str | None
+    review_date: str | None
+    compensating_control: str | None
+    decided_at: str | None  # None: recorded before decision records
+    decided_by: str | None
+    via: str | None
+
+
+class Priority(ToolResult):
+    level: PriorityLevel
+    reasons: list[str]
+    due_date: str
+    due_from: str
+    overdue: bool
+    alert_priority: int
+
+
+class CveResult(ToolResult):
+    n: int
+    id: str
+    product: str
+    published: str
+    severity: Severity | None
+    cvss: float | None
+    cwes: list[str]
+    owasp: Category | None
+    description: str
+    url: str
+    kev: Kev | None
+    watch_status: WatchStatus
+    epss: Epss | None
+    product_match: Literal["confirmed", "conflicting", "unknown"] | None
+    possible_match: bool
+    verdict: Verdict
+    verdict_reason: str
+    fixed_version: str | None
+    who_acts: WhoActs
+    no_fix: bool
+    decision: Decision | None
+    review_due: bool
+    open_days: int
+    priority: Priority | None  # None off the watchlist
 
 
 def run(args: CveArgs, deps, ctx) -> dict:
@@ -59,5 +123,6 @@ register(ToolSpec(
                 "justification, review date) and no_fix: true when no fixed version exists yet, so it isn't overdue; "
                 "the user may accept the risk on the CVEs page. You may suggest that, never set it.",
     args_model=CveArgs,
+    result=CveResult,
     run=run,
 ))

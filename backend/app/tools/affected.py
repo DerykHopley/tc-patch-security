@@ -10,7 +10,7 @@ from pydantic import BaseModel, StringConstraints, model_validator
 from app.errors import ToolError
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
-from app.tools.registry import ToolSpec, register
+from app.tools.registry import Severity, ToolResult, ToolSpec, Verdict, WatchStatus, WhoActs, register
 from app.verdict import USAGE_LABELS
 from app.watched import WatchedCves
 
@@ -29,6 +29,49 @@ class AffectedArgs(BaseModel):
         if not (self.cve_id or self.product):
             raise ValueError("give a cve_id, a product, or both")
         return self
+
+
+class AffectedOne(ToolResult):
+    """One CVE's verdict."""
+    n: int
+    id: str
+    product: str
+    severity: Severity | None
+    verdict: Verdict
+    reason: str
+    fixed_version: str | None
+    who_acts: WhoActs
+    usage: str  # in words: "self-hosted app"
+    version: str | None
+    watch_status: WatchStatus
+    possible_match: bool
+    note: str
+
+
+class VerdictCounts(ToolResult):
+    affected: int
+    unknown: int
+    not_affected: int
+
+
+class AffectedRow(ToolResult):
+    id: str
+    severity: Severity | None
+    verdict: Verdict
+    reason: str
+    fixed_version: str | None
+
+
+class AffectedProduct(ToolResult):
+    """A watched product's open CVEs by verdict."""
+    product: str
+    usage: str
+    version: str | None
+    open: int
+    counts: VerdictCounts
+    cves: list[AffectedRow]  # the first LISTED, what needs you first
+    who_acts: WhoActs | None  # None when nothing is open
+    note: str
 
 
 def _one(cve: dict, deps, ctx, watched: WatchedCves) -> dict:
@@ -83,5 +126,6 @@ register(ToolSpec(
                 "product. Give cve_id for one CVE, or product for that watched product's open CVEs by verdict. "
                 "Read-only: report the verdict, never mark a CVE not affected yourself.",
     args_model=AffectedArgs,
+    result=AffectedOne | AffectedProduct,
     run=run,
 ))

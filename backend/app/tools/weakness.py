@@ -1,15 +1,55 @@
 """explain_weakness (T3): a CWE → OWASP category; an ATLAS technique → tactics, mitigations, LLM Top 10."""
 import re
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.errors import ToolError
-from app.tools.registry import ToolSpec, register
+from app.tools.registry import Category, Severity, ToolResult, ToolSpec, register
 
 
 class WeaknessArgs(BaseModel):
     id: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, min_length=3, max_length=20)]
+
+
+class CweExample(ToolResult):
+    id: str
+    product: str
+    severity: Severity | None
+
+
+class CweResult(ToolResult):
+    kind: Literal["cwe"]
+    id: str
+    url: str
+    category: Category | None  # None: in no OWASP Top 10 2025 category
+    cves_in_snapshot: int
+    examples: list[CweExample]  # up to 3
+
+
+class Named(ToolResult):
+    id: str
+    name: str
+
+
+class CitedBy(ToolResult):
+    code: str
+    title: str
+
+
+class TechniqueResult(ToolResult):
+    kind: Literal["atlas_technique"]
+    id: str
+    name: str
+    url: str
+    tactics: list[str]
+    maturity: str
+    description: str  # the first 800 characters
+    parent: str | None
+    subtechniques: list[Named]
+    mitigations: list[Named]
+    cited_by_llm_top10: list[CitedBy]
+    case_studies: int
 
 
 def _family(tid: str) -> set[str]:
@@ -62,5 +102,6 @@ register(ToolSpec(
     description="Explain a weakness id: a CWE (e.g. CWE-918) gives its OWASP Top 10 category and CVE count; "
                 "an ATLAS technique (e.g. AML.T0051) gives tactics, mitigations and the LLM Top 10 risks citing it.",
     args_model=WeaknessArgs,
+    result=Annotated[CweResult | TechniqueResult, Field(discriminator="kind")],
     run=run,
 ))

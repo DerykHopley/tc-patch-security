@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, StringConstraints, model_validator
 
 from app.errors import InputError, ToolError
-from app.tools.registry import ToolSpec, register
+from app.tools.registry import ToolResult, ToolSpec, register
 from app.status import JUSTIFICATIONS
 from app.verdict import USAGE_LABELS, USAGES
 
@@ -30,6 +30,11 @@ class WatchArgs(BaseModel):
         if self.action == "set_status" and not (self.cve_id and self.status):
             raise ValueError("'set_status' needs cve_id and status")
         return self
+
+
+class WatchlistResult(ToolResult):
+    message: str
+    watchlist: list[str]  # the products' names, after the change
 
 
 def run(args: WatchArgs, deps, ctx) -> dict:
@@ -74,6 +79,7 @@ register(ToolSpec(
                 "or 'set_details' with a product and any of usage (self_hosted, library, transitive, hosted), "
                 "version, internet_facing.",
     args_model=WatchArgs,
+    result=WatchlistResult,
     # Accepting a risk isn't offered here: the user does it on the CVEs page with a reason and a review date.
     run=run,
 ))

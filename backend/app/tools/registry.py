@@ -1,10 +1,16 @@
-"""Tool specs, their JSON schemas for the LLM, and run_tool(): validate → run → time → record (T5, T6)."""
+"""Tool specs, their JSON schemas for the LLM, and run_tool(): validate → run → check the result → time → record
+(T5, T6).
+
+Each tool declares its result's shape (architecture review, candidate 6): a ToolResult model, or a union of them.
+run_tool checks every result against it, so a drifting shape is a tool_failed record, never a silently wrong FakeLLM
+template or an empty card. The frontend's types (frontend/src/toolResults.ts) are written from the same models.
+"""
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Any, Callable, Literal
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 from app.errors import LLMError, ToolError
 from app.llm.base import LLMReply, ToolCall
@@ -30,12 +36,41 @@ class Context:
         self.usage.estimated = self.usage.estimated or reply.estimated
 
 
+class ToolResult(BaseModel):
+    """A tool result's declared shape: every key it has, and nothing else."""
+    model_config = ConfigDict(extra="forbid")
+
+
+# Values several tools' results share. Severity "NONE": NVD scored the CVE with nothing to score; None: not scored.
+Severity = Literal["CRITICAL", "HIGH", "MEDIUM", "LOW", "NONE"]
+Verdict = Literal["affected", "not_affected", "unknown"]
+WhoActs = Literal["you", "upstream", "vendor"]
+WatchStatus = Literal["open", "fixed", "not_affected", "accepted", "not_watched"]
+PriorityLevel = Literal["urgent", "high", "normal", "low"]
+
+
+class Category(ToolResult):
+    """An OWASP Top 10 category."""
+    code: str
+    title: str
+    url: str
+
+
 @dataclass
 class ToolSpec:
     name: str
     description: str
     args_model: type[BaseModel]
-    run: Callable  # (args, deps, ctx) -> dict
+    result: Any  # a ToolResult model, or a union of them (Annotated with a discriminator where there is one)
+    run: Callable  # (args, deps, ctx) -> dict, in the shape of `result`
+
+    def __post_init__(self):
+        self.results = TypeAdapter(self.result)
+
+    def check(self, result: dict) -> dict:
+        """The result as is, once it matches the declared shape. Raises ValidationError if it doesn't."""
+        self.results.validate_python(result)
+        return result
 
     def schema(self) -> dict:
         params = self.args_model.model_json_schema()
@@ -75,13 +110,18 @@ def run_tool(call: ToolCall, deps, ctx: Context) -> ToolCallRecord:
     except ValidationError as e:
         return record("error", error={"code": "bad_arguments", "message": _plain(e)})
     try:
-        return record("ok", result=spec.run(args, deps, ctx))
+        result = spec.run(args, deps, ctx)
     except ToolError as e:
         return record("error", error={"code": e.code, "message": e.message})
     except LLMError:
         raise  # search_security calls the LLM; its failure is an HTTP 502, not a tool error (V6)
     except Exception:
         log.exception("tool %s failed", call.name)
+        return record("error", error={"code": "tool_failed", "message": f"The {call.name} tool failed unexpectedly."})
+    try:
+        return record("ok", result=spec.check(result))
+    except ValidationError as e:  # the tool's code drifted from its declared result: a bug, not the model's mistake
+        log.error("tool %s returned a result that doesn't match its declared shape: %s", call.name, e)
         return record("error", error={"code": "tool_failed", "message": f"The {call.name} tool failed unexpectedly."})
 
 

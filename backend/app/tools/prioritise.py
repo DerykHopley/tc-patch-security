@@ -9,7 +9,7 @@ On the dashboard the page's product filter may hold several products (A15b, `lan
 left out and listed; a `product` argument among them narrows the view and keeps its other filters.
 Read-only: it changes no status.
 """
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -17,7 +17,7 @@ from app.cve_filters import CveView
 from app.errors import ToolError
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
-from app.tools.registry import ToolSpec, register
+from app.tools.registry import PriorityLevel, Severity, ToolResult, ToolSpec, Verdict, register
 from app.watched import WatchedCves
 
 DEFAULT_LIMIT = 5  # the dashboard's Top 5
@@ -29,6 +29,44 @@ NOTE = ("This order comes from fixed priority rules: most urgent level first, th
 class PrioritiseArgs(BaseModel):
     product: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)] | None = None
     limit: int = Field(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT)
+
+
+class Filters(ToolResult):
+    """The view's filters that were applied (CveView's names, without status). A filter that isn't set is absent."""
+    product: str = None  # type: ignore[assignment]  # one id, or several: "langflow,ollama"
+    severity: Literal["CRITICAL", "HIGH", "MEDIUM", "LOW"] = None  # type: ignore[assignment]
+    verdict: Verdict = None  # type: ignore[assignment]
+    kev: bool = None  # type: ignore[assignment]
+    since: str = None  # type: ignore[assignment]  # YYYY-MM-DD
+
+
+class FixFirstCve(ToolResult):
+    rank: int
+    n: int
+    id: str
+    product: str
+    severity: Severity | None
+    kev: bool
+    epss_percentile: float | None
+    verdict: Verdict
+    status: Literal["open", "accepted"]  # accepted: its review is due
+    review_due: bool
+    priority: PriorityLevel
+    reasons: list[str]
+    due_date: str
+    due_from: str
+    overdue: bool
+    no_fix: bool
+    open_days: int
+
+
+class FixFirstResult(ToolResult):
+    filters: Filters
+    ignored: list[str]  # the page's filters not applied, each with why
+    product: str | None  # the products' names, comma-separated
+    total_open: int
+    cves: list[FixFirstCve]  # in the rules' order
+    note: str
 
 
 def _label(key: str, value) -> str:
@@ -91,5 +129,6 @@ register(ToolSpec(
                 "(its filters) automatically. Give product to look at one watched product; limit (1-10, default 5). "
                 "Explain the order from the reasons; never re-rank it.",
     args_model=PrioritiseArgs,
+    result=FixFirstResult,
     run=run,
 ))
