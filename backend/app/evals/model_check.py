@@ -1,0 +1,188 @@
+"""Run the scripted questions against the saved model and score each answer with the exact checks (checks.py).
+
+A run happens in a background thread, on a copy of the state: Q9 and Q10 change the watchlist, and the real one must
+not change. The model is fixed when the run starts, so switching models on the Dev page mid-run doesn't mix two
+models in one run. Each run is saved (runs.py) with model, provider, per-check scores, per-question cost and time,
+and totals.
+
+The questions are the scripts in fixtures/fake_script.json that have an `expect`. A new question is a new script
+there (FakeLLM must pass it); a new kind of check is a new function in checks.CHECKS.
+"""
+import dataclasses
+import json
+import tempfile
+import threading
+import time
+from pathlib import Path
+
+from app.chat_turn import turn
+from app.config import FIXTURES
+from app.errors import InputError, LLMError
+from app.evals.checks import cited, fix_first_lists, score, score_levels
+from app.evals.readability import flesch_reading_ease
+from app.evals.runs import LISTED, RunStore, new_id, now
+from app.schemas import ChatRequest
+
+KIND = "models"
+# These errors fail every question the same way: stop instead of waiting through the rest.
+FATAL = ("Can't reach", "doesn't have the model", "can't serve the model", "rejected the API key", "spending cap")
+
+_live: dict[str, dict] = {}  # runs in progress, by id; finished runs are read from their file
+_lock = threading.Lock()
+
+
+def questions() -> list[dict]:
+    return [s for s in json.loads((FIXTURES / "fake_script.json").read_text())["scripts"] if "expect" in s]
+
+
+def _pick(ids: list[str] | None) -> list[dict]:
+    qs = questions()
+    if not ids:
+        return qs
+    known = {q["id"] for q in qs}
+    if unknown := [i for i in ids if i not in known]:
+        raise InputError(f"No model-check question {', '.join(unknown)}. Questions: {', '.join(sorted(known))}.")
+    return [q for q in qs if q["id"] in ids]
+
+
+def _pinned(llm):
+    """The model behind the router right now (A11's LLMRouter picks per call)."""
+    return llm.current() if hasattr(llm, "current") else llm
+
+
+def _level_row(r) -> dict:
+    """One explain level's answer, for the report's readability section (A19)."""
+    ease = flesch_reading_ease(r.answer)
+    return {"answer": r.answer, "reading_ease": None if ease is None else round(ease, 1),
+            "words": len(r.answer.split()), "cited": cited(r)}
+
+
+def _ask(q: dict, deps) -> dict:
+    row = {"id": q["id"], "question": q["question"], "passed": False, "checks": {}, "failures": [], "tools": [],
+           "answer": "", "seconds": 0.0, "cost": 0.0, "tokens_in": 0, "tokens_out": 0, "llm_calls": 0, "steps": 0,
+           "sources": 0, "bad_citations": [], "no_citations": False, "estimated": False, "error": None}
+    start = time.perf_counter()
+    try:
+        levels = q["expect"].get("levels") or ["normal"]  # A19: asked once per explain level, never the saved one
+        replies = {lv: turn(ChatRequest(message=q["question"], explain_level=lv, page=q.get("page")), deps)
+                   for lv in levels}  # the same turn as /chat, with the question's page context if it has one
+        reply = replies["normal"] if "normal" in replies else next(iter(replies.values()))
+        checks = score_levels(q["expect"], replies) if len(replies) > 1 else score(q["expect"], reply)
+        every = list(replies.values())
+        row |= {"checks": {c.name: c.passed for c in checks},
+                "failures": [c.to_dict() for c in checks if not c.passed],
+                "passed": all(c.passed for c in checks), "tools": [t.name for t in reply.tool_calls],
+                "answer": reply.answer, "cost": sum(r.usage.cost for r in every),
+                "tokens_in": sum(r.usage.input_tokens for r in every),
+                "tokens_out": sum(r.usage.output_tokens for r in every),
+                "llm_calls": sum(r.usage.llm_calls for r in every), "steps": sum(r.steps for r in every),
+                "sources": len(reply.sources), "bad_citations": sorted({n for r in every for n in r.bad_citations}),
+                "no_citations": any(r.no_citations for r in every), "estimated": any(r.usage.estimated for r in every)}
+        if q.get("page"):  # the checked page context it was asked from, for the report
+            row["page"] = reply.page_context
+        if len(replies) > 1:
+            row["levels"] = {lv: _level_row(r) for lv, r in replies.items()}
+        if q["expect"].get("fix_first") and (lists := fix_first_lists(reply)):  # the report's "fix first" (A18)
+            row["fix_first"] = {"rules": lists[0], "answer": lists[1], "total_open": lists[2]}
+    except LLMError as e:
+        row["error"] = e.public or e.message
+    except Exception as e:  # noqa: BLE001 - one bad question shouldn't stop the run
+        row["error"] = f"{type(e).__name__}: {e}"
+    row["seconds"] = round(time.perf_counter() - start, 3)
+    return row
+
+
+def summarise(rows: list[dict]) -> dict:
+    """Totals over a run's rows. Pure, so the report can recompute it."""
+    by_check: dict[str, dict] = {}
+    for r in rows:
+        for name, ok in r["checks"].items():
+            c = by_check.setdefault(name, {"passed": 0, "total": 0})
+            c["passed"] += ok
+            c["total"] += 1
+    answered = [r for r in rows if not r["error"]]
+    seconds = sum(r["seconds"] for r in answered)
+    cost = sum(r["cost"] for r in rows)
+    return {
+        "questions": len(rows), "passed": sum(r["passed"] for r in rows), "errors": len(rows) - len(answered),
+        "checks_passed": sum(c["passed"] for c in by_check.values()),
+        "checks_total": sum(c["total"] for c in by_check.values()), "by_check": by_check,
+        "seconds_total": round(seconds, 3), "avg_seconds": round(seconds / len(answered), 3) if answered else None,
+        "cost_total": round(cost, 8), "avg_cost": round(cost / len(rows), 8) if rows else None,
+        "tokens_in": sum(r["tokens_in"] for r in rows), "tokens_out": sum(r["tokens_out"] for r in rows),
+        "estimated": any(r["estimated"] for r in rows),
+        "bad_citations": sum(len(r["bad_citations"]) for r in rows),
+        "no_citations": sum(r["no_citations"] for r in rows),
+    }
+
+
+def _run(run: dict, qs: list[dict], deps, store: RunStore) -> None:
+    tmp = tempfile.TemporaryDirectory()
+    status = "done"
+    try:
+        state = deps.state.fork(Path(tmp.name) / "state.json")  # a copy: the watchlist questions write here
+        run_deps = dataclasses.replace(deps, state=state, llm=_pinned(deps.llm))
+        for q in qs:
+            row = _ask(q, run_deps)
+            with _lock:
+                run["results"].append(row)
+            if row["error"] and any(p in row["error"] for p in FATAL):
+                run["error"] = row["error"]
+                break
+    except Exception as e:  # noqa: BLE001
+        status, run["error"] = "failed", f"{type(e).__name__}: {e}"
+    finally:
+        tmp.cleanup()
+        with _lock:  # the status changes last, with the summary: a poller never sees "done" without one
+            run["finished"] = now()
+            run["summary"] = summarise(run["results"])
+            run["status"] = status
+            store.save(KIND, run)
+            _live.pop(run["id"], None)
+
+
+def start(deps, ids: list[str] | None = None, wait: bool = False) -> dict:
+    """Start a run in the background and return it (status "running"). One run at a time."""
+    qs = _pick(ids)
+    store = RunStore.for_settings(deps.settings)
+    llm = _pinned(deps.llm)
+    dev = deps.dev()
+    with _lock:
+        if _live:
+            raise InputError("A model check is already running. Wait for it to finish.")
+        run = {"id": new_id(), "kind": "model", "status": "running", "model": llm.label(), "provider": llm.name,
+               "started": now(), "finished": None, "total": len(qs), "results": [], "error": None, "summary": None,
+               "settings": dev.model_dump(exclude={"local_url"}), "embedder": deps.index.embedder_name}
+        _live[run["id"]] = run
+    thread = threading.Thread(target=_run, args=(run, qs, deps, store), daemon=True)
+    thread.start()
+    if wait:  # the command line waits; the dev panel polls
+        thread.join()
+    return get(deps, run["id"])  # type: ignore[return-value]
+
+
+def get(deps, run_id: str) -> dict | None:
+    with _lock:
+        if run_id in _live:
+            return json.loads(json.dumps(_live[run_id]))
+    return RunStore.for_settings(deps.settings).get(KIND, run_id)
+
+
+def openrouter_scores(deps) -> dict[str, dict]:
+    """Each OpenRouter model's latest finished run: questions passed of those asked (the Dev page's dropdown)."""
+    scores: dict[str, dict] = {}
+    for r in RunStore.for_settings(deps.settings).all(KIND):  # newest first: the first seen per model is the latest
+        if r.get("provider") != "openrouter" or r.get("status") != "done" or not r.get("summary"):
+            continue
+        model = (r.get("settings") or {}).get("openrouter_model") or str(r.get("model", "")).removeprefix(
+            "OpenRouter · ")
+        scores.setdefault(model, {"passed": r["summary"]["passed"], "total": r["summary"]["questions"],
+                                  "run": r["id"]})
+    return scores
+
+
+def listing(deps) -> list[dict]:
+    """Saved runs, newest first, without the per-question rows (the dev panel's list and comparison)."""
+    keep = ("id", "kind", "model", "provider", "started", "finished", "status", "total", "error", "summary",
+            "embedder")
+    return [{k: r.get(k) for k in keep} for r in RunStore.for_settings(deps.settings).all(KIND)[:LISTED]]

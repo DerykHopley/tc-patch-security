@@ -1,0 +1,34 @@
+# Publishes the review pages in docs/report/, and only those, on GitHub Pages: the model-check report
+# (index.html, built locally from the saved runs, which need the key and the GPU) and the architecture
+# review (architecture-review.html). Only that folder is uploaded: no other repo file goes to Pages.
+name: Pages
+
+on:
+  push:
+    branches: [main, spec-a]
+    paths: [docs/report/**]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/report
+      - id: deployment
+        uses: actions/deploy-pages@v5

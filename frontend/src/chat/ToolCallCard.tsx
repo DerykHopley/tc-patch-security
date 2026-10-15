@@ -1,0 +1,248 @@
+import type { ReactNode } from 'react'
+import type { ToolCallRecord, Verdict } from '../api.ts'
+import { contextWords, STATUS_LABEL as CVE_STATUS_LABEL } from '../cveView.ts'
+import { OverdueMark, PriorityChip } from '../components/Priority.tsx'
+import { NoFixMark } from '../components/Decision.tsx'
+import { epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
+import { VERDICT_LABEL, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
+import { SeverityBadge } from '../components/SeverityBadge.tsx'
+import type {
+  AffectedOne,
+  AffectedProduct,
+  CveResult,
+  CweResult,
+  FixFirstResult,
+  TechniqueResult,
+  WatchlistResult,
+} from '../toolResults.ts'
+
+// One card per tool call: name, arguments, status, time, and the result drawn for its tool. Errors in red.
+// Result types come from the tools' declared result models (toolResults.ts, generated from backend/app/tools/).
+
+const STATUS_LABEL = { ...CVE_STATUS_LABEL, not_watched: 'Not watched' }
+
+const External = ({ href, children }: { href: string; children: ReactNode }) => (
+  <a href={href} target="_blank" rel="noreferrer">
+    {children}
+  </a>
+)
+
+function CveCard({ r }: { r: CveResult }) {
+  return (
+    <div className="result-card cve-card">
+      <p className="result-title">
+        <External href={r.url}>{r.id}</External> · {r.product}
+      </p>
+      <div className="chips">
+        <SeverityBadge severity={r.severity} cvss={r.cvss} />
+        {r.kev && <span className="chip kev">CISA KEV · KEV deadline {r.kev.deadline}</span>}
+        {r.priority && <PriorityChip level={r.priority.level} />}
+        <span className="chip">
+          {STATUS_LABEL[r.watch_status]}
+          {r.review_due ? ' · review due' : ''}
+        </span>
+        {r.possible_match && <PossibleMatch />}
+        {r.verdict && <VerdictChip verdict={r.verdict} />}
+      </div>
+      {r.priority && (
+        <p className="meta">
+          Priority: {r.priority.reasons.join(' · ')} · {r.no_fix ? 'decide by' : 'due'} {r.priority.due_date}{' '}
+          ({r.priority.due_from})
+          {r.priority.overdue && <OverdueMark />}
+          {r.no_fix && r.watch_status === 'open' && <NoFixMark days={r.open_days} />}
+        </p>
+      )}
+      {r.watch_status === 'accepted' && r.decision?.reason && (
+        <p className="meta">
+          Accepted: {r.decision.reason}
+          {r.decision.review_date ? ` · review ${r.decision.review_date}` : ''}
+        </p>
+      )}
+      {r.verdict_reason && <p className="meta">Verdict: {r.verdict_reason}</p>}
+      {r.epss && (
+        <p className="meta">
+          EPSS {epssScore(r.epss)} · {epssPercentile(r.epss)} · EPSS by FIRST, {r.epss.date}
+        </p>
+      )}
+      <p className="meta">
+        Published {r.published} · {r.cwes.join(', ') || 'no CWE'}
+        {r.owasp && (
+          <>
+            {' · '}
+            <External href={r.owasp.url}>{r.owasp.title}</External>
+          </>
+        )}
+      </p>
+    </div>
+  )
+}
+
+function AffectedCard({ r }: { r: AffectedOne | AffectedProduct }) {
+  if ('counts' in r) {
+    return (
+      <div className="result-card affected-card">
+        <p className="result-title">
+          {r.product} · {r.usage} · {r.version ? `version ${r.version}` : 'no version given'}
+        </p>
+        <p className="meta">
+          {r.open} open: {(['affected', 'unknown', 'not_affected'] as Verdict[])
+            .map((v) => `${r.counts[v]} ${VERDICT_LABEL[v].toLowerCase()}`)
+            .join(', ')}
+        </p>
+        <ul className="affected-list">
+          {r.cves.map((c) => (
+            <li key={c.id}>
+              {c.id} <VerdictChip verdict={c.verdict} /> <span className="meta">{c.reason}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+  return (
+    <div className="result-card affected-card">
+      <p className="result-title">
+        {r.id} · {r.product} · {r.usage}
+        {r.version ? ` ${r.version}` : ''}
+      </p>
+      <div className="chips">
+        <VerdictChip verdict={r.verdict} />
+        <SeverityBadge severity={r.severity} cvss={null} />
+        {r.possible_match && <PossibleMatch />}
+      </div>
+      <p className="meta verdict-lines">
+        <VerdictFacts reason={r.reason} fixed={r.fixed_version} who={r.who_acts} />
+      </p>
+    </div>
+  )
+}
+
+function WeaknessCard({ r }: { r: CweResult | TechniqueResult }) {
+  if (r.kind === 'cwe') {
+    return (
+      <div className="result-card weakness-card">
+        <p className="result-title">
+          <External href={r.url}>{r.id}</External>
+        </p>
+        <p className="meta">
+          {r.category ? (
+            <>
+              OWASP 2025: <External href={r.category.url}>{r.category.title}</External>
+            </>
+          ) : (
+            'Not in any OWASP Top 10 2025 category'
+          )}
+          {' · '}
+          {r.cves_in_snapshot} CVEs in the snapshot
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div className="result-card weakness-card">
+      <p className="result-title">
+        <External href={r.url}>
+          {r.id} {r.name}
+        </External>
+      </p>
+      <p className="meta">
+        {r.tactics?.join(', ')} · {r.maturity}
+      </p>
+      {!!r.cited_by_llm_top10?.length && (
+        <p className="meta">Cited by: {r.cited_by_llm_top10.map((c) => c.title).join(', ')}</p>
+      )}
+      {!!r.mitigations?.length && (
+        <ul className="mitigations">
+          {r.mitigations.map((m) => (
+            <li key={m.id}>
+              {m.id} {m.name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function FixFirstCard({ r }: { r: FixFirstResult }) {
+  const view = contextWords(r.filters, r.product ?? undefined).join(', ')
+  return (
+    <div className="result-card fix-first-card">
+      <p className="result-title">
+        {r.total_open} open{view ? ` · ${view}` : ' on your watchlist'} · in the rules' order
+      </p>
+      {r.ignored.map((i) => (
+        <p key={i} className="meta">
+          Not applied: {i}
+        </p>
+      ))}
+      {r.cves.length === 0 ? (
+        <p className="meta">Nothing open in this view.</p>
+      ) : (
+        <ol className="fix-list">
+          {r.cves.map((c) => (
+            <li key={c.id}>
+              <span className="fix-head">
+                <strong>{c.id}</strong>
+                <PriorityChip level={c.priority} />
+                <SeverityBadge severity={c.severity} cvss={null} />
+                {c.kev && <span className="chip kev">KEV</span>}
+                {c.review_due && <span className="chip review-due">Review due</span>}
+                {c.no_fix && <NoFixMark days={c.open_days} />}
+                {c.overdue && <OverdueMark />}
+              </span>
+              <span className="meta">
+                {c.product} · {c.reasons.join(' · ')} · {c.no_fix ? 'decide by' : 'due'} {c.due_date} ({c.due_from})
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  )
+}
+
+function WatchlistCard({ r }: { r: WatchlistResult }) {
+  return (
+    <div className="result-card watchlist-card">
+      <p className="result-title">{r.message}</p>
+      <p className="meta">Watching: {r.watchlist.join(', ') || 'nothing'}</p>
+    </div>
+  )
+}
+
+function ResultCard({ call }: { call: ToolCallRecord }) {
+  // Checking the name narrows the result to that tool's type.
+  if (call.name === 'lookup_cve' && call.result) return <CveCard r={call.result} />
+  if (call.name === 'explain_weakness' && call.result) return <WeaknessCard r={call.result} />
+  if (call.name === 'check_affected' && call.result) return <AffectedCard r={call.result} />
+  if (call.name === 'prioritise' && call.result) return <FixFirstCard r={call.result} />
+  if (call.name === 'update_watchlist' && call.result) return <WatchlistCard r={call.result} />
+  return null
+}
+
+export function ToolCallCard({ call }: { call: ToolCallRecord }) {
+  const r = call.result
+  return (
+    <article className={`tool-card ${call.status}`}>
+      <header>
+        <code>{call.name}</code>
+        <span className={`status ${call.status}`}>{call.status === 'ok' ? 'OK' : 'Error'}</span>
+        <span className="meta">{call.duration_ms.toFixed(1)} ms</span>
+      </header>
+      <pre className="args">{JSON.stringify(call.args, null, 2)}</pre>
+      {call.error && (
+        <p className="tool-error">
+          <strong>{call.error.code}</strong>: {call.error.message}
+        </p>
+      )}
+      <ResultCard call={call} />
+      {r && (
+        <details className="raw">
+          <summary>Raw result</summary>
+          <pre>{JSON.stringify(r, null, 2)}</pre>
+        </details>
+      )}
+    </article>
+  )
+}

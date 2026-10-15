@@ -1,0 +1,16 @@
+[project]
+name = "patch-browser-check"
+version = "0.1.0"
+description = "The browser check (Playwright, Firefox and Chromium). Run it with frontend/e2e/run.sh."
+requires-python = ">=3.12"
+dependencies = [
+    "pytest>=8",
+    "pytest-playwright>=0.7",
+    "playwright==1.63.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["."]

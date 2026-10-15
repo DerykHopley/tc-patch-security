@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Architecture review for tc-patch-security</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+</script>
+<style>
+  .seam { stroke-dasharray: 4 4; }
+  .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #e2e8f0; }
+  .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+  .mermaid { display: flex; justify-content: center; }
+</style>
+</head>
+<body class="bg-stone-50 text-slate-900 font-sans">
+<main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+<header class="space-y-3">
+  <h1 class="font-serif text-3xl">Architecture review: <span class="text-indigo-700">tc-patch-security</span>, <code class="text-xl">spec-a</code> at 54cd6c9</h1>
+  <p class="text-sm"><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> All six candidates are built (2026-10-15). Each card shows its status and what was built. Made with the <code>improve-codebase-architecture</code> review; claims checked against the code on 2026-10-15. Companions: the <a class="underline text-indigo-700" href="./">model-check report</a> and the <a class="underline text-indigo-700" href="retro.html">retro</a>.</p>
+  <p class="text-sm text-slate-500">2026-10-15 · hot spots from the git log since 2026-10-13 · skips DECISIONS.md, ADR-0001, the 20 fixed review items, #25, #28, #50–#55</p>
+  <div class="flex flex-wrap gap-4 text-xs text-slate-600">
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 border border-slate-500 bg-white"></span> module</span>
+    <span class="flex items-center gap-1"><svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="#64748b" class="seam" stroke-width="2"/></svg> seam</span>
+    <span class="flex items-center gap-1"><svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="#dc2626" stroke-width="2"/></svg> leakage</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 deep"></span> deep module</span>
+  </div>
+</header>
+
+<section id="candidates" class="space-y-10">
+
+<!-- 1 -->
+<article id="c1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">1 · Deepen the watched-CVE assessment</h2>
+    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Built and merged into <code>spec-a</code>. <code>backend/app/watched.py</code>: <code>WatchedCves</code> with <code>assess(cve_id)</code> (a typed <code>Assessment</code>; unwatched is a normal answer), <code>rows(view)</code> and <code>most_urgent()</code>. Moved onto it: the dashboard, <code>/cves</code>, the test alert, <code>lookup_cve</code>, <code>check_affected</code>, <code>prioritise</code>. Deleted: eight helpers in <code>dashboard.py</code>, <code>notify.most_urgent_open</code> and <code>State.status_of</code>. HTTP and tool outputs checked identical before and after; 15 new tests through the new interface; GLOSSARY gains "Assessment".</p>
+  <p class="font-mono text-sm text-slate-600">backend/app/dashboard.py (affected, decided, prioritised, _row, watched_rows) · tools/cve.py · tools/affected.py · tools/prioritise.py · notify.py · main.py (test alert)</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">Before</div>
+<pre class="mermaid">
+flowchart TB
+  LC[lookup_cve] --> S[State.status_of]
+  LC --> A[affected]
+  LC --> D[decided]
+  LC --> P[prioritised]
+  CA[check_affected] --> A
+  CA --> D
+  PR[prioritise] --> R[_row]
+  N[alerts] --> R
+  T[test alert] --> R
+  R --> A & D & P
+  P -.raw settings.-> J[(state JSON)]
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class P,J leak
+</pre></div>
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">After</div>
+<pre class="mermaid">
+flowchart TB
+  LC[lookup_cve] --> W
+  CA[check_affected] --> W
+  PR[prioritise] --> W
+  N[alerts] --> W
+  DB[dashboard] --> W
+  W["Watched CVEs<br/>assess(cve) · rows(view) · most_urgent()"]
+  classDef deep fill:#0f172a,color:#e2e8f0,stroke:#0f172a;
+  class W deep
+</pre></div>
+  </div>
+  <p><b>Problem.</b> To assess one CVE (verdict, decision record, priority, due date), each caller repeats a three-step call order, feeds <code>review_date</code> from one step into the next, and knows that <code>"not_watched"</code> is a pseudo-status.</p>
+  <p><b>Solution.</b> One "watched CVEs" module, built once per request from the knowledge base, the state and the as-of date, answers <i>assess one CVE</i>, <i>rows for a view</i> and <i>most urgent open CVE</i>.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Locality: A14, A15, A16 and A16b each edited both dashboard.py and tools/cve.py</li>
+    <li>Leverage: one interface for five callers, plus B04 alerts (#37)</li>
+    <li>Policy read through merged settings, once</li>
+    <li>Tests: one assessment table, not per-tool repeats</li>
+  </ul>
+</article>
+
+<!-- 2 -->
+<article id="c2" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">2 · Move the page context lifecycle out of App</h2>
+    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Built on <code>page-context-module</code>, for <code>spec-a</code>. <code>frontend/src/pageContext.ts</code>: a pure reducer (<code>visit</code>, <code>view</code>, <code>select</code>) with <code>currentContext</code> and <code>chipWords</code>; <code>usePageContext.ts</code>: a thin hook giving the chip words, the selected CVE, <code>current()</code> (what the chat sends), <code>reportView</code> and <code>select(cve, pending)</code>. Covers the CVEs page and #30's dashboard product filter. Deleted from <code>App.tsx</code>: the view and selection state keyed by visit, the <code>lastFilters</code> ref, <code>onView</code> and the pending check in <code>askAboutRow</code>; from <code>useChat</code>: the <code>context</code> override. Request and chip text unchanged; 9 reducer cases under <code>node --test</code>, browser checks unchanged.</p>
+  <p class="font-mono text-sm text-slate-600">frontend/src/App.tsx:46-110 · pageContext.ts · pages/CvesPage.tsx:108-111 · chat/useChat.ts:36-40</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">Before: rules spread over the app shell</div>
+      <div class="border-2 border-slate-400 rounded p-2 text-xs space-y-1">
+        <div class="lbl text-slate-500">App.tsx</div>
+        <div class="border border-red-400 rounded px-2 py-1">view keyed by route.visit (useState)</div>
+        <div class="border border-red-400 rounded px-2 py-1">selection keyed by visit + filters (useState)</div>
+        <div class="border border-red-400 rounded px-2 py-1">lastFilters (useRef)</div>
+        <div class="border border-red-400 rounded px-2 py-1">askAboutRow: no select while pending</div>
+        <div class="border border-slate-300 rounded px-2 py-1 text-slate-500">calls pageContext() · contextWords()</div>
+      </div>
+      <p class="text-xs text-slate-500">3 bugs came from this bookkeeping; only Playwright can test it.</p></div>
+    <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">After</div>
+      <div class="deep rounded p-3 text-xs space-y-1">
+        <div class="lbl">page context module (hook over a pure reducer)</div>
+        <div class="opacity-60">visit · view per page · selected CVE · clear-on-filter-change · no select while pending</div>
+        <div class="border-t border-slate-600 pt-1">interface: context · chip words · report view · select CVE</div>
+      </div>
+      <div class="border border-slate-400 rounded p-2 text-xs">App.tsx: wires it, knows nothing about visits</div>
+      <p class="text-xs text-slate-500">#30's dashboard filter, now in App, moves in here.</p></div>
+  </div>
+  <p><b>Problem.</b> <code>pageContext.ts</code> was pulled out as pure functions, but the rules ("a selection belongs to one visit and one filter set", "no selection while a reply is pending") live as state and refs in App.tsx. Those are where the bugs were.</p>
+  <p><b>Solution.</b> A page context module owns the visit, the view, the selected CVE and those rules, behind a small interface.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Tests: reducer cases under <code>node --test</code></li>
+    <li>Locality: the rules sit in one module</li>
+    <li>Covers the CVEs page and #30's dashboard filter</li>
+  </ul>
+  <p class="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-sm">Touches the same files as #30, which is now merged: no longer blocked.</p>
+</article>
+
+<!-- 3 -->
+<article id="c3" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">3 · One chat turn for /chat and the model check</h2>
+    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Built on <code>chat-turn</code>, for <code>spec-a</code>. <code>backend/app/chat_turn.py</code>: <code>turn(request, deps)</code> → <code>ChatReply</code>, with the guard's flags, the explain level (the request's, else the saved one), the checked page context and its dropped fields, and the dev step limit. The <code>/chat</code> route is one line; the model check's <code>_ask</code> calls the same turn. Deleted: the sequence in <code>main.py</code>, the copy in <code>model_check.py</code>, and <code>max_steps</code> and <code>flags</code> from <code>agent.answer()</code> (5 parameters). Questions may carry a <code>page</code>: Q-fix-first-view asks "What should I fix first?" on the CVEs page filtered to Langflow; the report's fix-first table gains a View column. <code>/chat</code> responses and the 14 existing questions' results unchanged; 4 new tests through <code>turn</code>, 3 for the page question.</p>
+  <p class="font-mono text-sm text-slate-600">backend/app/main.py:99-108 (/chat) · evals/model_check.py:61-70 (_ask) · agent.py:64-110 (answer, 7 parameters)</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3 space-y-1 text-xs"><div class="lbl text-slate-500 mb-1">Before: two copies of the sequence</div>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="space-y-1"><div class="lbl">/chat route</div>
+          <div class="h-7 border-l-4 border-slate-400 pl-2 flex items-center">guard.check_message</div>
+          <div class="h-7 border-l-4 border-slate-400 pl-2 flex items-center">saved explain level</div>
+          <div class="h-7 border-l-4 border-slate-400 pl-2 flex items-center">page_context.validate</div>
+          <div class="h-7 border-l-4 border-slate-400 pl-2 flex items-center">answer(max_steps…)</div>
+          <div class="h-7 border-l-4 border-slate-400 pl-2 flex items-center">dropped_context</div></div>
+        <div class="space-y-1"><div class="lbl">model check _ask</div>
+          <div class="h-7 border-l-4 border-slate-400 pl-2 flex items-center">guard.check_message</div>
+          <div class="h-7 border-l-4 border-red-400 pl-2 flex items-center text-red-700">no saved level</div>
+          <div class="h-7 border-l-4 border-red-400 pl-2 flex items-center text-red-700">no page context</div>
+          <div class="h-7 border-l-4 border-slate-400 pl-2 flex items-center">answer(max_steps…)</div></div>
+      </div></div>
+    <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">After</div>
+      <div class="flex gap-2 text-xs"><div class="border border-slate-400 rounded px-2 py-1">/chat</div><div class="border border-slate-400 rounded px-2 py-1">model check</div><div class="border border-slate-400 rounded px-2 py-1">B15 questions</div></div>
+      <div class="text-center text-slate-400">↓ ↓ ↓</div>
+      <div class="deep rounded p-3 text-xs"><div class="lbl">chat turn</div><div class="opacity-60">guard · level · page context · step limit · flags · dropped context</div><div class="border-t border-slate-600 pt-1 mt-1">interface: turn(request, deps) → ChatReply</div></div></div>
+  </div>
+  <p><b>Problem.</b> The model check copies part of the /chat sequence. No model-check question can carry a page context, so "fix first in this view" is never scored against a real model.</p>
+  <p><b>Solution.</b> One "chat turn" module takes the raw request and returns the reply; the route and the model check both call it.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Model check runs the real path</li>
+    <li>Questions can carry a page context</li>
+    <li>New request fields added once (#41)</li>
+  </ul>
+</article>
+
+<!-- 4 -->
+<article id="c4" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">4 · A read model on State instead of the raw JSON</h2>
+    <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">local-substitutable</span>
+  </div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Built on <code>state-read-model</code>, for <code>spec-a</code>. <code>backend/app/state.py</code>: <code>State.read()</code> returns <code>YourStack</code>, a frozen value: <code>watchlist</code>, <code>statuses</code>, the merged <code>settings</code> and <code>dev</code> choices, <code>alerts_log</code>, plus <code>watches(pid)</code>, <code>fields(pid)</code> (a typed <code>ProductFields</code>), <code>history(cve_id)</code> and <code>decision(cve_id)</code>. <code>State.fork(path)</code> copies the state for the model check. Moved onto it: <code>watched.py</code> (still one read per request), <code>/watchlist</code>, the reset route, <code>update_watchlist</code>, <code>check_affected</code> and the model check's copy (no more <code>state._save</code> from outside). Deleted: <code>snapshot()</code>, <code>fields_of</code>, <code>history_of</code>, <code>decision_of</code>, <code>default_fields</code> and <code>settings(data)</code>. The JSON shape and the old-file fix-up stay inside <code>state.py</code>; the file format is unchanged. HTTP and tool outputs checked identical before and after; a <code>given</code> test builder seeds state through State's methods (4 tests moved onto it; the tests of old files loading keep their hand-written JSON on purpose).</p>
+  <p class="font-mono text-sm text-slate-600">backend/app/state.py:51-53, 107-115, 197-211 · raw reads in dashboard.py, main.py, tools/affected.py, tools/prioritise.py, tools/watchlist.py · evals/model_check.py:123 (state._save)</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-2">Before: interface ≈ the whole file schema</div>
+      <div class="flex items-end gap-6 h-40">
+        <div class="flex flex-col items-center gap-1"><div class="w-16 bg-red-200 border border-red-400" style="height:120px"></div><span class="lbl">interface</span></div>
+        <div class="flex flex-col items-center gap-1"><div class="w-16 bg-slate-200 border border-slate-400" style="height:130px"></div><span class="lbl">implementation</span></div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">watchlist, statuses, history, product_settings, settings, dev, alerts_log: callers and tests all know them.</p></div>
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-2">After</div>
+      <div class="flex items-end gap-6 h-40">
+        <div class="flex flex-col items-center gap-1"><div class="w-16 bg-indigo-200 border border-indigo-400" style="height:36px"></div><span class="lbl">interface</span></div>
+        <div class="flex flex-col items-center gap-1"><div class="w-16 deep" style="height:130px"></div><span class="lbl">implementation</span></div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">A typed "your stack" view plus a fork for the model check; the JSON shape and migrations stay inside.</p></div>
+  </div>
+  <p><b>Problem.</b> <code>snapshot()</code> returns the raw JSON, so its shape is the interface. Tests write it by hand, and a schema change breaks many of them.</p>
+  <p><b>Solution.</b> State hands out a typed read model of your stack and a copy for the model check.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Smaller blast radius for per-user state (#41)</li>
+    <li>Tests seed through the read model</li>
+    <li>Candidate 1 does much of this</li>
+  </ul>
+</article>
+
+<!-- 5 -->
+<article id="c5" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">5 · One CVE view, one set of filter names</h2>
+    <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Built on <code>cve-view</code>, for <code>spec-a</code>. One set of names everywhere: <code>product</code>, <code>severity</code>, <code>status</code>, <code>verdict</code>, <code>kev</code>, <code>since</code> (the URL's and the page context's). Backend: <code>backend/app/cve_filters.py</code> gains <code>CveView</code>, a frozen value with <code>parse(dict)</code> (a query string or the page context; raises <code>InvalidFilter</code> naming the filter as sent) and <code>filters()</code>, which are <code>WatchedCves.rows</code>' keyword arguments; the page context checks each filter with its <code>check</code>. Frontend: <code>frontend/src/cveView.ts</code> owns parse-from-URL, to-URL, the <code>/cves</code> query, to-page-context and the chip words, one product pattern and one set of status labels; the CVEs page, the dashboard (its filter and tile links), <code>pageContext.ts</code>, <code>api.ts</code>, <code>Decision.tsx</code> and the tool cards use it. Deleted: <code>prioritise.FILTERS</code>, the re-keying in <code>pageContext.ts</code> and <code>api.ts</code>, <code>STATUS_WORD</code>, the CVEs page's own URL parser and status options, the dashboard's own product pattern. <code>/cves</code> keeps <code>severity_min</code> and <code>published_since</code> as aliases (tested). Chip and FakeLLM wording unchanged; round-trip tests per filter on both sides.</p>
+  <p class="font-mono text-sm text-slate-600">pages/CvesPage.tsx:41-69 · api.ts:297-327 · pageContext.ts:23-51 · main.py:121-124 · page_context.py · tools/prioritise.py:24-26 · llm/fake.py:100 · cve_filters.py</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">Before: four encodings</div>
+<pre class="mermaid">
+flowchart LR
+  U["URL<br/>severity, since, kev=1"] -->|map| A["/cves<br/>severity_min, published_since, kev=true"]
+  A -->|map back| C["page context<br/>severity, since"]
+  C -->|FILTERS map| P[prioritise]
+  C -->|words x2| W[chip and FakeLLM]
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class A,P leak
+</pre></div>
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">After</div>
+<pre class="mermaid">
+flowchart LR
+  V["CVE view<br/>parse · to URL · to query · to context · to words"]
+  U[URL] --> V
+  V --> A["/cves"]
+  V --> C[page context]
+  C --> P[prioritise]
+  classDef deep fill:#0f172a,color:#e2e8f0,stroke:#0f172a;
+  class V deep
+</pre></div>
+  </div>
+  <p><b>Problem.</b> One concept, the CVE view, is spelled four ways across layers. Adding one filter touches about seven places. The product pattern also differs between the frontend and <code>cve_filters.py</code>.</p>
+  <p><b>Solution.</b> One CVE view module per side, with the same names in the URL, the API and the page context.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Two mapping modules deleted</li>
+    <li>One round-trip test per filter</li>
+    <li>Ready for #38's "new since last check"</li>
+  </ul>
+  <p class="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-sm">Renaming the <code>/cves</code> parameters changes its interface; old names could stay as aliases.</p>
+</article>
+
+<!-- 6 -->
+<article id="c6" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">6 · Tool results with a declared shape</h2>
+    <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-xs font-semibold">Speculative</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Built on <code>tool-results</code>, for <code>spec-a</code>. Each <code>ToolSpec</code> declares a <code>result</code>: a pydantic model (<code>ToolResult</code>: every key, nothing extra) next to its tool, or a union for the two tools with two shapes (<code>check_affected</code>: one CVE or one product; <code>explain_weakness</code>: CWE or ATLAS technique, by <code>kind</code>). <code>run_tool</code> checks every result against it and returns it unchanged, so a drifting shape is a <code>tool_failed</code> record. FakeLLM reads each result by its tool's name (from its own assistant message's tool calls), not by which keys it has; the model check's verdict check reads <code>check_affected</code> and <code>lookup_cve</code> by name. <code>backend/app/tools/typescript.py</code> writes <code>frontend/src/toolResults.ts</code> from the models' JSON schemas (a test fails when it's out of date); <code>ToolCallRecord</code> pairs name and result, so the tool cards narrow by name with no <code>as unknown as</code> casts. Deleted: the cards' hand-written result interfaces and FakeLLM's key-sniffing order. Tool outputs on the snapshot and FakeLLM's wording checked identical before and after; 12 new tests (drift becomes <code>tool_failed</code>, dispatch by name whatever extra keys, the generator).</p>
+  <p class="font-mono text-sm text-slate-600">tools/registry.py:33-43 (ToolSpec) · tools/cve.py, affected.py, prioritise.py · llm/fake.py:221-238 · evals/checks.py:106, 138-143 · chat/ToolCallCard.tsx</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">Before</div>
+<pre class="mermaid">
+flowchart LR
+  T[tool returns a dict] -.duck-typed keys.-> F[FakeLLM templates]
+  T -.-> K[model-check checks]
+  T -.cast.-> R[ToolCallCard]
+  T -.-> E[browser checks]
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class F,K,R,E leak
+</pre></div>
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">After</div>
+<pre class="mermaid">
+flowchart LR
+  T["ToolSpec<br/>args model + result model"] --> F[FakeLLM by tool name]
+  T --> K[checks]
+  T --> R[card types]
+  classDef deep fill:#0f172a,color:#e2e8f0,stroke:#0f172a;
+  class T deep
+</pre></div>
+  </div>
+  <p><b>Problem.</b> Five readers depend on each tool's dict keys, and nothing declares them. FakeLLM picks its template by which keys are present, so a new key can silently change the template.</p>
+  <p><b>Solution.</b> Each tool declares a result model; <code>run_tool</code> checks it.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Shape drift fails in tool tests</li>
+    <li>Pays off once B06 and B15 add tools</li>
+  </ul>
+</article>
+
+<article class="rounded-xl border border-slate-200 bg-white p-6 space-y-2 text-sm">
+  <h2 class="font-serif text-xl">Looked at and fine</h2>
+  <ul class="list-disc pl-6 text-slate-700">
+    <li><b>priority.py, verdict.py, status.py:</b> deep pure modules over real rule tables, table-tested. The friction is in how they're called (candidate 1).</li>
+    <li><b>notify.py transports:</b> a real seam with two adapters (real channels, test fakes).</li>
+    <li><b>cve_filters.py:</b> small, but deleting it would spread its rules back into three callers. Candidate 5 builds on it.</li>
+    <li><b>usePatch with patchPose:</b> the random pick is injectable and tested.</li>
+  </ul>
+  <p class="rounded bg-red-50 border border-red-200 px-3 py-2"><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> <b>Bug, not a deepening:</b> <code>api.ts</code> declares <code>interface Source</code> twice (lines 41 and 209: a chat source and a snapshot source). TypeScript merges them, so both are typed as the union of all fields. Rename the second (for example <code>SnapshotSource</code>).</p>
+</article>
+
+</section>
+
+<section id="top-recommendation" class="rounded-xl deep p-8 space-y-2">
+  <div class="lbl text-slate-400">Top recommendation</div>
+  <div class="text-sm text-sky-300">Status: done and merged (2026-10-15).</div>
+  <h2 class="font-serif text-2xl"><a href="#c1" class="underline decoration-indigo-400">1 · Deepen the watched-CVE assessment</a></h2>
+  <p class="text-slate-300">It's the domain's core concept, and every recent ticket changed it in several places at once. It's a backend change behind unchanged HTTP and tool outputs, so the existing tests pin the behaviour. It also does part of candidate 4 and gives B04 alerts (#37) one interface to use.</p>
+</section>
+
+</main>
+</body>
+</html>

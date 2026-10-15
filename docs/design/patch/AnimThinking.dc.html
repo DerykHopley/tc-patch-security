@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Squircle thinking animation options</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&amp;display=swap">
+<style>
+body{margin:0}
+svg{overflow:visible}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes scan{0%,100%{transform:translateX(-3px)}50%{transform:translateX(3px)}}
+@keyframes typing{0%,60%,100%{transform:translateY(0);opacity:.45}30%{transform:translateY(-5px);opacity:1}}
+@keyframes rock{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+@keyframes ping{0%{transform:scale(1);opacity:.9}100%{transform:scale(3.4);opacity:0}}
+.float{animation:float 2.6s ease-in-out infinite}
+.blink{transform-box:fill-box;transform-origin:center;animation:blink 4s infinite}
+.p1{animation:pulse 1.2s infinite}.p2{animation:pulse 1.2s .2s infinite}.p3{animation:pulse 1.2s .4s infinite}
+.scan{animation:scan 1.6s ease-in-out infinite}
+.t1{animation:typing 1.2s ease-in-out infinite}.t2{animation:typing 1.2s .15s ease-in-out infinite}.t3{animation:typing 1.2s .3s ease-in-out infinite}
+.rock{transform-box:fill-box;transform-origin:50% 100%;animation:rock 3s ease-in-out infinite}
+.ping1{transform-box:fill-box;transform-origin:center;animation:ping 1.8s ease-out infinite}
+.ping2{transform-box:fill-box;transform-origin:center;animation:ping 1.8s .9s ease-out infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="width: 1120px; height: 340px; box-sizing: border-box; padding: 32px; background: #EEF0FF; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; font-family: Nunito, 'Avenir Next', 'Segoe UI', sans-serif; color: #2A2457">
+
+<div style="background: #FFFFFF; border-radius: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+<svg width="160" height="170" viewBox="0 0 160 170" role="img" aria-label="Thinking option A, tilt and scan">
+<ellipse cx="80" cy="160" rx="46" ry="5" fill="#2A2457" opacity="0.12"></ellipse>
+<circle class="p1" cx="132" cy="34" r="3.5" fill="#B4A9FF"></circle>
+<circle class="p2" cx="142" cy="23" r="4.5" fill="#B4A9FF"></circle>
+<circle class="p3" cx="152" cy="10" r="5.5" fill="#B4A9FF"></circle>
+<g transform="rotate(-7 80 146)">
+<line x1="80" y1="42" x2="80" y2="22" stroke="#9483FF" stroke-width="5" stroke-linecap="round"></line>
+<circle class="p1" cx="80" cy="19" r="7" fill="#FFC94D"></circle>
+<rect x="24" y="40" width="112" height="106" rx="44" fill="#9483FF"></rect>
+<ellipse cx="50" cy="60" rx="11" ry="6" fill="#FFFFFF" opacity="0.35" transform="rotate(-32 50 60)"></ellipse>
+<rect x="44" y="68" width="72" height="40" rx="20" fill="#2A2457"></rect>
+<g class="scan">
+<circle cx="71" cy="83" r="5.5" fill="#7FF0DD"></circle>
+<circle cx="97" cy="83" r="5.5" fill="#7FF0DD"></circle>
+</g>
+<path d="M76 124 L84 124" stroke="#2A2457" stroke-width="3" stroke-linecap="round"></path>
+</g>
+</svg>
+<div style="text-align: center"><div style="font-size: 16px; font-weight: 800">A · Tilt &amp; scan (current)</div><div style="font-size: 13px; font-weight: 600; color: #6B6890">eyes scan, thought dots</div></div>
+</div>
+
+<div style="background: #FFFFFF; border-radius: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+<svg width="160" height="170" viewBox="0 0 160 170" role="img" aria-label="Thinking option B, typing dots in visor">
+<ellipse cx="80" cy="160" rx="46" ry="5" fill="#2A2457" opacity="0.12"></ellipse>
+<g class="float">
+<line x1="80" y1="42" x2="80" y2="22" stroke="#9483FF" stroke-width="5" stroke-linecap="round"></line>
+<circle cx="80" cy="19" r="7" fill="#FFC94D"></circle>
+<rect x="24" y="40" width="112" height="106" rx="44" fill="#9483FF"></rect>
+<ellipse cx="50" cy="60" rx="11" ry="6" fill="#FFFFFF" opacity="0.35" transform="rotate(-32 50 60)"></ellipse>
+<rect x="44" y="68" width="72" height="40" rx="20" fill="#2A2457"></rect>
+<circle class="t1" cx="65" cy="90" r="5" fill="#7FF0DD"></circle>
+<circle class="t2" cx="80" cy="90" r="5" fill="#7FF0DD"></circle>
+<circle class="t3" cx="95" cy="90" r="5" fill="#7FF0DD"></circle>
+<path d="M76 124 L84 124" stroke="#2A2457" stroke-width="3" stroke-linecap="round"></path>
+</g>
+</svg>
+<div style="text-align: center"><div style="font-size: 16px; font-weight: 800">B · Typing dots</div><div style="font-size: 13px; font-weight: 600; color: #6B6890">eyes become a loader</div></div>
+</div>
+
+<div style="background: #FFFFFF; border-radius: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+<svg width="160" height="170" viewBox="0 0 160 170" role="img" aria-label="Thinking option C, rocking and pondering">
+<ellipse cx="80" cy="150" rx="50" ry="5" fill="#2A2457" opacity="0.12"></ellipse>
+<g class="rock">
+<line x1="80" y1="42" x2="80" y2="22" stroke="#9483FF" stroke-width="5" stroke-linecap="round"></line>
+<circle class="p1" cx="80" cy="19" r="7" fill="#FFC94D"></circle>
+<rect x="24" y="40" width="112" height="106" rx="44" fill="#9483FF"></rect>
+<ellipse cx="50" cy="60" rx="11" ry="6" fill="#FFFFFF" opacity="0.35" transform="rotate(-32 50 60)"></ellipse>
+<rect x="44" y="68" width="72" height="40" rx="20" fill="#2A2457"></rect>
+<ellipse class="blink" cx="69" cy="82" rx="5.5" ry="6" fill="#7FF0DD"></ellipse>
+<ellipse class="blink" cx="95" cy="82" rx="5.5" ry="6" fill="#7FF0DD"></ellipse>
+<path d="M73 124 Q76.5 120 80 124 Q83.5 128 87 124" stroke="#2A2457" stroke-width="3" fill="none" stroke-linecap="round"></path>
+</g>
+</svg>
+<div style="text-align: center"><div style="font-size: 16px; font-weight: 800">C · Ponder</div><div style="font-size: 13px; font-weight: 600; color: #6B6890">slow rock, eyes up, "hmm"</div></div>
+</div>
+
+<div style="background: #FFFFFF; border-radius: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+<svg width="160" height="170" viewBox="0 0 160 170" role="img" aria-label="Thinking option D, antenna radar">
+<ellipse cx="80" cy="150" rx="50" ry="5" fill="#2A2457" opacity="0.12"></ellipse>
+<circle class="ping1" cx="80" cy="19" r="7" fill="none" stroke="#FFC94D" stroke-width="2.5"></circle>
+<circle class="ping2" cx="80" cy="19" r="7" fill="none" stroke="#FFC94D" stroke-width="2.5"></circle>
+<line x1="80" y1="42" x2="80" y2="22" stroke="#9483FF" stroke-width="5" stroke-linecap="round"></line>
+<circle cx="80" cy="19" r="7" fill="#FFC94D"></circle>
+<rect x="24" y="40" width="112" height="106" rx="44" fill="#9483FF"></rect>
+<ellipse cx="50" cy="60" rx="11" ry="6" fill="#FFFFFF" opacity="0.35" transform="rotate(-32 50 60)"></ellipse>
+<rect x="44" y="68" width="72" height="40" rx="20" fill="#2A2457"></rect>
+<ellipse class="blink" cx="71" cy="81" rx="5.5" ry="6" fill="#7FF0DD"></ellipse>
+<ellipse class="blink" cx="97" cy="81" rx="5.5" ry="6" fill="#7FF0DD"></ellipse>
+<circle cx="80" cy="125" r="3" fill="#2A2457"></circle>
+</svg>
+<div style="text-align: center"><div style="font-size: 16px; font-weight: 800">D · Radar</div><div style="font-size: 13px; font-weight: 600; color: #6B6890">antenna sends out pings</div></div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1120,"height":340}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

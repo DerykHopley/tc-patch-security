@@ -56,33 +56,37 @@ Tokens are CSS custom properties on `<html data-design="playful">`. Dark values 
 | `--bg` | `#dfe5fd` | `#0f0f1c` | page background (under the gradients, 3.3) |
 | `--surface` | `#ffffff` | `#1a1a2e` | cards, sidebar, chat, inputs |
 | `--text` | `#2a2559` | `#ecebff` | body text |
-| `--muted` | `#6f6c9c` | `#a9a8cc` | secondary text, axis labels |
+| `--muted` | `#605d8c` (was `#6f6c9c`, fault 12.1) | `#a9a8cc` | secondary text, axis labels |
 | `--border` | `#e4e5f8` | `#2c2b48` | hairlines |
 | `--accent` | `#6c4cf5` | `#a28dff` | links, focus, active, page title |
 | `--accent-soft` | `#efeaff` | `#2a2550` | soft fills: hover, chips, nested cards |
 | `--user` | `#efeaff` | `#2a2550` | the user's chat messages |
-| `--ok` | `#12a46b` | `#4fd39a` | success, "final sources" |
-| `--error` | `#e5385a` | `#ff7a95` | errors, KEV |
+| `--ok` | `#0d7b50` | `#4fd39a` | success, "final sources" |
+| `--error` | `#cf1b3e` | `#ff7a95` | errors, KEV |
 | `--error-soft` | `#ffe8ed` | `#3a1c2a` | error backgrounds |
-| `--warn` | `#b8640a` | `#ffb547` | warnings |
+| `--warn` | `#9c5508` | `#ffb547` | warnings |
 | `--warn-soft` | `#fff1de` | `#33281a` | warning backgrounds |
 | `--series-1` | `#7b5cff` | `#a28dff` | single-series charts |
 | `--grid` | `#eceefb` | `#25243d` | chart gridlines |
 
 Fixed colours (same in both modes):
 
-- **Primary gradient** (primary buttons, active sidebar item, brand mark): `linear-gradient(135deg, #8b6cff, #5a3ff0)`.
+- **Primary gradient** `--gradient-primary` (primary buttons, active sidebar item, brand mark): `linear-gradient(135deg, #7454f7, #5a3ff0)`. Started at `#8b6cff` in the prototype (fault 12.1). Text on it is `--on-primary` (`#ffffff`).
 - **Purple shadow** used everywhere: `rgba(108, 76, 245, α)`, α between 0.09 and 0.4 (values per component below).
+- **Patch's colours** (§8.1): body `#9483FF`, visor `#2A2457`, eyes `#7FF0DD`, antenna light `#FFC94D`, and the cheeks and extras listed there.
 
-Contrast (*checked*, measured 2026-10-13):
+Contrast (*checked*: WCAG 2 formula, 2026-10-14, after the fixes; the browser check A02.3 re-measures muted and the gradient):
 
 | Pair | Light | Dark |
 |---|---|---|
 | text on surface | 13.9:1 | 14.5:1 |
-| muted on surface | 4.9:1 | 7.4:1 |
+| text on page background | 11.1:1 | 16.2:1 |
+| muted on surface | 6.1:1 | 7.4:1 |
+| **muted on page background** | **4.9:1** (was 3.9:1) | 8.3:1 |
+| **muted on `--accent-soft`** (chips, nested fills, snapshot card) | **5.2:1** (was 4.2:1) | 6.2:1 |
 | accent on surface | 5.3:1 | 6.3:1 |
-| text on page background | 11.1:1 | — |
-| **muted on page background** | **3.9:1 (below 4.5, open issue 12.1)** | — |
+| accent on page background (the page title: 1.5rem bold, large text, needs 3:1) | 4.2:1 | 7.1:1 |
+| **white on the primary gradient**, light end / deep end | **4.8:1 / 6.2:1** (was 3.7 / 6.2) | same (fixed colours) |
 
 ### 3.2 Chart colours (validated, *checked*)
 
@@ -122,6 +126,7 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 
 ### 3.3 Page background
 
+- Token `--page-glow` (the glows), drawn over `--bg` on `body` with `background-attachment: fixed`.
 - Light: three soft glows over `#dfe5fd`, fixed (they don't scroll):
   `radial-gradient(520px 520px at 8% 12%, rgba(255,255,255,.55), transparent 70%)`, `radial-gradient(640px 640px at 96% 88%, rgba(123,92,255,.16), transparent 70%)`, `radial-gradient(360px 360px at 70% 8%, rgba(255,181,71,.16), transparent 70%)`.
 - Dark: one faint purple glow over `#0f0f1c`: `radial-gradient(640px 640px at 96% 88%, rgba(123,92,255,.10), transparent 70%)`.
@@ -130,30 +135,36 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 
 - **Fredoka** (500, 600, 700) for headings, tile numbers, the brand name, the page title. **Nunito** (400, 600, 700, 800) for everything else. Base size 15px.
 - Load both in `index.html` (with `preconnect`), not from JavaScript, so the first frame already has the right font.
+- Tokens: `--font-display` (Fredoka), `--font-body` (Nunito), `--font-mono` (system monospace).
 - Sizes: page title 1.5rem Fredoka in `--accent`; card titles 1.1rem Fredoka 600; tile numbers 2.1rem Fredoka; nested titles (playground columns, "Recent alerts") 0.95rem Fredoka 600; body 15px; meta text 0.82rem `--muted`; code in the system monospace.
 - Offline, the fonts fall back to the system sans-serif. *Unverified* how that looks.
 
 ### 3.5 Shape and elevation
 
+Token names chosen in A02 (DESIGN.md gave none); values unchanged from the prototype.
+
 | Element | Radius | Shadow |
 |---|---|---|
-| Sidebar (floating card) | 28px | `0 16px 40px rgba(108,76,245,.12)` |
-| Cards (`.panel`) | 26px | `0 12px 30px rgba(108,76,245,.09)` |
-| Chat bubble window, pinned chat | 26px | (bubble) `0 16px 48px rgba(0,0,0,.24)`; (pinned) `0 12px 30px rgba(108,76,245,.12)` |
-| Stat tiles | 24px | `0 12px 26px <tile colour at .3>` |
-| Welcome banner | 28px | `0 12px 30px rgba(108,76,245,.1)` |
-| Save bar (floating) | 20px | `0 10px 28px rgba(108,76,245,.16)` |
-| Chat messages | 20px, with the corner nearest the speaker at 6px | — |
-| Nested cards: fieldsets, delivery channels, playground columns, map box, model-check numbers | 18–20px | none |
-| Inputs, selects, textareas | 14px | — |
-| Buttons | 999px (pill) | primary: `0 6px 14px rgba(108,76,245,.3)` |
+| Sidebar (floating card) | `--radius-sidebar` 28px | `--shadow-sidebar` `0 16px 40px rgba(108,76,245,.12)` |
+| Sidebar items (pill rows) | `--radius-item` 16px | active: `--shadow-active` `0 8px 18px rgba(108,76,245,.35)` |
+| Brand mark | `--radius-input` 14px | `--shadow-brand` `0 6px 14px rgba(108,76,245,.35)` |
+| Snapshot card | `--radius-snapshot-card` 22px | — |
+| Cards (`.card`, `.panel` in the prototype) | `--radius-card` 26px | `--shadow-card` `0 12px 30px rgba(108,76,245,.09)` |
+| Chat bubble window, pinned chat | `--radius-card` 26px | (bubble) `--shadow-bubble` `0 16px 48px rgba(0,0,0,.24)`; (pinned) `--shadow-pinned` `0 12px 30px rgba(108,76,245,.12)` |
+| Stat tiles | `--radius-tile` 24px | `0 12px 26px <tile colour at .3>` |
+| Welcome banner | `--radius-banner` 28px | `--shadow-banner` `0 12px 30px rgba(108,76,245,.1)` |
+| Save bar (floating) | `--radius-save-bar` 20px | `--shadow-save-bar` `0 10px 28px rgba(108,76,245,.16)` |
+| Chat messages | `--radius-message` 20px, with the corner nearest the speaker at `--radius-message-tail` 6px | — |
+| Nested cards: fieldsets, delivery channels, playground columns, map box, model-check numbers | `--radius-nested` 18px (the prototype used 18–20px) | none |
+| Inputs, selects, textareas | `--radius-input` 14px | — |
+| Buttons | `--radius-pill` 999px | primary: `--shadow-primary` `0 6px 14px rgba(108,76,245,.3)` |
 
-- Nested cards have no border. Their fill is `color-mix(in srgb, var(--accent-soft) 35–45%, var(--surface))`.
+- Nested cards have no border. Their fill is `--nested-fill`: `color-mix(in srgb, var(--accent-soft) 40%, var(--surface))` (the prototype used 35–45%).
 
 ### Checklist: tokens
 
 - [ ] Every colour in sections 3.1 and 3.2 is a token with light and dark values.
-- [ ] No component uses a hard-coded colour except the fixed ones listed (primary gradient, purple shadow, tile gradients, Patch's own colours).
+- [ ] No component uses a hard-coded colour except the fixed ones listed (primary gradient, purple shadow, tile gradients, Patch's own colours listed in §8.1).
 - [ ] Fonts load from `index.html`; no flash of the wrong font on first load.
 - [ ] Dark mode is driven by `data-theme` on `<html>`, not by `prefers-color-scheme`, so the toggle can override the system.
 
@@ -167,15 +178,16 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 
 - **Sidebar** (left), then the **main column**: top bar, then the page.
 - Sidebar, expanded: 250px wide, floating card with 1rem margin. Contents, top to bottom:
-  1. Brand: 36px purple-gradient rounded square with a shield icon, "LLM Security", "assistant · prototype". Dashed line under it.
-  2. Section label "MONITOR": Dashboard, Settings, Dev (Dev only when the backend allows the dev panel).
-  3. Section label "ASSISTANT": "Ask Patch" (opens and hides the chat; shows the unread dot).
+  1. Brand: 36px purple-gradient rounded square with a shield icon, "LLM Security", "assistant" ("prototype" dropped in the real build, 2026-10-14). Dashed line under it.
+  2. Section label "MONITOR": Dashboard, CVEs, Settings, Dev (Dev only when the backend allows the dev panel). CVEs added 2026-10-14 (A04b).
+  3. Section label "ASSISTANT": "Ask Patch" (opens and hides the chat; shows the unread dot). Until the chat ticket (A06) it is a placeholder: named, reachable by keyboard, `aria-disabled`, described as "Coming soon".
   4. At the bottom, the **snapshot card**: Patch (64px) with his head over the card's top edge, "Snapshot", data date, model name.
   5. Collapse button (chevron).
 - Sidebar items: pill rows (radius 16px). Icon in a 32px soft-purple rounded square. **Active item**: primary gradient fill, white text, icon square at 22% white, purple shadow.
 - **Collapsed rail**: 78px wide, icons only, centred. Section labels become thin lines. Brand name and snapshot card hide. Labels stay in the accessibility tree (visually hidden), so the buttons keep their names. The chevron rotates 180°. Width animates over 0.2s. Remembered per browser.
 - **Top bar**: breadcrumb "Pages / Dashboard" (0.75rem muted) above the page title (1.5rem Fredoka, purple, with the blinking cursor, section 7). Right side: the light/dark toggle (36px round, sun in dark mode, moon in light).
-- **Content**: max 1280px wide, centred, 1rem padding, 1.2rem gap between cards. Settings and Dev use the same width and gap as the dashboard.
+- **Content**: max 1280px wide, centred, 1rem padding, 1.2rem gap between cards. CVEs, Settings and Dev use the same width and gap as the dashboard.
+- **Paths** (A04b): each page has one: `/` (Dashboard), `/cves`, `/settings`, `/dev`. A sidebar click is a new history entry, so Back returns; a reload stays on the page.
 
 ### 4.2 Breakpoints
 
@@ -183,11 +195,13 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 |---|---|
 | ≤ 1000px | Dashboard side column drops under the main column |
 | ≤ 900px | Settings and Dev: one column of cards |
-| ≤ 800px | Sidebar becomes a **bottom tab bar** (fixed, full width, icon over label, "Ask" short label). Page gets 4.4rem bottom padding. Patch's button moves up to 5rem from the bottom. |
-| ≤ 700px | Chat (bubble or pinned) becomes a **full-screen sheet**. The pin button hides. |
+| ≤ 800px | Sidebar becomes a **bottom tab bar** (fixed, full width, icon over label, "Ask" short label): Dashboard, CVEs, Settings, Dev, Ask. Page gets 4.4rem bottom padding. Patch's button moves up to 5rem from the bottom. |
+| Phone (≤ 800px), or chat pinned and table ≤ 760px | The CVE table's rows become **stacked cards** (§5.9). With the chat pinned it is measured on the table's card (a container query). Any other window keeps the table: at 820–1050px with the sidebar open the card is 525–755px, and a table that scrolls sideways inside its card is better there than cards (review, 2026-10-15). |
+| ≤ 700px | Chat (bubble or pinned) becomes a **full-screen sheet**. The pin and Make larger buttons hide. |
 | ≤ 640px | Stat tiles: 2 columns. Welcome banner stacks (robot over text, centred). |
 | ≤ 520px | Slider rows stack (label above the slider). |
 
+- The shell (A02) builds the ≤ 800px tab bar. The other rows belong to the dashboard, settings, dev and chat tickets, which build what they change.
 - At every width there is **no sideways scrolling** (*checked* at 1400px and 400px for every page, light and dark).
 
 ### Checklist: layout
@@ -216,6 +230,7 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 | New in the last 30 days | `#26265f 35%` → `#4a4aa8` | `rgba(38,38,95,.3)` | 13.8:1 |
 
 - The KEV tile, when there are open KEV CVEs, **wiggles** every 4 seconds (section 7) and shows "Overdue since …" with a warning icon.
+- Each tile is a **link to the CVEs page with its filter** (A04b): open → `/cves`; open and critical → `?severity=CRITICAL`; open and in KEV → `?kev=1`; new in 30 days → `?status=all&since=<first of the 30 days>`. No underline; the global focus ring shows by keyboard.
 
 ### 5.2 Cards (`.panel`)
 
@@ -227,7 +242,7 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 - All buttons are pills (999px), weight 700. **Primary** (`type="submit"`): primary gradient, white text, purple shadow. Others: surface fill, 1px border, border turns purple on hover.
 - Inputs, selects, textareas: radius 14px. The playground search box is a full pill.
 - Checkboxes and radios: purple (`accent-color: var(--accent)`).
-- **Sliders**: 6px track in `--accent-soft`, filled part in `--accent`, 16px purple handle with a 3px surface ring and a purple shadow. A purple focus ring (2px, 4px offset) for keyboards. Styled for both Firefox (`::-moz-range-*`) and Chrome/Safari (`::-webkit-slider-*`). Chrome/Safari has no "filled part" (*unverified* how it looks there).
+- **Sliders**: 6px track in `--accent-soft`, filled part in `--accent`, 16px purple handle with a 3px surface ring and a purple shadow. A purple focus ring (2px, 4px offset) for keyboards. Styled for both Firefox (`::-moz-range-*`) and Chrome/Safari (`::-webkit-slider-*`). Chrome/Safari has no "filled part": the track there is a gradient up to `--fill`, set inline by the slider (A11, *checked* by the browser check in Chromium).
 
 ### 5.4 Charts
 
@@ -238,12 +253,14 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 - Gridlines `--grid`, axis labels 11px `--muted`, value labels 11px `--text`.
 - Tooltip: `--text` background, `--surface` text, 4px radius, above the pointer.
 - Bars **grow in** on load (section 7). Horizontal bars grow from the chart's axis: the chart sets `--x0` (its label width) on the `<svg>`, so a stacked bar grows as one piece.
+- **Two series**: `--cat-1` circles, then `--cat-2` squares (the 3.2 order), so the shape tells them apart as well as the colour. `--cat-2` is 3.0:1 on the light surface: fine for marks, never for text (*checked*, 2026-10-15). Labels and values stay in `--text` or `--muted`.
+- **The model-check report** (`backend/app/evals/charts.py`, A20) is a static page, so its charts differ in three ways: no grow-in (a report is read, not watched); a native `<title>` tooltip instead of the app's tooltip; and a fixed viewBox with a minimum width, so on a narrow screen the chart scrolls inside its card ("Scroll sideways" hint) rather than shrinking its text below about 10px.
 
 ### 5.5 Embedding map (Dev panel)
 
 ![Search playground](img/playground-light.png)
 
-- In a soft round box (radius 20px, no border, nested-card fill). Legend chips are pills with counts.
+- In a soft round box (`--radius-nested` 18px since A11, as §3.5 lists the map box; no border, nested-card fill). Legend chips are pills with counts.
 - Points: circle (OWASP), square (ATLAS), triangle (CVE), in `--cat-1/2/3`, drawn at 90% opacity with a ring in the box colour.
 - When a search is shown, all non-result points dim to **40%** (light) or **60%** (dark: faded colour on dark goes muddy). The query is an ✕, rewrites are smaller ✕s, results are full-colour with a dark ring, joined to the query by dashed lines.
 
@@ -252,6 +269,15 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 - The query plan (semantic query, filters) in a soft nested card.
 - One column per search step (semantic query, each rewrite, fused, final): soft nested cards, radius 18px, column title in purple Fredoka. **Fused** has a 2px purple inner edge; **Final sources** a 2px green (`--ok`) edge with a green title.
 
+#### 5.6.1 Model card: the OpenRouter model (Dev panel, A11.10, 2026-10-15)
+
+- With OpenRouter picked, "OpenRouter model" is a **native `<select>`** (§5.3: radius 14px, surface fill, border purple on hover, the global focus ring) of the models this key may use that take tools, cheapest input first. A native select: keyboard, screen readers and phones work as the platform does, and both themes come from the tokens.
+- **Option text**: `id (default) · $1.00 / $5.00 per M tokens · 12/14 in the model check`. "(default)" only on the env default; the score only when a finished model check exists; a variable price reads "price unknown" (never $0), a zero price "free". The last option is **"Other…"**.
+- **Under the select**, in `.meta` text: the picked model in full (name, price, score or "not in a model check yet", context size), tied to the select by `aria-describedby`. On a phone (400px) the closed select cuts its option's text; this line is where you read it. Then one line on what the list is.
+- **Other…** shows a "Model id" text field (mono, as the local model's) and moves focus to it. Its value is the current id: picking Other changes nothing until you type. A saved id not in the list opens as Other with its value and a note "Not in the list for this key: OpenRouter's guardrail may refuse it."
+- **Loading**: the select is disabled, `aria-busy`, with one option "Loading the models this key may use…". **No list** (no key, OpenRouter unreachable or refusing): the plain text field as before, with a `role="note"` line giving the reason.
+- The select takes the row's width (`flex: 1 1 12rem`, `min-width: 0`): long options never widen the card. Nothing animates. *Checked* by the browser check A11.10 in both themes at 400px and 1400px, by keyboard; the option words by `npm test`.
+
 ### 5.7 Settings parts
 
 ![Settings](img/settings-light.png)
@@ -259,13 +285,38 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 - Fieldsets ("Alert me when", "Timing"): radius 18px, nested-card fill.
 - Delivery channels: one soft card each (radius 18px). The "ready" / "not set up" pill hugs its text (it must not stretch).
 - Callouts (warning boxes): radius 14px. The reset box: radius 18px, red outline.
-- **Save bar**: sticky at the bottom of Settings and Dev, floating as a rounded card 0.8rem above the bottom, with "All changes saved" / "Unsaved changes" on the left and Discard / Save changes on the right. It keeps 96px clear on the right for Patch's button.
+- **Save bar**: sticky at the bottom of Settings and Dev, floating as a rounded card 0.8rem above the bottom, with "All changes saved" / "Unsaved changes" on the left and Discard / Save changes on the right. It keeps 96px clear on the right for Patch's button. On phones (≤ 800px) 96px leaves too little room and the bar wrapped to two rows, so there it floats just above Patch's button instead (A13, 2026-10-14; the browser check A13.6 checks it never overlaps his button at 400px and 1400px).
+- Text on the soft status fills ("Saved for later" chip, "urgent" tag, error messages) is `--text`, with the warn or error colour as an edge: `--warn` on `--warn-soft` is 3.9:1 and `--error` on the surface 4.2:1, both under 4.5:1 for small text (A13, 2026-10-14). Since the review fixes (2026-10-15) the light `--error`, `--warn` and `--ok` are darker (`#cf1b3e`, `#9c5508`, `#0d7b50`), so they also pass as text: `--error` 5.4:1 on the surface and 4.6:1 on `--error-soft`, `--warn` 5.1:1 on `--warn-soft`, `--ok` 5.3:1 on the surface (checked by the browser check A02.3, both modes). The edge rule stays.
 - The page heading inside Settings and Dev is hidden: the top bar already names the page.
+- **Watchlist card (A15b, 2026-10-15)**: the first card, across both columns. The fixed product list as checkboxes (by name, in a grid that wraps), then "How you run them" and one fieldset per ticked product, in watch order (as every Settings fieldset: nested-card fill, radius 18px, no border; legend = the product in `--text`): Usage, Version (placeholder by ecosystem: `e.g. 0.3.27`, `3.1.0`, `v0.12.3`), Internet-facing. Products without version data say so ("No version data for Dify…", "…only code commits…"). It saves with the page's save bar: one Save changes saves the watchlist and the other settings, Discard brings both back. A rejected save (a version that doesn't fit the ecosystem, an unknown product) shows its plain message inside the card (`role="alert"`) and the bar keeps "Unsaved changes". A change made by Patch (`update_watchlist`) shows in the card at once; unsaved picks stay. At 400px the fieldsets stack in one column. *Checked* by the browser check A15b.1, A15b.8.
 
 ### 5.8 Welcome banner (dashboard)
 
-- Above the dashboard: white-to-soft-purple card (radius 28px). Patch (110px, waving) on the left, his head rising over the top edge. Title "Hi there! I'm Patch, your security sidekick." (1.25rem Fredoka, purple), one line of help, an "Ask Patch" button.
+- Above the dashboard: white-to-soft-purple card (radius 28px). Patch (110px, idle in a variant picked on page load, §8.3) on the left, his head rising over the top edge. Title "Hi there! I'm Patch, your security sidekick." (1.25rem Fredoka, purple), one line of help, an "Ask Patch" button.
 - A quiet ✕ in the top right (32px round, muted, soft purple on hover). Once closed, it stays closed in that browser.
+
+### 5.9 CVEs page and the "Top 5 open CVEs" card (A04b, 2026-10-14)
+
+- **CVEs page**: one card, "CVEs on your watchlist", at the page's full width (no side column). Filters (product, severity, status, "In CISA KEV only"), a "Published since …" chip with a ✕ when a tile set it, the count and sort order, the table, "EPSS by FIRST", paging.
+- **Filters in the URL**: `?product=langflow&severity=CRITICAL&status=open&kev=1&since=2026-09-14`. Defaults (all watched, any severity, open) add nothing. A filter change replaces the URL (Back doesn't step through filters); malformed values are ignored. A dashboard link may carry several products (`?product=langflow,ollama`, A15b): the Product select then shows them as one more option, "Langflow + Ollama"; picking another option replaces it. The select itself still picks one product.
+- **Table columns**: CVE (id, KEV chip, possible-match chip, two-line summary), product, severity, published, OWASP, EPSS, status with the row actions stacked under it (Mark fixed, Not affected or Reopen, Ask about this).
+- **Verdict (A15)**: a Verdict filter (in the URL as `verdict=`) and a Verdict column before status: a chip (Affected: `--error` edge on `--error-soft`; Not affected: `--ok` edge; Unknown: `--border` edge; text `--text`), the reason, "Fixed in …", "Who acts: …". On open rows whose verdict is not affected, a "Mark not affected?" button (green edge) replaces the plain "Not affected" action: a suggestion only the user clicks. The pager keeps 96px clear on the right for Patch's button.
+- **Watchlist (dashboard, A15b, 2026-10-15)**: editing moved to the Settings card (§5.7). The dashboard's first side card, still titled "Watchlist", is a **product filter**: a fieldset "Show the tiles, charts and Top 5 for" with an "All" pill and one toggle pill per watched product, in watch order. Pills are buttons with `aria-pressed`: picked = `--accent` edge on `--accent-soft` and a ✓ in `--accent` (hidden from screen readers), so the state isn't told by colour alone; 2rem high, a target big enough to tap. Products with open CVEs in CISA KEV get a dot in `--error` after the name, and their accessible name and title say so ("Langflow: open CVEs in CISA KEV"). Picking narrows the tiles, the three charts and the Top 5 card to those products; picking every product is the same as All. Then "Edit watchlist in Settings →".
+  - **In the URL only**: `/?product=langflow,ollama`. All adds nothing; nothing is remembered in the browser, so a fresh dashboard shows every watched product. A change replaces the URL. Unknown or unwatched products are ignored and dropped from the URL, so a product removed from the watchlist (on Settings or by Patch) drops out of the filter.
+  - **Links carry it**: each tile and "See all CVEs →" adds `product=…`, so the CVEs page shows the tile's number.
+  - **One truth**: the watchlist is in the backend's state; Settings and Patch's `update_watchlist` both announce a change, and the dashboard reloads at once.
+  - **Patch knows it**: the page context sends `{page: "dashboard", product: "langflow,ollama"}`; the chat header's chip says "on Dashboard · Langflow + Ollama". "What should I fix first?" ranks within those products.
+- **Narrow (phones ≤ 800px, or the chat pinned and the table ≤ 760px)**: each row is a stacked card: radius 18px (`--radius-nested`), `--accent-soft` fill, 0.6rem apart. The id and summary on top, then a grid of labelled cells (product, severity, published, OWASP, EPSS; label 0.7rem muted uppercase), then status and the actions on one wrapping line. The header row hides; each cell names itself. *Checked* at 400px and with the chat pinned at 1400px: no sideways scroll, every action in view.
+- **Top 5 open CVEs** (dashboard, 4th card of the main column): the CVEs page's first 5 rows in its order (id, KEV chip, priority chip, product, severity, "Due …" with the overdue mark, the reasons on their own muted line), then "See all CVEs →" to `/cves`. Both sort by priority (A16).
+- **Priority and due date (A16)**: two columns after CVE. **Priority**: a chip with the word (Urgent: `--error` edge on `--error-soft`; High: `--warn` edge on `--warn-soft`; Normal: `--accent` edge on `--accent-soft`; Low: `--border` edge; text `--text`, like the verdict chip), the reasons under it ("in KEV · EPSS 99th percentile"). **Due**: your due date (bold), "Overdue" with the warning icon (icon in `--error`, word in `--text`) on its own line, "by your policy: …" (muted), and the KEV deadline as its own muted fact ("CISA KEV deadline …"). The count line says "by priority, then due date". The KEV tile's "Overdue since …" is against your due date. Settings has a "Priority and due dates" card: days per level, the KEV-deadline switch, the EPSS threshold.
+- **Decisions (A16b, 2026-10-14)**: every status change opens the **decision dialog** (native `<dialog>`, modal): a card on `--surface` (radius `--radius-card`, `--shadow-bubble`) over the page dimmed with `--text` at 45%; title "Accept the risk of CVE-…", "Mark CVE-… not affected", "Mark CVE-… fixed" or "Reopen CVE-…"; named fields; Cancel and a primary submit button on the right; a server error in the dialog (`role="alert"`, `--error` edge on `--error-soft`). Focus goes to the first field, Tab and Shift+Tab wrap inside it, Esc closes it without saving, focus returns to the button that opened it. No animation. At 400px it fits the window.
+  - **Accept**: Reason (required), Review date (required, a date input, default the as-of date + 90 days, after the as-of date), Compensating control (optional).
+  - **Not affected**: the **justification picker**, a fieldset "Why isn't it affected? (required)" (nested-card fill, radius 18px) with the five VEX justifications as radios, then Note (optional). "Mark not affected?" opens it with "Vulnerable code not present" picked and the verdict's reason as the note; the user confirms.
+  - **Fixed, Reopen**: Note (optional), focused.
+  - **Row actions**: open → Mark fixed, Not affected (or the suggestion), Accept risk; accepted → Mark fixed, Reopen; review due → Accept again, Mark fixed, Not affected, Reopen; fixed or not affected → Reopen. Status filter gains "Accepted" (`status=accepted`).
+  - **Under the status**: the current decision in 0.75rem (accepted: "Review on …" or "Review was due …", the reason, "Control: …"; not affected: the justification and note; fixed or reopened: the note). Review due adds a **"Review due"** chip next to the status (`--text` on `--warn-soft` with a `--warn` edge).
+  - **History**: a `<details>` "History (n)" (accent, bold; named "History of CVE-…: n decisions") under the actions; open, an ordered list, oldest first: date and time in UTC (muted), the status in bold, its facts, "by owner, on the CVEs page" or "in the chat". Stacked cards: full width.
+  - **No fix yet**: in the Due cell of an open CVE with no fixed version, "Decide by" (muted, small) above the date, then a **"No fix yet · open N days"** chip (`--text` on `--warn-soft`, `--warn` edge; a rounded box, radius 14px, when it wraps) instead of "Overdue", and "accept, mitigate or replace · by your policy: …". The Top 5 card says "Decide by …" with the same chip; the KEV tile says "No fix yet, decide by …" when its CVE has no fix. Patch's CVE card says "decide by" and shows the chip, and an accepted CVE's reason and review date.
 
 ### Checklist: components
 
@@ -274,7 +325,13 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 - [ ] Map colours and dimming as specified, in both modes.
 - [ ] Buttons, inputs, checkboxes, radios and sliders are on-brand in both modes and in Firefox and Chrome.
 - [ ] Save bar never hidden behind Patch.
+- [ ] Patch's colours are the fixed ones in §8.1 (body `#9483FF`, visor `#2A2457`, eyes `#7FF0DD`, light `#FFC94D`, cheeks, extras), the same in both modes; no token changes them.
 - [ ] Welcome banner closes and stays closed.
+- [ ] Tiles link to the CVEs page with their filter; the count there matches the tile.
+- [ ] Dashboard product filter (A15b): toggle pills with `aria-pressed`, a tick as well as colour, in the URL only, carried by the tile links and "See all CVEs"; the watchlist is edited on Settings, in a card that shares the save bar.
+- [ ] CVEs page: full width; filters in the URL survive a reload; stacked cards when narrow; row actions always in view.
+- [ ] Dev page OpenRouter model (A11.10): a native select with price, score and "(default)" per option; the picked model in full under it; "Other…" opens a focused text field; a saved id not listed shows as Other, unchanged; a loading state; no list = the text field and the reason; never wider than its card at 400px.
+- [ ] Decision dialog (A16b): named fields, focus trapped, Esc closes, focus back on the opener, server errors inside it, fits at 400px, nothing moves with reduced motion; the justification picker has all five; accepted rows show reason, review date and control; review due shows its chip; the history opens by keyboard; "No fix yet · open N days" replaces "Overdue" (CVEs page, Top 5, Patch's card).
 
 ---
 
@@ -295,8 +352,14 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 - Opens with a **pop** (section 7).
 - While it's open, **Patch steps off the button**: the button is just the pill, purple, with a white ✕ ("Close the chat").
 - **Header**: Patch (34px, showing the mood), "Patch", a chip "on Dashboard" (the page underneath), New chat, **Make larger**, ✕.
-- **Empty chat**: Patch (92px, waving) tucked behind a soft purple speech bubble: "Hi, I'm Patch! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack. What shall we look at?" Below: 1–2 suggested questions for the current page, and "More examples" (folded).
+- **Page chip (A18)**: shows the whole page context Patch gets, joined by " · ": "on CVEs · Langflow · High or worse · Unknown · CVE-2025-3248" (product, severity "or worse", a status other than open, verdict, "In KEV", "Since …", the selected CVE). `--text` on `--accent-soft` (`--accent` text is 4.48:1 in light mode); it wraps instead of cutting off. Its title repeats it in a sentence. Nothing in it moves.
+- **Selected CVE (A18)**: "Ask about this" on the CVEs page selects that row for this visit: an `--accent` edge on the first cell and a "Selected" chip (`--text` on `--accent-soft`, `--accent` edge) next to the id. Leaving the page clears it.
+- **Fix-first card (A18)**: `prioritise`'s tool card. Title "N open · {view} · in the rules' order", then a numbered list in the rules' order (never re-sorted): id, priority chip, severity, KEV, "Review due", "No fix yet · open N days" or the overdue mark; under it the product, the reasons and "due" (or "decide by") date. A status filter that doesn't apply is listed as "Not applied: …".
+- **Dropped page context (A18)**: under an answer, "Page context not used (not a valid value): severity=EXTREME" in `--text` on `--warn-soft` with a `--warn` edge. The app never sends such values; it shows when a request was crafted.
+- **Explain-level switch** (A19), a row under the header's buttons: "Explain level" and three pills (radios: Simple, Normal, Deep dive) showing the saved level. Picked pill: `--text` on `--accent-soft` with an `--accent` edge. Another level applies to the next question only ("next question only" note, muted italic), then the switch goes back to the saved level. Each answer shows the level it used as a small chip (`--muted` on `--accent-soft`) before the usage line.
+- **Empty chat**: Patch (58px, as on the chat button; idle in a variant picked on page load, §8.3) on the top-left corner of a soft purple speech bubble, in front of it, with only the first line of text beside him: "Hi, I'm Patch! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack. What shall we look at?" Below: 1–2 suggested questions for the current page, and "More examples" (folded).
 - **Messages**: user on the right in `--user`, assistant on the left on the surface. Each answer can open "Show N sources · N tool calls": tabs (Sources, Tool calls, Query plan) inline under the answer. Citations `[1]` open those details and scroll to the source.
+- **Under each answer** (A08): the citation check's note, quiet (`--muted`, italic, no fill; unlike the warning-coloured flag note): "No sources cited." when a sourced answer cites none, "Removed citation [9]: no matching source." when the check took one out. Then the usage line: tokens in and out, LLM calls, steps, and the cost in dollars to two significant figures ("$0.00061"; "$0" for local models and FakeLLM).
 
 ![Enlarged bubble, with the Pin button](img/chat-enlarged.png)
 
@@ -314,11 +377,11 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 
 - **Ctrl/Cmd+K** opens the chat on any page. **Esc** closes the bubble (not a pinned chat).
 - "Ask Patch" in the sidebar and the welcome banner's button open it too.
-- "Ask about this" on a CVE row opens the chat over the dashboard and sends "Explain CVE-… and how to defend against it."
+- "Ask about this" on a CVE row opens the chat over the CVEs page (header chip "on CVEs") and sends "Explain CVE-… and how to defend against it."
 
 ### 6.5 Phones
 
-- The chat is a full-screen sheet (bubble or pinned). No pin button. Patch's button sits above the bottom tab bar.
+- The chat is a full-screen sheet (bubble or pinned). No pin button and no Make larger: the sheet is already full screen. Patch's button sits above the bottom tab bar.
 
 ### Checklist: chat
 
@@ -327,19 +390,20 @@ node scripts/validate_palette.js "#8a70ff,#d4761a,#e33e6e" --mode dark --surface
 - [ ] Header, greeting, suggestions, inline details as specified.
 - [ ] Pin only on the enlarged bubble; divider by mouse and keyboard; Esc rules; remembered; page not rebuilt.
 - [ ] Ctrl/Cmd+K, Esc, "Ask about this".
-- [ ] Phone: full-screen sheet, no pin.
+- [ ] Phone: full-screen sheet, no pin, no Make larger.
 
 ---
 
 ## 7. Motion
 
-All motion is part of the spec. **It stops with `prefers-reduced-motion: reduce`** (*checked* in CSS; *unverified* by a browser test), except two small transitions listed in 12.1.
+All motion is part of the spec. **It stops with `prefers-reduced-motion: reduce`**: one global rule turns off every animation and transition (*checked* by the browser check A02.10: no running animations, cursor still, sidebar jumps to the rail). With normal motion, A02.9 checks that the cursor blinks and the sidebar width passes through in-between values.
 
 ### 7.1 Page motion
 
 | What | Animation | Duration, easing | Delay | Repeats |
 |---|---|---|---|---|
-| Stat tiles, dashboard cards | fade up: from `opacity 0`, `translateY(6px)` | 0.45s, `cubic-bezier(0.2, 0.8, 0.2, 1)` | tiles 0 / 0.05 / 0.1 / 0.15s; main column 2nd card 0.12s, 3rd 0.24s; side column 0.12s | once, on load |
+| Stat tiles, dashboard cards | fade up: from `opacity 0`, `translateY(6px)` | 0.45s, `cubic-bezier(0.2, 0.8, 0.2, 1)` | tiles 0 / 0.05 / 0.1 / 0.15s; main column 2nd card 0.12s, 3rd and 4th (Top 5 open CVEs) 0.24s; side column 0.12s | once, on load |
+| CVEs page card | the same fade up | 0.45s, same curve | 0s | once, on load (not on a filter change) |
 | Horizontal bars | grow from `scaleX(0)`, origin = the chart's axis (`--x0`) | 0.9s, same curve | 0.2s | once |
 | Columns | grow from `scaleY(0)`, origin = bottom of each bar | 0.9s, same curve | 0.2s | once |
 | Page title cursor | an "_" after the title, blinks | 1.1s, `steps(1)` | — | forever |
@@ -360,64 +424,73 @@ See section 8.3.
 - [ ] Every row of 7.1 and 8.3 is implemented with these timings.
 - [ ] Charts animate on first load of the page, not on hover or resize.
 - [ ] Stacked bars grow as one piece (no gaps opening between segments).
-- [ ] With reduced motion: nothing moves (tiles, cards, bars, cursor, KEV wiggle, bubble pop, Patch, sidebar width, pin icon). *Open issue in the prototype:* the last two still run (12.1).
+- [ ] With reduced motion: nothing moves (tiles, cards, bars, cursor, KEV wiggle, bubble pop, Patch, sidebar width, pin icon). Fixed in the real build (12.1). Checked in one place, `frontend/e2e/test_reduced_motion.py`: a ticket that adds motion adds a scene there (review, 2026-10-15).
 
 ---
 
 ## 8. Patch
 
-![Patch's four moods](img/patch-moods-light.png)
+![Patch's four moods, four animations each (still poses)](img/patch-moods-light.png)
 
 ### 8.1 Drawing
 
-An original SVG (`viewBox="0 0 120 130"`, height = width × 1.08). Parts, back to front:
+The **squircle robot** from the design canvas "Robot Style Explorations" (2026-10-14, A06b). The canvas's four artboards are saved in [patch/](./patch/) (reference only), so the design doesn't depend on a private link. `viewBox="0 0 160 170"`, height = width × 170 / 160. Parts, back to front:
 
 | Part | Shape | Colour |
 |---|---|---|
-| Shadow | ellipse at (60, 124), 26 × 4.5 | `rgba(42,37,89,.16)` |
-| Antenna | line (60,22)→(60,11), 3px, round cap; light: circle r 5 at (60, 8) | stem `#8d97c9`; light `#ff5d73` |
-| Hands | two 14 × 22 rounded rects (r 7) at x 2 and 104, y 70 | `#6c4cf5` |
-| Ears | two 9 × 24 rounded rects at x 15 and 96, y 44 | `#6c4cf5` |
-| Body | 76 × 86 rounded rect (r 36) at (22, 20), 2px stroke | gradient `#ffffff` → `#d9defb` (top to bottom), stroke `#c3cbf3` |
-| Visor | 58 × 34 rounded rect (r 17) at (31, 33); a 20 × 4 highlight at (36, 36), 18% white | `#23265a` |
-| Eyes | idle/thinking: two 12 × 16 rounded rects (r 6) at x 42, 66, y 42. Happy: two arcs (`M41 54 q7 -9 14 0`, `M65 54 q7 -9 14 0`), 4px stroke. Alert: two circles r 8 at (48, 50), (72, 50). | radial gradient `#e6fdff` → `#5cf2ff` → `#13b6d6`; happy arcs `#5cf2ff` |
-| Chest lights | three circles r 3 at (50/60/70, 82) | `#35d07f`, `#ffc93c`, `#ff5d73` |
-| Thruster | `M46 105 h28 l-4 8 h-20 z` | `#c3cbf3` |
+| Shadow | ellipse, ry 5, under the body (cy 148–160, rx 42–50 by variant) | `#2A2457`, 12% (14% where it animates) |
+| Antenna | line (80,42)→(80,22), 5px, round cap; light: circle r 7 at (80, 19) | stem `#9483FF`; light `#FFC94D` (heart eyes `#FF6F91`, alert `#FF6B8E`, siren `#FF4D6D`) |
+| Body | 112 × 106 rounded rect, **rx 44**, at (24, 40) | `#9483FF` |
+| Highlight | ellipse 11 × 6 at (50, 60), rotated −32° | white, 35% |
+| Visor | 72 × 40 rounded rect, rx 20, at (44, 68) | `#2A2457` |
+| Eyes | by variant: ovals 6 × 7 at (67/93, 88); scanning dots; three typing dots; arcs (happy); hearts; wide circles r 9 with a highlight or a pupil (alert) | `#7FF0DD` |
+| Cheeks | ellipses at (44/116, 122) on some variants | `#FFB3CF` (idle), `#FF9EC0` (happy) |
+| Mouth | by variant: small smile, flat line, wavy "hmm", dot, open smile, grin, "o" | `#2A2457` |
+| Extras (outside the body) | thought dots, radar pings, sparkles, music notes, floating hearts, alarm lines, the siren beam and halo, the "!" badge | `#B4A9FF`, `#FFC94D`, `#9483FF`, `#FF9EC0`, `#FF6F91`, `#FF6B8E`, `#FF4D6D` |
 
+- **Fixed colours**: all of the above are the same in light and dark mode, and are the only literal colours outside the tokens besides those in §3.1 and §5.1 (see the token checklist). The purple body stands out on both page backgrounds and surfaces (*checked*, img/patch-moods-dark.png).
 - Patch is decorative (`aria-hidden`); the button or text next to him carries the meaning.
-- Gradient ids must be unique per instance (several Patches can be on one page).
-- The same drawing in light and dark mode (*checked*, img/patch-moods-dark.png).
+- He uses no gradients or other ids, so several Patches on one page can't clash (the browser check asserts ids stay unique).
+- Each `svg.robot` says what it shows: `data-mood` and `data-variant`.
 
 ### 8.2 Where he appears, and how he overlaps
 
 He always **overlaps what he sits on**, so he looks like he's in the scene, not pasted on.
 
-| Place | Size | Overlap |
-|---|---|---|
-| Chat button | 58px | stands **in front** of the pill, overlapping its top edge, shadow on the pill |
-| Chat header | 34px | sits in the title row |
-| Empty-chat greeting | 92px | sits **behind** the speech bubble (bubble in front, 2.1rem overlap); always waving |
-| Welcome banner | 110px | head rises **over the banner's top edge** (−2.4rem); always waving |
-| Sidebar snapshot card | 64px | head pokes **over the card's top edge** (−2.6rem) |
+| Place | Size | Overlap | Shows |
+|---|---|---|---|
+| Chat button | 58px | stands **in front** of the pill, overlapping its top edge, shadow on the pill | his mood |
+| Chat header | 34px | sits in the title row | his mood (the same animation as the button) |
+| Empty-chat greeting | 58px | **in front of** the speech bubble, over its top-left corner; floats so only the first line of text sits beside him, the rest runs under him (changed 2026-10-15: at 92px behind the bubble, the squircle was half hidden) | idle, picked on page load |
+| Welcome banner | 110px | head rises **over the banner's top edge** (−2.4rem) | idle, picked on page load |
+| Sidebar snapshot card | 64px | head pokes **over the card's top edge** (−2.6rem) | idle, picked on page load |
+
+- Thought dots, sparkles, notes, hearts, the "!" badge and the siren beam reach outside the 160 × 170 box (the spin jump rises 30 units, the beam 33 above the light). No container around Patch cuts him off, and his extras never cover the unread dot or the header's buttons; the open pill's ✕ never meets him (he steps off). *Checked* for all 16 variants through their whole animation at 400px and 1400px, in both themes, Firefox and Chromium (A06b.6).
 
 ### 8.3 Moods
 
-| Mood | When | Looks | Motion |
-|---|---|---|---|
-| **Idle** | otherwise | round eyes | body bobs up 5px (3s, ease-in-out, forever); shadow shrinks to 80% / 60% opacity in time with the bob; hands drift up 3px and tilt −6° (3s; right hand 0.4s later); eyes blink (squash to 10% at 96% of a 4.5s cycle) |
-| **Thinking** | an answer is on its way | round eyes | eyes **scan** ±4px (1.1s, forever); antenna light **blinks** to `#ffd6dc` (0.5s, `steps(2)`); chest lights pulse to 25% opacity one after another (0.9s, delays 0 / 0.15 / 0.3s) |
-| **Happy** | for **3 seconds** after an answer arrives; on the chat button while an answer is unread | smiling arc eyes | right hand **waves**: up 14–16px, rotating +10° ↔ −22° (1.1s, forever) |
-| **Alert** | the last message is an error | wide round eyes | body **shakes** ±3px (0.5s, twice) |
+| Mood | When | Option A | Option B | Option C | Option D |
+|---|---|---|---|---|---|
+| **Idle** | otherwise | **Float**: hovers up 7px (2.6s); shadow shrinks to 80% (2.6s); antenna sways ±10° (1.8s); blink (4s) | **Breathe**: sits, squishes to 103.5% × 96.5% (3.2s); light glows 35–100% (3.2s); slow blink (6s); cheeks | **Look around**: eyes glance −7px then +7px while the body leans ±3° (5s); blink (4s) | **Little hop**: rests, then squash, hop up 16px, land (3s, last 30%); shadow shrinks with it; blink; cheeks |
+| **Thinking** | an answer is on its way | **Tilt & scan**: tilted −7°, eyes scan ±3px (1.6s); three thought dots and the light pulse 25–100% (1.2s, delays 0 / 0.2 / 0.4s); flat mouth | **Typing dots**: the eyes become three dots that rise 5px in turn (1.2s, delays 0 / 0.15 / 0.3s); floats 5px (2.6s) | **Ponder**: rocks ±6° (3s); eyes up; light pulses; wavy "hmm" mouth | **Radar**: two rings ping out from the light to 3.4× (1.8s, 0.9s apart); blink; dot mouth |
+| **Happy** | for **3 seconds** after an answer arrives; on the chat button while an answer is unread | **Bounce**: squash and stretch, up 8px (1s); antenna wiggles (0.45s); two sparkles pulse; arc eyes, open smile | **Spin jump**: squash, leap 30px with a full turn, land (2.2s); shadow shrinks; arc eyes | **Dance**: sways ±6px and ±10° (0.9s); antenna wiggles; ♪ ♫ rise and fade (1.8s, 0.9s apart); grin | **Heart eyes**: heart eyes beat to 125% then 115% (1.2s); two hearts rise (1.8s); floats 6px; pink light |
+| **Alert** | the last message is an error | **Shake**: stretched tall, trembles ±3px (0.5s); alarm lines; wide eyes, "o" mouth | **Startle jump**: squash, jolt up 24px, land (2.4s); pinprick pupils | **Siren**: the light flashes red/yellow (0.6s), a three-beam light turns (1.2s), the halo pulses (0.6s); wide eyes | **Pop-up "!"**: a red "!" badge pops in and out (2.6s) as he freezes tall and his eyes widen to 110% |
 
-- Mood logic lives in one hook (`useMood`) used by the chat header and the chat button, so they always agree.
-- "Waving" is also a fixed style for the greeting and the banner, whatever the mood.
+All animations repeat forever, with the canvas's keyframes and easings (`styles/robot.css`).
+
+- **The random rule**: each time Patch **enters** a mood he gets one of its four at random. While he stays in it he keeps it, so a re-render never makes him flicker. The pick lives in the one mood source, `usePatch` (the chat button and the header read it, so they always agree). Its random source is injectable: tests pick a known variant.
+- **Places without a mood** (the greeting, the banner, the snapshot card) show idle, in one variant picked at random on page load.
+- **Reduced motion**: nothing moves. Each variant shows its still pose (the canvas drawing), which keeps its face: arc eyes or heart eyes for happy, wide eyes and the "!" badge or the beam for alert, the typing dots for thinking. Animated shadows and the halo rest at their first keyframe's opacity (*checked*, the shared reduced-motion scene a06b_7).
+
+![Patch's four moods in dark mode](img/patch-moods-dark.png)
 
 ### Checklist: Patch
 
-- [ ] Drawing matches 8.1; unique gradient ids.
-- [ ] Every placement in 8.2 with its size and overlap.
-- [ ] All four moods with their triggers and motion; header and button always agree.
-- [ ] Reduced motion stops all of Patch's movement.
+- [ ] Drawing matches 8.1 and the artboards in [patch/](./patch/); ids unique per instance; `aria-hidden`.
+- [ ] Every placement in 8.2 with its size and overlap; extras never cut off and never on the unread dot or the header's buttons.
+- [ ] All four moods with their triggers; all 16 variants with the canvas keyframes; a new pick only on entering a mood; header and button always agree.
+- [ ] Reduced motion stops all of Patch's movement and keeps each variant's face.
+- [ ] The same drawing in light and dark mode.
 
 ---
 
@@ -441,7 +514,7 @@ He always **overlaps what he sits on**, so he looks like he's in the scene, not 
 
 - **Contrast**: section 3.1 and 5.1 values (*checked*). Open issues in 12.1.
 - **Colour is never alone**: map shapes, chart legends, "Show as table" under every chart and the map, KEV has a label and an icon, the unread dot sits on a named button.
-- **Keyboard**: everything reachable; visible focus (purple ring on sliders and the divider, purple border on Patch's pill); Ctrl/Cmd+K and Esc; divider moves with arrow keys.
+- **Keyboard**: everything reachable; visible focus (purple ring on sliders and the divider, purple border on Patch's pill); Ctrl/Cmd+K and Esc; divider moves with arrow keys. Each chart is **one Tab stop**: Tab lands on its bar last focused (the first at the start), arrow keys, Home and End move between its bars with their tooltips, and the next Tab leaves the chart (a roving tabindex; review, 2026-10-15).
 - **Screen readers**: collapsed sidebar keeps its labels (visually hidden); Patch is `aria-hidden`; buttons have names ("Ask Patch", "Close the chat", "Make larger", "Pin: dock the chat beside the page", "Unpin: float the chat over the page", "Switch to dark mode", "Close Patch's welcome", "Collapse the sidebar").
 - **Reduced motion**: section 7.
 
@@ -459,20 +532,21 @@ He always **overlaps what he sits on**, so he looks like he's in the scene, not 
 
 - All reads and writes are wrapped so a blocked storage (private windows) never breaks the app.
 - URL: `?theme=light|dark`. Old links: `?layout=split` pins the chat; other `?layout=` and all `?design=` values are ignored.
+- Paths: `/`, `/cves`, `/settings`, `/dev` (A04b). The CVEs page's filters: `product`, `severity`, `status`, `kev=1`, `since=YYYY-MM-DD` (§5.9). The dashboard's product filter: `/?product=langflow,ollama` (A15b; URL only, never in localStorage). Alert links stay `#cve=CVE-…` on any path.
 
 ---
 
 ## 12. Known gaps
 
-### 12.1 Open issues (found 2026-10-13, not fixed yet)
+### 12.1 Faults found 2026-10-13 (fixed in the real build 2026-10-14, A02)
 
-- **Muted text on the page background is 3.9:1** (light mode), under 4.5:1. Affects the "Watching … · data as of …" line and the breadcrumb. Fix: darken `--muted` slightly, or put those lines on the surface.
-- **Primary button text** is 3.7:1 against the light end of the gradient (`#8b6cff`), 6.2:1 at the dark end. Fix: start the gradient deeper, like the tiles.
-- **Two transitions ignore reduced motion**: the sidebar width (0.2s) and the pin icon rotation (0.15s).
+- **Muted text on the page background is 3.9:1** (light mode), under 4.5:1. Affects the "Watching … · data as of …" line and the breadcrumb. **Fixed:** `--muted` is `#605d8c`: 4.9:1 on the page background, 5.2:1 on `--accent-soft`.
+- **Primary button text** is 3.7:1 against the light end of the gradient (`#8b6cff`), 6.2:1 at the dark end. **Fixed:** the gradient starts at `#7454f7`: 4.8:1 and 6.2:1.
+- **Two transitions ignore reduced motion**: the sidebar width (0.2s) and the pin icon rotation (0.15s). **Fixed:** the reduced-motion rule covers all transitions, so the pin icon (built with the chat) is covered too.
 
 ### 12.2 Unverified
 
-- Browser checks run in **Firefox only**. Chrome and Safari not checked (slider styling differs there).
+- The prototype's browser checks ran in Firefox only. The real build's run in **Firefox and Chromium** (`frontend/e2e/run.sh`). Safari not checked.
 - Offline font fallback not looked at.
 - Uses modern CSS (`:has()`, `color-mix()`): fine in current browsers, not in old ones.
 
@@ -483,4 +557,7 @@ He always **overlaps what he sits on**, so he looks like he's in the scene, not 
 - `proto/frontend/e2e/check_ui.py` (Playwright, Firefox): 35 checks, all passing on 2026-10-13. Covers the dashboard, settings, dev panel, chat (bubble, enlarge, pin, unpin, keyboard), light and dark, phone width, sidebar collapse, the welcome banner, Patch as the button.
 - Chart colours: the dataviz skill's validator (commands in 3.2).
 - Contrast: measured with the WCAG formula (values in 3.1 and 5.1).
-- It does **not** yet check animations or reduced motion. Worth adding in the real build: one test that the bars and Patch animate, one that nothing animates with reduced motion.
+- The real build's browser check (`frontend/e2e/test_shell.py`, Firefox and Chromium) covers tokens, contrast, the shell, both themes, 400px and 1400px, and motion with and without reduced motion.
+- `frontend/e2e/test_chat.py` (A06, A06b) covers Patch (the squircle drawing, unique ids, all 16 variants with the canvas keyframes and faces, the random pick only on entering a mood, his motion envelope against every place's clipping and nearby controls, placements and overlaps, the four moods and their triggers, the unread dot), the bubble window (position above the pill, pop, header, greeting, suggestions), inline details and citations, the flag notice, keyboard, both themes at 400px and 1400px, and that nothing in the chat moves with reduced motion. The open pill uses the primary gradient, not `--accent`: white on dark-mode `--accent` would be 2.6:1. The prototype's check did **not** check animations or reduced motion. Worth adding in the real build: one test that the bars and Patch animate, one that nothing animates with reduced motion.
+- `frontend/e2e/test_cves_page.py` (A04b) covers the CVEs page: navigation and paths, the table at full width (moved A04.7 and A04.11 checks), filters in the URL and reload, the tile links (count matches the tile), the "Top 5 open CVEs" card, the alert link on `/cves`, stacked cards at 400px, row actions in view with the chat pinned at 1400px, fade-up delays, reduced motion, light and dark.
+- `frontend/e2e/test_priority.py` (A16) covers priority and due dates: the Priority and Due columns and their order, the KEV deadline as its own fact, internet-facing and the verdict moving a CVE, the Top 5 and the KEV tile, the policy card (save, out-of-order days, threshold), the `lookup_cve` card, chip contrast for all four levels in light and dark at 400px and 1400px (pinned too), reduced motion and the keyboard.

@@ -88,7 +88,7 @@ class Notifier(Protocol):
 
 ### The message
 
-- Built from structured fields only: id, product, severity, CVSS, the reason, KEV due date. Example: **Title** "In CISA KEV: Langflow", **body** "CVE-2026-9198 · critical 9.8 · remediation due 2026-08-07".
+- Built from structured fields only: id, product, severity, CVSS, the reason, your due date. Example: **Title** "In CISA KEV: Langflow", **body** "CVE-2026-9198 · critical 9.8 · due 2026-08-07" (your due date from the policy; "decide by" when there is no fix yet, as on the dashboard).
 - **No CVE description text.** It is untrusted, it can be long, and a lock screen shows it to anyone holding the phone.
 - The click link opens the app at `#cve=CVE-…`: the dashboard row, with "Ask about this" one tap away.
 

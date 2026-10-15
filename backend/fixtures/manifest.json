@@ -1,0 +1,79 @@
+{
+ "as_of": "2026-10-13",
+ "note": "A frozen snapshot of public data, built by scripts/build_fixtures.py.",
+ "sources": [
+  {
+   "id": "owasp_llm",
+   "name": "OWASP Top 10 for LLM Applications 2025",
+   "licence": "CC BY-SA 4.0",
+   "attribution": "OWASP Top 10 for LLM Applications 2025, by the OWASP Foundation",
+   "url": "https://github.com/OWASP/www-project-top-10-for-large-language-model-applications",
+   "retrieved": "2026-10-13",
+   "count": 10
+  },
+  {
+   "id": "owasp_web",
+   "name": "OWASP Top 10 2025",
+   "licence": "CC BY-SA 4.0",
+   "attribution": "OWASP Top 10:2025, by the OWASP Foundation",
+   "url": "https://github.com/OWASP/Top10",
+   "retrieved": "2026-10-13",
+   "count": 10,
+   "mapped_cwes": 249
+  },
+  {
+   "id": "atlas",
+   "name": "MITRE ATLAS 5.6.0",
+   "licence": "Apache 2.0",
+   "attribution": "MITRE ATLAS, by The MITRE Corporation",
+   "url": "https://github.com/mitre-atlas/atlas-data",
+   "retrieved": "2026-10-13",
+   "count": 262
+  },
+  {
+   "id": "nvd",
+   "name": "NVD CVE API 2.0",
+   "licence": "Public (US government)",
+   "attribution": "CVE records from the National Vulnerability Database (NIST)",
+   "notice": "This product uses the NVD API but is not endorsed or certified by the NVD.",
+   "url": "https://nvd.nist.gov/developers/vulnerabilities",
+   "retrieved": "2026-10-13",
+   "count": 929
+  },
+  {
+   "id": "kev",
+   "name": "CISA KEV 2026.10.08",
+   "licence": "CC0 1.0",
+   "attribution": "CISA Known Exploited Vulnerabilities Catalog; no endorsement by CISA implied",
+   "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+   "retrieved": "2026-10-13",
+   "count": 9
+  },
+  {
+   "id": "osv",
+   "name": "OSV.dev",
+   "licence": "CC-BY 4.0",
+   "attribution": "Affected and fixed versions from OSV.dev, taken from GitHub Advisory Database records (CC-BY 4.0)",
+   "url": "https://osv.dev",
+   "retrieved": "2026-10-14",
+   "as_of": "2026-10-13",
+   "count": 514
+  },
+  {
+   "id": "epss",
+   "name": "EPSS",
+   "licence": "Attribution requested by FIRST",
+   "attribution": "EPSS by FIRST",
+   "url": "https://www.first.org/epss",
+   "retrieved": "2026-10-14",
+   "as_of": "2026-10-13",
+   "count": 929
+  }
+ ],
+ "product_check": {
+  "text_matched": 184,
+  "confirmed": 36,
+  "conflicting": 0,
+  "unknown": 148
+ }
+}

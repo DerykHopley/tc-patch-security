@@ -1,0 +1,186 @@
+/* The Playful design's tokens (docs/design/DESIGN.md §3). Components use these, never literal colours.
+   Light values on <html data-design="playful">; dark values when data-theme="dark" (set by the toggle, which
+   starts from the system setting), so the toggle can override the system. */
+
+:root[data-design='playful'] {
+  /* 3.1 Colours. --muted is #605d8c, not the prototype's #6f6c9c: 4.87:1 on the page background (was 3.90). */
+  /* --error, --warn and --ok are dark enough to pass 4.5:1 as text on the surface and their soft fills (review, 2026-10-15). */
+  --bg: #dfe5fd;
+  --surface: #ffffff;
+  --text: #2a2559;
+  --muted: #605d8c;
+  --border: #e4e5f8;
+  --accent: #6c4cf5;
+  --accent-soft: #efeaff;
+  --user: #efeaff;
+  --ok: #0d7b50;
+  --error: #cf1b3e;
+  --error-soft: #ffe8ed;
+  --warn: #9c5508;
+  --warn-soft: #fff1de;
+  --series-1: #7b5cff;
+  --grid: #eceefb;
+
+  /* 3.2 Chart colours (validated with the dataviz validator; re-run it if a value changes). */
+  --sev-low: #a48bff;
+  --sev-medium: #7b5cff;
+  --sev-high: #5235d6;
+  --sev-critical: #2e1a80;
+  --cat-1: #6c4cf5;
+  --cat-2: #e2780f;
+  --cat-3: #e0306a;
+
+  /* Fixed colours, the same in both modes. The gradient starts at #7454f7, not #8b6cff, so white text passes
+     at both ends: 4.82:1 and 6.17:1 (was 3.69 at the light end). */
+  --gradient-primary: linear-gradient(135deg, #7454f7, #5a3ff0);
+  --on-primary: #ffffff;
+
+  /* 3.3 Page background: three soft glows over --bg, fixed (they don't scroll). */
+  --page-glow:
+    radial-gradient(520px 520px at 8% 12%, rgba(255, 255, 255, 0.55), transparent 70%),
+    radial-gradient(640px 640px at 96% 88%, rgba(123, 92, 255, 0.16), transparent 70%),
+    radial-gradient(360px 360px at 70% 8%, rgba(255, 181, 71, 0.16), transparent 70%);
+
+  /* 3.4 Type. Both fonts load from index.html. */
+  --font-display: Fredoka, Nunito, system-ui, sans-serif;
+  --font-body: Nunito, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* 3.5 Shape and elevation. The purple shadow is rgba(108, 76, 245, α). */
+  --radius-sidebar: 28px;
+  --radius-card: 26px;
+  --radius-tile: 24px;
+  --radius-banner: 28px;
+  --radius-save-bar: 20px;
+  --radius-message: 20px;
+  --radius-message-tail: 6px;
+  --radius-nested: 18px;
+  --radius-input: 14px;
+  --radius-item: 16px;
+  --radius-snapshot-card: 22px;
+  --radius-pill: 999px;
+  --shadow-sidebar: 0 16px 40px rgba(108, 76, 245, 0.12);
+  --shadow-card: 0 12px 30px rgba(108, 76, 245, 0.09);
+  --shadow-bubble: 0 16px 48px rgba(0, 0, 0, 0.24);
+  --shadow-pinned: 0 12px 30px rgba(108, 76, 245, 0.12);
+  --shadow-banner: 0 12px 30px rgba(108, 76, 245, 0.1);
+  --shadow-save-bar: 0 10px 28px rgba(108, 76, 245, 0.16);
+  --shadow-primary: 0 6px 14px rgba(108, 76, 245, 0.3);
+  --shadow-active: 0 8px 18px rgba(108, 76, 245, 0.35);
+  --shadow-brand: 0 6px 14px rgba(108, 76, 245, 0.35);
+  --nested-fill: color-mix(in srgb, var(--accent-soft) 40%, var(--surface));
+
+  color-scheme: light;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+:root[data-design='playful'][data-theme='dark'] {
+  --bg: #0f0f1c;
+  --surface: #1a1a2e;
+  --text: #ecebff;
+  --muted: #a9a8cc;
+  --border: #2c2b48;
+  --accent: #a28dff;
+  --accent-soft: #2a2550;
+  --user: #2a2550;
+  --ok: #4fd39a;
+  --error: #ff7a95;
+  --error-soft: #3a1c2a;
+  --warn: #ffb547;
+  --warn-soft: #33281a;
+  --series-1: #a28dff;
+  --grid: #25243d;
+  --sev-low: #5641c4;
+  --sev-medium: #7860f2;
+  --sev-high: #a796ff;
+  --sev-critical: #d9d0ff;
+  --cat-1: #8a70ff;
+  --cat-2: #d4761a;
+  --cat-3: #e33e6e;
+  --page-glow: radial-gradient(640px 640px at 96% 88%, rgba(123, 92, 255, 0.1), transparent 70%);
+
+  color-scheme: dark;
+}
+
+/* ---------- Base ---------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--page-glow), var(--bg);
+  background-attachment: fixed;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+a {
+  color: var(--accent);
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+button {
+  font: inherit;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled, [aria-disabled='true']) {
+  border-color: var(--accent);
+}
+
+button[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+/* Visible focus on everything reachable by keyboard (DESIGN.md §10). */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Reduced motion: nothing moves, animations and transitions alike (DESIGN.md §7, fault 12.1). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

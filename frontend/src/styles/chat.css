@@ -1,0 +1,823 @@
+/* The chat (docs/design/DESIGN.md §6): Patch's button, the bubble window, messages and their inline details.
+   Tokens only; the literal colours are the fixed ones DESIGN.md allows (primary gradient, purple shadow).
+   Reduced motion stops the pop and the pill transition through the global rule in tokens.css. */
+
+/* ---------- Patch's button (§6.1): Patch in front of a pill ---------- */
+
+.patch-fab {
+  position: fixed;
+  right: 1.25rem;
+  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  z-index: 21;
+  width: 84px;
+  height: 66px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  overflow: visible;
+}
+
+.patch-fab .robot {
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  z-index: 3; /* in front of the pill */
+  translate: -50% 0;
+}
+
+.patch-pill {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: 0 6px 16px rgba(108, 76, 245, 0.2);
+  color: var(--on-primary);
+  font-size: 0.85rem;
+  font-weight: 800;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
+}
+
+/* Hover and keyboard focus: the pill's border turns purple (the focus ring for this button, §10). */
+.patch-fab:hover .patch-pill,
+.patch-fab:focus-visible .patch-pill {
+  border-color: var(--accent);
+}
+
+.patch-fab:focus-visible {
+  border-radius: var(--radius-input); /* the global focus ring, rounded around Patch and his pill */
+}
+
+/* Open: Patch steps off; the pill turns purple with a white ✕. */
+.patch-fab.open .patch-pill {
+  border-color: transparent;
+  background: var(--gradient-primary);
+}
+
+.unread-dot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--error);
+}
+
+.patch-fab .unread-dot {
+  right: 2px;
+  bottom: 16px;
+  z-index: 4; /* on top of Patch */
+}
+
+.side-link .unread-dot {
+  top: 4px;
+  left: 32px;
+}
+
+/* ---------- The bubble window (§6.2) ---------- */
+
+.chat-window {
+  --chat-bottom: calc(3.6rem + env(safe-area-inset-bottom, 0px)); /* just above the pill */
+  position: fixed;
+  right: 1.25rem;
+  bottom: var(--chat-bottom);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: min(400px, calc(100vw - 2.5rem));
+  height: min(600px, calc(100vh - var(--chat-bottom) - 1.25rem));
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-bubble);
+  animation: pop 0.16s ease;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.chat-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.chat-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  font-family: var(--font-display);
+}
+
+.chat-title .robot {
+  margin: -0.2rem 0 -0.3rem -0.2rem; /* in the title row; his antenna stays inside the window's top edge */
+}
+
+/* The page under the chat, with the filters and selected CVE Patch is told about (A18). It wraps rather than cuts
+   off: the chip is the promise of what Patch knows, so all of it stays readable. --text, since --accent on
+   --accent-soft is 4.48:1 in light mode, just short of 4.5. */
+.context-chip {
+  min-width: 0;
+  padding: 0.05rem 0.55rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+
+.chat-head button {
+  flex: none;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.chat-head .icon-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  line-height: 1;
+}
+
+/* The explain-level switch (A19): its own row under the header's buttons, three pills like the buttons (§5.3).
+   The picked pill: --text on --accent-soft with an --accent edge (--accent on --accent-soft is just under 4.5:1). */
+.chat-head {
+  flex-wrap: wrap;
+}
+
+.level-switch {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.level-switch legend {
+  float: left; /* a legend sits in the row like a label */
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.level-pills {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.level-pills label {
+  position: relative;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.level-pills label:hover {
+  border-color: var(--accent);
+}
+
+.level-pills label:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.level-pills label:has(input:focus-visible) {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.level-pills input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0; /* the pill is the radio's face; the input stays for keyboard and screen readers */
+  cursor: pointer;
+}
+
+.level-hint {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-style: italic;
+}
+
+/* Under each answer: the level it was pitched at, then the usage line. */
+.answer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.4rem;
+}
+
+.level-used {
+  display: inline-block;
+  padding: 0 0.45rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+/* ---------- Conversation ---------- */
+
+.conversation {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  padding: 0.75rem;
+}
+
+/* Empty chat: Patch (92px, waving) tucked behind a speech bubble, 2.1rem overlap (§8.2). */
+.greeting {
+  padding: 2.5rem 0.5rem 0 1.4rem; /* room for Patch above and left of the bubble */
+}
+
+.greeting-bubble {
+  position: relative;
+  z-index: 0;
+  max-width: 22rem;
+  margin: 0 auto;
+  padding: 0.9rem 1rem 0.7rem;
+  border-radius: var(--radius-nested);
+  background: var(--accent-soft);
+  box-shadow: 0 6px 16px rgba(108, 76, 245, 0.12);
+}
+
+.greeting-bubble p {
+  margin: 0;
+}
+
+/* Patch as on the chat button (58px, in front), over the bubble's top-left corner. He floats high enough that
+   only the first line of text sits beside him; the rest runs under him. */
+.greeting .robot-slot {
+  float: left;
+  position: relative;
+  z-index: 1;
+  margin: -2.75rem 0.45rem 0 -1.7rem;
+}
+
+.greeting .robot-slot .robot {
+  display: block;
+}
+
+.suggestions,
+.example-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.suggestions button,
+.example-list button {
+  text-align: left;
+  font-size: 0.82rem;
+  border-radius: var(--radius-input);
+}
+
+.more-examples summary {
+  padding: 0.2rem 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.example-list {
+  padding-top: 0.3rem;
+}
+
+/* Messages: user on the right in --user, Patch on the left on the surface; the corner nearest the speaker is tight. */
+.message {
+  max-width: 100%;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-message);
+  overflow-wrap: anywhere;
+}
+
+.message.user {
+  align-self: flex-end;
+  max-width: 90%;
+  border-color: transparent;
+  border-bottom-right-radius: var(--radius-message-tail);
+  background: var(--user);
+}
+
+.message.assistant {
+  align-self: flex-start;
+  border-bottom-left-radius: var(--radius-message-tail);
+  background: var(--surface);
+}
+
+.message.error {
+  border-color: var(--error);
+  background: var(--error-soft);
+  color: var(--error);
+}
+
+.message p,
+.message ul,
+.message ol {
+  margin: 0.4rem 0;
+}
+
+.message > :first-child,
+.answer-text > :first-child {
+  margin-top: 0;
+}
+
+.answer-text > :last-child {
+  margin-bottom: 0;
+}
+
+.message table {
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.message th,
+.message td {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+}
+
+.cite {
+  font-size: 0.8em;
+  font-weight: 700;
+  text-decoration: none;
+  vertical-align: super;
+}
+
+.thinking-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.flag-note,
+.notice {
+  margin: 0.5rem 0 0;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-input);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* The citation check: quiet, muted text with no fill, unlike the warning-coloured flag note. */
+.cite-note {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.usage {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.chat-window .chip {
+  margin: 0 0.3rem 0.2rem 0;
+}
+
+.usage .chip {
+  margin: 0 0 0 0.4rem;
+}
+
+.chip.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.details-toggle {
+  margin-top: 0.4rem;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.75rem;
+}
+
+/* ---------- Inline details: sources, tool calls, query plan ---------- */
+
+.answer-details {
+  margin-top: 0.5rem;
+}
+
+.detail-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-tabs button {
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  font-size: 0.78rem;
+}
+
+.detail-tabs button[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+.detail-tabs .count {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.source {
+  scroll-margin: 1rem;
+}
+
+.source-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-weight: 700;
+}
+
+.source-n {
+  flex: none;
+  min-width: 1.4rem;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.snippet {
+  display: -webkit-box;
+  margin: 0.2rem 0 0;
+  overflow: hidden;
+  font-size: 0.85rem;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.2rem 0;
+}
+
+/* Chips, severity badges and .meta are shared with the pages (controls.css, dashboard.css). */
+.chips .chip {
+  margin: 0;
+}
+
+.chat-window .sev {
+  font-size: 0.8rem;
+}
+
+.tool-card {
+  margin-bottom: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid var(--ok);
+  border-radius: var(--radius-input);
+  background: var(--nested-fill);
+}
+
+.tool-card.error {
+  border-left-color: var(--error);
+}
+
+.tool-card header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tool-card .status {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.status.ok {
+  color: var(--ok);
+}
+
+.status.error,
+.tool-error {
+  color: var(--error);
+}
+
+.tool-error {
+  margin: 0.3rem 0;
+  font-size: 0.85rem;
+}
+
+.tool-card pre {
+  margin: 0.3rem 0;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.result-card p {
+  margin: 0.2rem 0;
+}
+
+.result-title {
+  font-weight: 700;
+}
+
+.mitigations {
+  margin: 0.2rem 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+}
+
+.raw summary {
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.query-plan dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.3rem 0.8rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.query-plan dt {
+  color: var(--muted);
+}
+
+.query-plan dd {
+  margin: 0;
+}
+
+.rewrites {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+/* ---------- Message box ---------- */
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.composer textarea {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  resize: none;
+}
+
+/* ---------- Phones: Patch's button sits above the bottom tab bar (§4.2) ---------- */
+
+@media (max-width: 800px) {
+  .patch-fab {
+    bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .chat-window {
+    --chat-bottom: calc(7.35rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ---------- Enlarged bubble (§6.3): 640px wide, full height minus 5rem ---------- */
+
+.chat-window.expanded {
+  width: min(640px, calc(100vw - 2.5rem));
+  height: min(calc(100vh - 5rem), calc(100vh - var(--chat-bottom) - 1.25rem)); /* never above the screen */
+}
+
+/* ---------- Pinned beside the page (§6.3): page | 6px divider | chat ---------- */
+
+/* The tab bar layout (≤ 800px) stacks the shell; a docked chat keeps page and chat side by side. */
+.app.docked {
+  flex-direction: row;
+}
+
+.chat-window.pinned {
+  position: sticky;
+  top: 1rem;
+  right: auto;
+  bottom: auto;
+  flex: none;
+  align-self: flex-start;
+  width: var(--pin-width);
+  height: calc(100vh - 2rem);
+  margin: 1rem 1rem 1rem 0;
+  box-shadow: var(--shadow-pinned);
+  animation: none; /* the pop is for opening the bubble */
+}
+
+.chat-divider {
+  position: sticky;
+  top: 1rem;
+  flex: none;
+  align-self: flex-start;
+  width: 6px;
+  height: calc(100vh - 2rem);
+  margin: 1rem 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+  transition: background-color 0.15s;
+}
+
+/* Hover and focus: the divider turns purple (its focus ring, §10); it stays purple while dragged. */
+.chat-divider:hover,
+.chat-divider:focus,
+.chat-divider:focus-visible {
+  background: var(--accent);
+  outline: none;
+}
+
+/* Pin: the icon tilts 35° until the chat is pinned (§7.1); Unpin shows the pressed state in purple. */
+.chat-head .pin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pin-btn svg {
+  rotate: 35deg;
+  transition: rotate 0.15s ease;
+}
+
+.chat-head .pin-btn[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--surface); /* --accent on --accent-soft is 4.48:1 in light mode: just short of 4.5 */
+  color: var(--accent);
+}
+
+.pin-btn[aria-pressed='true'] svg {
+  rotate: 0deg;
+}
+
+/* ---------- Alert link banner (§6.4): over the page, "Explain it" asks Patch ---------- */
+
+.alert-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  width: calc(100% - 2rem);
+  max-width: calc(1280px - 2rem);
+  margin: 0.8rem auto 0;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-input);
+  background: var(--warn-soft);
+  box-shadow: var(--shadow-card);
+}
+
+.alert-banner > svg {
+  flex: none;
+  color: var(--warn);
+}
+
+.alert-banner p {
+  flex: 1;
+  min-width: 12rem;
+  margin: 0;
+}
+
+/* ---------- Phones (§6.5, ≤ 700px): every layout is a full-screen sheet; no pin, no divider ---------- */
+
+@media (max-width: 700px) {
+  .app.docked {
+    flex-direction: column; /* the page stays as it is under the sheet */
+  }
+
+  .chat-window,
+  .chat-window.expanded,
+  .chat-window.pinned {
+    position: fixed;
+    inset: 0;
+    z-index: 30; /* over the tab bar */
+    align-self: auto; /* flex-start would shrink it inside its insets (box alignment for fixed boxes) */
+    width: auto;
+    height: auto;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  /* The sheet is already full screen: nothing to pin or enlarge */
+  .chat-divider,
+  .chat-head .pin-btn,
+  .chat-head .size-btn {
+    display: none;
+  }
+}
+
+/* check_affected's card (A15): the verdict chip and its facts, one per line. */
+.affected-card .verdict-lines .verdict-reason,
+.affected-card .verdict-lines .verdict-fact {
+  display: block;
+}
+
+.affected-list {
+  margin: 0.3rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.8rem;
+}
+
+/* prioritise's card (A18): the rules' order as a numbered list, each CVE with its level, reasons and due date. */
+.fix-list {
+  margin: 0.3rem 0 0;
+  padding-left: 1.3rem;
+  font-size: 0.82rem;
+}
+
+.fix-list li {
+  margin-bottom: 0.3rem;
+}
+
+.fix-list .fix-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.fix-list .chip {
+  margin: 0;
+}
+
+/* Page-context values the backend dropped (A18): the words in --text, the warn colour only as the edge (--warn on
+   --warn-soft is under 4.5:1 for small text). */
+.context-dropped {
+  margin: 0.4rem 0 0;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-input);
+  background: var(--warn-soft);
+  box-shadow: inset 0 0 0 1px var(--warn);
+  color: var(--text);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}

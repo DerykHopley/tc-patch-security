@@ -1,0 +1,86 @@
+/* Patch's moves (DESIGN.md §8.3): four animations per mood, copied from the "Robot Style Explorations" canvas
+   (docs/design/patch/), keyframes and timings unchanged. Patch's colours are fixed (§8.1).
+   Reduced motion stops them through the global rule in tokens.css: each variant then shows its still pose. */
+.robot { flex: none; overflow: visible; }
+
+/* Shared */
+.robot .pb-blink { transform-box: fill-box; transform-origin: center; animation: pb-blink 4s infinite; }
+.robot .pb-p1 { animation: pb-pulse 1.2s infinite; }
+.robot .pb-p2 { animation: pb-pulse 1.2s 0.2s infinite; }
+.robot .pb-p3 { animation: pb-pulse 1.2s 0.4s infinite; }
+.robot .pb-wiggle-fast { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-wiggle 0.45s ease-in-out infinite; }
+.robot .pb-rise1 { animation: pb-rise 1.8s ease-out infinite; }
+.robot .pb-rise2 { animation: pb-rise 1.8s 0.9s ease-out infinite; }
+@keyframes pb-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes pb-pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@keyframes pb-wiggle { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg); } }
+@keyframes pb-rise { 0% { transform: translateY(8px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(-24px); opacity: 0; } }
+
+/* Idle: A float, B breathe, C look around, D little hop */
+.robot .pb-float-7 { animation: pb-float-7 2.6s ease-in-out infinite; }
+.robot .pb-shadow { transform-box: fill-box; transform-origin: center; animation: pb-shadow 2.6s ease-in-out infinite; }
+.robot .pb-wiggle { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-wiggle 1.8s ease-in-out infinite; }
+.robot .pb-breathe { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-breathe 3.2s ease-in-out infinite; }
+.robot .pb-glow { animation: pb-glow 3.2s ease-in-out infinite; }
+.robot .pb-slowblink { transform-box: fill-box; transform-origin: center; animation: pb-blink 6s infinite; }
+.robot .pb-look { animation: pb-look 5s ease-in-out infinite; }
+.robot .pb-lean { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-lean 5s ease-in-out infinite; }
+.robot .pb-hop { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-hop 3s ease-in-out infinite; }
+.robot .pb-hopshadow { transform-box: fill-box; transform-origin: center; animation: pb-hopshadow 3s ease-in-out infinite; }
+@keyframes pb-float-7 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes pb-shadow { 0%, 100% { transform: scaleX(1); opacity: 0.14; } 50% { transform: scaleX(0.8); opacity: 0.07; } }
+@keyframes pb-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.035, 0.965); } }
+@keyframes pb-look { 0%, 15% { transform: translateX(0); } 25%, 45% { transform: translateX(-7px); } 55%, 75% { transform: translateX(7px); } 85%, 100% { transform: translateX(0); } }
+@keyframes pb-lean { 0%, 15% { transform: rotate(0deg); } 25%, 45% { transform: rotate(-3deg); } 55%, 75% { transform: rotate(3deg); } 85%, 100% { transform: rotate(0deg); } }
+@keyframes pb-hop { 0%, 70%, 100% { transform: translateY(0) scale(1, 1); } 76% { transform: translateY(0) scale(1.07, 0.92); } 84% { transform: translateY(-16px) scale(0.96, 1.05); } 92% { transform: translateY(0) scale(1.05, 0.94); } 96% { transform: translateY(0) scale(1, 1); } }
+@keyframes pb-hopshadow { 0%, 76%, 92%, 100% { transform: scaleX(1); opacity: 0.14; } 84% { transform: scaleX(0.7); opacity: 0.06; } }
+@keyframes pb-glow { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+
+/* Thinking: A tilt and scan, B typing dots, C ponder, D radar */
+.robot .pb-scan { animation: pb-scan 1.6s ease-in-out infinite; }
+.robot .pb-float-5 { animation: pb-float-5 2.6s ease-in-out infinite; }
+.robot .pb-t1 { animation: pb-typing 1.2s ease-in-out infinite; }
+.robot .pb-t2 { animation: pb-typing 1.2s 0.15s ease-in-out infinite; }
+.robot .pb-t3 { animation: pb-typing 1.2s 0.3s ease-in-out infinite; }
+.robot .pb-rock { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-rock 3s ease-in-out infinite; }
+.robot .pb-ping1 { transform-box: fill-box; transform-origin: center; animation: pb-ping 1.8s ease-out infinite; }
+.robot .pb-ping2 { transform-box: fill-box; transform-origin: center; animation: pb-ping 1.8s 0.9s ease-out infinite; }
+@keyframes pb-float-5 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes pb-scan { 0%, 100% { transform: translateX(-3px); } 50% { transform: translateX(3px); } }
+@keyframes pb-typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.45; } 30% { transform: translateY(-5px); opacity: 1; } }
+@keyframes pb-rock { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+@keyframes pb-ping { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(3.4); opacity: 0; } }
+
+/* Happy: A bounce, B spin jump, C dance, D heart eyes */
+.robot .pb-squish { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-squish 1s ease-in-out infinite; }
+.robot .pb-spinjump { transform-box: fill-box; transform-origin: 50% 50%; animation: pb-spinjump 2.2s ease-in-out infinite; }
+.robot .pb-spinshadow { transform-box: fill-box; transform-origin: center; animation: pb-spinshadow 2.2s ease-in-out infinite; }
+.robot .pb-dance { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-dance 0.9s ease-in-out infinite; }
+.robot .pb-float-6 { animation: pb-float-6 2.6s ease-in-out infinite; }
+.robot .pb-beat { transform-box: fill-box; transform-origin: center; animation: pb-beat 1.2s ease-in-out infinite; }
+@keyframes pb-float-6 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes pb-squish { 0%, 100% { transform: translateY(0) scale(1, 1); } 30% { transform: translateY(0) scale(1.08, 0.9); } 60% { transform: translateY(-8px) scale(0.95, 1.06); } }
+@keyframes pb-spinjump { 0%, 15% { transform: translateY(0) rotate(0deg) scale(1, 1); } 22% { transform: translateY(0) rotate(0deg) scale(1.08, 0.9); } 48% { transform: translateY(-30px) rotate(180deg) scale(0.96, 1.04); } 72% { transform: translateY(0) rotate(360deg) scale(1, 1); } 78% { transform: translateY(0) rotate(360deg) scale(1.08, 0.9); } 86%, 100% { transform: translateY(0) rotate(360deg) scale(1, 1); } }
+@keyframes pb-spinshadow { 0%, 15%, 72%, 100% { transform: scaleX(1); opacity: 0.14; } 48% { transform: scaleX(0.55); opacity: 0.05; } }
+@keyframes pb-dance { 0%, 100% { transform: translateX(0) rotate(0deg); } 25% { transform: translateX(-6px) rotate(-10deg); } 75% { transform: translateX(6px) rotate(10deg); } }
+@keyframes pb-beat { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.25); } 30% { transform: scale(1); } 45% { transform: scale(1.15); } 60% { transform: scale(1); } }
+
+/* Alert: A shake, B startle jump, C siren, D pop-up "!" */
+.robot .pb-shake { animation: pb-shake 0.5s infinite; }
+.robot .pb-startle { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-startle 2.4s ease-in-out infinite; }
+.robot .pb-startleshadow { transform-box: fill-box; transform-origin: center; animation: pb-startleshadow 2.4s ease-in-out infinite; }
+.robot .pb-siren { animation: pb-siren 0.6s infinite; }
+.robot .pb-beam { transform-box: view-box; transform-origin: 80px 19px; animation: pb-spin 1.2s linear infinite; }
+.robot .pb-halo { transform-box: fill-box; transform-origin: center; animation: pb-halo 0.6s ease-in-out infinite; }
+.robot .pb-pop { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-pop 2.6s ease-in-out infinite; }
+.robot .pb-freeze { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-freeze 2.6s ease-in-out infinite; }
+.robot .pb-widen { transform-box: fill-box; transform-origin: center; animation: pb-widen 2.6s ease-in-out infinite; }
+@keyframes pb-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
+@keyframes pb-startle { 0%, 55%, 100% { transform: translateY(0) scale(1, 1); } 60% { transform: translateY(0) scale(1.1, 0.86); } 68% { transform: translateY(-24px) scale(0.9, 1.12); } 78% { transform: translateY(0) scale(1.08, 0.9); } 84% { transform: translateY(0) scale(0.97, 1.03); } 90% { transform: translateY(0) scale(1, 1); } }
+@keyframes pb-startleshadow { 0%, 60%, 78%, 100% { transform: scaleX(1); opacity: 0.14; } 68% { transform: scaleX(0.6); opacity: 0.05; } }
+@keyframes pb-siren { 0%, 49% { fill: #FF4D6D; } 50%, 100% { fill: #FFC94D; } }
+@keyframes pb-spin { to { transform: rotate(360deg); } }
+@keyframes pb-halo { 0%, 100% { opacity: 0.15; transform: scale(1); } 50% { opacity: 0.45; transform: scale(1.25); } }
+@keyframes pb-pop { 0%, 8% { transform: scale(0); } 18% { transform: scale(1.3); } 26% { transform: scale(1); } 80% { transform: scale(1); } 90%, 100% { transform: scale(0); } }
+@keyframes pb-freeze { 0%, 8% { transform: scale(1, 1); } 16% { transform: scale(0.9, 1.12); } 26%, 80% { transform: scale(0.95, 1.06); } 90%, 100% { transform: scale(1, 1); } }
+@keyframes pb-widen { 0%, 8% { transform: scale(0.7); } 16%, 80% { transform: scale(1.1); } 90%, 100% { transform: scale(0.7); } }

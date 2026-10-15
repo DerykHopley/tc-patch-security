@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Squircle idle animation options</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&amp;display=swap">
+<style>
+body{margin:0}
+svg{overflow:visible}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes shadow{0%,100%{transform:scaleX(1);opacity:.14}50%{transform:scaleX(.8);opacity:.07}}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@keyframes wiggle{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(10deg)}}
+@keyframes breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.035,.965)}}
+@keyframes look{0%,15%{transform:translateX(0)}25%,45%{transform:translateX(-7px)}55%,75%{transform:translateX(7px)}85%,100%{transform:translateX(0)}}
+@keyframes lean{0%,15%{transform:rotate(0deg)}25%,45%{transform:rotate(-3deg)}55%,75%{transform:rotate(3deg)}85%,100%{transform:rotate(0deg)}}
+@keyframes hop{0%,70%,100%{transform:translateY(0) scale(1,1)}76%{transform:translateY(0) scale(1.07,.92)}84%{transform:translateY(-16px) scale(.96,1.05)}92%{transform:translateY(0) scale(1.05,.94)}96%{transform:translateY(0) scale(1,1)}}
+@keyframes hopshadow{0%,76%,92%,100%{transform:scaleX(1);opacity:.14}84%{transform:scaleX(.7);opacity:.06}}
+@keyframes glow{0%,100%{opacity:.35}50%{opacity:1}}
+.float{animation:float 2.6s ease-in-out infinite}
+.shadow{transform-box:fill-box;transform-origin:center;animation:shadow 2.6s ease-in-out infinite}
+.blink{transform-box:fill-box;transform-origin:center;animation:blink 4s infinite}
+.slowblink{transform-box:fill-box;transform-origin:center;animation:blink 6s infinite}
+.wiggle{transform-box:fill-box;transform-origin:50% 100%;animation:wiggle 1.8s ease-in-out infinite}
+.breathe{transform-box:fill-box;transform-origin:50% 100%;animation:breathe 3.2s ease-in-out infinite}
+.glow{animation:glow 3.2s ease-in-out infinite}
+.look{animation:look 5s ease-in-out infinite}
+.lean{transform-box:fill-box;transform-origin:50% 100%;animation:lean 5s ease-in-out infinite}
+.hop{transform-box:fill-box;transform-origin:50% 100%;animation:hop 3s ease-in-out infinite}
+.hopshadow{transform-box:fill-box;transform-origin:center;animation:hopshadow 3s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="width: 1120px; height: 340px; box-sizing: border-box; padding: 32px; background: #EEF0FF; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; font-family: Nunito, 'Avenir Next', 'Segoe UI', sans-serif; color: #2A2457">
+
+<div style="background: #FFFFFF; border-radius: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+<svg width="160" height="170" viewBox="0 0 160 170" role="img" aria-label="Idle option A, floating">
+<ellipse class="shadow" cx="80" cy="160" rx="46" ry="5" fill="#2A2457"></ellipse>
+<g class="float">
+<g class="wiggle">
+<line x1="80" y1="42" x2="80" y2="22" stroke="#9483FF" stroke-width="5" stroke-linecap="round"></line>
+<circle cx="80" cy="19" r="7" fill="#FFC94D"></circle>
+</g>
+<rect x="24" y="40" width="112" height="106" rx="44" fill="#9483FF"></rect>
+<ellipse cx="50" cy="60" rx="11" ry="6" fill="#FFFFFF" opacity="0.35" transform="rotate(-32 50 60)"></ellipse>
+<rect x="44" y="68" width="72" height="40" rx="20" fill="#2A2457"></rect>
+<ellipse class="blink" cx="67" cy="88" rx="6" ry="7" fill="#7FF0DD"></ellipse>
+<ellipse class="blink" cx="93" cy="88" rx="6" ry="7" fill="#7FF0DD"></ellipse>
+<path d="M75 123 Q80 127 85 123" stroke="#2A2457" stroke-width="3" fill="none" stroke-linecap="round"></path>
+</g>
+</svg>
+<div style="text-align: center"><div style="font-size: 16px; font-weight: 800">A · Float (current)</div><div style="font-size: 13px; font-weight: 600; color: #6B6890">hovers, antenna sways</div></div>
+</div>
+
+<div style="background: #FFFFFF; border-radius: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+<svg width="160" height="170" viewBox="0 0 160 170" role="img" aria-label="Idle option B, breathing">
+<ellipse cx="80" cy="148" rx="50" ry="5" fill="#2A2457" opacity="0.12"></ellipse>
+<g class="breathe">
+<line x1="80" y1="42" x2="80" y2="22" stroke="#9483FF" stroke-width="5" stroke-linecap="round"></line>
+<circle class="glow" cx="80" cy="19" r="7" fill="#FFC94D"></circle>
+<rect x="24" y="40" width="112" height="106" rx="44" fill="#9483FF"></rect>
+<ellipse cx="50" cy="60" rx="11" ry="6" fill="#FFFFFF" opacity="0.35" transform="rotate(-32 50 60)"></ellipse>
+<rect x="44" y="68" width="72" height="40" rx="20" fill="#2A2457"></rect>
+<ellipse class="slowblink" cx="67" cy="88" rx="6" ry="7" fill="#7FF0DD"></ellipse>
+<ellipse class="slowblink" cx="93" cy="88" rx="6" ry="7" fill="#7FF0DD"></ellipse>
+<ellipse cx="44" cy="122" rx="7" ry="4" fill="#FFB3CF"></ellipse>
+<ellipse cx="116" cy="122" rx="7" ry="4" fill="#FFB3CF"></ellipse>
+<path d="M75 123 Q80 127 85 123" stroke="#2A2457" stroke-width="3" fill="none" stroke-linecap="round"></path>
+</g>
+</svg>
+<div style="text-align: center"><div style="font-size: 16px; font-weight: 800">B · Breathe</div><div style="font-size: 13px; font-weight: 600; color: #6B6890">sits, slow squish, light glows</div></div>
+</div>
+
+<div style="background: #FFFFFF; border-radius: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+<svg width="160" height="170" viewBox="0 0 160 170" role="img" aria-label="Idle option C, looking around">
+<ellipse cx="80" cy="148" rx="50" ry="5" fill="#2A2457" opacity="0.12"></ellipse>
+<g class="lean">
+<line x1="80" y1="42" x2="80" y2="22" stroke="#9483FF" stroke-width="5" stroke-linecap="round"></line>
+<circle cx="80" cy="19" r="7" fill="#FFC94D"></circle>
+<rect x="24" y="40" width="112" height="106" rx="44" fill="#9483FF"></rect>
+<ellipse cx="50" cy="60" rx="11" ry="6" fill="#FFFFFF" opacity="0.35" transform="rotate(-32 50 60)"></ellipse>
+<rect x="44" y="68" width="72" height="40" rx="20" fill="#2A2457"></rect>
+<g class="look">
+<ellipse class="blink" cx="67" cy="88" rx="6" ry="7" fill="#7FF0DD"></ellipse>
+<ellipse class="blink" cx="93" cy="88" rx="6" ry="7" fill="#7FF0DD"></ellipse>
+</g>
+<path d="M75 123 Q80 127 85 123" stroke="#2A2457" stroke-width="3" fill="none" stroke-linecap="round"></path>
+</g>
+</svg>
+<div style="text-align: center"><div style="font-size: 16px; font-weight: 800">C · Look around</div><div style="font-size: 13px; font-weight: 600; color: #6B6890">glances left, then right</div></div>
+</div>
+
+<div style="background: #FFFFFF; border-radius: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+<svg width="160" height="170" viewBox="0 0 160 170" role="img" aria-label="Idle option D, little hop">
+<ellipse class="hopshadow" cx="80" cy="152" rx="50" ry="5" fill="#2A2457"></ellipse>
+<g transform="translate(0 6)">
+<g class="hop">
+<line x1="80" y1="42" x2="80" y2="22" stroke="#9483FF" stroke-width="5" stroke-linecap="round"></line>
+<circle cx="80" cy="19" r="7" fill="#FFC94D"></circle>
+<rect x="24" y="40" width="112" height="106" rx="44" fill="#9483FF"></rect>
+<ellipse cx="50" cy="60" rx="11" ry="6" fill="#FFFFFF" opacity="0.35" transform="rotate(-32 50 60)"></ellipse>
+<rect x="44" y="68" width="72" height="40" rx="20" fill="#2A2457"></rect>
+<ellipse class="blink" cx="67" cy="88" rx="6" ry="7" fill="#7FF0DD"></ellipse>
+<ellipse class="blink" cx="93" cy="88" rx="6" ry="7" fill="#7FF0DD"></ellipse>
+<ellipse cx="44" cy="122" rx="7" ry="4" fill="#FFB3CF"></ellipse>
+<ellipse cx="116" cy="122" rx="7" ry="4" fill="#FFB3CF"></ellipse>
+<path d="M75 123 Q80 127 85 123" stroke="#2A2457" stroke-width="3" fill="none" stroke-linecap="round"></path>
+</g>
+</g>
+</svg>
+<div style="text-align: center"><div style="font-size: 16px; font-weight: 800">D · Little hop</div><div style="font-size: 13px; font-weight: 600; color: #6B6890">rests, then a bouncy hop</div></div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1120,"height":340}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

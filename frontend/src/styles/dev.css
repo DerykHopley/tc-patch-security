@@ -1,0 +1,481 @@
+/* The Dev panel (docs/design/DESIGN.md §5.5, §5.6): presets, the search playground and the embedding map.
+   Cards, fieldsets, the save bar and the sliders come from settings.css and controls.css. Tokens only; nothing
+   here animates. */
+
+.dev-page .mono-input {
+  font-family: var(--font-mono);
+  flex: 1 1 12rem;
+}
+
+/* The OpenRouter model dropdown (§5.6.1): its options are long (id, price, score), so it takes the row's width and
+   may shrink below them (min-width 0 from controls.css); the closed select cuts the text, the open list shows it all. */
+.dev-page .or-select {
+  flex: 1 1 12rem;
+  max-width: 100%;
+}
+
+/* A group of buttons (presets, examples, map groups): a fieldset for its name, without the nested-card look. */
+.dev-page .settings-card fieldset.plain {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+/* Its legend names the group for screen readers only (settings.css makes legends full width). */
+.dev-page .settings-card legend.visually-hidden {
+  float: none;
+  width: 1px;
+}
+
+.dev-page .settings-card fieldset.presets {
+  padding: 0.2rem 0 0.3rem;
+}
+
+.dev-page .settings-card fieldset.play-examples {
+  margin: 0.6rem 0;
+}
+
+.dev-page .settings-card fieldset.emap-legend {
+  margin: 0.4rem 0;
+}
+
+.dev-page output.found {
+  display: block;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.2rem 0 0.3rem;
+}
+
+.presets button {
+  padding: 0.15rem 0.7rem;
+  font-size: 0.82rem;
+}
+
+.presets button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.dev-page .settings-card > button {
+  margin-top: 0.6rem;
+}
+
+/* Chips in the query plan: --text on the soft fills, a warn edge for dropped filters (DESIGN.md §5.7: --warn on
+   --warn-soft is under 4.5:1 for small text). */
+.dev-page .chip {
+  display: inline-block;
+  margin: 0 0.3rem 0.2rem 0;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.dev-page .chip.warn {
+  background: var(--warn-soft);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--warn);
+}
+
+/* ---------- Search playground (§5.6) ---------- */
+
+.play-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.dev-page .play-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-pill); /* the playground search box is a full pill */
+}
+
+.play-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.6rem 0;
+}
+
+.play-examples button {
+  padding: 0.2rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.play-plan {
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-nested);
+  background: var(--nested-fill);
+}
+
+.dev-page .play-plan p {
+  margin: 0.15rem 0;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.play-plan .meta {
+  display: inline-block;
+  min-width: 7.5rem;
+  margin: 0;
+}
+
+.play-result h3 {
+  margin: 0 0 0.2rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.play-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+}
+
+.play-col {
+  min-width: 0;
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius-nested);
+  background: var(--nested-fill);
+}
+
+/* Fused: a 2px purple inner edge; final sources: a 2px green edge and a green title. */
+.play-col.fused {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.play-col.final {
+  box-shadow: inset 0 0 0 2px var(--ok);
+}
+
+.play-result .play-col.final h3 {
+  color: var(--ok);
+}
+
+.play-list h4 {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.play-col ol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.3rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.8rem;
+}
+
+.play-col .meta {
+  margin: 0.1rem 0;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.hit-title {
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Embedding map (§5.5) ---------- */
+
+.emap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.4rem 0;
+  font-size: 0.8rem;
+}
+
+.emap-legend button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.emap-legend button[aria-pressed='false'] {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.emap-legend .count {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.emap-key {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.emap-box {
+  --map-box: var(--nested-fill);
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-nested); /* §3.5's nested-card radius (§5.5 still says the prototype's 20px) */
+  background: var(--map-box);
+}
+
+.emap svg {
+  display: block;
+}
+
+.grp-owasp {
+  fill: var(--cat-1);
+}
+
+.grp-atlas {
+  fill: var(--cat-2);
+}
+
+.grp-cve {
+  fill: var(--cat-3);
+}
+
+/* Points at 90% with a ring in the box colour. */
+.emap .pts circle,
+.emap .pts rect,
+.emap .pts path {
+  fill-opacity: 0.9;
+  stroke: var(--map-box);
+  stroke-width: 1;
+}
+
+.emap .pts > g:hover > * {
+  fill-opacity: 1;
+  stroke: var(--text);
+}
+
+/* Behind a search the other points dim: 40% in light; 60% in dark, where faded colour on dark goes muddy. */
+.emap .dimmed {
+  opacity: 0.4;
+}
+
+:root[data-theme='dark'] .emap .dimmed {
+  opacity: 0.6;
+}
+
+.emap-label {
+  fill: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--map-box);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.emap-link {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+/* Results: full colour with a dark ring. */
+.emap .hit > * {
+  fill-opacity: 1;
+  stroke: var(--text);
+  stroke-width: 2;
+}
+
+/* The query is an ✕; rewrites are smaller ✕s. */
+.emap .qmark path {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.emap .qmark:not(.main) path {
+  stroke-width: 1.5;
+}
+
+.emap .qmark .hit-area {
+  fill: transparent;
+}
+
+/* ---------- The model check, the retrieval check and the report (A12) ----------
+   Pass and fail are --text with a ✓ or ✕ and a coloured edge: --ok and --error alone are under 4.5:1 for small
+   text on the surface (DESIGN.md §5.7). Nothing here moves. */
+
+.dev-page .table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.eval-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.4rem 0;
+}
+
+.eval-run progress {
+  flex: 1 1 8rem;
+  max-width: 14rem;
+  height: 8px;
+  accent-color: var(--accent);
+}
+
+.eval-numbers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.6rem;
+  margin: 0.5rem 0;
+}
+
+.eval-numbers > div {
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-nested);
+  background: var(--nested-fill);
+}
+
+.eval-numbers strong {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dev-page table.data th[scope='row'] {
+  font-weight: 600;
+}
+
+.dev-page table.data .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dev-page table.data td,
+.dev-page table.data th {
+  vertical-align: top;
+}
+
+.eval-question {
+  font-weight: 400;
+}
+
+.check,
+.verdict {
+  display: inline-block;
+  margin: 0 0.25rem 0.2rem 0;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.check.ok,
+.verdict.pass {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--ok);
+}
+
+.check.no,
+.verdict.fail {
+  background: var(--error-soft);
+  box-shadow: inset 0 0 0 1px var(--error);
+}
+
+.eval-answer td {
+  background: var(--nested-fill);
+}
+
+.eval-answer-text {
+  margin: 0.3rem 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.eval-failures {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.15rem 0.8rem;
+  margin: 0.2rem 0 0.4rem;
+}
+
+.eval-failures dt {
+  font-weight: 700;
+}
+
+.eval-failures dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dev-page table.runs tr.current td {
+  background: var(--accent-soft);
+}
+
+.dev-page table.compare thead .meta {
+  display: block;
+  font-weight: 400;
+}
+
+.dev-page .model-check h4,
+.dev-page .retrieval-check h4 {
+  margin: 0.5rem 0 0.2rem;
+  font-size: 0.85rem;
+}
+
+.misses {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.82rem;
+}
+
+.misses .meta {
+  display: inline;
+  overflow-wrap: anywhere;
+}
+
+/* "Open the report": a link that looks like a button (DESIGN.md §5.3, a pill with a border). */
+.button-link {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.button-link:hover {
+  border-color: var(--accent);
+}
+
+@media (max-width: 520px) {
+  .eval-failures {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

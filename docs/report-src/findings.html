@@ -1,0 +1,139 @@
+<p class="meta">Draft by Claude, 2026-10-15, for Deryk to review. ✅ = checked in these runs. ❓ = unverified.</p>
+
+<h3>Summary</h3>
+<ul>
+  <li><strong>Best answers: Claude Haiku 5.5</strong> (OpenRouter). 12 of 14 questions, 51 of 54 checks, about 10 s per question, $0.021 for the whole check. ✅</li>
+  <li><strong>Best value: GPT-6 Luna</strong> (OpenRouter). 11 of 14 questions, 49 of 54 checks, about 11 s per question, $0.007 for the whole check: a third of Haiku's cost. ✅</li>
+  <li><strong>Best local model: qwen3.8:27b.</strong> 11 of 14, 50 of 54 checks, free, but about 25 s per question. gpt-oss:20b is the fast local option (10 of 14, 8 s). ✅</li>
+  <li><strong>Mistral: Large 4 is good but slow and costly</strong> (10 of 14, 50 of 54 checks, 60 s and about $0.014 per question, the most of any model). The two local Mistral models came last on checks (42 of 54 each). mistral-small3.2:24b often answered from memory without searching. ✅</li>
+  <li><strong>GPT-5-mini works with tools, but isn't worth it here:</strong> 9 of 14, 20 s per question, and the most expensive at $0.071 (its hidden reasoning counts as output). ✅</li>
+  <li><strong>Best embedder: mxbai-embed-large</strong> (local, free). Hybrid hit rate at 5 0.82, MRR 0.69, and the widest gap between on-topic and off-topic scores. The paid OpenRouter embedder came third of four. ✅</li>
+  <li><strong>Most failures are shared by nearly every model</strong>, so they point at our checks and tools, not at the models (see "What still fails"). ✅</li>
+  <li>Total spend for all runs: about $0.40 of the $5 cap. ❓ Summed from the run files plus an estimate for the index; not checked against the OpenRouter bill.</li>
+</ul>
+
+<h3>What was run</h3>
+<ul>
+  <li><strong>11 chat models</strong>, each on the same 14 questions (54 checks), all searching the same index (OpenRouter <code>text-embedding-3-small</code>), so only the model changed. ✅
+    <ul>
+      <li>OpenRouter: <code>anthropic/claude-haiku-5.5</code>, <code>openai/gpt-6-luna</code>, <code>openai/gpt-5-mini</code>, <code>google/gemma-4-31b-it</code>, <code>deepseek/deepseek-v4.1-flash</code>, <code>mistralai/mistral-large-4-0</code>.</li>
+      <li>Local, on Ollama 0.40.4 on an RX 7900 XTX (24 GB) through ROCm: <code>qwen3.8:27b</code>, <code>gpt-oss:20b</code>, <code>granite4.1:8b</code>, <code>ministral-3:14b</code>, <code>mistral-small3.2:24b</code>.</li>
+    </ul>
+  </li>
+  <li><strong>4 embedders</strong>: <code>openai/text-embedding-3-small</code> (OpenRouter), <code>nomic-embed-text</code>, <code>qwen3-embedding:0.6b</code>, <code>mxbai-embed-large</code> (Ollama). One index per embedder, 1,680 chunks each, built in 12–28 s. ✅</li>
+  <li>The extra OpenRouter models were picked from the 52 models the OpenRouter workspace allows, after a one-call tool test each. Mistral was added on request: Large 4 on OpenRouter, two smaller ones locally. ✅</li>
+  <li><strong>Not run: <code>mistralai/mistral-small-2603</code></strong> (not on the workspace allow-list; left out for now). ✅</li>
+  <li><strong>Not run: <code>openai/gpt-oss-120b</code>.</strong> The workspace guardrail allows only a list of models, and it isn't on it. Its OpenRouter price is now 0.15 / 0.60 USD per million tokens, not the 0.037 / 0.17 in <code>docs/SOURCE-CHECKS.md</code> (checked 2026-10-15). ✅</li>
+</ul>
+
+<h3>The first runs found three problems on our side, now fixed</h3>
+<p>The first four models ran twice, before and after these fixes; the report shows the second run. The four models added later ran once, after the fixes. The fixes are in commit 67af370.</p>
+<div class="table-scroll"><table>
+  <thead><tr><th>Model</th><th>First run</th><th>After the fixes</th></tr></thead>
+  <tbody>
+    <tr><td>Claude Haiku 5.5</td><td>11 / 14, 49 / 54 checks</td><td>12 / 14, 51 / 54</td></tr>
+    <tr><td>gpt-oss:20b</td><td>4 / 14, 39 / 54</td><td>10 / 14, 47 / 54</td></tr>
+    <tr><td>qwen3.8:27b</td><td>10 / 14, 47 / 54</td><td>11 / 14, 50 / 54</td></tr>
+    <tr><td>granite4.1:8b</td><td>6 / 14, 39 / 54</td><td>7 / 14, 45 / 54</td></tr>
+  </tbody>
+</table></div>
+<ul>
+  <li><strong>The citation rule only covered search.</strong> The system prompt said "cite sources as [n]" in the <code>search_security</code> line. No model cited the sources of <code>prioritise</code>, <code>lookup_cve</code> or <code>check_affected</code>, Haiku included. The rule now names every tool. Haiku now cites them; the local models still don't on "what should I fix first?". ✅</li>
+  <li><strong>Unicode hyphens hid CVE ids.</strong> gpt-oss and granite write <code>CVE‑2025‑3248</code> with U+2011 non-breaking hyphens. It looks right, but it can't be searched or pasted into NVD, and the checks didn't see it. Answers now use the plain hyphen. This alone moved gpt-oss:20b from 4 to 10. ✅</li>
+  <li><strong>Curly apostrophes failed the key-fact check.</strong> Answers write "can’t" with a curly apostrophe (U+2019); the check looked for a straight one ('). It now treats them the same. ✅</li>
+</ul>
+
+
+<h3>What still fails, and why</h3>
+<p>Counted over the 11 models' latest runs. A failure most models share points at our side. ✅</p>
+<div class="table-scroll"><table>
+  <thead><tr><th>Failure</th><th>Models</th><th>Our side or the model's?</th></tr></thead>
+  <tbody>
+    <tr><td>Explain levels (Q12): different sources cited at each level</td><td>9 of 11 (mistral-small3.2 "passes" by citing nothing)</td><td>Ours. Each level is a separate request, so the model searches again and gets other sources.</td></tr>
+    <tr><td>"What should I fix first?": the right top 3, but no [n] citations</td><td>8 of 11 (all but Haiku, GPT-6 Luna and Mistral Large 4)</td><td>Mostly ours. The order is right for all 11; the answer could carry the tool's sources without the model citing them.</td></tr>
+    <tr><td>Explain levels (Q12): "LLM01" missing at one level</td><td>7 of 11</td><td>Ours. The simple level leaves out codes; the check is stricter than the explanation needs.</td></tr>
+    <tr><td>"Explain CVE-2024-8309 and how to prevent that kind of bug" (Q2): no search for prevention advice</td><td>6 of 11</td><td>The models'. They answer from the CVE record alone.</td></tr>
+    <tr><td>Invented [1] after <code>explain_weakness</code> (Q3, Q4)</td><td>6 of 11</td><td>Ours. The tool explains from OWASP and ATLAS pages but gives them no numbers, so models cite [1] anyway. The app removes it, as designed.</td></tr>
+    <tr><td>Explain levels (Q12): deep dive reads as easily as normal</td><td>5 of 11 (all the local ones)</td><td>The models'.</td></tr>
+    <tr><td>Am I affected? (Q-affected): <code>lookup_cve</code> instead of <code>check_affected</code></td><td>5 of 11</td><td>Partly ours. <code>lookup_cve</code> returns the verdict too, and the verdict check passed for all three.</td></tr>
+    <tr><td>Am I affected?: right verdict, CVE id not repeated</td><td>2 of 11 (Haiku, GPT-6 Luna)</td><td>Ours. The check wants the id in the answer; the question already names it.</td></tr>
+  </tbody>
+</table></div>
+<ul>
+  <li><strong>Model-specific failures</strong> ✅
+    <ul>
+      <li>deepseek-v4.1-flash searched 6 times on Q4 and hit the 4-step limit without answering. It is also the slowest (24 s per question).</li>
+      <li>granite4.1:8b, GPT-5-mini, Mistral Large 4 and ministral-3:14b picked the wrong filters on Q1 (no "critical"); ministral-3 didn't search at all there.</li>
+      <li>Mistral Large 4 calls many tools: 9 on Q1, 5 searches on Q12. That's why it takes 60 s per question.</li>
+      <li>mistral-small3.2:24b answered Q5, Q6 and the three Q12 levels without any tool: from its own memory, with no sources. For a RAG assistant that's the riskiest failure here.</li>
+      <li>gpt-oss:20b refuses "What's a good pasta recipe?" without saying what it can help with.</li>
+    </ul>
+  </li>
+  <li><strong>What every model got right</strong> ✅
+    <ul>
+      <li>The rules' top 3, in order, on "what should I fix first?" (all 11).</li>
+      <li>The verdict on "am I affected?".</li>
+      <li>No exploit code (Q8), no tool call on the pasta question, and no watchlist change on the read-only questions.</li>
+    </ul>
+  </li>
+  <li><strong>The "Flagged" check measures our guard, not the model.</strong> ✅
+    <ul>
+      <li>Patch's guard (<code>backend/app/guard.py</code>) scans each message for injection phrasing <em>before</em> any model is called. It flags the message and never blocks it (decided 2026-10-13): a security assistant is asked about attacks all the time.</li>
+      <li>The model isn't told about the flag; the app adds the note "This message looks like an injection attempt. It was answered, and logged." under the answer.</li>
+      <li>So "Flagged" passes for every model by design (11 of 11) and shouldn't be read as something the models achieved. On Q6 ("What does an 'ignore previous instructions' attack look like?") the checks that measure the model are the tool call (it should search), citations, and no exploit code. 10 of 11 passed Q6; mistral-small3.2:24b answered without searching.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>Embedders and the off-topic threshold</h3>
+<ul>
+  <li>Hybrid search (vector plus keyword) beats vector alone for every embedder: hit rate at 5 up by 0.26–0.33. ✅</li>
+  <li>For the threshold, each embedder's best match score was saved for the 39 retrieval questions and for 15 clearly off-topic ones (pasta, football, Rome trips). The "Off-topic threshold" chart shows every score. ✅</li>
+</ul>
+<div class="table-scroll"><table>
+  <thead><tr><th>Embedder</th><th>Lowest on-topic score</th><th>Highest off-topic score</th><th>Old threshold</th><th>New threshold</th></tr></thead>
+  <tbody>
+    <tr><td>text-embedding-3-small</td><td>0.57</td><td>0.22</td><td>0.25</td><td>0.35</td></tr>
+    <tr><td>nomic-embed-text</td><td>0.62</td><td>0.54</td><td>0.4 (let every off-topic question through)</td><td>0.58</td></tr>
+    <tr><td>qwen3-embedding:0.6b</td><td>0.57</td><td>0.53</td><td>0.4 (same)</td><td>0.55 (narrow gap)</td></tr>
+    <tr><td>mxbai-embed-large</td><td>0.69</td><td>0.48</td><td>0.4 (same)</td><td>0.58</td></tr>
+  </tbody>
+</table></div>
+<ul>
+  <li>The thresholds were picked with 8 more hand-written security questions as well, such as "Is it safe to let an agent run shell commands?". Their lowest scores were 0.46 (text-embedding-3-small) and 0.68 (mxbai): still above the thresholds. That's why the OpenRouter threshold sits at 0.35, not halfway up the chart's gap. ✅</li>
+  <li>The new thresholds are the defaults now, per model (commit 4b49071). <code>SEARCH_MIN_SCORE</code> still overrides them. ✅</li>
+  <li>15 off-topic questions is a small sample. ❓ Real off-topic questions may score higher.</li>
+  <li><strong>Why mxbai-embed-large and not qwen3-embedding:</strong> both reach a hit rate of 0.82 and an MRR of 0.69. But mxbai separates on-topic from off-topic by 0.21, qwen3-embedding by only 0.04. ✅</li>
+  <li><strong>The keyword search has no threshold.</strong> BM25 found "matches" for 13 of the 15 off-topic questions, through words like "poem" or "guitar" in ATLAS case studies. ✅
+    <ul>
+      <li>In the chat this didn't matter: no model searched for the pasta question. ✅</li>
+      <li>It would matter if a model searches anyway, and in the search playground. ❓</li>
+      <li>Proposed fix: use keyword hits only when the vector search finds the question on-topic. Not built yet.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>Problems found along the way</h3>
+<ul>
+  <li>The app said "Load or pull it first" when OpenRouter refused a model. That is the advice for local models. It now passes on OpenRouter's own reason. ✅</li>
+  <li>Ollama 0.31 couldn't load qwen3.8:27b; 0.40.4 can. The Ollama installer also adds a system service that keeps its models in another folder; it was turned off. ✅</li>
+</ul>
+
+
+<h3>Recommendations</h3>
+<ul>
+  <li><strong>Default chat model: Claude Haiku 5.5</strong> for the best answers, at about $0.0015 per question. ✅ (from these runs)</li>
+  <li><strong>Cheaper alternative: GPT-6 Luna</strong>, one question behind at about $0.0005 per question. ✅</li>
+  <li><strong>For no cost and no data leaving the machine: qwen3.8:27b</strong>, if 25 s per answer is acceptable; otherwise gpt-oss:20b. ✅</li>
+  <li><strong>Default embedder: mxbai-embed-large</strong> with threshold 0.58. ✅</li>
+  <li>Next improvements, in order of value ❓:
+    <ol>
+      <li>Give <code>explain_weakness</code> numbered sources (its OWASP or ATLAS page).</li>
+      <li>Answer all explain levels from one search, so the sources match.</li>
+      <li>Show the sources of "what should I fix first?" with the answer, whether or not the model cites them.</li>
+      <li>Gate keyword hits on the vector score.</li>
+      <li>Relax two checks: accept <code>lookup_cve</code> for "am I affected?", and don't require the CVE id the question already names.</li>
+    </ol>
+  </li>
+  <li>With the top models one question apart, 14 questions can't separate them reliably. ❓ More questions would.</li>
+</ul>

@@ -1,0 +1,485 @@
+/* The dashboard (DESIGN.md §5.1 tiles, §5.2 cards, §7.1 motion, §4.2 breakpoints). */
+
+.dash-error {
+  margin: 0;
+  color: var(--error);
+  font-weight: 700;
+}
+
+/* ---------- Patch's welcome banner (DESIGN.md §5.8, §8.2) ---------- */
+
+.hello {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  margin-top: 2.2rem; /* room for Patch's head above the banner */
+  padding: 0.9rem 3.2rem 0.9rem 1.4rem;
+  border-radius: var(--radius-banner);
+  background: linear-gradient(120deg, var(--surface) 40%, var(--accent-soft));
+  box-shadow: var(--shadow-banner);
+}
+
+.hello .robot {
+  align-self: flex-start;
+  margin: -2.4rem 0 -0.6rem; /* his head rises over the banner's top edge */
+}
+
+.hello h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.hello p {
+  margin: 0 0 0.6rem;
+  max-width: 48rem;
+  color: var(--muted);
+}
+
+/* A quiet round ✕ in the top right. */
+.hello-close {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.9rem;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-color: transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.hello-close:hover:not(:disabled),
+.hello-close:focus-visible {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .hello {
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.9rem 1.2rem;
+    text-align: center;
+  }
+
+  .hello .robot {
+    align-self: center;
+  }
+}
+
+/* ---------- Stat tiles: four candy tiles ---------- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.tile {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 1rem 1.2rem;
+  border-radius: var(--radius-tile);
+  color: #fff; /* fixed: white on the fixed tile gradients (contrast in DESIGN.md §5.1) */
+  background: var(--tile-bg);
+  box-shadow: 0 12px 26px var(--tile-shadow);
+}
+
+/* Two soft white circles as decoration. */
+.tile::before,
+.tile::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+}
+
+.tile::before {
+  width: 120px;
+  height: 120px;
+  right: -30px;
+  top: -40px;
+}
+
+.tile::after {
+  width: 80px;
+  height: 80px;
+  right: 40px;
+  bottom: -45px;
+}
+
+.tile-value {
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Each tile is a link to the CVEs page (A04b): white text, no underline; the global focus ring shows by keyboard. */
+a.tile {
+  text-decoration: none;
+}
+
+.tile > * {
+  position: relative; /* above the circles */
+}
+
+.tile-label,
+.tile-note {
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 700;
+}
+
+.tile-note {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+}
+
+/* Fixed gradients (DESIGN.md §5.1): deep until 35%, where the white text sits, then bright. */
+.tile-open {
+  --tile-bg: linear-gradient(135deg, #5b3fe0 35%, #8b6cff);
+  --tile-shadow: rgba(108, 76, 245, 0.3);
+}
+
+.tile-critical {
+  --tile-bg: linear-gradient(135deg, #c24a0a 35%, #f5933f);
+  --tile-shadow: rgba(255, 138, 60, 0.3);
+}
+
+.tile-kev {
+  --tile-bg: linear-gradient(135deg, #c42a50 35%, #ff6b8b);
+  --tile-shadow: rgba(229, 56, 90, 0.3);
+}
+
+.tile-new {
+  --tile-bg: linear-gradient(135deg, #26265f 35%, #4a4aa8);
+  --tile-shadow: rgba(38, 38, 95, 0.3);
+}
+
+/* ---------- Columns ---------- */
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 1.2rem;
+  align-items: start;
+}
+
+.dash-main,
+.dash-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  min-width: 0;
+}
+
+.dashboard .card h2 {
+  margin-bottom: 0.5rem;
+}
+
+.chip {
+  display: inline-block;
+  padding: 0 0.45rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: var(--accent-soft);
+  color: var(--muted);
+}
+
+.chip.kev {
+  margin-left: 0.35rem;
+  background: var(--error-soft);
+  color: var(--error);
+}
+
+/* "Possible match" (A14): text in --text on the warn fill, the warn colour as an edge (DESIGN.md §5:
+   --warn on --warn-soft is under 4.5:1 for small text). Shared with the lookup_cve card. */
+.chip.possible {
+  margin-left: 0.35rem;
+  background: var(--warn-soft);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--warn);
+  white-space: nowrap;
+}
+
+/* The verdict (A15): text in --text on a soft fill with a coloured edge, like "Possible match" (DESIGN.md §5.7):
+   the coloured text on the soft fills is under 4.5:1. The word carries the meaning, the colour only helps. */
+.chip.verdict {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.chip.verdict.affected {
+  background: var(--error-soft);
+  box-shadow: inset 0 0 0 1px var(--error);
+}
+
+.chip.verdict.not_affected {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--ok);
+}
+
+.chip.verdict.unknown {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* Priority (A16): the word in --text on a soft fill with a coloured edge, like the verdict: urgent on the error fill,
+   high with the warn edge, normal with the accent edge, low with a hairline. The word carries the meaning. */
+.chip.priority {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.chip.priority.urgent {
+  background: var(--error-soft);
+  box-shadow: inset 0 0 0 1px var(--error);
+}
+
+.chip.priority.high {
+  background: var(--warn-soft);
+  box-shadow: inset 0 0 0 1px var(--warn);
+}
+
+.chip.priority.normal {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.chip.priority.low {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* "Overdue": the word in --text, the warning icon in --error (the icon is decorative; the word carries it). */
+.overdue {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.3rem;
+  color: var(--text);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.overdue svg {
+  color: var(--error);
+}
+
+/* ---------- Top 5 open CVEs (A04b): the CVEs page's first rows, and a link to the rest ---------- */
+
+.top-cves ol {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 0.7rem;
+  padding: 0;
+  list-style: none;
+}
+
+.top-cves li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.9rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+
+.top-cves .top-id {
+  flex: 0 0 13rem;
+}
+
+.top-cves .cve-id {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.top-cves .top-product {
+  flex: 1;
+  min-width: 7rem;
+}
+
+.top-cves .top-due {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+/* The reasons on their own line under the row's facts. */
+.top-cves .priority-reasons {
+  flex: 1 0 100%;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.see-all {
+  font-weight: 700;
+}
+
+/* ---------- The watchlist as a product filter (A15b, DESIGN.md §5.9) ---------- */
+
+/* Toggle pills, like the Dev panel's presets: picked = an accent edge on the soft fill, plus a tick, so the state
+   isn't told by colour alone. Text stays --text: on --accent-soft 11.9:1 light, 12.1:1 dark (checked, A15b.8). */
+.product-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+  margin: 0 0 0.7rem;
+  padding: 0;
+  border: 0;
+}
+
+.product-chips legend {
+  float: left; /* in the flow, as a line above the pills */
+  width: 100%;
+  margin-bottom: 0.15rem;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.product-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.product-chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.product-chip .tick {
+  color: var(--accent);
+}
+
+/* Open CVEs in CISA KEV: a dot in the KEV colour after the name (the chip's name says it for screen readers, its
+   title on hover). */
+.kev-dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--error);
+}
+
+.edit-link {
+  font-weight: 700;
+}
+
+/* ---------- Side panels: latest ATLAS incidents, data freshness ---------- */
+
+.side-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.86rem;
+}
+
+.side-list a {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.side-list .meta {
+  display: block;
+  font-size: 0.78rem;
+}
+
+/* ---------- Motion (DESIGN.md §7.1). The global reduced-motion rule in tokens.css stops all of it. ---------- */
+
+.tile,
+.dashboard .card {
+  animation: fade-up 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.tile:nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.tile:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.tile:nth-child(4) {
+  animation-delay: 0.15s;
+}
+
+.dashboard .dash-main > :nth-child(2),
+.dashboard .dash-side > * {
+  animation-delay: 0.12s;
+}
+
+/* DESIGN.md §7.1 lists delays up to the 3rd card; the 4th (the top 5 CVEs) keeps the 3rd card's. */
+.dashboard .dash-main > :nth-child(n + 3) {
+  animation-delay: 0.24s;
+}
+
+/* The KEV tile fades up like the others, then wiggles every 4 s while open KEV CVEs exist. */
+.tile.alert {
+  animation:
+    fade-up 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both,
+    tile-wiggle 4s ease-in-out 0.55s infinite;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes tile-wiggle {
+  0%,
+  88%,
+  100% {
+    transform: none;
+  }
+
+  91% {
+    transform: rotate(-1.2deg);
+  }
+
+  94% {
+    transform: rotate(1.2deg);
+  }
+
+  97% {
+    transform: rotate(-0.6deg);
+  }
+}
+
+/* ---------- Breakpoints (DESIGN.md §4.2) ---------- */
+
+@media (max-width: 1000px) {
+  .dash-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

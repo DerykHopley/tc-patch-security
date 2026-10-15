@@ -1,0 +1,268 @@
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
+import { examples as fetchExamples, health, type Example, type Health } from './api.ts'
+import { AlertBanner, useAlertLink } from './chat/AlertBanner.tsx'
+import { ChatDivider } from './chat/ChatDivider.tsx'
+import { ChatWindow } from './chat/ChatWindow.tsx'
+import { PatchButton } from './chat/PatchButton.tsx'
+import { useChat } from './chat/useChat.ts'
+import { useChatLayout } from './chat/useChatLayout.ts'
+import { usePatch } from './chat/usePatch.ts'
+import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, ListIcon, MoonIcon, ShieldIcon, SunIcon } from './components/Icons.tsx'
+import { Robot } from './components/Robot.tsx'
+import { CvesPage } from './pages/CvesPage.tsx'
+import { DashboardPage } from './pages/Dashboard.tsx'
+import { DevPage } from './pages/DevPage.tsx'
+import { SettingsPage } from './pages/SettingsPage.tsx'
+import { PATHS, useRoute, type Page } from './route.ts'
+import { store } from './storage.ts'
+import { useTheme } from './theme.ts'
+import { usePageContext } from './usePageContext.ts'
+
+// The app shell (docs/design/DESIGN.md §4): a floating sidebar that collapses to an icon rail (a bottom tab bar on
+// phones), a top bar with breadcrumb, page title and the light/dark toggle, then the page. Each page has a path
+// (route.ts), so links and reloads land on the right page.
+const PAGES: Record<Page, { title: string; nav: string; Icon: () => JSX.Element }> = {
+  dashboard: { title: 'Dashboard', nav: 'Dashboard', Icon: DashboardIcon },
+  cves: { title: 'CVEs', nav: 'CVEs', Icon: ListIcon },
+  settings: { title: 'Settings', nav: 'Settings', Icon: BellIcon },
+  dev: { title: 'Dev panel', nav: 'Dev', Icon: CodeIcon },
+}
+
+// Questions that fit the page under the chat (1–2, DESIGN.md §6.2). FakeLLM answers each one.
+const SUGGESTIONS: Record<Page, string[]> = {
+  dashboard: ['What should I fix first?', 'Explain CVE-2025-3248 and how to defend against it.'],
+  cves: ['What should I fix first?', 'Explain CVE-2025-3248 and how to defend against it.'],
+  settings: ['How do I protect a RAG app from indirect prompt injection?'],
+  dev: ['What does an "ignore previous instructions" attack look like?'],
+}
+
+export default function App() {
+  const [status, setStatus] = useState<Health | null>(null)
+  const [offline, setOffline] = useState(false)
+  const [theme, toggleTheme] = useTheme()
+  const [collapsed, setCollapsed] = useState(() => store.get('sidenavCollapsed') === '1')
+  const [route, navigate] = useRoute()
+  const page = route.page
+  // Page context (A18): what Patch is told about the page; its rules live in pageContext.ts.
+  const pageContext = usePageContext(route)
+  const chat = useChat(pageContext.current)
+  const layout = useChatLayout()
+  const [alertCve, alertDone] = useAlertLink()
+  const chatOpen = layout.open
+  const [examples, setExamples] = useState<Example[]>([])
+  const patch = usePatch(chat, chatOpen) // one mood and one animation for the button and the chat header
+  const patchButton = useRef<HTMLButtonElement>(null)
+
+  // After the Dev page saves a model choice, the snapshot card shows the new model.
+  const refreshHealth = useCallback(() => {
+    health().then(setStatus, () => setOffline(true))
+  }, [])
+
+  useEffect(() => {
+    refreshHealth()
+    fetchExamples().then(setExamples, () => setExamples([]))
+  }, [refreshHealth])
+
+  function openChat() {
+    // A chat that opens focuses its message box itself; one already open gets the focus back here.
+    if (layout.open) document.querySelector<HTMLTextAreaElement>('.chat-window textarea')?.focus()
+    else layout.setOpen(true)
+  }
+
+  // "Ask about this" and an alert's "Explain it": open the chat where it is and ask about one CVE (DESIGN.md §6.4).
+  function askAbout(cveId: string) {
+    openChat()
+    void chat.send(`Explain ${cveId} and how to defend against it.`, { savedLevel: true }) // A19: the saved level
+  }
+
+  // "Ask about this" on the CVEs page also selects the row: Patch knows which CVE "this" is (A18). While a reply is
+  // still coming the chat takes no new question, so the click only opens the chat and selects nothing.
+  function askAboutRow(cveId: string) {
+    pageContext.select(cveId, chat.pending)
+    askAbout(cveId)
+  }
+
+  function closeChat() {
+    layout.setOpen(false)
+    // Keyboard users land back on the button that opened it (it reappears once a pinned chat closes).
+    setTimeout(() => patchButton.current?.focus())
+  }
+
+  // Ctrl/Cmd+K opens the chat on any page; Esc closes the bubble, never a pinned chat (DESIGN.md §6.4).
+  // Bound on every render, so it always sees the current layout.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault() // Firefox and Chrome would focus their own search box
+        openChat()
+      } else if (e.key === 'Escape' && layout.open && !layout.pinned) {
+        closeChat()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
+  function toggleCollapsed() {
+    const next = !collapsed
+    store.set('sidenavCollapsed', next ? '1' : '0')
+    setCollapsed(next)
+  }
+
+  // Dev only when the backend allows the dev panel (it exposes internals).
+  const pages: Page[] = status?.dev_panel ? ['dashboard', 'cves', 'settings', 'dev'] : ['dashboard', 'cves', 'settings']
+  const current = PAGES[page]
+  const dark = theme === 'dark'
+
+  return (
+    <div className={`app${collapsed ? ' collapsed' : ''}${layout.docked ? ' docked' : ''}`}>
+      <aside className="sidenav" aria-label="Main">
+        <div className="brand">
+          <span className="brand-mark">
+            <ShieldIcon />
+          </span>
+          <span className="brand-name">
+            <span>LLM Security</span>
+            <small>assistant</small>
+          </span>
+        </div>
+        <nav className="side-links" aria-label="Pages">
+          <span className="side-section">Monitor</span>
+          {pages.map((p) => {
+            const { nav, Icon } = PAGES[p]
+            return (
+              <button
+                key={p}
+                type="button"
+                className="side-link"
+                aria-current={page === p ? 'page' : undefined}
+                onClick={() => navigate(PATHS[p])}
+                title={collapsed ? nav : undefined}
+              >
+                <span className="side-icon">
+                  <Icon />
+                </span>
+                <span className="side-label">{nav}</span>
+              </button>
+            )
+          })}
+          <span className="side-section">Assistant</span>
+          <button
+            type="button"
+            className="side-link side-ask"
+            aria-label="Ask Patch"
+            aria-expanded={chatOpen}
+            aria-describedby={patch.unread ? 'patch-unread' : undefined}
+            onClick={() => (chatOpen ? closeChat() : openChat())}
+            title={collapsed ? 'Ask Patch' : undefined}
+          >
+            <span className="side-icon">
+              <ChatIcon />
+            </span>
+            <span className="side-label">
+              Ask<span className="long"> Patch</span>
+            </span>
+            {patch.unread && <span className="unread-dot" aria-hidden="true" />}
+          </button>
+        </nav>
+        <div className="side-card">
+          <Robot size={64} variant={patch.restVariant} />
+          <strong>Snapshot</strong>
+          <span>{status ? `Data as of ${status.as_of}` : offline ? 'Backend offline' : 'Loading…'}</span>
+          <span className="side-model">{status?.model ?? '—'}</span>
+        </div>
+        <button
+          type="button"
+          className="collapse-btn"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? 'Expand the sidebar' : 'Collapse the sidebar'}
+          title={collapsed ? 'Expand' : 'Collapse'}
+        >
+          <ChevronIcon />
+        </button>
+      </aside>
+
+      <div className="main-col">
+        <header className="topbar">
+          <div className="crumbs">
+            <span className="crumb-path">Pages / {current.title}</span>
+            <h1>{current.title}</h1>
+          </div>
+          <button
+            type="button"
+            className="theme-btn"
+            onClick={toggleTheme}
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={dark ? 'Light mode' : 'Dark mode'}
+          >
+            {dark ? <SunIcon /> : <MoonIcon />}
+          </button>
+        </header>
+        {alertCve && (
+          <AlertBanner
+            cve={alertCve}
+            onExplain={() => {
+              alertDone()
+              askAbout(alertCve)
+            }}
+            onDismiss={alertDone}
+          />
+        )}
+        <main>
+          {page === 'dashboard' ? (
+            // keyed by the visit, like the CVEs page: a link followed again with another filter starts from it
+            <DashboardPage
+              key={route.visit}
+              search={route.search}
+              onNavigate={navigate}
+              onAskPatch={openChat}
+              onView={pageContext.reportView}
+              patchVariant={patch.restVariant}
+            />
+          ) : page === 'cves' ? (
+            // keyed by the visit: a link followed again with other filters starts from them
+            <CvesPage
+              key={route.visit}
+              search={route.search}
+              onAsk={askAboutRow}
+              selected={pageContext.selected}
+              onView={pageContext.reportView}
+            />
+          ) : page === 'settings' ? (
+            <SettingsPage asOf={status?.as_of ?? null} />
+          ) : status?.dev_panel ? (
+            <DevPage onSaved={refreshHealth} />
+          ) : null}
+        </main>
+      </div>
+
+      {/* Same places in the tree in every layout: pinning or unpinning never rebuilds the page or the chat. */}
+      {layout.docked && <ChatDivider layout={layout} />}
+      {chatOpen && (
+        <ChatWindow
+          chat={chat}
+          mood={patch.mood}
+          variant={patch.variant}
+          restVariant={patch.restVariant}
+          pageTitle={current.title}
+          words={pageContext.words}
+          suggestions={SUGGESTIONS[page]}
+          examples={examples}
+          layout={layout}
+          onClose={closeChat}
+        />
+      )}
+      {/* Hidden while the chat is pinned beside the page (DESIGN.md §6.3). */}
+      {!layout.docked && (
+        <PatchButton
+          ref={patchButton}
+          open={chatOpen}
+          mood={patch.mood}
+          variant={patch.variant}
+          unread={patch.unread}
+          onClick={() => (chatOpen ? layout.setOpen(false) : openChat())}
+        />
+      )}
+    </div>
+  )
+}
