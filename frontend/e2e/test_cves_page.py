@@ -36,6 +36,7 @@ def open_cves(browser: Browser, ui_url: str, clean_state):
             page.add_init_script(init_script)
         page.goto(f"{ui_url}/cves{query}")
         expect(page.locator("table.cves tbody tr").first).to_be_visible()
+        page.evaluate("document.fonts.ready.then(() => null)")  # late web fonts move the layout (CI race)
         return page
 
     yield _open

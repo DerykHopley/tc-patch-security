@@ -74,6 +74,7 @@ def open_dash(browser: Browser, ui_url: str, clean_state):
         page.goto(ui_url)
         expect(page.locator(".tile")).to_have_count(4)
         expect(page.locator(".top-cves li").first).to_be_visible()
+        page.evaluate("document.fonts.ready.then(() => null)")  # late web fonts move the layout (CI race)
         return page
 
     yield _open

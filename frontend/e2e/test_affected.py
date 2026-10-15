@@ -234,6 +234,10 @@ def test_a15_11_keyboard_reaches_each_products_fields(open_dash):
     seen = []
     for _ in range(80):
         page.keyboard.press("Tab")
+        # Stop where focus leaves the editor: Save watchlist is disabled (skipped) while nothing changed, and a
+        # loop that wrapped round the page would count the fields twice now the charts are one stop each.
+        if not editor(page).evaluate("el => el.contains(document.activeElement)"):
+            break
         seen.append(focused(page))
         if seen[-1] == "Save watchlist":
             break

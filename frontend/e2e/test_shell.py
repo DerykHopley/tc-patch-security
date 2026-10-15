@@ -30,6 +30,7 @@ def open_app(browser: Browser, ui_url: str):
             page.add_init_script(init_script)
         page.goto(ui_url + query)
         expect(page.get_by_role("heading", level=1)).to_be_visible()
+        page.evaluate("document.fonts.ready.then(() => null)")  # late web fonts move the layout (CI race)
         return page
 
     yield _open
