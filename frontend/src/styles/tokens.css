@@ -4,6 +4,7 @@
 
 :root[data-design='playful'] {
   /* 3.1 Colours. --muted is #605d8c, not the prototype's #6f6c9c: 4.87:1 on the page background (was 3.90). */
+  /* --error, --warn and --ok are dark enough to pass 4.5:1 as text on the surface and their soft fills (review, 2026-10-15). */
   --bg: #dfe5fd;
   --surface: #ffffff;
   --text: #2a2559;
@@ -12,10 +13,10 @@
   --accent: #6c4cf5;
   --accent-soft: #efeaff;
   --user: #efeaff;
-  --ok: #12a46b;
-  --error: #e5385a;
+  --ok: #0d7b50;
+  --error: #cf1b3e;
   --error-soft: #ffe8ed;
-  --warn: #b8640a;
+  --warn: #9c5508;
   --warn-soft: #fff1de;
   --series-1: #7b5cff;
   --grid: #eceefb;

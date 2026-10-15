@@ -61,10 +61,10 @@ Tokens are CSS custom properties on `<html data-design="playful">`. Dark values 
 | `--accent` | `#6c4cf5` | `#a28dff` | links, focus, active, page title |
 | `--accent-soft` | `#efeaff` | `#2a2550` | soft fills: hover, chips, nested cards |
 | `--user` | `#efeaff` | `#2a2550` | the user's chat messages |
-| `--ok` | `#12a46b` | `#4fd39a` | success, "final sources" |
-| `--error` | `#e5385a` | `#ff7a95` | errors, KEV |
+| `--ok` | `#0d7b50` | `#4fd39a` | success, "final sources" |
+| `--error` | `#cf1b3e` | `#ff7a95` | errors, KEV |
 | `--error-soft` | `#ffe8ed` | `#3a1c2a` | error backgrounds |
-| `--warn` | `#b8640a` | `#ffb547` | warnings |
+| `--warn` | `#9c5508` | `#ffb547` | warnings |
 | `--warn-soft` | `#fff1de` | `#33281a` | warning backgrounds |
 | `--series-1` | `#7b5cff` | `#a28dff` | single-series charts |
 | `--grid` | `#eceefb` | `#25243d` | chart gridlines |
@@ -274,7 +274,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - Delivery channels: one soft card each (radius 18px). The "ready" / "not set up" pill hugs its text (it must not stretch).
 - Callouts (warning boxes): radius 14px. The reset box: radius 18px, red outline.
 - **Save bar**: sticky at the bottom of Settings and Dev, floating as a rounded card 0.8rem above the bottom, with "All changes saved" / "Unsaved changes" on the left and Discard / Save changes on the right. It keeps 96px clear on the right for Patch's button. On phones (≤ 800px) 96px leaves too little room and the bar wrapped to two rows, so there it floats just above Patch's button instead (A13, 2026-10-14; the browser check A13.6 checks it never overlaps his button at 400px and 1400px).
-- Text on the soft status fills ("Saved for later" chip, "urgent" tag, error messages) is `--text`, with the warn or error colour as an edge: `--warn` on `--warn-soft` is 3.9:1 and `--error` on the surface 4.2:1, both under 4.5:1 for small text (A13, 2026-10-14).
+- Text on the soft status fills ("Saved for later" chip, "urgent" tag, error messages) is `--text`, with the warn or error colour as an edge: `--warn` on `--warn-soft` is 3.9:1 and `--error` on the surface 4.2:1, both under 4.5:1 for small text (A13, 2026-10-14). Since the review fixes (2026-10-15) the light `--error`, `--warn` and `--ok` are darker (`#cf1b3e`, `#9c5508`, `#0d7b50`), so they also pass as text: `--error` 5.4:1 on the surface and 4.6:1 on `--error-soft`, `--warn` 5.1:1 on `--warn-soft`, `--ok` 5.3:1 on the surface (checked by the browser check A02.3, both modes). The edge rule stays.
 - The page heading inside Settings and Dev is hidden: the top bar already names the page.
 
 ### 5.8 Welcome banner (dashboard)

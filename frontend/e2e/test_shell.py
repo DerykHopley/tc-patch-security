@@ -67,8 +67,8 @@ def contrast(a: str, b: str) -> float:
 
 LIGHT = {
     "--bg": "#dfe5fd", "--surface": "#ffffff", "--text": "#2a2559", "--muted": "#605d8c", "--border": "#e4e5f8",
-    "--accent": "#6c4cf5", "--accent-soft": "#efeaff", "--user": "#efeaff", "--ok": "#12a46b", "--error": "#e5385a",
-    "--error-soft": "#ffe8ed", "--warn": "#b8640a", "--warn-soft": "#fff1de", "--series-1": "#7b5cff", "--grid": "#eceefb",
+    "--accent": "#6c4cf5", "--accent-soft": "#efeaff", "--user": "#efeaff", "--ok": "#0d7b50", "--error": "#cf1b3e",
+    "--error-soft": "#ffe8ed", "--warn": "#9c5508", "--warn-soft": "#fff1de", "--series-1": "#7b5cff", "--grid": "#eceefb",
     "--sev-low": "#a48bff", "--sev-medium": "#7b5cff", "--sev-high": "#5235d6", "--sev-critical": "#2e1a80",
     "--cat-1": "#6c4cf5", "--cat-2": "#e2780f", "--cat-3": "#e0306a",
 }
@@ -124,6 +124,19 @@ def test_a02_3_muted_text_passes_on_the_page_background_and_soft_fills(open_app)
     muted = page.locator(".crumb-path").evaluate("el => getComputedStyle(el).color")
     assert contrast(muted, css_var(page, "--bg")) >= 4.5
     assert contrast(muted, css_var(page, "--accent-soft")) >= 4.5
+
+
+# Status colours used as text, and what they sit on (review item 14: --error on the surface was 4.2:1, --warn on
+# --warn-soft 3.9:1). WCAG AA for normal text: 4.5:1.
+STATUS_TEXT = [("--error", "--surface"), ("--error", "--error-soft"), ("--warn", "--surface"), ("--warn", "--warn-soft"),
+               ("--ok", "--surface"), ("--muted", "--surface"), ("--text", "--warn-soft"), ("--text", "--error-soft")]
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_a02_3_status_colours_pass_as_text_on_their_fills(open_app, scheme):
+    page = open_app(scheme=scheme)
+    low = {f"{fg} on {bg}": round(contrast(css_var(page, fg), css_var(page, bg)), 2) for fg, bg in STATUS_TEXT}
+    assert all(r >= 4.5 for r in low.values()), low
 
 
 def test_a02_3_primary_gradient_passes_with_white_text_at_both_ends(open_app):
