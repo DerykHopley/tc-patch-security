@@ -119,6 +119,62 @@ def test_a18_2_the_chip_shows_the_page_its_filters_and_the_selected_cve(open_cve
     expect(page.locator(".selected-chip")).to_have_count(0)
 
 
+def test_a18_2_changing_a_filter_clears_the_selected_cve(open_cves):
+    """Review fix 5: the selection belongs to the view it was made in. Any filter change clears it, so "this"
+    never points at a CVE that may no longer be on screen."""
+    page = open_cves(VIEW)
+    bodies = chat_bodies(page)
+    cve = table_ids(page, 1)[0]
+    page.get_by_role("button", name=f"Ask about this: {cve}").click()
+    expect(chip(page)).to_contain_text(cve)
+    expect(window(page).locator(".message.assistant")).to_have_count(1, timeout=10_000)
+    page.locator("main").get_by_label("Verdict").select_option("unknown")
+    expect(chip(page)).to_have_text("on CVEs · Langflow · High or worse · Unknown")
+    expect(page.locator(".selected-chip")).to_have_count(0)
+    ask(page, "Explain CWE-918")
+    assert "cve" not in bodies[-1]["page"]
+
+
+def test_a18_2_a_new_visit_never_shows_the_last_visits_filters(open_cves):
+    """Review fix 6: leaving the CVEs page forgets its view, so the next visit's first render can't carry the old
+    filters (the chip, or a message sent in that moment)."""
+    page = open_cves(VIEW)
+    open_chat(page)
+    expect(chip(page)).to_have_text("on CVEs · Langflow · High or worse")
+    page.get_by_role("button", name="Dashboard", exact=True).first.click()
+    expect(chip(page)).to_have_text("on Dashboard")
+    page.evaluate("""() => {
+        window.__chips = []
+        new MutationObserver(() => {
+            const c = document.querySelector('.chat-head .context-chip')
+            if (c) window.__chips.push(c.textContent)
+        }).observe(document.body, { subtree: true, childList: true, characterData: true })
+        history.pushState(null, '', '/cves?kev=1')
+        dispatchEvent(new PopStateEvent('popstate'))
+    }""")
+    expect(chip(page)).to_have_text("on CVEs · In KEV")
+    seen = page.evaluate("window.__chips")
+    assert seen and not [t for t in seen if "Langflow" in t]
+
+
+def test_a18_2_ask_about_this_while_patch_is_answering_selects_nothing(open_cves):
+    """Review fix 7: a click that can't send (a reply is still coming) mustn't mark a row selected."""
+    page = open_cves(VIEW)
+    first, second = table_ids(page, 2)
+    release = []
+    page.route("**/chat", lambda route: release.append(route))  # hold the first reply
+    page.get_by_role("button", name=f"Ask about this: {first}").click()
+    expect(window(page).locator(".message.user")).to_have_count(1)
+    page.get_by_role("button", name=f"Ask about this: {second}").click()
+    row = page.locator("table.cves tbody tr", has=page.get_by_role("link", name=second, exact=True))
+    expect(row.locator(".selected-chip")).to_have_count(0)
+    expect(chip(page)).not_to_contain_text(second)
+    assert len(release) == 1
+    release[0].continue_()
+    page.unroute("**/chat")
+    expect(window(page).locator(".message.assistant")).to_have_count(1, timeout=10_000)
+
+
 # --- A18.3: prioritise and its card: the rules' order for the view ------------------------------------------------
 
 def test_a18_3_fix_first_from_the_cves_page_follows_the_tables_order(open_cves):

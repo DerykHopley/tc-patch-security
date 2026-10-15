@@ -764,8 +764,10 @@
     border-radius: 0;
   }
 
+  /* The sheet is already full screen: nothing to pin or enlarge */
   .chat-divider,
-  .chat-head .pin-btn {
+  .chat-head .pin-btn,
+  .chat-head .size-btn {
     display: none;
   }
 }

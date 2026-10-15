@@ -270,9 +270,7 @@ def test_a07_4_phone_chat_is_a_full_screen_sheet_without_pin(open_app, width):
     chat = open_chat(page)
     full_screen(page, chat, width)
     assert chat.evaluate("el => getComputedStyle(el).borderTopLeftRadius") == "0px"
-    head_button(page, "Make larger").click()
-    page.wait_for_timeout(250)
-    full_screen(page, chat, width)
+    expect(head_button(page, "Make larger")).to_be_hidden()  # the sheet is already full screen (review item 15)
     expect(head_button(page, PIN)).to_be_hidden()  # no pin on a phone
     expect(head_button(page, "Close the chat")).to_be_visible()  # the sheet covers Patch's button: its ✕ closes it
     assert no_sideways_scroll(page)
@@ -454,14 +452,16 @@ def test_a07_9_layouts_work_in_light_and_dark_at_phone_and_desktop_width(open_ap
     banner.get_by_role("button", name="Explain it").click()
     chat = window(page)
     expect(chat.locator(".message.assistant")).to_have_count(1, timeout=10_000)
+    if width == PHONE:  # the full-screen sheet: nothing to enlarge or pin
+        expect(head_button(page, "Make larger")).to_be_hidden()
+        expect(head_button(page, PIN)).to_be_hidden()
+        shot("sheet")
+        return
     head_button(page, "Make larger").click()
     c = box(chat)
     assert c["x"] >= 0 and c["x"] + c["width"] <= width and c["y"] >= 0 and c["y"] + c["height"] <= HEIGHT
     assert no_sideways_scroll(page)
     shot("enlarged")
-    if width == PHONE:
-        expect(head_button(page, PIN)).to_be_hidden()
-        return
     head_button(page, PIN).click()
     unpin = head_button(page, UNPIN)
     expect(unpin).to_be_visible()

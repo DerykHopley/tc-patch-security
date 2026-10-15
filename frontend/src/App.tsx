@@ -13,7 +13,7 @@ import { CvesPage } from './pages/CvesPage.tsx'
 import { DashboardPage } from './pages/Dashboard.tsx'
 import { DevPage } from './pages/DevPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
-import { pageContext, type CveView } from './pageContext.ts'
+import { filtersKey, pageContext, type CveView } from './pageContext.ts'
 import { PATHS, useRoute, type Page } from './route.ts'
 import { store } from './storage.ts'
 import { useTheme } from './theme.ts'
@@ -43,12 +43,27 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(() => store.get('sidenavCollapsed') === '1')
   const [route, navigate] = useRoute()
   const page = route.page
-  // Page context (A18): the CVEs page's filters and the CVE last asked about there, sent with every message. The
-  // selection belongs to one visit of the page: leave it (or follow a link to it) and nothing is selected.
-  const [cveView, setCveView] = useState<CveView | null>(null)
+  // Page context (A18): the CVEs page's filters and the CVE last asked about there, sent with every message. Both
+  // belong to one visit of the page: leave it (or follow a link to it) and the next visit starts with neither, so
+  // its first render can't show the last visit's filters. The selection also belongs to the filters it was made
+  // under: any filter change clears it, so "this" never means a CVE that may have left the view.
+  const [view, setView] = useState<{ view: CveView; visit: number } | null>(null)
   const [selection, setSelection] = useState<{ cve: string; visit: number } | null>(null)
+  const cveView = page === 'cves' && view?.visit === route.visit ? view.view : null
   const selectedCve = page === 'cves' && selection?.visit === route.visit ? selection.cve : null
   const context = pageContext(page, cveView, selectedCve)
+  const visit = route.visit
+  const lastFilters = useRef<{ key: string; visit: number } | null>(null)
+  const onView = useCallback(
+    (next: CveView) => {
+      const key = filtersKey(next)
+      const last = lastFilters.current
+      if (last?.visit === visit && last.key !== key) setSelection(null)
+      lastFilters.current = { key, visit }
+      setView({ view: next, visit })
+    },
+    [visit],
+  )
   const chat = useChat(context)
   const layout = useChatLayout()
   const [alertCve, alertDone] = useAlertLink()
@@ -79,8 +94,13 @@ export default function App() {
     void chat.send(`Explain ${cveId} and how to defend against it.`, { savedLevel: true }) // A19: the saved level
   }
 
-  // "Ask about this" on the CVEs page also selects the row: Patch knows which CVE "this" is (A18).
+  // "Ask about this" on the CVEs page also selects the row: Patch knows which CVE "this" is (A18). While a reply is
+  // still coming the chat takes no new question, so the click only opens the chat and selects nothing.
   function askAboutRow(cveId: string) {
+    if (chat.pending) {
+      openChat()
+      return
+    }
     setSelection({ cve: cveId, visit: route.visit })
     openChat()
     void chat.send(`Explain ${cveId} and how to defend against it.`, {
@@ -225,7 +245,7 @@ export default function App() {
               search={route.search}
               onAsk={askAboutRow}
               selected={selectedCve}
-              onView={setCveView}
+              onView={onView}
             />
           ) : page === 'settings' ? (
             <SettingsPage asOf={status?.as_of ?? null} onOpenDashboard={() => navigate(PATHS.dashboard)} />

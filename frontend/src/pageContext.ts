@@ -14,6 +14,11 @@ export interface CveView {
   productName?: string
 }
 
+/** The view's filters as one comparable string (the product's display name left out): changes when a filter does. */
+export function filtersKey(view: CveView): string {
+  return JSON.stringify(Object.entries(view.filters).filter(([, v]) => v != null && v !== '').toSorted())
+}
+
 /** The context sent with a message. Filters and the selected CVE only on the CVEs page. */
 export function pageContext(page: Page, view: CveView | null, selected: string | null): PageContext {
   if (page !== 'cves' || !view) return { page }

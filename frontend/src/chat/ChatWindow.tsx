@@ -77,7 +77,7 @@ export function ChatWindow({ chat, mood, pageTitle, context, productName, sugges
         {!pinned && (
           <button
             type="button"
-            className="icon-btn"
+            className="icon-btn size-btn"
             aria-label={expanded ? 'Make smaller' : 'Make larger'}
             title={expanded ? 'Make smaller' : 'Make larger'}
             onClick={layout.toggleExpanded}

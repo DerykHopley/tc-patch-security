@@ -196,7 +196,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 | ≤ 900px | Settings and Dev: one column of cards |
 | ≤ 800px | Sidebar becomes a **bottom tab bar** (fixed, full width, icon over label, "Ask" short label): Dashboard, CVEs, Settings, Dev, Ask. Page gets 4.4rem bottom padding. Patch's button moves up to 5rem from the bottom. |
 | Table ≤ 760px | The CVE table's rows become **stacked cards**. Measured on the table's card (a container query), not the window: it covers phones and the chat pinned at 1400px (§5.9). |
-| ≤ 700px | Chat (bubble or pinned) becomes a **full-screen sheet**. The pin button hides. |
+| ≤ 700px | Chat (bubble or pinned) becomes a **full-screen sheet**. The pin and Make larger buttons hide. |
 | ≤ 640px | Stat tiles: 2 columns. Welcome banner stacks (robot over text, centred). |
 | ≤ 520px | Slider rows stack (label above the slider). |
 
@@ -361,7 +361,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 
 ### 6.5 Phones
 
-- The chat is a full-screen sheet (bubble or pinned). No pin button. Patch's button sits above the bottom tab bar.
+- The chat is a full-screen sheet (bubble or pinned). No pin button and no Make larger: the sheet is already full screen. Patch's button sits above the bottom tab bar.
 
 ### Checklist: chat
 
@@ -370,7 +370,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - [ ] Header, greeting, suggestions, inline details as specified.
 - [ ] Pin only on the enlarged bubble; divider by mouse and keyboard; Esc rules; remembered; page not rebuilt.
 - [ ] Ctrl/Cmd+K, Esc, "Ask about this".
-- [ ] Phone: full-screen sheet, no pin.
+- [ ] Phone: full-screen sheet, no pin, no Make larger.
 
 ---
 
