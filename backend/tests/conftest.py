@@ -17,6 +17,18 @@ def knowledge():
     return load_knowledge()
 
 
+@pytest.fixture
+def fake_http():
+    """A local fake HTTP server (tests/fake_http.py) for the real Feeds adapter: never the real services."""
+    from tests.fake_http import FakeHttp, start
+
+    fake = FakeHttp()
+    server = start(fake)
+    yield fake
+    server.shutdown()
+    server.server_close()
+
+
 @pytest.fixture(scope="session")
 def index_dir(tmp_path_factory):
     return tmp_path_factory.mktemp("chroma")

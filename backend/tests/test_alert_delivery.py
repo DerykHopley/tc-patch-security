@@ -230,6 +230,19 @@ def test_b04_8_quiet_hours_hold_alerts_and_send_one_digest_when_they_end(app):
     assert len(app.channels.ntfy) == count + 1 and app.log()[0] == entry
 
 
+def test_b04_8_a_scheduled_tick_that_isnt_due_still_sends_what_quiet_hours_held(app):
+    from app.refresh import run_scheduled
+
+    app.check_now()
+    app.settings_with(quiet_start="08:00", quiet_end="10:00")
+    held = app.next_day()["result"]["alerts"]["default"]
+    count = len(app.channels.ntfy)
+    app.clock.advance(90)  # 10:30: quiet hours are over, but the 6-hour schedule isn't due
+    assert run_scheduled(app.deps.refresher, 6) is None
+    entry = app.log()[0]
+    assert entry["kind"] == "digest" and pairs([entry]) == pairs(held) and len(app.channels.ntfy) == count + 1
+
+
 # --- B04.9: alerts off stops sending, not the refresh ---------------------------------------------------------------
 
 def test_b04_9_alerts_off_stops_sending_but_not_the_refresh(app):
