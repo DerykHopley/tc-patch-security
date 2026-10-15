@@ -44,7 +44,7 @@ def run(args: WatchArgs, deps, ctx) -> dict:
     try:
         if args.action == "set_status":
             try:
-                cve, _ = state.set_status(args.cve_id, args.status, deps.settings.as_of, "chat",
+                cve, _ = state.set_status(args.cve_id, args.status, deps.as_of, "chat",
                                           justification=args.justification, note=args.note)
             except KeyError:
                 raise ToolError(f"{args.cve_id} isn't in my snapshot, so I can't track it.", "cve_not_in_snapshot")

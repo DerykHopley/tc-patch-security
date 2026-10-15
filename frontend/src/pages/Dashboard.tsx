@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react
 import { cves as fetchCves, dashboard as fetchDashboard, type CveRow, type Dashboard as DashboardData } from '../api.ts'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
 import { Bars, ChartCard, Columns, SeverityLegend, StackedBars, Tooltip, type Tip } from '../components/charts.tsx'
+import { FreshnessCard } from '../components/Freshness.tsx'
 import { WarningIcon } from '../components/Icons.tsx'
 import { OverdueMark, PriorityChip, PriorityReasons } from '../components/Priority.tsx'
 import { NoFixMark } from '../components/Decision.tsx'
@@ -219,24 +220,7 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
               ))}
             </ul>
           </section>
-          <section className="card" aria-labelledby="freshness-title">
-            <h2 id="freshness-title">Data freshness</h2>
-            <ul className="side-list">
-              {data.freshness.map((s) => (
-                <li key={s.id}>
-                  <a href={s.url} target="_blank" rel="noreferrer">
-                    {s.name}
-                  </a>
-                  <span className="meta">
-                    {s.count.toLocaleString('en')} items · {s.licence} ·{' '}
-                    {s.as_of && s.as_of !== s.retrieved ? `as of ${s.as_of}, ` : ''}retrieved {s.retrieved}
-                  </span>
-                  <span className="meta attribution">{s.attribution}</span>
-                  {s.notice && <span className="meta freshness-notice">{s.notice}</span>}
-                </li>
-              ))}
-            </ul>
-          </section>
+          <FreshnessCard data={data.data} asOf={data.as_of} sources={data.freshness} />
         </aside>
       </div>
       <Tooltip tip={tip} />

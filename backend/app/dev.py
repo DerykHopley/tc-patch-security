@@ -80,7 +80,7 @@ def dev_router(deps) -> APIRouter:
         chunks = deps.index.chunks
         return {"chunks": len(chunks), "by_doc_type": dict(Counter(c.doc_type for c in chunks).most_common()),
                 "embedder": deps.index.embedder_name, "dim": deps.index.dim, "min_score": deps.index.min_score,
-                "as_of": deps.settings.as_of, "local_hosts": deps.settings.local_llm_hosts}
+                "as_of": deps.as_of, "local_hosts": deps.settings.local_llm_hosts}
 
     @r.get("/models")
     def models(url: str = ""):

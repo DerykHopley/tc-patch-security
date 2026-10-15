@@ -167,7 +167,7 @@ export default function App() {
         </nav>
         <div className="side-card">
           <Robot size={64} variant={patch.restVariant} />
-          <strong>Snapshot</strong>
+          <strong>{status?.mode === 'live' ? 'Live data' : 'Snapshot'}</strong>
           <span>{status ? `Data as of ${status.as_of}` : offline ? 'Backend offline' : 'Loading…'}</span>
           <span className="side-model">{status?.model ?? '—'}</span>
         </div>

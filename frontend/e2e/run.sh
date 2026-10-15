@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # The browser check, end to end: start a throwaway backend (FakeLLM, hash embedder, temp state file and
 # index) and the frontend on two free ports, run the checks in Firefox and Chromium, stop both servers.
-# Web research (B08) is on, against a fake Tavily (backend/tests/fake_tavily.py) on a third free port: no network.
+# A second pair runs in live mode on the fake feeds (B02), for Check now: its refresh changes the CVE data, so it
+# never shares a backend with the snapshot checks (DECISIONS.md, 2026-10-15).
+# Web research (B08) is on, against a fake Tavily (backend/tests/fake_tavily.py) on its own free port: no network.
 # Never touches the user's app on 8000/5173. Used locally and in CI.
 #
 #   frontend/e2e/run.sh                      # both browsers
@@ -19,15 +21,15 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 # Two free ports from the OS, both held open until both are known, so they differ. Parallel runs and worktrees
 # then never collide, and the ports are never 8000/5173 (the OS hands out ports above 32767).
-read -r FREE_API FREE_UI TAVILY_PORT < <(python3 -c '
+read -r FREE_API FREE_UI LIVE_API_PORT LIVE_UI_PORT TAVILY_PORT < <(python3 -c '
 import socket
-a, b, c = socket.socket(), socket.socket(), socket.socket()
-a.bind(("127.0.0.1", 0)); b.bind(("127.0.0.1", 0)); c.bind(("127.0.0.1", 0))
-print(a.getsockname()[1], b.getsockname()[1], c.getsockname()[1])')
+socks = [socket.socket() for _ in range(5)]
+for s in socks: s.bind(("127.0.0.1", 0))
+print(*(s.getsockname()[1] for s in socks))')
 API_PORT="${E2E_API_PORT:-$FREE_API}"
 UI_PORT="${E2E_UI_PORT:-$FREE_UI}"
 
-for port in "$API_PORT" "$UI_PORT"; do
+for port in "$API_PORT" "$UI_PORT" "$LIVE_API_PORT" "$LIVE_UI_PORT"; do
   if (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
     echo "Port $port is already in use. Stop that server first: the check needs its own pair." >&2
     exit 1
@@ -56,6 +58,16 @@ PIDS+=($!)
 (cd "$ROOT/frontend" && VITE_API_URL="http://localhost:$API_PORT" \
   exec node_modules/.bin/vite --port "$UI_PORT" --strictPort) >"$LOG_DIR/frontend.log" 2>&1 &
 PIDS+=($!)
+# The live pair (B02): live mode, the fake feeds on day 2, its own state, live folder and index.
+(cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/live-state.json" AS_OF= \
+  DATA_MODE=live FEEDS=fake FAKE_FEEDS_DAY=2 LIVE_PATH="$STATE_DIR/live" \
+  EMBEDDER=hash INDEX_PATH="$STATE_DIR/live-index" SEARCH_MIN_SCORE= \
+  CORS_ORIGINS="http://localhost:$LIVE_UI_PORT,http://127.0.0.1:$LIVE_UI_PORT" \
+  exec uv run uvicorn app.main:app --port "$LIVE_API_PORT") >"$LOG_DIR/live-backend.log" 2>&1 &
+PIDS+=($!)
+(cd "$ROOT/frontend" && VITE_API_URL="http://localhost:$LIVE_API_PORT" \
+  exec node_modules/.bin/vite --port "$LIVE_UI_PORT" --strictPort) >"$LOG_DIR/live-frontend.log" 2>&1 &
+PIDS+=($!)
 
 wait_for() {
   for _ in $(seq 1 60); do
@@ -68,6 +80,8 @@ wait_for() {
 }
 wait_for "http://localhost:$API_PORT/health"
 wait_for "http://localhost:$UI_PORT/"
+wait_for "http://localhost:$LIVE_API_PORT/health"
+wait_for "http://localhost:$LIVE_UI_PORT/"
 
 # Both browsers unless the arguments pick one: `run.sh -k a02` runs Firefox and Chromium.
 case " $* " in
@@ -76,4 +90,5 @@ case " $* " in
 esac
 echo "Browser check on API port $API_PORT, UI port $UI_PORT${E2E_LATENCY_MS:+, slow mode ${E2E_LATENCY_MS} ms}: pytest $*"
 cd "$HERE"
-API_URL="http://localhost:$API_PORT" UI_URL="http://localhost:$UI_PORT" uv run --project "$HERE" pytest -q "$@"
+API_URL="http://localhost:$API_PORT" UI_URL="http://localhost:$UI_PORT" \
+  LIVE_API_URL="http://localhost:$LIVE_API_PORT" LIVE_UI_URL="http://localhost:$LIVE_UI_PORT" uv run --project "$HERE" pytest -q "$@"

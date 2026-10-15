@@ -5,6 +5,7 @@ Run: `uv run uvicorn app.main:app --port 8000` (settings from the environment, s
 import logging
 
 from fastapi import FastAPI, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -21,6 +22,7 @@ from app.dev import dev_router
 from app.errors import InputError, LLMError
 from app.notify import NotifyError, channel_status, deliver, format_alert
 from app.one_port import one_port
+from app.refresh import CheckReply
 from app.schemas import ChatReply, ChatRequest
 from app.verdict import USAGES
 from app.watched import WatchedCves
@@ -92,10 +94,25 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         log.exception("unhandled error")  # stack trace in the server log only
         return _error(500, "internal_error", "Something went wrong on the server.")
 
+    if deps.live:
+        @app.middleware("http")
+        async def fresh_data(request: Request, call_next):
+            """Live mode (B02): a new live version, from Check now or the CLI, is loaded before the next request."""
+            try:
+                await run_in_threadpool(deps.sync)
+            except Exception:  # keep serving the data already loaded; the next request tries again
+                log.exception("Loading the new live version failed")
+            return await call_next(request)
+
+    def data_status() -> dict:
+        """The data mode and when the live data was last checked (None in snapshot mode, or before the first run)."""
+        return {"mode": deps.settings.data_mode,
+                "last_checked": deps.refresher.last_checked() if deps.refresher else None}
+
     @app.get("/health")
     def health():
-        return {"status": "ok", "llm": deps.llm.name, "model": deps.llm.label(), "as_of": deps.settings.as_of,
-                "dev_panel": deps.settings.dev_panel}
+        return {"status": "ok", "llm": deps.llm.name, "model": deps.llm.label(), "as_of": deps.as_of,
+                "dev_panel": deps.settings.dev_panel, **data_status()}
 
     # --- Chat (A06)
 
@@ -113,7 +130,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def get_dashboard(product: str | None = None):
         """`product`: the dashboard's filter (A15b), `a,b`. Unknown or unwatched products are ignored."""
         watched = WatchedCves.of(deps)
-        return dashboard.summary(deps.knowledge, watched, dashboard.applied_filter(deps.knowledge, watched, product))
+        summary = dashboard.summary(deps.knowledge, watched, dashboard.applied_filter(deps.knowledge, watched, product))
+        return summary | {"data": data_status()}  # the freshness panel: Live or Snapshot, last checked (B02)
 
     @app.get("/cves")
     def get_cves(request: Request, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
@@ -130,7 +148,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.patch("/cves/{cve_id}")
     def patch_cve(cve_id: str, body: StatusUpdate):
         try:
-            cve, record = deps.state.set_status(cve_id, body.status, deps.settings.as_of, "page",
+            cve, record = deps.state.set_status(cve_id, body.status, deps.as_of, "page",
                                                 **body.model_dump(exclude={"status"}))
         except KeyError:
             return _error(404, "not_found", f"{cve_id} isn't in the snapshot.")
@@ -192,6 +210,36 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def reset_state(body: ResetRequest):
         deps.state.reset()
         return {"reset": True, "watchlist": list(deps.state.read().watchlist)}
+
+    # --- Live data (B02): Check now and the refresh status. The CLI (python -m app.refresh) runs the same function.
+
+    def live_only():
+        if deps.refresher is None:
+            raise InputError("The data is a frozen snapshot, so there is nothing to check. Set DATA_MODE=live to "
+                             "refresh it from the feeds.", "snapshot_mode")
+        return deps.refresher
+
+    @app.post("/refresh", response_model=CheckReply)
+    def check_now():
+        """Check now: run the refresh (or be refused: one at a time, at most one per 5 minutes)."""
+        reply = live_only().run("button")
+        if reply.ran:
+            deps.sync()  # load the new version now, so the reply comes when the new CVEs can be found
+        return reply
+
+    @app.get("/refresh")
+    def refresh_status():
+        return {**data_status(), **(deps.refresher.status() if deps.refresher else
+                                    {"running": False, "next_allowed": None, "last_result": None})}
+
+    if deps.live and deps.settings.feeds == "fake":
+        @app.post("/refresh/reset")
+        def reset_live_data(body: ResetRequest):
+            """The fake feeds only: the live data back to the snapshot and an empty run log, so the browser check
+            can run Check now again (DECISIONS.md, 2026-10-15). The real feeds have no such route."""
+            live_only().reset()
+            deps.sync()
+            return {"reset": True}
 
     # --- Dev panel (A11): only when DEV_PANEL is on, because it shows internals. Off, every /dev route is a 404.
     if deps.settings.dev_panel:

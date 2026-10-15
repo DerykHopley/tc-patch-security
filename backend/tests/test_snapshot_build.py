@@ -194,6 +194,6 @@ def test_b01_1_snapshot_built_with_the_shared_code_matches_every_fixture(built):
 
     assert build.build_cves is cve_build.build_cves and add.osv_versions is cve_build.osv_versions
     written = sorted(p.relative_to(built).as_posix() for p in built.rglob("*") if p.is_file())
-    assert len(written) == 28  # 8 JSON files and 20 OWASP pages: fixtures/ minus fake_script.json
+    assert len(written) == 28  # 8 JSON files and 20 OWASP pages: fixtures/ minus fake_script.json and fake_feeds/
     for name in written:
         assert (built / name).read_bytes() == (FIXTURES / name).read_bytes(), name
