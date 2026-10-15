@@ -222,9 +222,8 @@ class Alerter:
             one = len(group) == 1
             message = group[0] if one else digest(group, self.settings.app_url)
             channels = [send_on(c, message, self.settings, transports) for c in s.channels]
-            entry = _entry("alert" if one else "digest", group, message, at, channels)
-            state.log_alert(entry)
-            out.append(entry)
+            out.append(_entry("alert" if one else "digest", group, message, at, channels))
+        state.log_alerts(out)  # on top of the log in the order sent: KEV and new CVEs above the reminders
         return out
 
 

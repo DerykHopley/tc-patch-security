@@ -61,6 +61,7 @@ Spec A's tickets ([#2](https://github.com/DerykHopley/tc-patch-security/issues/2
 | Shared build code for the snapshot and the live refresh | `backend/app/cve_build.py` | B01 #32 |
 | Live mode and Check now on the fake feeds; the refresh CLI (`uv run python -m app.refresh`) | `backend/app/refresh.py`, `live_data.py`, `feeds.py`, `frontend/src/components/Freshness.tsx` | B02 #35 |
 | Real feeds (NVD, KEV, EPSS, OSV over HTTP, `FEEDS=real`) and the hourly schedule (`--schedule`, systemd user timer); the real run is a human step (#40) | `backend/app/feeds.py` `HttpFeeds`, `refresh.py` `run_scheduled`, `deploy/systemd/` | B03 #36 |
+| Alerts after a live refresh: diff, rules, once per CVE and reason, digest, quiet hours, per-channel log, the dashboard's Recent alerts | `backend/app/alerts.py`, `frontend/src/components/AlertsLog.tsx` | B04 #37 |
 | Patch as an MCP server (stdio, four read-only tools); the real-client demo is a human step | `backend/app/mcp_server.py`, `docs/mcp-demo.md` | B23 #61 |
 | Am I affected? Usage, version, verdict, `check_affected` | `backend/app/verdict.py`, `tools/affected.py` | A15 #17 |
 | Priority by rules, policy, due dates | `backend/app/priority.py` | A16 #18, gate A17 #19 |

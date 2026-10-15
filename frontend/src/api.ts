@@ -352,6 +352,7 @@ export interface RefreshResult {
   new_cves: string[]
   version: number | null
   errors: { source: string; message: string }[]
+  alerts?: Record<string, AlertLogEntry[]> // per user id, this run's alerts (B04)
 }
 
 export interface CheckReply {
@@ -413,6 +414,7 @@ export interface ChannelStatus {
 export interface SettingsReply {
   settings: AppSettings
   channels: Record<Channel, ChannelStatus>
+  alert_tz?: string // the time zone of quiet hours (ALERT_TZ, B04)
 }
 
 export interface AlertMessage {
@@ -423,12 +425,26 @@ export interface AlertMessage {
   click: string | null
 }
 
-export interface AlertLogEntry extends AlertMessage {
-  at: string // ISO time, UTC
+// The alert reasons (B04; the table in ALERTS-PLAN.md)
+export type AlertReason = 'kev' | 'kev_recheck' | 'new' | 'new_unscored' | 'now_critical' | 'due_soon' | 'overdue'
+
+/** One channel's result for one message: sent, recorded only (not sent, no error), not set up, or failed. */
+export interface ChannelResult {
   channel: Channel | 'preview'
   sent: boolean
   error: string | null
   error_code: 'not_configured' | 'notify_failed' | null
+}
+
+/** One message in the alerts log (app/alerts.py): one alert, a digest of several, a test alert from Settings, or
+ * (in a refresh result only) an alert held through quiet hours. */
+export interface AlertLogEntry extends AlertMessage {
+  at: string // ISO time, UTC
+  kind: 'alert' | 'digest' | 'held' | 'test'
+  cve: string | null // one alert's CVE; null for a digest or a test
+  reason: AlertReason | null
+  alerts: { cve: string; reason: AlertReason; priority: number }[]
+  channels: ChannelResult[]
 }
 
 export interface TestAlertReply {

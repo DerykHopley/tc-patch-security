@@ -331,8 +331,20 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - The sources list follows, as before: name, count, licence, retrieved, attribution, and NVD's notice, in both modes.
 - *Checked* by the browser check B02.9 and B02.10 against the live pair (light and dark, 400px and 1400px, Enter on the focused button, the line's contrast at least 4.5:1) and the reduced-motion scene `b02_9_check_now`; the words by `npm test` (`src/freshness.test.ts`).
 
+### 5.11 Recent alerts (B04, 2026-10-15)
+
+- The dashboard's side card "Recent alerts" (`frontend/src/components/AlertsLog.tsx`), just above "Data freshness". It lists the last 20 entries of the alerts log, newest first; one check's entries keep the order they were sent, so KEV and new CVEs sit above the overdue reminders. The same list is Settings' "Recent alerts" under Delivery.
+- **Each entry**: the title in bold (`--text`); for one alert it is a link to `#cve=CVE-…`, the same link the notification opens (the banner with "Explain it", §6.4). Then one muted line: the reason and the time in UTC ("In CISA KEV · 2026-10-15 09:00 UTC"; "Digest · …"; "Test alert · …"). A digest adds its counts as a second muted line ("1 in CISA KEV · 2 new · 12 due soon · 263 overdue"), never the ids. Entries are separated by a 1px `--border` line.
+- **Per-channel results**: one small pill per channel, 0.75rem, text `--text`, the tone as a 1px edge (the §5.7 edge rule): sent = `--ok` edge on `--accent-soft`; not set up or failed = `--error` edge on `--error-soft`, with the error as its title; recorded only (dry run, preview) = `--border` edge, no fill. The words say the result ("ntfy: sent", "email: not set up", "ntfy: failed (network down)"), so colour is never the only cue. No channel picked: one pill "No channel picked: recorded only".
+- Empty: "No alerts yet." plus, live, "A check sends them when something on your watchlist needs you." or, in snapshot mode, "The snapshot never changes, so only test alerts from Settings appear here."
+- Then "Alert settings →" (bold link, like the watchlist card's), to Settings.
+- After Check now the card loads again (the data-changed event), so the new alerts show at once.
+- No motion of its own: the card fades in with the other dashboard cards (§7.1), which reduced motion already stops.
+- *Checked* by the browser check B04.12 against the live pair (a busy check as one digest; one alert's link opening the banner; light and dark, 400px and 1400px, Enter on Check now and on the Settings link, a result pill's contrast at least 4.5:1, no sideways scroll); the words by `npm test` (`src/alertsLog.test.ts`).
+
 ### Checklist: components
 
+- [ ] Recent alerts (B04): the last 20, reason and time in UTC, per-channel results in words, one alert links to `#cve=…`, a digest says counts only.
 - [ ] Tiles: gradients, circles, contrast as in the table; KEV tile wiggles only when KEV > 0.
 - [ ] Every chart has a legend (2+ series), hover tooltips, "Show as table", and the grow-in animation; stacked bars grow as one piece.
 - [ ] Map colours and dimming as specified, in both modes.

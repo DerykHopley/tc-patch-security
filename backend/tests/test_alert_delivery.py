@@ -137,9 +137,11 @@ def test_b04_4_day2_refresh_sends_the_new_kev_and_rescored_alerts(app):
 
 def test_b04_4_the_alerts_route_returns_the_log_newest_first_with_results_per_channel(app):
     app.check_now()
-    app.next_day()
+    sent = app.next_day()["result"]["alerts"]["default"]
     log = app.log()
     assert len(log) <= 20 and log[0]["at"] == "2026-10-15T09:00:00+00:00"
+    assert log[:len(sent)] == sent  # one run on top in the order sent: KEV and new CVEs above the reminders
+    assert log[0]["reason"] == "kev"
     assert {"at", "kind", "reason", "cve", "title", "body", "priority", "click", "alerts", "channels"} <= set(log[0])
     assert log[-1]["kind"] == "digest" and log[-1]["at"] == f"{DAY1}T09:00:00+00:00"  # day 1's digest, oldest
 

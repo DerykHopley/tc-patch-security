@@ -266,9 +266,13 @@ class State:
         return new
 
     def log_alert(self, entry: dict) -> None:
+        self.log_alerts([entry])
+
+    def log_alerts(self, entries: list[dict]) -> None:
+        """Put one run's entries on top of the log, in their order (the first sent first)."""
         with self._lock:
             data = self._load()
-            data["alerts_log"] = ([entry] + data.get("alerts_log", []))[:ALERTS_LOG_MAX]
+            data["alerts_log"] = (entries + data.get("alerts_log", []))[:ALERTS_LOG_MAX]
             self._save(data)
 
     def alerts_log(self) -> list[dict]:

@@ -182,7 +182,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.get("/settings")
     def get_settings():
         return {"settings": deps.state.settings().model_dump(),
-                "channels": channel_status(deps.settings, deps.transports)}
+                "channels": channel_status(deps.settings, deps.transports), "alert_tz": deps.settings.alert_tz}
 
     @app.put("/settings")
     def put_settings(body: AppSettings):
