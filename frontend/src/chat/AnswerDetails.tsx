@@ -164,7 +164,7 @@ export function AnswerDetails({ reply, prefix, tab, onTab }: {
       </div>
       <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${tab}`}>
         {tab === 'sources' && <Sources sources={reply.sources} prefix={prefix} />}
-        {tab === 'tools' && reply.tool_calls.map((c) => <ToolCallCard key={c.id} call={c} />)}
+        {tab === 'tools' && reply.tool_calls.map((c) => <ToolCallCard key={c.id} call={c} page={reply.page_context} />)}
         {tab === 'query' && reply.query && <QueryPlan query={reply.query} />}
       </div>
     </div>

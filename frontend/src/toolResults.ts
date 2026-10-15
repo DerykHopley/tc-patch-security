@@ -247,6 +247,7 @@ export interface UpdatesResult {
   last_checked: string | null
   trigger: string | null
   ok: boolean | null
+  status: 'ok' | 'partial' | 'failed' | null
   problems: string[]
   counts: UpdateCounts
   new_cves: NewCve[]

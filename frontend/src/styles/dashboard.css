@@ -483,6 +483,42 @@ button.check-now:disabled {
   border-color: var(--error);
 }
 
+/* B20: the banner for a partial or failed last run, with Retry. The §5.7 edge rule: --text on the soft fill, the tone
+   as the left edge (warn: some sources updated; error: none did). */
+.run-banner {
+  margin: 0 0 0.6rem;
+  padding: 0.45rem 0.6rem 0.55rem;
+  border-radius: var(--radius-input);
+  border-left: 3px solid;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.run-banner.warn {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+}
+
+.run-banner.error {
+  background: var(--error-soft);
+  border-color: var(--error);
+}
+
+.run-banner-text {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+
+.run-banner-details {
+  margin: 0 0 0.45rem;
+  padding-left: 1.1rem;
+  overflow-wrap: anywhere; /* a long error message must not widen the card on a phone */
+}
+
+.run-banner button.retry {
+  min-height: 2rem;
+}
+
 /* ---------- Motion (DESIGN.md §7.1). The global reduced-motion rule in tokens.css stops all of it. ---------- */
 
 .tile,

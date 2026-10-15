@@ -45,11 +45,16 @@ class Deps:
     clock: Callable[[], dt.datetime] = utc_now  # the time; tests pass one they move (live mode's today, B02)
     refresher: Refresher | None = None  # live mode only (B02): fetch, build, write a new live version
     version: int | None = None  # the live version loaded; None in snapshot mode
+    fail_tools: set[str] = field(default_factory=set)  # B20: chat tools that time out in an answer (FAIL_TOOLS, dev)
     _sync_lock: threading.Lock = field(default_factory=threading.Lock)
 
     def __post_init__(self):
         if self.keyword is None:
             self.keyword = BM25Index(self.index.chunks)  # the same chunks as Chroma: both search one corpus
+        self.fail_tools = self.fail_tools or set(self.settings.fail_tools)
+        if self.fail_tools:
+            log.warning("FAIL_TOOLS is on: %s time out in every answer (docs/failure-demo.md).",
+                        ", ".join(sorted(self.fail_tools)))
 
     @property
     def live(self) -> bool:

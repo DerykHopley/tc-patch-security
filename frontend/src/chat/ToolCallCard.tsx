@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import type { ToolCallRecord, Verdict } from '../api.ts'
+import { useState, type ReactNode } from 'react'
+import { retryTool, type PageContext, type ToolCallRecord, type Verdict } from '../api.ts'
 import { contextWords, STATUS_LABEL as CVE_STATUS_LABEL } from '../cveView.ts'
 import { OverdueMark, PriorityChip } from '../components/Priority.tsx'
 import { NoFixMark } from '../components/Decision.tsx'
@@ -299,6 +299,7 @@ function UpdatesCard({ r }: { r: UpdatesResult }) {
       <p className="result-title">{updatesTitle(r)}</p>
       {r.refusal && r.refusal.reason !== 'snapshot' && <p className="meta">{r.refusal.message}</p>}
       {r.ok === false && <p className="tool-error">The check failed, nothing changed: {r.problems.join('; ')}</p>}
+      {r.status === 'partial' && <p className="meta">Partial: {r.problems.join('; ')}. The rest was written.</p>}
       {r.ok && (
         <p className="meta">
           {c.new} new · {c.updated} updated · {c.kev_added} added to KEV · {c.rescored} rescored · {r.alerts_total}{' '}
@@ -363,20 +364,63 @@ function ResultCard({ call }: { call: ToolCallRecord }) {
   return null
 }
 
-export function ToolCallCard({ call }: { call: ToolCallRecord }) {
+// B20: a step tried again keeps its new record for the page's lifetime, so switching tabs doesn't lose it.
+const retried = new WeakMap<ToolCallRecord, ToolCallRecord>()
+
+/** `page`: the answer's page context, sent again with Try again (prioritise reads it). */
+export function ToolCallCard({ call: original, page = {} }: { call: ToolCallRecord; page?: PageContext }) {
+  const [call, setCall] = useState(() => retried.get(original) ?? original)
+  const [trying, setTrying] = useState(false)
+  const [retryError, setRetryError] = useState<string | null>(null)
   const r = call.result
+  const again = call !== original // this card shows a step that was tried again
+
+  const tryAgain = () => {
+    setTrying(true)
+    setRetryError(null)
+    retryTool(original, page)
+      .then((rec) => {
+        retried.set(original, rec)
+        setCall(rec)
+      })
+      .catch((e: unknown) => setRetryError(e instanceof Error ? e.message : 'Something went wrong. Try again.'))
+      .finally(() => setTrying(false))
+  }
+
   return (
     <article className={`tool-card ${call.status}`}>
       <header>
         <code>{call.name}</code>
-        <span className={`status ${call.status}`}>{call.status === 'ok' ? 'OK' : 'Error'}</span>
+        <span className={`status ${call.status}`}>
+          {call.status === 'ok' ? (again ? 'OK on retry' : 'OK') : call.retryable ? "Didn't finish" : 'Error'}
+        </span>
         <span className="meta">{call.duration_ms.toFixed(1)} ms</span>
       </header>
       <pre className="args">{JSON.stringify(call.args, null, 2)}</pre>
       {call.error && (
         <p className="tool-error">
-          <strong>{call.error.code}</strong>: {call.error.message}
+          {call.retryable ? "didn't finish: " : <><strong>{call.error.code}</strong>: </>}
+          {call.error.message}
         </p>
+      )}
+      {call.retryable && (
+        <div className="try-again-row">
+          <button type="button" className="try-again" onClick={tryAgain} disabled={trying} aria-busy={trying}>
+            {trying && <span className="spinner" aria-hidden="true" />}
+            {trying ? 'Trying again…' : 'Try again'}
+          </button>
+          <span className="meta">Runs this step only.</span>
+        </div>
+      )}
+      {retryError && (
+        <p className="tool-error" role="alert">
+          {retryError}
+        </p>
+      )}
+      {again && call.status === 'ok' && (
+        <output className="retry-note">
+          This step worked on a second try. The answer above was written without it: ask again to have Patch use it.
+        </output>
       )}
       <ResultCard call={call} />
       {r && (

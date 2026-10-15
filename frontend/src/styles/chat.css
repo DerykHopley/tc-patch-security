@@ -564,6 +564,38 @@
   font-size: 0.85rem;
 }
 
+/* B20: Try again on a step that didn't finish: a plain pill (§5.3), "Trying again…" with the Check now spinner. */
+.try-again-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.3rem 0;
+}
+
+button.try-again {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2rem;
+}
+
+button.try-again:disabled {
+  opacity: 1; /* "Trying again…" stays readable, as Check now's "Checking…" */
+  cursor: progress;
+}
+
+.retry-note {
+  display: block;
+  margin: 0.3rem 0;
+  padding: 0.3rem 0.55rem;
+  border-left: 3px solid var(--ok);
+  border-radius: var(--radius-input);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
 .tool-card pre {
   margin: 0.3rem 0;
   overflow-x: auto;

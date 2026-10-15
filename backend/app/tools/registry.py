@@ -95,6 +95,20 @@ def tool_schemas(deps=None) -> list[dict]:
     return [t.schema() for t in TOOLS.values() if deps is None or t.offered(deps)]
 
 
+# Errors that may pass on a second try (B20): the tool card offers "Try again" for these only. A bad argument or an
+# unknown id gives the same error every time.
+RETRYABLE = {"timeout", "rate_limited", "tool_failed", "unavailable", "web_unavailable"}
+# Steps that stopped short without a mistake in the call: the answer must say so. The web research cap is one, but
+# not retryable: it counts per day.
+UNFINISHED = RETRYABLE | {"web_limit"}
+
+
+def failed_on_purpose(call: ToolCall) -> ToolCallRecord:
+    """The tool-failure switch (FAIL_TOOLS, the dev panel; B20): the step times out without running the tool."""
+    return ToolCallRecord(id=call.id, name=call.name, args=call.args, status="error", duration_ms=0.0, retryable=True,
+                          error={"code": "timeout", "message": f"{call.name} timed out before it answered."})
+
+
 def _plain(e: ValidationError) -> str:
     return "; ".join(f"{'.'.join(map(str, err['loc'])) or 'arguments'}: {err['msg']}" for err in e.errors())
 
@@ -106,7 +120,8 @@ def run_tool(call: ToolCall, deps, ctx: Context, tools: dict[str, ToolSpec] | No
     def record(status, result=None, error=None):
         ms = round((time.perf_counter() - start) * 1000, 2)
         return ToolCallRecord(id=call.id, name=call.name, args=call.args, status=status,
-                              result=result, error=error, duration_ms=ms)
+                              result=result, error=error, duration_ms=ms,
+                              retryable=bool(error) and error["code"] in RETRYABLE)
 
     spec = (TOOLS if tools is None else tools).get(call.name)
     if spec is None:

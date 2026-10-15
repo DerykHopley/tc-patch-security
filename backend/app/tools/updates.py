@@ -71,7 +71,8 @@ class UpdatesResult(ToolResult):
     refusal: UpdatesRefusal | None
     last_checked: str | None  # the reported run's start (ISO 8601, UTC); None before any run, or in snapshot mode
     trigger: str | None  # who started the reported run: button, chat, schedule, cli
-    ok: bool | None  # False: a feed failed and nothing changed
+    ok: bool | None  # True: the run wrote a new version; False: every feed failed and nothing changed
+    status: Literal["ok", "partial", "failed"] | None  # B20: partial = some feeds failed, the rest was written
     problems: list[str]  # "source: message" for each failed feed or alert delivery
     counts: UpdateCounts
     new_cves: list[NewCve]  # the first LISTED, newest first
@@ -92,7 +93,7 @@ def _alerts_of(result: RefreshResult, user_id: str) -> list[dict]:
 
 
 def run(args: UpdatesArgs, deps, ctx) -> dict:
-    empty = {"last_checked": None, "trigger": None, "ok": None, "problems": [],
+    empty = {"last_checked": None, "trigger": None, "ok": None, "status": None, "problems": [],
              "counts": UpdateCounts(new=0, updated=0, kev_added=0, rescored=0).model_dump(), "new_cves": [],
              "alerts": [], "alerts_total": 0}
     if deps.refresher is None:
@@ -131,6 +132,7 @@ def run(args: UpdatesArgs, deps, ctx) -> dict:
                          "priority": a.priority.level if a and a.priority else None})
     alerts = _alerts_of(result, ctx.user_id)
     return {**base, "last_checked": result.started, "trigger": result.trigger, "ok": result.ok,
+            "status": result.status,
             "problems": [f"{e.source}: {e.message}" for e in result.errors],
             "counts": result.counts.model_dump(), "new_cves": new_cves,
             "alerts": [{**a, "n": source(a["cve"])} for a in alerts[:LISTED]], "alerts_total": len(alerts)}
