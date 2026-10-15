@@ -32,13 +32,16 @@ export function ChatWindow({ chat, mood, variant, restVariant, pageTitle, words,
   const chipText = [`on ${pageTitle}`, ...words].join(' · ')
   const greeting = (
     <div className="greeting">
-      <div className="robot-slot">
-        <Robot size={92} variant={restVariant} />
+      <div className="greeting-bubble">
+        {/* The chat button's Patch, on the bubble's top-left corner; the first line wraps beside him (§8.2) */}
+        <span className="robot-slot">
+          <Robot size={58} variant={restVariant} />
+        </span>
+        <p>
+          Hi, I'm <strong>Patch</strong>! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack.
+          What shall we look at?
+        </p>
       </div>
-      <p className="greeting-bubble">
-        Hi, I'm <strong>Patch</strong>! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack. What
-        shall we look at?
-      </p>
     </div>
   )
   return (
