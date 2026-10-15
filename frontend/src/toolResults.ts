@@ -231,6 +231,27 @@ export interface CitedBy {
   title: string
 }
 
+/** research_web: what was searched, how, and the numbered web results. */
+export interface ResearchResult {
+  query: string
+  via: 'mcp' | 'api'
+  results: WebHit[]
+  flagged: number
+  searches_left: number
+  note: string
+}
+
+/** One web result: a numbered source. */
+export interface WebHit {
+  n: number
+  title: string
+  site: string
+  url: string
+  date: string | null
+  snippet: string
+  flagged: boolean
+}
+
 /** Each tool's result, by the tool's name. */
 export interface ToolResults {
   check_affected: AffectedOne | AffectedProduct
@@ -239,6 +260,7 @@ export interface ToolResults {
   search_security: SearchResult
   update_watchlist: WatchlistResult
   explain_weakness: CweResult | TechniqueResult
+  research_web: ResearchResult
 }
 
 export type ToolName = keyof ToolResults

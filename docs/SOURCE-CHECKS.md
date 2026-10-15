@@ -47,6 +47,21 @@ Coverage of our 12 products (unique CVEs after de-duplication, against the snaps
   - The key sits in the URL: never log that URL.
 - Terms: use "solely for Customer's internal business purposes"; no "automated decisions without human oversight"; 18+. Nothing on attribution. https://tavily.com/terms
 
+## Tavily MCP and the LangChain adapter (B08, checked 2026-10-15)
+
+- `langchain-mcp-adapters` **0.3.2** (PyPI, 2026-08-06): needs `langchain-core>=1.3.3,<2`, `mcp>=1.24,<2` (installed: `mcp` 1.30.0). https://pypi.org/project/langchain-mcp-adapters/
+  - Streamable HTTP connection: `{"transport": "streamable_http", "url", "headers", "timeout", "httpx_client_factory", "auth"}` (read from the installed `sessions.py`).
+  - **A key in the URL isn't treated as secret.** The adapter passes the URL as is to the MCP SDK; the SDK logs `Connecting to StreamableHTTP endpoint: {url}` at DEBUG (`mcp/client/streamable_http.py`), and httpx logs every request URL at INFO. So we send the key in `headers` instead (DECISIONS.md, B08). Checked by test B08.8.
+- **Tool names:** `tavily_search`, `tavily_extract`, `tavily_crawl`, `tavily_map`, `tavily_research`, `tavily_feedback` (underscores) in the open-source server's code. https://github.com/tavily-ai/tavily-mcp/blob/main/src/index.ts
+  - The docs and README write `tavily-search` (hyphen). We accept either name. Which one the **hosted** server lists is *unverified*: listing its tools needs a key.
+- **`tavily_search` arguments** (same file): `query` (required), `search_depth` (basic, advanced, fast, ultra-fast; default basic), `topic` (general, news), `time_range`, `start_date`, `end_date`, `max_results` (5 to 20, default 5), `include_images`, `include_image_descriptions`, `include_raw_content` (default false), **`include_domains` and `exclude_domains`** (lists of domains, default empty), `country`, `include_favicon`, `exact_match`.
+- **Result text** (`src/format-results.ts`): `Detailed Results:`, then per result a blank line and `Title:`, `URL:`, `Content:` (plus `Raw Content:`, `Favicon:` when asked). **No published date** over MCP.
+- **Key:** `https://mcp.tavily.com/mcp/?tavilyApiKey=<key>`, an Authorization header, or OAuth. https://docs.tavily.com/documentation/mcp
+  - The docs say "in the Authorization header" without a format; the README says `Authorization: Bearer <key>`. *Unverified* on the hosted server (no key).
+  - A `DEFAULT_PARAMETERS` header can override arguments; we don't send it.
+- **Plain search API:** `POST https://api.tavily.com/search`, `Authorization: Bearer tvly-…`. `exclude_domains` up to 150 domains; `max_results` 0 to 20; `published_date` per result only with `topic: news` or `include_published_date`, and it's Tavily's estimate (beta). https://docs.tavily.com/documentation/api-reference/endpoint/search
+- Whether the hosted server is the same code as `tavily-mcp` isn't stated: the docs list the local server as an alternative, with OAuth and session handling added on the hosted one. *Unverified.*
+
 ## MCP Python SDK (checked 2026-10-15, for B23)
 
 - PyPI `mcp`: the newest release is **2.3.0** (2026-10-02). The newest 1.x is **1.30.0** (2026-09-07). Checked on https://pypi.org/pypi/mcp/json.
