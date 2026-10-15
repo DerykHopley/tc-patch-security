@@ -40,7 +40,7 @@
     <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
     <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
   </div>
-  <p class="rounded border bg-sky-100 text-sky-800 border-sky-200 px-3 py-2 text-sm"><b>Status (In progress, 2026-10-15):</b> Chosen by Deryk. Being built on branch <code>deepen-assessment</code>: a new <code>backend/app/watched.py</code> that the dashboard, <code>lookup_cve</code>, <code>check_affected</code>, <code>prioritise</code> and the alerts all use, plus the glossary term "Assessment". HTTP and tool outputs stay the same.</p>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Built and merged into <code>spec-a</code>. <code>backend/app/watched.py</code>: <code>WatchedCves</code> with <code>assess(cve_id)</code> (a typed <code>Assessment</code>; unwatched is a normal answer), <code>rows(view)</code> and <code>most_urgent()</code>. Moved onto it: the dashboard, <code>/cves</code>, the test alert, <code>lookup_cve</code>, <code>check_affected</code>, <code>prioritise</code>. Deleted: eight helpers in <code>dashboard.py</code>, <code>notify.most_urgent_open</code> and <code>State.status_of</code>. HTTP and tool outputs checked identical before and after; 15 new tests through the new interface; GLOSSARY gains "Assessment".</p>
   <p class="font-mono text-sm text-slate-600">backend/app/dashboard.py (affected, decided, prioritised, _row, watched_rows) · tools/cve.py · tools/affected.py · tools/prioritise.py · notify.py · main.py (test alert)</p>
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">Before</div>
@@ -167,7 +167,7 @@ flowchart TB
     <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
     <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">local-substitutable</span>
   </div>
-  <p class="rounded border bg-slate-100 text-slate-700 border-slate-200 px-3 py-2 text-sm"><b>Status (Not started, 2026-10-15):</b> To discuss. Candidate 1 covers part of it; reassess once 1 is merged.</p>
+  <p class="rounded border bg-slate-100 text-slate-700 border-slate-200 px-3 py-2 text-sm"><b>Status (Not started, 2026-10-15):</b> To discuss. Candidate 1 (merged) took part of it: State now gives merged settings from one snapshot read, and the pseudo-status is gone. Raw JSON reads remain in a few places.</p>
   <p class="font-mono text-sm text-slate-600">backend/app/state.py:51-53, 107-115, 197-211 · raw reads in dashboard.py, main.py, tools/affected.py, tools/prioritise.py, tools/watchlist.py · evals/model_check.py:123 (state._save)</p>
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-2">Before: interface ≈ the whole file schema</div>
@@ -280,14 +280,14 @@ flowchart LR
     <li><b>cve_filters.py:</b> small, but deleting it would spread its rules back into three callers. Candidate 5 builds on it.</li>
     <li><b>usePatch with patchPose:</b> the random pick is injectable and tested.</li>
   </ul>
-  <p class="rounded bg-red-50 border border-red-200 px-3 py-2"><span class="px-2 py-0.5 rounded bg-sky-100 text-sky-800 text-xs font-semibold">In progress</span> <b>Bug, not a deepening:</b> <code>api.ts</code> declares <code>interface Source</code> twice (lines 41 and 209: a chat source and a snapshot source). TypeScript merges them, so both are typed as the union of all fields. Rename the second (for example <code>SnapshotSource</code>).</p>
+  <p class="rounded bg-red-50 border border-red-200 px-3 py-2"><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> <b>Bug, not a deepening:</b> <code>api.ts</code> declares <code>interface Source</code> twice (lines 41 and 209: a chat source and a snapshot source). TypeScript merges them, so both are typed as the union of all fields. Rename the second (for example <code>SnapshotSource</code>).</p>
 </article>
 
 </section>
 
 <section id="top-recommendation" class="rounded-xl deep p-8 space-y-2">
   <div class="lbl text-slate-400">Top recommendation</div>
-  <div class="text-sm text-sky-300">Status: chosen and in progress (2026-10-15).</div>
+  <div class="text-sm text-sky-300">Status: done and merged (2026-10-15).</div>
   <h2 class="font-serif text-2xl"><a href="#c1" class="underline decoration-indigo-400">1 · Deepen the watched-CVE assessment</a></h2>
   <p class="text-slate-300">It's the domain's core concept, and every recent ticket changed it in several places at once. It's a backend change behind unchanged HTTP and tool outputs, so the existing tests pin the behaviour. It also does part of candidate 4 and gives B04 alerts (#37) one interface to use.</p>
 </section>
