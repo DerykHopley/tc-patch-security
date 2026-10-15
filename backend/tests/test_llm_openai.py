@@ -225,6 +225,20 @@ def test_a08_3_missing_model_says_pull_it():
     assert "Load or pull it first" in e.value.public
 
 
+def test_a20_openrouter_404_passes_on_openrouter_s_reason():
+    """OpenRouter answers 404 when no provider may serve the model (a workspace guardrail, a data policy), not when
+    there's nothing to pull: say what OpenRouter said, not "Load or pull it first"."""
+    reason = ("0 endpoints out of 19 requested are available matching your guardrail restrictions and data policy. "
+              "We removed them for the following reasons:\nModel blocked by guardrail: 19 endpoints excluded")
+    http, _ = fake_server(lambda p, b: (404, {"error": {"message": reason, "code": 404}}))
+    llm = ChatModelLLM("openrouter", "https://openrouter.ai/api/v1", "openai/gpt-oss-120b", "k", http_client=http)
+    with pytest.raises(LLMError) as e:
+        llm.step([{"role": "user", "content": "x"}], TOOLS)
+    assert "pull" not in e.value.public
+    assert "OpenRouter can't serve the model 'openai/gpt-oss-120b'" in e.value.public
+    assert "guardrail" in e.value.public
+
+
 def test_a08_3_spending_cap_reached_is_plain():
     http, _ = fake_server(lambda p, b: (402, {"error": {"message": "Key limit exceeded", "code": 402}}))
     with pytest.raises(LLMError) as e:

@@ -82,6 +82,13 @@ def _text(msg: AIMessage) -> str:
     return msg.content if isinstance(msg.content, str) else msg.text
 
 
+def _reason(e: openai.APIStatusError) -> str:
+    """The server's own error message, on one line (OpenRouter's 404s explain which rule removed the model)."""
+    body = e.body if isinstance(e.body, dict) else {}
+    msg = body.get("message") or (body.get("error") or {}).get("message") or str(e)
+    return " ".join(str(msg).split())
+
+
 class ChatModelLLM:
     """The LLM protocol on ChatOpenAI. `name` is the provider: "openrouter" or "local"."""
 
@@ -105,6 +112,10 @@ class ChatModelLLM:
             raise LLMError(f"{self.name} unreachable: {e}",
                            public=f"Can't reach the {self.name} model server at {self.base_url}. Is it running?") from e
         except openai.NotFoundError as e:
+            if self.name == "openrouter":  # 404 there = no provider may serve it (guardrail, data policy): say why
+                raise LLMError(f"{self.name} model not served: {e}",
+                               public=f"OpenRouter can't serve the model {self.model!r}: {_reason(e)} "
+                                      "Check the model and your OpenRouter workspace settings.") from e
             raise LLMError(f"{self.name} model not found: {e}",
                            public=f"The {self.name} server doesn't have the model {self.model!r}. "
                                   "Load or pull it first.") from e

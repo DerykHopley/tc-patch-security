@@ -68,6 +68,20 @@ def test_a09_2_ollama_embedder_is_a_second_implementation():
     assert e.name == "ollama/nomic-embed-text"
 
 
+@pytest.mark.parametrize("embedder,model,score", [
+    ("openrouter", "", 0.35),
+    ("ollama", "", 0.58),  # nomic-embed-text, the Ollama default
+    ("ollama", "qwen3-embedding:0.6b", 0.55),
+    ("ollama", "mxbai-embed-large", 0.58),
+    ("ollama", "mxbai-embed-large:latest", 0.58),  # Ollama's implicit tag
+    ("ollama", "some-other-embedder", 0.58),  # untuned: the provider's default
+])
+def test_a20_thresholds_tuned_per_model(embedder, model, score):
+    e = make_embedder(Settings(embedder=embedder, embed_model=model, openrouter_api_key="k"),
+                      http_client=fake_server([]))
+    assert e.min_score == score
+
+
 def test_a09_2_hash_embedder_is_the_default():
     assert make_embedder(Settings()).name == "hash-4096"
 

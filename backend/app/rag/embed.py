@@ -75,11 +75,20 @@ class OpenAICompatibleEmbedder:
         return _unit_rows(np.asarray(self._client.embed_documents(texts), dtype=np.float32))
 
 
-# Defaults per embedder: (model, threshold). The thresholds are first guesses, tuned for real in
-# "First real model runs"; SEARCH_MIN_SCORE overrides them. The Ollama model is a placeholder until A20 picks one.
+# Defaults per embedder: (model, threshold). SEARCH_MIN_SCORE overrides the threshold.
 REAL_EMBEDDERS = {
-    "openrouter": ("openai/text-embedding-3-small", 0.25),
-    "ollama": ("nomic-embed-text", 0.4),
+    "openrouter": ("openai/text-embedding-3-small", 0.35),
+    "ollama": ("nomic-embed-text", 0.58),
+}
+# Off-topic thresholds tuned per model (A20, 2026-10-15): about halfway between the highest top-1 cosine of 15
+# off-topic questions and the lowest of 47 security ones. Untuned models get their provider's default above.
+#   text-embedding-3-small: off-topic at most 0.22, security at least 0.46
+#   nomic-embed-text 0.54 / 0.62; qwen3-embedding:0.6b 0.53 / 0.58 (a narrow gap); mxbai-embed-large 0.48 / 0.68
+MIN_SCORES = {
+    "openrouter/openai/text-embedding-3-small": 0.35,
+    "ollama/nomic-embed-text": 0.58,
+    "ollama/qwen3-embedding:0.6b": 0.55,
+    "ollama/mxbai-embed-large": 0.58,
 }
 OPENROUTER_URL = "https://openrouter.ai/api/v1"
 
@@ -90,6 +99,8 @@ def make_embedder(settings, http_client=None) -> Embedder:
         return HashEmbedder()
     model, min_score = REAL_EMBEDDERS[settings.embedder]
     model = settings.embed_model or model
+    tuned = f"{settings.embedder}/{model.removesuffix(':latest')}"  # Ollama's implicit tag names the same model
+    min_score = MIN_SCORES.get(tuned, min_score)
     if settings.embedder == "openrouter":
         return OpenAICompatibleEmbedder("openrouter", model, OPENROUTER_URL, settings.openrouter_api_key,
                                         min_score, http_client)

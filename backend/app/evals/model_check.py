@@ -26,7 +26,7 @@ from app.state import State
 
 KIND = "models"
 # These errors fail every question the same way: stop instead of waiting through the rest.
-FATAL = ("Can't reach", "doesn't have the model", "rejected the API key", "spending cap")
+FATAL = ("Can't reach", "doesn't have the model", "can't serve the model", "rejected the API key", "spending cap")
 
 _live: dict[str, dict] = {}  # runs in progress, by id; finished runs are read from their file
 _lock = threading.Lock()
