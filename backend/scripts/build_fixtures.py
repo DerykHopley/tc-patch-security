@@ -158,22 +158,19 @@ def build(raw: Path = RAW, out: Path = OUT, fetch: bool = False) -> dict:
     return {"owasp": o, "atlas": a, "cves": c, **x}
 
 
-def fetch_additions(raw: Path, cve_ids: list[str]) -> None:
-    """Download OSV records by package and EPSS scores as of the snapshot date. Free APIs, no key."""
+def fetch_additions(raw: Path, cve_ids: list[str], feeds=None) -> None:
+    """Download OSV records by package and EPSS scores as of the snapshot date, with the real Feeds adapter (B03).
+    Free APIs, no key."""
     import datetime as dt
-    import urllib.request
 
-    def call(url: str, body: dict | None = None) -> dict:
-        data = json.dumps(body).encode() if body is not None else None
-        req = urllib.request.Request(url, data=data, headers={
-            "User-Agent": "tc-patch-security-snapshot/0.1", "Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            return json.loads(resp.read())
+    from app.cve_build import PACKAGES, package_key
+    from app.feeds import HttpFeeds
 
+    feeds = feeds or HttpFeeds(timeout=60)
     today = dt.date.today().isoformat()
-    osv = add.fetch_osv(lambda url, body: call(url, body))
+    osv = {package_key(e, n): feeds.osv(e, n) for p in PACKAGES.values() for e, n in p["packages"]}
     (raw / "osv.json").write_text(json.dumps({"retrieved": today, "packages": osv}, indent=1) + "\n")
-    epss = add.fetch_epss(call, cve_ids, date=AS_OF)
+    epss = feeds.epss(cve_ids, date=AS_OF)
     (raw / "epss.json").write_text(json.dumps({"retrieved": today, **epss}, indent=1) + "\n")
 
 

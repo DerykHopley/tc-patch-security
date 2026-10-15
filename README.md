@@ -124,6 +124,31 @@ ollama pull mxbai-embed-large   # the default embedder for real embeddings
 
 In `backend/.env`: `LLM_PROVIDER=local`, `LOCAL_LLM_MODEL=qwen3.8:27b`, `EMBEDDER=ollama`, `INDEX_PATH=data/index-ollama`. Then build the index and start as above. The local URL must be on this machine (`LOCAL_LLM_URL`, default Ollama's `http://localhost:11434/v1`). You can also switch models at runtime on the Dev page.
 
+### Live data from the real feeds, on a schedule
+
+By default the app runs on the frozen snapshot. Live mode refreshes the CVE data from NVD, the CISA KEV catalogue, EPSS and OSV.dev (spec B, [#36](https://github.com/DerykHopley/tc-patch-security/issues/36)). No key is needed. In `backend/.env`:
+
+```bash
+DATA_MODE=live
+FEEDS=real
+NVD_API_KEY=        # optional: 50 NVD requests per 30 s instead of 5; only matters after a long gap
+```
+
+- **Check now** on the dashboard runs a refresh. So does the command line: `cd backend && uv run --env-file .env python -m app.refresh`.
+- **The schedule:** an hourly systemd user timer runs `python -m app.refresh --schedule`. That run skips (and fetches nothing) until the Settings schedule (every 1, 3, 6, 12 or 24 hours) has passed since the last check, so Settings controls the schedule without touching the timer. Install it from the repo root:
+
+  ```bash
+  deploy/systemd/install.sh                          # writes the two units to ~/.config/systemd/user/, reloads systemd
+  systemctl --user enable --now patch-refresh.timer  # start the hourly timer
+  systemctl --user list-timers patch-refresh.timer   # when it fires next
+  journalctl --user -u patch-refresh.service -n 30   # what the last run did
+  ```
+
+  The units are in [deploy/systemd/](./deploy/systemd/). For the timer to run while you're logged out: `loginctl enable-linger`.
+- A failed fetch (a service down, a timeout, a rate limit) stops the run before anything is written: the data and the last-checked time stay as they were, and the next run covers the gap. The error is in the run log (`GET /refresh`) and the journal.
+- The first live start copies the snapshot; the first refresh then fetches everything NVD changed since 2026-10-13, in windows of at most 120 days.
+- Coming from `FEEDS=fake`? Point `LIVE_PATH` at a fresh folder (e.g. `data/live-real`): the old one holds the fake CVEs and the fake runs' last-checked time.
+
 ### In a container
 
 One image runs the whole app on one port: the API (under `/api`) and the built frontend, with the search index built in. Needs Docker. Build the index first, then the image, from the repo root:
@@ -241,7 +266,7 @@ All public and openly licensed, frozen as a snapshot on 2026-10-13. The counts a
 - `backend/scripts/build_fixtures.py` builds the frozen snapshot in `backend/fixtures/` from them, offline. With `--fetch` it first re-downloads OSV and EPSS.
 - `backend/fixtures/manifest.json` records each source with its URL, licence, attribution, retrieval date and count.
 - **To refresh the data:** run `python3 -I feasibility/fetch.py`, copy the new files into `backend/snapshot_raw/`, change `AS_OF` in `build_fixtures.py`, then `cd backend && uv run python -m scripts.build_fixtures --fetch` and rebuild the index. *Unverified:* not re-run since 2026-10-14. Spec B replaces this with a live refresh ([#32](https://github.com/DerykHopley/tc-patch-security/issues/32), [#36](https://github.com/DerykHopley/tc-patch-security/issues/36)).
-- **The app makes no live calls to these sources.** Answers link back to the original pages: GitHub for OWASP, atlas.mitre.org, nvd.nist.gov and cwe.mitre.org.
+- **In snapshot mode (the default) the app makes no live calls to these sources.** In live mode with `FEEDS=real`, the refresh calls NVD, KEV, EPSS and OSV.dev at fixed URLs; ATLAS and the OWASP pages stay snapshot data. Answers link back to the original pages: GitHub for OWASP, atlas.mitre.org, nvd.nist.gov and cwe.mitre.org.
 
 ### Other data the app uses (not knowledge sources)
 

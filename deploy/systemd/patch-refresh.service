@@ -1,0 +1,12 @@
+# The scheduled refresh (B03, #36). Started every hour by patch-refresh.timer. The CLI skips unless the Settings
+# schedule (every 1, 3, 6, 12 or 24 hours) has passed since the last check, so Settings controls the schedule.
+# install.sh fills in the backend folder and the path to uv, and copies this to ~/.config/systemd/user/.
+[Unit]
+Description=Patch: refresh the live CVE data when the Settings schedule is due
+
+[Service]
+Type=oneshot
+WorkingDirectory=@BACKEND@
+ExecStart=@UV@ run --env-file .env python -m app.refresh --schedule
+# A first run after a long gap pages through NVD at 5 requests per 30 s without a key.
+TimeoutStartSec=2h
