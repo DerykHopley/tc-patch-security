@@ -81,7 +81,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.exception_handler(LLMError)
     async def llm_error(request: Request, exc: LLMError):
         log.warning("LLM error: %s", exc.message)
-        return _error(502, "llm_error", exc.public or "The language model didn't respond properly. Try again in a moment.")
+        return _error(502, "llm_error", exc.public or LLMError.GENERIC)
 
     @app.exception_handler(NotifyError)
     async def notify_error(request: Request, exc: NotifyError):

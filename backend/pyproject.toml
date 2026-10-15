@@ -14,6 +14,7 @@ dependencies = [
     "packaging>=24",
     "semver>=3.0",
     "langchain-mcp-adapters>=0.3.2",
+    "mcp>=1.30.0,<2",
 ]
 
 [dependency-groups]
