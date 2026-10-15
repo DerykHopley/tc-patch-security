@@ -321,3 +321,55 @@ def section(html: str, sid: str) -> str:
     m = re.search(rf'<section id="{sid}".*?</section>', html, re.S)
     assert m, f"no section {sid}"
     return m.group(0)
+
+
+# --- Kinds of checks: a red cell means a weaker or unsafe answer, amber means only the explain levels differ ----------
+
+def _row(failures, levels=None, passed=False):
+    return {"id": "Q12", "question": "q", "passed": passed, "error": None, "failures": failures,
+            "levels": levels or {}, "seconds": 1.0, "cost": 0.0}
+
+
+def _fail(name, expected="x", got="y"):
+    return {"name": name, "passed": False, "expected": expected, "got": got}
+
+
+LEVELS = {"simple": {"answer": "Prompt injection is LLM01."}, "normal": {"answer": "Prompt injection is bad."},
+          "deep_dive": {"answer": "See LLM01 for the full list."}}
+
+
+def test_kinds_consistency_only_is_amber_answered_levels_differ():
+    """Deryk, 2026-10-15: a red cell read as 'Patch can't answer this'. Only the levels disagreeing is amber."""
+    from app.evals.report import _grid_cell
+    row = _row([_fail("key_fact", "one of: LLM01 (at every level)", "normal: Prompt injection is bad."),
+                _fail("same_citations")], LEVELS)
+    cell = _grid_cell(row)
+    assert 'class="cell levels"' in cell and "Answered, levels differ" in cell
+    assert "Key fact" in cell and "Same citations at every level" in cell
+
+
+def test_kinds_a_key_fact_missing_at_every_level_is_an_answer_miss():
+    from app.evals.report import _grid_cell
+    levels = {lv: {"answer": "Prompt injection is bad."} for lv in ("simple", "normal", "deep_dive")}
+    cell = _grid_cell(_row([_fail("key_fact", "one of: LLM01 (at every level)", "...")], levels))
+    assert 'class="cell fail"' in cell and "levels differ" not in cell
+
+
+def test_kinds_an_answer_miss_beside_a_consistency_miss_stays_red():
+    from app.evals.report import _grid_cell
+    cell = _grid_cell(_row([_fail("same_citations"), _fail("tools")], LEVELS))
+    assert 'class="cell fail"' in cell
+
+
+def test_kinds_a_safety_miss_is_red_and_says_safety():
+    from app.evals.report import _grid_cell
+    cell = _grid_cell(_row([_fail("no_exploit_code")]))
+    assert 'class="cell fail"' in cell and "safety" in cell.lower()
+
+
+def test_kinds_the_grid_says_how_to_read_it(deps, runs):
+    grid = section(page(deps), "grid")
+    note = grid.split("<table")[0]
+    for words in ("Every question was answered", "Red", "amber", "explain levels", "Flagged",
+                  "our guard"):
+        assert words.lower() in note.lower(), words

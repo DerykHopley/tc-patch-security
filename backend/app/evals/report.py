@@ -19,7 +19,7 @@ from pathlib import Path
 from app.config import ROOT
 from app.errors import InputError
 from app.evals import charts
-from app.evals.checks import LABELS
+from app.evals.checks import LABELS, failure_kind
 from app.evals.runs import RunStore
 
 TOKENS = ROOT.parent / "frontend" / "src" / "styles" / "tokens.css"
@@ -51,6 +51,7 @@ tbody th { font-weight: 600; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pass { color: var(--ok); font-weight: 700; }
 .fail { color: var(--error); font-weight: 700; }
+.levels { color: var(--warn); font-weight: 700; }
 .chip { display: inline-block; padding: 0 0.5rem; border-radius: var(--radius-pill); background: var(--accent-soft);
   color: var(--text); font-size: 0.75rem; font-weight: 700; }
 code { font-size: 0.85em; overflow-wrap: anywhere; }
@@ -63,9 +64,10 @@ nav.toc a { padding: 0.15rem 0.7rem; border-radius: var(--radius-pill); backgrou
 table.grid td.cell { text-align: center; white-space: nowrap; font-weight: 700; }
 table.grid td.pass { color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
 table.grid td.fail { color: var(--error); background: var(--error-soft); }
-table.grid td.fail ul, table.grid td.fail p { margin: 0.3rem 0 0; padding: 0; list-style: none; text-align: left;
+table.grid td.levels { color: var(--warn); background: var(--warn-soft); }
+table.grid td.fail ul, table.grid td.fail p, table.grid td.levels ul { margin: 0.3rem 0 0; padding: 0; list-style: none; text-align: left;
   color: var(--text); font-weight: 400; font-size: 0.8rem; white-space: normal; }
-table.grid td.fail summary { cursor: pointer; }
+table.grid td.fail summary, table.grid td.levels summary { cursor: pointer; }
 table.grid td.none { color: var(--muted); }
 table.grid tbody th { font-size: 0.85rem; min-width: 10rem; }
 table.grid th:first-child { position: sticky; left: 0; background: var(--surface); }
@@ -231,7 +233,10 @@ def _models(runs: list[dict]) -> str:
             elif row["error"]:
                 cells.append('<span class="fail">Error</span>')
             else:
-                mark = '<span class="pass">✓ Pass</span>' if row["passed"] else '<span class="fail">✕ Fail</span>'
+                kinds = [failure_kind(f, row.get("levels") or {}) for f in row["failures"]]
+                mark = ('<span class="pass">✓ Pass</span>' if row["passed"]
+                        else '<span class="levels">≈ Answered, levels differ</span>' if all(k == "levels" for k in kinds)
+                        else '<span class="fail">✕ Fail</span>')
                 cells.append(f'{mark}<br><span class="meta">{_secs(row["seconds"])} · {_cost(row["cost"])}</span>')
         qrows.append([f'{_e(qid)} <span class="meta">{_e(question)}</span>'] + cells)
     out += "<h3>Per question</h3>" + _table("Each question per model", ["Question"] + [_e(r["model"]) for r in runs], qrows)
@@ -246,10 +251,16 @@ def _grid_cell(row: dict | None) -> str:
                 f'<p>{_e(row["error"])}</p></details></td>')
     if row["passed"]:
         return '<td class="cell pass" title="Passed every check">✓ Pass</td>'
-    names = [LABELS.get(f["name"], f["name"]) for f in row["failures"]]
+    kinds = [failure_kind(f, row.get("levels") or {}) for f in row["failures"]]
+    names = [LABELS.get(f["name"], f["name"]) + (" (safety)" if k == "safety" else "")
+             for f, k in zip(row["failures"], kinds)]
     items = "".join(f"<li>{_e(n)}</li>" for n in names)
+    if all(k == "levels" for k in kinds):
+        return (f'<td class="cell levels" title="Answered; the explain levels differ: {_e(", ".join(names))}">'
+                f'<details><summary>≈ Answered, levels differ</summary><ul>{items}</ul></details></td>')
+    label = "safety" if "safety" in kinds else "failed"
     return (f'<td class="cell fail" title="Failed: {_e(", ".join(names))}"><details>'
-            f'<summary>✕ {len(names)} failed</summary><ul>{items}</ul></details></td>')
+            f'<summary>✕ {len(names)} {label}</summary><ul>{items}</ul></details></td>')
 
 
 def _grid(runs: list[dict]) -> str:
@@ -498,8 +509,11 @@ def build(model_runs: list[dict], retrieval_runs: list[dict], as_of: str, findin
          "Each scripted question scored with exact checks, no LLM judge. Watchlist questions run on a copy of the "
          "data."),
         ("grid", "Pass or fail", "Pass or fail, per question", _grid(model_runs),
-         "Questions down, models across. A failed cell names its failed checks: hover it, or open it. The details "
-         "of each failure are in the next section."),
+         "<strong>How to read this.</strong> Every question was answered: nothing was refused or blocked. Each "
+         "answer is scored with strict, exact checks. Red = the answer missed something (a tool, a fact, a source) "
+         "or something unsafe happened. Amber = the answer was fine, and only the three explain levels don't line "
+         "up (each level is asked separately, #51). Flagged measures our guard, not the model. Open a cell to see "
+         "its checks; the details of each failure are in the next section."),
         ("failures", "Failures", "Failures", _failures(model_runs),
          "Every failed check: what was expected and what the model did."),
         ("embedders", "Embedders", "Embedders side by side", _embedders(retrieval_runs),
