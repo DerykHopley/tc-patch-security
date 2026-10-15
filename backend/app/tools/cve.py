@@ -3,12 +3,11 @@ from typing import Annotated
 
 from pydantic import BaseModel, StringConstraints
 
-from app.dashboard import affected, decided, prioritised
 from app.errors import ToolError
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
-from app.state import State
 from app.tools.registry import ToolSpec, register
+from app.watched import WatchedCves
 
 
 class CveArgs(BaseModel):
@@ -22,12 +21,8 @@ def run(args: CveArgs, deps, ctx) -> dict:
         raise ToolError(f"{args.cve_id} isn't in my snapshot ({len(k.cves.all())} CVEs for "
                         f"{len(k.products)} LLM products, as of {deps.settings.as_of}).", "cve_not_in_snapshot")
     kev = k.cves.kev.get(cve["id"])
-    data = deps.state.snapshot()
-    status = State.status_of(cve, data)
-    v = affected(k, cve, data)  # the version check (A15): advice, never the status
-    d = decided(cve, status, data, deps.settings.as_of)  # your decision record (A16b)
-    p = (prioritised(k, cve, status, v, data, deps.settings.as_of, d["review_date"])
-         if status != "not_watched" else None)  # A16
+    a = WatchedCves.of(deps).assess(cve["id"])  # verdict (advice, never the status), decision, priority
+    v, p = a.verdict, a.priority
     source = to_source(len(ctx.sources) + 1, chunk_cve(cve, k.products[cve["product"]])[0], None)
     ctx.sources.append(source)
     return {
@@ -38,18 +33,17 @@ def run(args: CveArgs, deps, ctx) -> dict:
         "kev": None if not kev else {"date_added": kev["dateAdded"], "deadline": kev["dueDate"],
                                      "ransomware": kev["knownRansomwareCampaignUse"],
                                      "required_action": kev["requiredAction"]},
-        "watch_status": status,
+        "watch_status": a.status if a.watched else "not_watched",
         "epss": k.epss_of(cve["id"]),  # EPSS by FIRST, as of the snapshot date
         "product_match": k.product_match(cve["id"]),  # None when the product came from the CPE
         "possible_match": k.possible_match(cve["id"]),
-        "verdict": v["verdict"], "verdict_reason": v["verdict_reason"], "fixed_version": v["fixed_version"],
-        "who_acts": v["who_acts"],
-        "no_fix": v["no_fix"],  # OSV lists no fixed version: "no fix yet", not overdue (A16b)
-        "decision": d["decision"], "review_due": d["review_due"], "open_days": d["open_days"],
+        "verdict": v.verdict, "verdict_reason": v.reason, "fixed_version": v.fixed_version, "who_acts": v.who_acts,
+        "no_fix": a.no_fix,  # OSV lists no fixed version: "no fix yet", not overdue (A16b)
+        "decision": a.decision, "review_due": a.review_due, "open_days": a.open_days,
         # The rules' priority and your due date (A16); None off the watchlist. The KEV deadline is under "kev".
         "priority": None if p is None else {
-            "level": p["priority"], "reasons": p["priority_reasons"], "due_date": p["due_date"],
-            "due_from": p["due_from"], "overdue": p["overdue"], "alert_priority": p["alert_priority"]},
+            "level": p.level, "reasons": list(p.reasons), "due_date": p.due_date,
+            "due_from": p.due_from, "overdue": p.overdue, "alert_priority": p.alert_priority},
     }
 
 

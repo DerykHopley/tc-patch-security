@@ -147,9 +147,10 @@ class State:
 
     # --- Settings and the alerts log (A13)
 
-    def settings(self) -> AppSettings:
-        """Saved settings over the defaults, field by field, so a file saved before a field existed still loads."""
-        saved = self.snapshot().get("settings", {})
+    def settings(self, data: dict | None = None) -> AppSettings:
+        """Saved settings over the defaults, field by field, so a file saved before a field existed still loads.
+        `data`: a snapshot already read, so the settings match it."""
+        saved = (data if data is not None else self.snapshot()).get("settings", {})
         merged = self.defaults.model_dump()
         for part, values in merged.items():
             if isinstance(values, dict):
@@ -193,12 +194,6 @@ class State:
         """Back to the default watchlist, no statuses, default settings (dev choices too) and an empty alerts log."""
         with self._lock:
             self.path.unlink(missing_ok=True)
-
-    @staticmethod
-    def status_of(cve: dict, data: dict) -> str:
-        if cve["product"] not in data["watchlist"]:
-            return "not_watched"
-        return data["statuses"].get(cve["id"], "open")
 
     @staticmethod
     def history_of(cve_id: str, data: dict) -> list[dict]:
