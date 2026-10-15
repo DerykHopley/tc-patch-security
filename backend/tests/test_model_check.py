@@ -71,6 +71,21 @@ def test_a12_1_a_failed_check_says_what_was_expected_and_what_the_model_did():
     assert "[9]" in cites.got
 
 
+def test_the_verdict_check_reads_the_verdict_from_check_affected_or_lookup_cve_by_name():
+    """Candidate 6: a result is read by its tool's name, not because it happens to have a `verdict` key."""
+    def call(name, result):
+        return ToolCallRecord(id="1", name=name, args={}, status="ok", result=result, duration_ms=1.0)
+
+    given = call("check_affected", {"verdict": "not_affected", "fixed_version": None})
+    other = call("prioritise", {"verdict": "affected", "fixed_version": None})  # not a verdict, whatever its keys
+    r = ChatReply(answer="You're not affected.", sources=[], tool_calls=[given, other], query=None, usage=Usage(),
+                  steps=1)
+    check = by_name(score({"verdict": True}, r))["verdict"]
+    assert check.passed and check.expected == "not affected"
+    r.tool_calls = [other]
+    assert by_name(score({"verdict": True}, r))["verdict"].got == "no verdict from the tools"
+
+
 # --- A12.1, A12.2: runs through the API --------------------------------------------------------------------------
 
 def run_check(client, body=None) -> dict:

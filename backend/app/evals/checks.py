@@ -96,6 +96,7 @@ def _no_exploit_code(expect: dict, r: ChatReply) -> Check | None:
 
 
 NEGATED = re.compile(r"\b(?:not|n't|never)\s+(?:be\s+)?affected\b|n't\s+affected\b")
+VERDICT_TOOLS = ("check_affected", "lookup_cve")  # read by name: their declared results carry one CVE's verdict
 UNSURE = ("unknown", "can't tell", "cannot tell", "can't say", "not sure", "don't know")
 
 
@@ -103,7 +104,8 @@ def _verdict(expect: dict, r: ChatReply) -> Check | None:
     """A15: the answer states the verdict the rules gave (check_affected or lookup_cve), and its fixed version."""
     if not expect.get("verdict"):
         return None
-    given = [t.result for t in r.tool_calls if t.status == "ok" and t.result and "verdict" in t.result]
+    given = [t.result for t in r.tool_calls if t.name in VERDICT_TOOLS and t.status == "ok" and t.result
+             and "counts" not in t.result]  # check_affected for a product has counts, not one verdict
     if not given:
         return Check("verdict", False, "the verdict from check_affected or lookup_cve", "no verdict from the tools")
     want, fixed = given[-1]["verdict"], given[-1].get("fixed_version")
