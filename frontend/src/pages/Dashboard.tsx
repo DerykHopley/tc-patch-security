@@ -8,7 +8,8 @@ import { NoFixMark } from '../components/Decision.tsx'
 import { PossibleMatch } from '../components/SnapshotFacts.tsx'
 import type { Variant } from '../components/patchPose.ts'
 import { WelcomeBanner } from '../components/WelcomeBanner.tsx'
-import type { CveView } from '../pageContext.ts'
+import { OPEN_VIEW, productIds, viewToSearch, type CveView } from '../cveView.ts'
+import type { ShownView } from '../pageContext.ts'
 import { followLink } from '../route.ts'
 import { SEVERITIES, sevLabel } from '../severity.ts'
 import { useWatchlistChanged } from '../watchlistEvents.ts'
@@ -21,19 +22,15 @@ import '../styles/dashboard.css'
 // The filter lives in the URL only (`/?product=langflow,ollama`): a fresh dashboard shows every watched product.
 
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
-const PRODUCT_ID = /^[a-z0-9][a-z0-9.-]{0,40}$/
 
 /** The product filter in a query string. Malformed ids are dropped: the URL is text from outside. */
-function filterFromSearch(search: string): string[] {
-  const ids = (new URLSearchParams(search).get('product') ?? '').split(',').filter((p) => PRODUCT_ID.test(p))
-  return [...new Set(ids)]
-}
+const filterFromSearch = (search: string) => productIds(new URLSearchParams(search).get('product'))
 
-/** A link with the filter added (the ids are checked, so the comma can stay readable): `/cves?kev=1&product=a,b`. */
-function withFilter(href: string, filter: string[]): string {
-  if (!filter.length) return href
-  return `${href}${href.includes('?') ? '&' : '?'}product=${filter.join(',')}`
-}
+/** The view with the product filter: `{ status: 'open', product: 'a,b' }`. */
+const withFilter = (view: CveView, filter: string[]): CveView => ({ ...view, product: filter.join(',') || undefined })
+
+/** A link to the CVEs page for a view, with the filter added: `/cves?product=a,b&kev=1`. */
+const cvesLink = (view: CveView, filter: string[]) => `/cves${viewToSearch(withFilter(view, filter))}`
 
 // search: the query string the page was opened with. onNavigate: opens an in-app link (a tile, "See all CVEs").
 // onAskPatch: the welcome banner's "Ask Patch". onView: the product filter Patch is told about (A15b).
@@ -42,7 +39,7 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
   search: string
   onNavigate: (href: string) => void
   onAskPatch: () => void
-  onView?: (view: CveView) => void
+  onView?: (view: ShownView) => void
   patchVariant: Variant
 }) {
   const [filter, setFilter] = useState<string[]>(() => filterFromSearch(search))
@@ -55,8 +52,7 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
   // Replace, not push: a filter change isn't a new page for Back, but a reload keeps it.
   const choose = useCallback((next: string[]) => {
     setFilter(next)
-    const s = next.length ? `?product=${next.join(',')}` : ''
-    history.replaceState(null, '', window.location.pathname + s + window.location.hash)
+    history.replaceState(null, '', window.location.pathname + viewToSearch(withFilter(OPEN_VIEW, next)) + window.location.hash)
   }, [])
 
   // The backend applies only watched products; the URL follows what it applied, so a product removed from the
@@ -65,7 +61,7 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
   const load = useCallback(() => {
     const call = ++latest.current
     return fetchDashboard(filter).then((d) =>
-      fetchCves({ status: 'open', limit: 5, offset: 0, product: d.filter.join(',') || undefined }).then((page) => {
+      fetchCves(withFilter(OPEN_VIEW, d.filter), 5).then((page) => {
         if (call !== latest.current) return
         setData(d)
         setTop(page.rows)
@@ -87,7 +83,7 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
   const names = data ? filter.flatMap((id) => data.watched.find((w) => w.product === id)?.name ?? []) : []
   const productName = names.join(' + ')
   useEffect(() => {
-    onView?.({ filters: { status: 'open', product: filter.join(',') || undefined }, productName })
+    onView?.({ filters: withFilter(OPEN_VIEW, filter), productName })
   }, [filter, productName, onView])
 
   if (!data) {
@@ -260,16 +256,16 @@ function Tiles({ data, filter, onNavigate }: {
   const go = (e: MouseEvent<HTMLAnchorElement>) => followLink(e, onNavigate)
   return (
     <section className="tiles" aria-label="Summary">
-      <a className="tile tile-open" href={withFilter('/cves', filter)} onClick={go}>
+      <a className="tile tile-open" href={cvesLink(OPEN_VIEW, filter)} onClick={go}>
         <span className="tile-value">{k.open}</span>
         <span className="tile-label">Open CVEs</span>
       </a>
-      <a className="tile tile-critical" href={withFilter('/cves?severity=CRITICAL', filter)} onClick={go}>
+      <a className="tile tile-critical" href={cvesLink({ status: 'open', severity: 'CRITICAL' }, filter)} onClick={go}>
         <span className="tile-value">{k.critical}</span>
         <span className="tile-label">Open and critical</span>
       </a>
       {/* Wiggles (DESIGN.md §7.1) only while open KEV CVEs exist. */}
-      <a className={`tile tile-kev${k.kev > 0 ? ' alert' : ''}`} href={withFilter('/cves?kev=1', filter)} onClick={go}>
+      <a className={`tile tile-kev${k.kev > 0 ? ' alert' : ''}`} href={cvesLink({ status: 'open', kev: true }, filter)} onClick={go}>
         <span className="tile-value">{k.kev}</span>
         <span className="tile-label">Open and exploited in the wild (CISA KEV)</span>
         {k.kev_next_due && (
@@ -280,7 +276,7 @@ function Tiles({ data, filter, onNavigate }: {
           </span>
         )}
       </a>
-      <a className="tile tile-new" href={withFilter(`/cves?status=all&since=${k.new_since}`, filter)} onClick={go}>
+      <a className="tile tile-new" href={cvesLink({ status: 'all', since: k.new_since }, filter)} onClick={go}>
         <span className="tile-value">{k.new_30d}</span>
         <span className="tile-label">New in the last 30 days</span>
       </a>
@@ -329,7 +325,7 @@ function TopCves({ rows, filter, onNavigate }: {
           ))}
         </ol>
       )}
-      <a className="see-all" href={withFilter('/cves', filter)} onClick={(e) => followLink(e, onNavigate)}>
+      <a className="see-all" href={cvesLink(OPEN_VIEW, filter)} onClick={(e) => followLink(e, onNavigate)}>
         See all CVEs <span aria-hidden="true">→</span>
       </a>
     </section>

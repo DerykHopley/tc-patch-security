@@ -1,16 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import type { CveRow, CveStatus, Decision, DecisionInput, Justification } from '../api.ts'
+import { STATUS_LABEL } from '../cveView.ts'
 
 // Decision records (A16b, DESIGN.md §5.9): the dialog every status change goes through, the current decision under
 // the status, the append-only history, and the "No fix yet" mark. Only the user decides: nothing here is clicked for
 // them, and Patch can't accept a risk at all.
-
-export const STATUS_LABEL: Record<CveStatus, string> = {
-  open: 'Open',
-  fixed: 'Fixed',
-  not_affected: 'Not affected',
-  accepted: 'Accepted',
-}
 
 export const JUSTIFICATIONS: Justification[] = [
   'component_not_present',

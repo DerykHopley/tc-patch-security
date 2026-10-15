@@ -9,7 +9,7 @@ function after(page: Page, ...actions: PageContextAction[]) {
   return actions.reduce(reducePageContext, startPageContext(page, 0))
 }
 
-const langflowHigh = { filters: { status: 'open' as const, product: 'langflow', severity_min: 'HIGH' as const }, productName: 'Langflow' }
+const langflowHigh = { filters: { status: 'open' as const, product: 'langflow', severity: 'HIGH' as const }, productName: 'Langflow' }
 
 test('a new visit clears the view: the next visit starts without the last one\'s filters', () => {
   const s = after('cves', { type: 'view', visit: 0, view: langflowHigh })
@@ -28,7 +28,7 @@ test('"Ask about this" selects the CVE: Patch is told which CVE "this" is, and t
 
 test('a filter change clears the selection: "this" never means a CVE that may have left the view', () => {
   const selected = after('cves', { type: 'view', visit: 0, view: langflowHigh }, { type: 'select', cve: 'CVE-2025-3248', pending: false })
-  const critical = { ...langflowHigh, filters: { ...langflowHigh.filters, severity_min: 'CRITICAL' as const } }
+  const critical = { ...langflowHigh, filters: { ...langflowHigh.filters, severity: 'CRITICAL' as const } }
   const s = reducePageContext(selected, { type: 'view', visit: 0, view: critical })
   assert.equal(s.selected, null)
   assert.deepEqual(currentContext(s), { page: 'cves', product: 'langflow', severity: 'CRITICAL', status: 'open' })

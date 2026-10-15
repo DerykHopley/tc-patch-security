@@ -5,7 +5,7 @@ import {
   currentContext,
   reducePageContext,
   startPageContext,
-  type CveView,
+  type ShownView,
   type PageContextAction,
 } from './pageContext.ts'
 import type { Route } from './route.ts'
@@ -16,7 +16,7 @@ export interface PageContextHandle {
   words: string[] // what Patch is told now, in words, for the chat header's chip
   selected: string | null // the selected CVE, highlighted on the CVEs page
   current: () => PageContext // what the chat sends: the context at the moment of asking, including a CVE selected in the same click
-  reportView: (view: CveView) => void // a page reports its view (filters, products' names) on every change
+  reportView: (view: ShownView) => void // a page reports its view (filters, products' names) on every change
   select: (cve: string, pending: boolean) => void // "Ask about this"; does nothing while a reply is pending
 }
 
@@ -39,7 +39,7 @@ export function usePageContext(route: Route): PageContextHandle {
   }, [])
 
   const visit = route.visit
-  const reportView = useCallback((view: CveView) => act({ type: 'view', visit, view }), [act, visit])
+  const reportView = useCallback((view: ShownView) => act({ type: 'view', visit, view }), [act, visit])
   const select = useCallback((cve: string, pending: boolean) => act({ type: 'select', cve, pending }), [act])
   const current = useCallback(() => currentContext(latest.current), [])
   return { words: chipWords(now), selected: now.selected, current, reportView, select }

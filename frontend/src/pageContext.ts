@@ -1,7 +1,6 @@
-import type { CveQuery, PageContext, Severity, Verdict } from './api.ts'
+import type { PageContext } from './api.ts'
+import { contextWords, viewToContext, type CveView } from './cveView.ts'
 import type { Page } from './route.ts'
-import { sevLabel } from './severity.ts'
-import { VERDICT_LABEL } from './verdict.ts'
 
 // Page context (A18): what Patch knows about the view under the chat. Fixed fields only (the page, the CVEs page's
 // filters, the selected CVE; on the dashboard its product filter, A15b); the backend checks each against fixed lists
@@ -9,11 +8,9 @@ import { VERDICT_LABEL } from './verdict.ts'
 // The rules (a new visit clears the view; a filter change clears the selection; no selection while a reply is pending)
 // live here as a pure reducer, tested in pageContext.test.ts. usePageContext.ts is the thin React hook over it.
 
-export type CveFilters = Omit<CveQuery, 'limit' | 'offset'>
-
-/** What the CVEs page (or the dashboard) shows: its filters, and the products' display names for the chip. */
-export interface CveView {
-  filters: CveFilters
+/** What the CVEs page (or the dashboard) shows: its CVE view, and the products' display names for the chip. */
+export interface ShownView {
+  filters: CveView
   productName?: string
 }
 
@@ -23,13 +20,13 @@ export interface CveView {
 export interface PageContextState {
   page: Page
   visit: number
-  view: CveView | null // what the page reported last (CVEs page or dashboard), during this visit
+  view: ShownView | null // what the page reported last (CVEs page or dashboard), during this visit
   selected: string | null // the CVE last asked about with "Ask about this" (CVEs page), under the current filters
 }
 
 export type PageContextAction =
   | { type: 'visit'; page: Page; visit: number } // a navigation: another page, or the same page again
-  | { type: 'view'; visit: number; view: CveView } // a page reports its view (on every filter change)
+  | { type: 'view'; visit: number; view: ShownView } // a page reports its view (on every filter change)
   | { type: 'select'; cve: string; pending: boolean } // "Ask about this"; pending: a reply is still coming
 
 export function startPageContext(page: Page, visit: number): PageContextState {
@@ -64,39 +61,14 @@ export function chipWords(s: PageContextState): string[] {
 }
 
 /** The view's filters as one comparable string (the product's display name left out): changes when a filter does. */
-function filtersKey(view: CveView): string {
+function filtersKey(view: ShownView): string {
   return JSON.stringify(Object.entries(view.filters).filter(([, v]) => v != null && v !== '').toSorted())
 }
 
 /** The context sent with a message. Filters and the selected CVE only on the CVEs page; the dashboard sends its
  *  product filter (several products: `langflow,ollama`), and nothing more, since its tiles mix statuses. */
-function pageContext(page: Page, view: CveView | null, selected: string | null): PageContext {
+function pageContext(page: Page, view: ShownView | null, selected: string | null): PageContext {
   if (page === 'dashboard' && view?.filters.product) return { page, product: view.filters.product }
   if (page !== 'cves' || !view) return { page }
-  const f = view.filters
-  return {
-    page,
-    ...(f.product && { product: f.product }),
-    ...(f.severity_min && { severity: f.severity_min }),
-    status: f.status,
-    ...(f.verdict && { verdict: f.verdict }),
-    ...(f.kev && { kev: true }),
-    ...(f.published_since && { since: f.published_since }),
-    ...(selected && { cve: selected }),
-  }
-}
-
-const STATUS_WORD = { open: 'Open', fixed: 'Fixed', not_affected: 'Not affected', accepted: 'Accepted', all: 'All statuses' }
-
-/** The context in words, for the chat header's chip: "Langflow · High or worse · CVE-2025-3248". */
-export function contextWords(ctx: PageContext, productName?: string): string[] {
-  return [
-    ctx.product && (productName ?? ctx.product),
-    ctx.severity && `${sevLabel(ctx.severity as Severity)} or worse`,
-    ctx.status && ctx.status !== 'open' && STATUS_WORD[ctx.status],
-    ctx.verdict && VERDICT_LABEL[ctx.verdict as Verdict],
-    ctx.kev && 'In KEV',
-    ctx.since && `Since ${ctx.since}`,
-    ctx.cve,
-  ].filter((w): w is string => !!w)
+  return { page, ...viewToContext(view.filters), ...(selected && { cve: selected }) }
 }

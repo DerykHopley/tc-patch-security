@@ -1,6 +1,8 @@
 // The backend's HTTP API. Every call goes through request(), so a server that isn't
 // running gives one plain message instead of a raw network error.
 
+import { cvesQuery, type CveView } from './cveView.ts'
+
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 export interface Health {
@@ -305,17 +307,6 @@ export interface Watchlist {
   products: WatchedProduct[] // every product: watched first, in watchlist order
 }
 
-export interface CveQuery {
-  product?: string // one id, or several comma-separated from a dashboard link (A15b): `langflow,ollama`
-  severity_min?: Severity
-  status: CveStatus | 'all'
-  kev?: boolean // only CVEs in CISA KEV (A04b: the KEV tile's link)
-  published_since?: string // YYYY-MM-DD, inclusive (A04b: the "new in 30 days" tile's link)
-  verdict?: Verdict // A15
-  limit: number
-  offset: number
-}
-
 export interface CvePage {
   total: number
   rows: CveRow[]
@@ -329,15 +320,8 @@ function json(method: string, body: unknown): RequestInit {
 export const dashboard = (products: string[] = []) =>
   request<Dashboard>(products.length ? `/dashboard?${new URLSearchParams({ product: products.join(',') })}` : '/dashboard')
 
-export function cves(q: CveQuery): Promise<CvePage> {
-  const params = new URLSearchParams({ status: q.status, limit: String(q.limit), offset: String(q.offset) })
-  if (q.product) params.set('product', q.product)
-  if (q.severity_min) params.set('severity_min', q.severity_min)
-  if (q.kev !== undefined) params.set('kev', String(q.kev))
-  if (q.published_since) params.set('published_since', q.published_since)
-  if (q.verdict) params.set('verdict', q.verdict)
-  return request<CvePage>(`/cves?${params}`)
-}
+/** One page of the CVE view's rows: the view's names are the query's (cveView.ts). */
+export const cves = (view: CveView, limit: number, offset = 0) => request<CvePage>(cvesQuery(view, limit, offset))
 
 export const setStatus = (id: string, body: DecisionInput) =>
   request<{ id: string; status: CveStatus; decision: Decision }>(`/cves/${encodeURIComponent(id)}`, json('PATCH', body))

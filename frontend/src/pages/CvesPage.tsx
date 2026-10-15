@@ -17,57 +17,31 @@ import {
   DecisionDialog,
   DecisionHistory,
   DecisionSummary,
-  STATUS_LABEL,
   type DecisionRequest,
 } from '../components/Decision.tsx'
 import { VERDICT_LABEL, VERDICTS, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { SEVERITIES, sevLabel } from '../severity.ts'
-import type { CveFilters, CveView } from '../pageContext.ts'
+import {
+  STATUS_FILTERS,
+  STATUS_LABEL,
+  statusFilterLabel,
+  viewFromSearch,
+  viewToSearch,
+  type CveView,
+  type StatusFilter,
+} from '../cveView.ts'
+import type { ShownView } from '../pageContext.ts'
 import '../styles/cves.css'
 
 // The CVEs page (A04b, DESIGN.md §5.9): the CVE table at the page's full width, the work list beside the dashboard's
-// "how exposed am I?". Filters live in the URL (`?product=langflow&severity=CRITICAL&status=open&kev=1&since=…`
-// &verdict=affected`),
-// so a tile or a shared link opens the page filtered and a reload keeps the filters. The product select picks one
-// product; a dashboard link may carry several (A15b: `?product=langflow,ollama`), shown as one more option. Narrow (a phone, or the chat
-// pinned beside it) the rows become stacked cards: the row actions never need sideways scrolling.
+// "how exposed am I?". Filters live in the URL, under the CVE view's names (cveView.ts:
+// `?product=langflow&severity=CRITICAL&status=all&verdict=affected&kev=1&since=…`), so a tile or a shared link opens
+// the page filtered and a reload keeps the filters. The product select picks one product; a dashboard link may carry
+// several (A15b: `?product=langflow,ollama`), shown as one more option. Narrow (a phone, or the chat pinned beside
+// it) the rows become stacked cards: the row actions never need sideways scrolling.
 
 const PAGE_SIZE = 25
-const STATUSES = ['open', 'fixed', 'not_affected', 'accepted', 'all'] as const
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
-
-type Filters = CveFilters
-
-/** The filters in a query string. Anything malformed is dropped: the URL is text from outside. */
-function filtersFromSearch(search: string): Filters {
-  const p = new URLSearchParams(search)
-  const product = p.get('product') ?? ''
-  const severity = (p.get('severity') ?? '').toUpperCase() as Severity
-  const status = p.get('status') as Filters['status']
-  const since = p.get('since') ?? ''
-  const verdict = p.get('verdict') as Verdict
-  return {
-    product: /^[a-z0-9][a-z0-9.-]{0,40}(,[a-z0-9][a-z0-9.-]{0,40}){0,19}$/.test(product) ? product : undefined,
-    severity_min: SEVERITIES.includes(severity) ? severity : undefined,
-    status: STATUSES.includes(status) ? status : 'open',
-    kev: p.get('kev') === '1' ? true : undefined,
-    published_since: /^\d{4}-\d{2}-\d{2}$/.test(since) ? since : undefined,
-    verdict: VERDICTS.includes(verdict) ? verdict : undefined,
-  }
-}
-
-/** The query string for the filters; the defaults (all watched products, any severity, open) need none. */
-function searchFromFilters(f: Filters): string {
-  const p = new URLSearchParams()
-  if (f.product) p.set('product', f.product)
-  if (f.severity_min) p.set('severity', f.severity_min)
-  if (f.status !== 'open') p.set('status', f.status)
-  if (f.kev) p.set('kev', '1')
-  if (f.published_since) p.set('since', f.published_since)
-  if (f.verdict) p.set('verdict', f.verdict)
-  const s = p.toString().replaceAll('%2C', ',') // several products, readable: product=langflow,ollama
-  return s ? `?${s}` : ''
-}
 
 // onAsk: "Ask about this" opens Patch over this page and asks about that CVE (DESIGN.md §6.4); that row becomes the
 // selected CVE. onView: the filters Patch is told about (A18), on every change.
@@ -75,9 +49,9 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
   search: string
   onAsk: (cveId: string) => void
   selected?: string | null
-  onView?: (view: CveView) => void
+  onView?: (view: ShownView) => void
 }) {
-  const [filters, setFilters] = useState<Filters>(() => filtersFromSearch(search))
+  const [filters, setFilters] = useState<CveView>(() => viewFromSearch(search))
   const [offset, setOffset] = useState(0)
   const [page, setPage] = useState<CvePage | null>(null)
   const [products, setProducts] = useState<Product[]>([])
@@ -86,7 +60,7 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
   const [deciding, setDeciding] = useState<DecisionRequest | null>(null) // the open decision dialog (A16b)
 
   const loadRows = useCallback(
-    () => fetchCves({ ...filters, limit: PAGE_SIZE, offset }).then(setPage),
+    () => fetchCves(filters, PAGE_SIZE, offset).then(setPage),
     [filters, offset],
   )
 
@@ -115,12 +89,12 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
     onView?.({ filters, productName })
   }, [filters, productName, onView])
 
-  function filter(patch: Partial<Filters>) {
+  function filter(patch: Partial<CveView>) {
     const next = { ...filters, ...patch }
     setFilters(next)
     setOffset(0)
     // Replace, not push: a filter change isn't a new page for Back, but a reload keeps it.
-    history.replaceState(null, '', window.location.pathname + searchFromFilters(next) + window.location.hash)
+    history.replaceState(null, '', window.location.pathname + viewToSearch(next) + window.location.hash)
   }
 
   // Every status change goes through the dialog and becomes a decision record (A16b). Its errors show in the dialog.
@@ -162,8 +136,8 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
           <label>
             Severity
             <select
-              value={filters.severity_min ?? ''}
-              onChange={(e) => filter({ severity_min: (e.target.value || undefined) as Severity | undefined })}
+              value={filters.severity ?? ''}
+              onChange={(e) => filter({ severity: (e.target.value || undefined) as Severity | undefined })}
             >
               <option value="">Any</option>
               {SEVERITIES.map((s) => (
@@ -175,12 +149,12 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
           </label>
           <label>
             Status
-            <select value={filters.status} onChange={(e) => filter({ status: e.target.value as Filters['status'] })}>
-              <option value="open">Open</option>
-              <option value="fixed">Fixed</option>
-              <option value="not_affected">Not affected</option>
-              <option value="accepted">Accepted</option>
-              <option value="all">All</option>
+            <select value={filters.status} onChange={(e) => filter({ status: e.target.value as StatusFilter })}>
+              {STATUS_FILTERS.map((s) => (
+                <option key={s} value={s}>
+                  {statusFilterLabel(s)}
+                </option>
+              ))}
             </select>
           </label>
           <label>
@@ -205,14 +179,14 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
             />
             In CISA KEV only
           </label>
-          {filters.published_since && (
+          {filters.since && (
             <span className="chip filter-chip">
-              Published since {filters.published_since}
+              Published since {filters.since}
               <button
                 type="button"
-                aria-label={`Clear: published since ${filters.published_since}`}
+                aria-label={`Clear: published since ${filters.since}`}
                 title="Clear this filter"
-                onClick={() => filter({ published_since: undefined })}
+                onClick={() => filter({ since: undefined })}
               >
                 ✕
               </button>
