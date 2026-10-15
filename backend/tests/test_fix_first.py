@@ -71,6 +71,7 @@ QUERY = {"product": "product", "severity": "severity_min", "status": "status", "
 
 @pytest.mark.parametrize("key,value", [
     ("product", "langflow"), ("product", "LangFlow"), ("product", "Notion"),
+    ("product", "langflow,Ollama"), ("product", "langflow,notion"), ("product", "langflow,"),  # A15b
     ("severity", "high"), ("severity", "extreme"),
     ("status", "all"), ("status", "accepted"), ("status", "closed"),
     ("verdict", "affected"), ("verdict", "maybe"),
@@ -91,6 +92,13 @@ def test_a18_1_patch_reads_only_the_checked_fields(deps, client):
     assert "CVE-2025-3248" in system and "langflow" in system and "CRITICAL" in system
     assert "maybe" not in system and "ignore previous" not in system
     assert "untrusted data" in system  # wrapped like tool output (CODING_STANDARDS: untrusted text via the guard)
+
+
+def test_a15b_6_the_dashboards_product_filter_is_page_context(client):
+    body = ask(client, "Explain CWE-918", {"page": "dashboard", "product": "Ollama,langflow,ollama"})
+    assert body["page_context"] == {"page": "dashboard", "product": "ollama,langflow"}  # ids, no repeats
+    body = ask(client, "Explain CWE-918", {"page": "dashboard", "product": "langflow,notion"})
+    assert body["page_context"] == {"page": "dashboard"} and body["dropped_context"] == ["product=langflow,notion"]
 
 
 # --- A18.3: prioritise(product?, limit?): the rules' order for the watchlist and the page's view -----------------
@@ -159,6 +167,22 @@ def test_a18_3_an_unwatched_product_from_the_page_says_so(deps):
     "nothing open", which would suggest the product is safe."""
     rec = call(deps, {"product": "vllm"})[0]
     assert rec.error["code"] == "not_watched" and "vLLM" in rec.error["message"]
+
+
+def test_a15b_6_fix_first_on_the_dashboard_follows_its_product_filter(client, deps):
+    res = call(deps, {"page": "dashboard", "product": "langflow,ollama"})[0].result
+    assert ids(res) == table(client, "&product=langflow,ollama")[:5]
+    assert res["filters"] == {"product": "langflow,ollama"} and res["product"] == "Langflow, Ollama"
+    inside = call(deps, {"product": "langflow,ollama", "kev": True}, product="Ollama", limit=3)[0].result
+    assert inside["filters"] == {"product": "ollama", "kev": True} and inside["ignored"] == []  # within the view
+
+
+def test_a15b_6_unwatched_products_in_the_pages_filter_are_left_out_and_listed(client, deps):
+    res = call(deps, {"product": "langflow,vllm"})[0].result
+    assert ids(res) == table(client, "&product=langflow")[:5] and res["filters"] == {"product": "langflow"}
+    assert res["ignored"] == ["product=vllm: vLLM isn't on the watchlist"]
+    rec = call(deps, {"product": "vllm,dify"})[0]
+    assert rec.error["code"] == "not_watched" and "vLLM" in rec.error["message"] and "Dify" in rec.error["message"]
 
 
 def test_a18_3_only_open_cves_whatever_the_status_filter(client, deps):

@@ -28,7 +28,8 @@ import '../styles/cves.css'
 // The CVEs page (A04b, DESIGN.md §5.9): the CVE table at the page's full width, the work list beside the dashboard's
 // "how exposed am I?". Filters live in the URL (`?product=langflow&severity=CRITICAL&status=open&kev=1&since=…`
 // &verdict=affected`),
-// so a tile or a shared link opens the page filtered and a reload keeps the filters. Narrow (a phone, or the chat
+// so a tile or a shared link opens the page filtered and a reload keeps the filters. The product select picks one
+// product; a dashboard link may carry several (A15b: `?product=langflow,ollama`), shown as one more option. Narrow (a phone, or the chat
 // pinned beside it) the rows become stacked cards: the row actions never need sideways scrolling.
 
 const PAGE_SIZE = 25
@@ -46,7 +47,7 @@ function filtersFromSearch(search: string): Filters {
   const since = p.get('since') ?? ''
   const verdict = p.get('verdict') as Verdict
   return {
-    product: /^[a-z0-9][a-z0-9.-]{0,40}$/.test(product) ? product : undefined,
+    product: /^[a-z0-9][a-z0-9.-]{0,40}(,[a-z0-9][a-z0-9.-]{0,40}){0,19}$/.test(product) ? product : undefined,
     severity_min: SEVERITIES.includes(severity) ? severity : undefined,
     status: STATUSES.includes(status) ? status : 'open',
     kev: p.get('kev') === '1' ? true : undefined,
@@ -64,7 +65,7 @@ function searchFromFilters(f: Filters): string {
   if (f.kev) p.set('kev', '1')
   if (f.published_since) p.set('since', f.published_since)
   if (f.verdict) p.set('verdict', f.verdict)
-  const s = p.toString()
+  const s = p.toString().replaceAll('%2C', ',') // several products, readable: product=langflow,ollama
   return s ? `?${s}` : ''
 }
 
@@ -105,7 +106,11 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
     )
   }, [loadRows])
 
-  const productName = products.find((p) => p.id === filters.product)?.name
+  // "Langflow + Ollama" for several products from a dashboard link (A15b)
+  const productName = filters.product
+    ?.split(',')
+    .map((id) => products.find((p) => p.id === id)?.name ?? id)
+    .join(' + ')
   useEffect(() => {
     onView?.({ filters, productName })
   }, [filters, productName, onView])
@@ -124,9 +129,10 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
     await loadRows().catch((e: unknown) => setError(message(e)))
   }
 
-  // A product from a link that isn't on the watchlist still shows in the list, so the select says what's filtered.
-  const options = filters.product && !products.some((p) => p.id === filters.product)
-    ? [...products, { id: filters.product, name: filters.product }]
+  // A product from a link that isn't on the watchlist (or several, from the dashboard) still shows in the list, so
+  // the select says what's filtered.
+  const options = filters.product && productName && !products.some((p) => p.id === filters.product)
+    ? [...products, { id: filters.product, name: productName }]
     : products
 
   return (

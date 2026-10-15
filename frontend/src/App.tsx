@@ -43,13 +43,14 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(() => store.get('sidenavCollapsed') === '1')
   const [route, navigate] = useRoute()
   const page = route.page
-  // Page context (A18): the CVEs page's filters and the CVE last asked about there, sent with every message. Both
+  // Page context (A18): the CVEs page's filters (or the dashboard's product filter, A15b) and the CVE last asked
+  // about on the CVEs page, sent with every message. Both
   // belong to one visit of the page: leave it (or follow a link to it) and the next visit starts with neither, so
   // its first render can't show the last visit's filters. The selection also belongs to the filters it was made
   // under: any filter change clears it, so "this" never means a CVE that may have left the view.
   const [view, setView] = useState<{ view: CveView; visit: number } | null>(null)
   const [selection, setSelection] = useState<{ cve: string; visit: number } | null>(null)
-  const cveView = page === 'cves' && view?.visit === route.visit ? view.view : null
+  const cveView = (page === 'cves' || page === 'dashboard') && view?.visit === route.visit ? view.view : null
   const selectedCve = page === 'cves' && selection?.visit === route.visit ? selection.cve : null
   const context = pageContext(page, cveView, selectedCve)
   const visit = route.visit
@@ -237,7 +238,15 @@ export default function App() {
         )}
         <main>
           {page === 'dashboard' ? (
-            <DashboardPage onNavigate={navigate} onAskPatch={openChat} patchVariant={patch.restVariant} />
+            // keyed by the visit, like the CVEs page: a link followed again with another filter starts from it
+            <DashboardPage
+              key={route.visit}
+              search={route.search}
+              onNavigate={navigate}
+              onAskPatch={openChat}
+              onView={onView}
+              patchVariant={patch.restVariant}
+            />
           ) : page === 'cves' ? (
             // keyed by the visit: a link followed again with other filters starts from them
             <CvesPage
@@ -248,7 +257,7 @@ export default function App() {
               onView={onView}
             />
           ) : page === 'settings' ? (
-            <SettingsPage asOf={status?.as_of ?? null} onOpenDashboard={() => navigate(PATHS.dashboard)} />
+            <SettingsPage asOf={status?.as_of ?? null} />
           ) : status?.dev_panel ? (
             <DevPage onSaved={refreshHealth} />
           ) : null}
@@ -265,7 +274,7 @@ export default function App() {
           restVariant={patch.restVariant}
           pageTitle={current.title}
           context={context}
-          productName={page === 'cves' ? cveView?.productName : undefined}
+          productName={cveView?.productName}
           suggestions={SUGGESTIONS[page]}
           examples={examples}
           layout={layout}

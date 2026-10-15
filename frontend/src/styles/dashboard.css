@@ -331,93 +331,58 @@ a.tile {
   font-weight: 700;
 }
 
-/* ---------- Watchlist editor ---------- */
+/* ---------- The watchlist as a product filter (A15b, DESIGN.md §5.9) ---------- */
 
-.watchlist {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.25rem 0.6rem;
-  margin: 0.4rem 0 0.8rem;
-  padding: 0;
-  list-style: none;
-}
-
-.watchlist label {
+/* Toggle pills, like the Dev panel's presets: picked = an accent edge on the soft fill, plus a tick, so the state
+   isn't told by colour alone. Text stays --text: on --accent-soft 11.9:1 light, 12.1:1 dark (checked, A15b.8). */
+.product-chips {
   display: flex;
-  gap: 0.4rem;
-  align-items: center;
-}
-
-/* Per ticked product (A15): a fieldset each, nested-card fill and radius (DESIGN.md §5.7). */
-.stack-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin: 0.3rem 0 0.8rem;
-}
-
-.product-fields {
-  display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 0.4rem;
   min-width: 0;
-  margin: 0;
-  padding: 0.5rem 0.75rem 0.65rem;
-  border: none;
-  border-radius: var(--radius-nested);
-  background: var(--accent-soft);
+  margin: 0 0 0.7rem;
+  padding: 0;
+  border: 0;
+}
+
+.product-chips legend {
+  float: left; /* in the flow, as a line above the pills */
+  width: 100%;
+  margin-bottom: 0.15rem;
+  padding: 0;
   font-size: 0.85rem;
 }
 
-.product-fields legend {
-  float: left; /* inside the box, not on its edge */
-  width: 100%;
-  padding: 0;
-  font-weight: 800;
-}
-
-.product-fields label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-  color: var(--muted);
-  font-weight: 700;
-}
-
-.product-fields select,
-.product-fields input[type='text'] {
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-}
-
-.product-fields .field-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem 0.8rem;
-  align-items: flex-end;
-}
-
-.product-fields .field-row > label:first-child {
-  flex: 1 1 7rem;
-}
-
-.product-fields label.check {
-  flex-direction: row;
+.product-chip {
+  display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding-bottom: 0.3rem;
-  white-space: nowrap;
+  min-height: 2rem;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.85rem;
 }
 
-.product-fields .field-note {
-  margin: 0;
-  font-size: 0.75rem;
+.product-chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
-.save-note {
-  margin-top: 0.5rem;
+.product-chip .tick {
+  color: var(--accent);
+}
+
+/* Open CVEs in CISA KEV: a dot in the KEV colour after the name (the chip's name says it for screen readers, its
+   title on hover). */
+.kev-dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--error);
+}
+
+.edit-link {
+  font-weight: 700;
 }
 
 /* ---------- Side panels: latest ATLAS incidents, data freshness ---------- */

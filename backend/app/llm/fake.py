@@ -83,7 +83,7 @@ def _verdict_line(v: dict) -> str:
     if v["verdict"] == "not_affected" and v["watch_status"] == "open":
         line += " It stays open until you mark it: the CVEs page offers \"Mark not affected?\"."
     elif v["reason"] == "no version given":
-        line += " Add your version in the watchlist editor and I can check."
+        line += " Add your version in the Watchlist card on Settings and I can check."
     return line
 
 

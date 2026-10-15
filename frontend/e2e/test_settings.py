@@ -123,10 +123,13 @@ def test_a13_2_discard_brings_back_the_saved_values(settings_page):
     expect(page.get_by_role("button", name="Save changes")).to_be_disabled()
 
 
-def test_a13_2_watchlist_panel_opens_the_dashboard(settings_page):
+def test_a13_2_the_watchlist_card_edits_the_watchlist(settings_page):
+    # Since A15b the card holds the editor; its checks are in test_watchlist.py.
     page = settings_page()
-    page.get_by_role("button", name="Edit on the dashboard").click()
-    expect(page.get_by_role("heading", level=1)).to_have_text("Dashboard")
+    card = page.get_by_role("region", name="Watchlist", exact=True)
+    expect(card.get_by_role("checkbox", name="vLLM")).to_be_visible()
+    expect(card.get_by_role("group", name="Langflow")).to_be_visible()
+    expect(page.get_by_role("button", name="Edit on the dashboard")).to_have_count(0)
 
 
 # --- A13.3: channels, test alerts, the log -------------------------------------------------------------------------
@@ -281,14 +284,14 @@ def test_a13_9_every_control_reachable_by_keyboard_with_visible_focus(settings_p
         page.keyboard.press("Tab")
     text = " | ".join(seen)
     for name in ("Send alerts", "Minimum severity", "Check for new CVEs every", "Quiet hours start",
-                 "Send test alert by email", "Preview an alert", "Edit on the dashboard", "Type reset to confirm"):
+                 "Send test alert by email", "Preview an alert", "Type reset to confirm"):
         assert name in text, (name, seen)
 
 
 def test_a13_9_buttons_have_accessible_names(settings_page):
     page = settings_page()
     for name in ("Send test alert by desktop notification", "Send test alert by email",
-                 "Send test alert by phone push (ntfy)", "Preview an alert (send nothing)", "Edit on the dashboard",
+                 "Send test alert by phone push (ntfy)", "Preview an alert (send nothing)",
                  "Check for new CVEs now", "Reset demo data", "Discard", "Save changes"):
         expect(page.get_by_role("button", name=name, exact=True)).to_have_count(1)
     unnamed = page.evaluate("""[...document.querySelectorAll('main button')].filter(b =>

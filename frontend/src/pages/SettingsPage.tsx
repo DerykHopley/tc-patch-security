@@ -14,10 +14,12 @@ import {
 import { SaveBar } from '../components/SaveBar.tsx'
 import { Card } from '../components/StatusCard.tsx'
 import { useSettings } from '../components/useSettings.ts'
+import { useWatchlist } from '../components/useWatchlist.ts'
+import { WatchlistCard } from '../components/WatchlistCard.tsx'
 import '../styles/settings.css'
 
 // The Settings page (DESIGN.md §5.7): alert rules saved for spec B's refresh, delivery channels with real test
-// sends, the watchlist link, the data and a safe reset. Each card says what it really does today.
+// sends, the watchlist (A15b: edited here, the dashboard only filters by it), the data and a safe reset. Each card says what it really does today.
 
 const SEVERITIES: { value: Severity; label: string }[] = [
   { value: 'LOW', label: 'Low' },
@@ -51,8 +53,9 @@ function outcome(e: AlertLogEntry): ReactNode {
   return e.sent ? 'sent' : 'recorded only'
 }
 
-export function SettingsPage({ asOf, onOpenDashboard }: { asOf: string | null; onOpenDashboard: () => void }) {
+export function SettingsPage({ asOf }: { asOf: string | null }) {
   const s = useSettings()
+  const w = useWatchlist() // its own route, the same save bar (A15b)
   const [log, setLog] = useState<AlertLogEntry[]>([])
   const [preview, setPreview] = useState<TestAlertReply | null>(null)
   const [sending, setSending] = useState<Channel | 'preview' | null>(null)
@@ -114,6 +117,19 @@ export function SettingsPage({ asOf, onOpenDashboard }: { asOf: string | null; o
     setAlertError(null)
     setLog([])
     s.reload()
+    w.reload()
+  }
+
+  // One save bar for the settings and the watchlist. Each saves only if it changed; a rejected watchlist shows its
+  // message in its card and stays unsaved, so the bar keeps saying so.
+  const dirty = s.dirty || w.dirty
+  async function saveAll() {
+    if (w.dirty) await w.save()
+    if (s.dirty) await s.save()
+  }
+  function discardAll() {
+    s.discard()
+    w.discard()
   }
 
   return (
@@ -121,6 +137,8 @@ export function SettingsPage({ asOf, onOpenDashboard }: { asOf: string | null; o
       <p className="page-intro">Alerts for your watchlist, how they reach you, and the demo data.</p>
 
       <div className="settings-grid">
+        <WatchlistCard w={w} />
+
         <Card title="Alerts" kind="saved" why="Saved now; the refresh worker (spec B) will read them">
           <p className="meta">The refresh worker will read these. Nothing checks for new CVEs yet.</p>
 
@@ -280,13 +298,6 @@ export function SettingsPage({ asOf, onOpenDashboard }: { asOf: string | null; o
           )}
         </Card>
 
-        <Card title="Watchlist" kind="live" why="Alerts and the dashboard both use it">
-          <p className="meta">Which products count as yours. Alerts and the dashboard both use it.</p>
-          <button type="button" onClick={onOpenDashboard}>
-            Edit on the dashboard
-          </button>
-        </Card>
-
         <Card title="Patch's answers" kind="live" why="Patch uses it on your next question">
           <p className="meta">
             How Patch pitches an answer. The facts and sources stay the same at every level; only the wording changes.
@@ -391,7 +402,8 @@ export function SettingsPage({ asOf, onOpenDashboard }: { asOf: string | null; o
         </Card>
       </div>
 
-      <SaveBar dirty={s.dirty} saving={s.saving} saved={s.saved} error={s.error} onSave={s.save} onDiscard={s.discard} />
+      <SaveBar dirty={dirty} saving={s.saving || w.saving} saved={s.saved || w.justSaved} error={s.error}
+        onSave={saveAll} onDiscard={discardAll} />
     </div>
   )
 }

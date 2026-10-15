@@ -224,7 +224,7 @@ def test_a05_6_data_freshness_with_date_and_licence_per_source(open_dash, api_ur
         expect(item.get_by_role("link", name=s["name"])).to_have_attribute("href", s["url"])
         expect(item).to_contain_text(s["licence"])
         expect(item).to_contain_text(f"retrieved {s['retrieved']}")
-    # Side column: watchlist editor, then the incidents, then freshness.
+    # Side column: the watchlist (a product filter since A15b), then the incidents, then freshness.
     titles = page.locator(".dash-side > .card h2").all_inner_texts()
     assert titles == ["Watchlist", "Latest AI incidents (MITRE ATLAS)", "Data freshness"]
 
@@ -283,12 +283,13 @@ def test_a05_5_bars_do_not_grow_again_on_hover_resize_or_reload(open_dash, api_u
     page.set_viewport_size({"width": 1100, "height": 900})
     page.wait_for_timeout(100)  # on purpose: give a wrongly restarted grow time to show
     assert dash.evaluate(GROWING) == []
-    # A product added to the watchlist brings a new bar: it appears at full length too.
+    # Bars that come back with the product filter (A15b) appear at full length too.
     rows_before = chart(page, BY_PRODUCT).locator(".bar-row").count()
-    editor = page.get_by_role("region", name="Watchlist", exact=True)
-    editor.get_by_label("vLLM").check()
-    editor.get_by_role("button", name="Save watchlist").click()
-    expect(chart(page, BY_PRODUCT).locator(".bar-row")).to_have_count(rows_before + 1)
+    chips = page.get_by_role("group", name="Show the tiles, charts and Top 5 for")
+    chips.get_by_role("button", name="Ollama").click()
+    expect(chart(page, BY_PRODUCT).locator(".bar-row")).to_have_count(1)
+    chips.get_by_role("button", name="All", exact=True).click()
+    expect(chart(page, BY_PRODUCT).locator(".bar-row")).to_have_count(rows_before)
     assert dash.evaluate(GROWING) == []
 
 

@@ -2,6 +2,7 @@
 import datetime as dt
 from collections import Counter
 
+from app import cve_filters
 from app.app_settings import PolicySettings, PrioritySettings
 from app.knowledge import SEVERITY_ORDER
 from app.priority import CveFacts, priority, sort_key
@@ -88,11 +89,14 @@ def watched_rows(k, data: dict, as_of: str, keep=lambda cve: True) -> list[dict]
 
 def list_cves(k, data: dict, as_of: str, product=None, severity_min=None, status="open", limit=50, offset=0,
               kev=None, published_since=None, verdict=None) -> dict:
+    """`product`: one id or several, comma-separated (`langflow,ollama`), as app.cve_filters.products gives them."""
+    products = set(product.split(",")) if product else None
+
     def keep(c: dict) -> bool:  # the filters that need only the snapshot: applied before the rows are built
         return ((kev is None or bool(k.cves.kev.get(c["id"])) == kev)
                 # inclusive, YYYY-MM-DD: the "new in 30 days" tile links here with kpis.new_since
                 and (not published_since or c["published"] >= published_since)
-                and (not product or c["product"] == product)
+                and (not products or c["product"] in products)
                 and (not severity_min
                      or SEVERITY_ORDER.get(c["severity"] or "", 0) >= SEVERITY_ORDER[severity_min]))
 
@@ -115,15 +119,24 @@ def _months(start: str, end: str) -> list[str]:
     return out
 
 
-def summary(k, data: dict, as_of: str) -> dict:
-    rows = watched_rows(k, data, as_of)
+def applied_filter(k, data: dict, value: str | None) -> list[str]:
+    """The dashboard's product filter (A15b): `a,b` from the URL, as watched product ids in watchlist order.
+    Unknown or unwatched products are ignored, so a stale link still opens; none left means every watched product."""
+    wanted = {cve_filters.product(v, k.resolve_product) for v in (value or "").split(",") if v.strip()}
+    return [p for p in data["watchlist"] if p in wanted]
+
+
+def summary(k, data: dict, as_of: str, products: list[str] | None = None) -> dict:
+    """Tiles, charts and side panels. `products`: the dashboard's filter (applied_filter); empty = every watched."""
+    every = watched_rows(k, data, as_of)
+    rows = [r for r in every if r["product"] in products] if products else every
     open_rows = [r for r in rows if r["open"]]
     since = (dt.date.fromisoformat(as_of) - dt.timedelta(days=30)).isoformat()
     first_new_day = (dt.date.fromisoformat(as_of) - dt.timedelta(days=29)).isoformat()
     kev_open = sorted((r for r in open_rows if r["kev"]), key=lambda r: r["due_date"])  # your due date (A16)
 
     by_product = []
-    for pid in data["watchlist"]:
+    for pid in products or data["watchlist"]:
         counts = Counter(r["severity"] or "NONE" for r in open_rows if r["product"] == pid)
         by_product.append({"product": pid, "name": k.products[pid], "total": sum(counts.values()),
                            **{s: counts.get(s, 0) for s in SEVERITIES}})
@@ -141,6 +154,12 @@ def summary(k, data: dict, as_of: str) -> dict:
     return {
         "as_of": as_of,
         "watchlist": data["watchlist"],
+        "filter": products or [],
+        # One per watched product, whatever the filter: the filter's chips show which have open KEV CVEs
+        "watched": [{"product": p, "name": k.products[p],
+                     "open": sum(r["open"] and r["product"] == p for r in every),
+                     "kev": sum(r["open"] and r["kev"] and r["product"] == p for r in every)}
+                    for p in data["watchlist"]],
         "products": [{"id": p, "name": n} for p, n in k.products.items()],
         "kpis": {
             "open": len(open_rows),
