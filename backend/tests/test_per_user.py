@@ -230,6 +230,24 @@ def test_b09_9_each_user_gets_alerts_for_their_own_watchlist_and_only_the_owner_
     assert again == {"default": [], "alice": [], "bob": []}
 
 
+def test_b09_9_new_since_last_check_is_kept_per_user(tmp_path, index_dir, index):
+    from test_refresh import NEW_DAY2
+
+    app = LiveUsers(tmp_path, index_dir)
+    alice, bob = app("alice"), app("bob")
+    for c in (alice, bob):
+        c.put("/watchlist", json={"products": ["ollama"]})
+    app.live.check_now()
+    app.live.next_day()
+
+    def new(c) -> set[str]:
+        return {r["id"] for r in c.get("/cves", params={"status": "all", "limit": 200}).json()["rows"] if r["new"]}
+
+    assert NEW_DAY2 in new(alice) and NEW_DAY2 in new(bob)
+    alice.post("/state/reset", json={"confirm": "reset"})
+    assert new(alice) == set() and NEW_DAY2 in new(bob)
+
+
 def test_b09_9_the_owner_comes_from_the_environment(tmp_path, index_dir, index):
     app = LiveUsers(tmp_path, index_dir, owner="alice")
     alice = app("alice")

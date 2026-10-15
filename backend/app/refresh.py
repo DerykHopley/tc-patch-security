@@ -306,7 +306,8 @@ class Refresher:
         cwe_to_web = json.loads((FIXTURES / "owasp.json").read_text())["cwe_to_web"]
         files, counts, new = build_version(previous, nvd_rows, kev, osv_raw, epss_raw, cwe_to_web, now)  # step 2
         version = self.live.write(files)  # step 3
-        alerts, problems = self._alerts(previous, files, self.live.folder(version), now)  # step 4, partial runs too
+        alerts, problems = self._alerts(previous, files, self.live.folder(version), now,  # step 4, partial runs too
+                                        complete=not failed)
         return self._result(trigger, now, began, ok=True, counts=counts, new_cves=new, version=version,
                             alerts=alerts, errors=[*failed, *problems], feeds=steps)
 
@@ -315,12 +316,16 @@ class Refresher:
         with self._lock() as held:
             return self._alerts(None, None, None, self.clock())[0] if held else {}
 
-    def _alerts(self, previous, files, folder, now) -> tuple[dict[str, list[dict]], list[FeedProblem]]:
-        """Step 4. A failure here is logged and reported, but the new data stays written."""
+    def _alerts(self, previous, files, folder, now, complete: bool = True) -> tuple[dict[str, list[dict]],
+                                                                                 list[FeedProblem]]:
+        """Step 4. A failure here is logged and reported, but the new data stays written. `complete`: every feed
+        answered, so the run moves last checked (B05 counts "new since last check" from those runs only)."""
         if self.alerter is None:
             return {}, []
         try:
-            return self.alerter(previous, files, folder, now), []
+            if complete:
+                return self.alerter(previous, files, folder, now), []
+            return self.alerter(previous, files, folder, now, complete=False), []
         except Exception as e:
             log.exception("Alerts after the refresh failed")
             return {}, [FeedProblem(source="alerts", message=f"{type(e).__name__}: {e}")]

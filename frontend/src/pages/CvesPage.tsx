@@ -35,7 +35,7 @@ import '../styles/cves.css'
 
 // The CVEs page (A04b, DESIGN.md §5.9): the CVE table at the page's full width, the work list beside the dashboard's
 // "how exposed am I?". Filters live in the URL, under the CVE view's names (cveView.ts:
-// `?product=langflow&severity=CRITICAL&status=all&verdict=affected&kev=1&since=…`), so a tile or a shared link opens
+// `?product=langflow&severity=CRITICAL&status=all&verdict=affected&kev=1&since=…&new=1`), so a tile or a shared link opens
 // the page filtered and a reload keeps the filters. The product select picks one product; a dashboard link may carry
 // several (A15b: `?product=langflow,ollama`), shown as one more option. Narrow (a phone, or the chat pinned beside
 // it) the rows become stacked cards: the row actions never need sideways scrolling.
@@ -57,6 +57,7 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
   const [products, setProducts] = useState<Product[]>([])
   const [error, setError] = useState<string | null>(null)
   const [asOf, setAsOf] = useState<string | null>(null)
+  const [live, setLive] = useState(false) // live data (B02): checks happen, so "New since last check" can mean something
   const [deciding, setDeciding] = useState<DecisionRequest | null>(null) // the open decision dialog (A16b)
 
   const loadRows = useCallback(
@@ -69,6 +70,7 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
       (d) => {
         setProducts(d.products.filter((p) => d.watchlist.includes(p.id)))
         setAsOf(d.as_of)
+        setLive(d.data.mode === 'live')
       },
       (e: unknown) => setError(message(e)),
     )
@@ -179,6 +181,16 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
             />
             In CISA KEV only
           </label>
+          {(live || filters.new) && (
+            <label>
+              <input
+                type="checkbox"
+                checked={filters.new ?? false}
+                onChange={(e) => filter({ new: e.target.checked || undefined })}
+              />
+              New since last check
+            </label>
+          )}
           {filters.since && (
             <span className="chip filter-chip">
               Published since {filters.since}
@@ -290,6 +302,11 @@ function CveTable({ page, onDecide, onAsk, selected }: {
                 {r.kev && (
                   <span className="chip kev" title={`In CISA KEV: known exploited. KEV deadline ${r.kev_deadline}`}>
                     KEV
+                  </span>
+                )}
+                {r.new && (
+                  <span className="chip new-chip" title="New since the last check: the last refresh added it">
+                    New
                   </span>
                 )}
                 {r.possible_match && <PossibleMatch />}
