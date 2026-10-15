@@ -12,6 +12,7 @@ import type {
   CveResult,
   CweResult,
   FixFirstResult,
+  Proposal,
   TechniqueResult,
   WatchlistResult,
 } from '../toolResults.ts'
@@ -202,7 +203,17 @@ function FixFirstCard({ r }: { r: FixFirstResult }) {
   )
 }
 
-function WatchlistCard({ r }: { r: WatchlistResult }) {
+function WatchlistCard({ r }: { r: WatchlistResult | Proposal }) {
+  if ('proposal_id' in r) {
+    return (
+      <div className="result-card watchlist-card">
+        <p className="result-title">Proposed: {r.title}</p>
+        <p className="meta">
+          {r.before} → {r.after} · approve, edit or cancel it in the card under the answer
+        </p>
+      </div>
+    )
+  }
   return (
     <div className="result-card watchlist-card">
       <p className="result-title">{r.message}</p>

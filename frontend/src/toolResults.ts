@@ -215,12 +215,12 @@ export interface WatchlistResult {
 /** What a proposal would set. Only the fields its action takes are filled; the others are null. */
 export interface ProposalFields {
   status: 'open' | 'fixed' | 'not_affected' | 'accepted' | null
-  justification: string | null
+  justification: 'component_not_present' | 'vulnerable_code_not_present' | 'vulnerable_code_not_in_execute_path' | 'vulnerable_code_cannot_be_controlled_by_adversary' | 'inline_mitigations_already_exist' | null
   note: string | null
   reason: string | null
   review_date: string | null
   compensating_control: string | null
-  usage: string | null
+  usage: 'self_hosted' | 'library' | 'transitive' | 'hosted' | null
   version: string | null
   internet_facing: boolean | null
 }

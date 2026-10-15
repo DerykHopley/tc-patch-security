@@ -25,7 +25,7 @@ from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
 from app.errors import AppError, InputError
 from app.status import DECIDED_BY, JUSTIFICATIONS, decision
-from app.verdict import USAGE_LABELS
+from app.verdict import USAGE_LABELS, USAGES
 
 TTL = dt.timedelta(hours=1)
 Action = Literal["watch", "unwatch", "set_status", "set_details"]
@@ -57,12 +57,12 @@ class _Shape(BaseModel):
 class ProposalFields(_Shape):
     """What a proposal would set. Only the fields its action takes are filled; the others are null."""
     status: Literal["open", "fixed", "not_affected", "accepted"] | None
-    justification: str | None
+    justification: Literal[JUSTIFICATIONS] | None  # type: ignore[valid-type]
     note: str | None
     reason: str | None
     review_date: str | None
     compensating_control: str | None
-    usage: str | None
+    usage: Literal[USAGES] | None  # type: ignore[valid-type]
     version: str | None
     internet_facing: bool | None
 
