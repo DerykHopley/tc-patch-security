@@ -1,6 +1,6 @@
-# Publishes the model-check report, and only that, on GitHub Pages.
-# The report is built locally from the saved runs (they need the key and the GPU), then committed to
-# docs/report/index.html. Only that folder is uploaded: no other repo file goes to Pages.
+# Publishes the review pages in docs/report/, and only those, on GitHub Pages: the model-check report
+# (index.html, built locally from the saved runs, which need the key and the GPU) and the architecture
+# review (architecture-review.html). Only that folder is uploaded: no other repo file goes to Pages.
 name: Pages
 
 on:

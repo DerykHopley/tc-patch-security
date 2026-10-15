@@ -19,3 +19,9 @@
 
 - `docs/report/index.html` is the published page. `.github/workflows/pages.yml` uploads only `docs/report/` to GitHub Pages, on a push to `main` or `spec-a` that changes it.
 - Before committing a new report, check it holds no key, no `.env` content and no course-brief text.
+
+## The architecture review
+
+- `docs/report/architecture-review.html`, published at https://derykhopley.github.io/tc-patch-security/architecture-review.html.
+- Candidates for discussion from the `improve-codebase-architecture` review of `spec-a` (2026-10-15): nothing in it is built. Decisions on it go in DECISIONS.md or an ADR.
+- Unlike the model-check report, it loads Tailwind and Mermaid from CDNs, so it needs a network connection to show its styles and diagrams.
