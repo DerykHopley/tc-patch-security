@@ -2,7 +2,9 @@
 import pytest
 from pydantic import BaseModel
 
+from app import guard
 from app.llm.base import ToolCall
+from app.llm.fake import FakeLLM
 from app.tools import registry
 from app.tools.registry import TOOLS, Context, ToolResult, ToolSpec, run_tool
 
@@ -45,4 +47,45 @@ def test_a_drifting_result_shape_is_a_tool_failure(drifting_tool, returns):
     rec = run(drifting_tool, returns)
     assert rec.status == "error" and rec.result is None
     assert rec.error["code"] == "tool_failed"
+
+
+# FakeLLM picks its reply template by the tool's name, never by which keys a result happens to have.
+
+def _conversation(steps: list[tuple[str, dict]]) -> list[dict]:
+    """The messages after an unscripted CVE question: one assistant step per (tool name, result)."""
+    msgs = [{"role": "system", "content": "Explain level: normal."},
+            {"role": "user", "content": "Tell me about CVE-2025-3248"}]
+    for i, (name, result) in enumerate(steps):
+        msgs.append({"role": "assistant", "content": None, "tool_calls": [
+            {"id": f"call_{i}_0", "type": "function", "function": {"name": name, "arguments": "{}"}}]})
+        msgs.append({"role": "tool", "tool_call_id": f"call_{i}_0", "content": guard.wrap_untrusted(name, result)})
+    return msgs
+
+
+def _result(deps, name, **args):
+    return run_tool(ToolCall(id="t", name=name, args=args), deps, Context()).result
+
+
+@pytest.mark.parametrize("extra", [{"total_open": 3}, {"counts": {}}, {"sources": []}, {"kind": "cwe"}])
+def test_fake_llm_answers_a_lookup_by_its_tool_name_whatever_extra_keys_it_has(deps, extra):
+    cve = _result(deps, "lookup_cve", cve_id="CVE-2025-3248")
+    found = _result(deps, "search_security", query="How to prevent Injection")
+    plain = FakeLLM().step(_conversation([("lookup_cve", cve), ("search_security", found)]), [])
+    drifted = FakeLLM().step(_conversation([("lookup_cve", cve | extra), ("search_security", found)]), [])
+    assert plain.content.startswith("**CVE-2025-3248** in Langflow")
+    assert drifted.content == plain.content
+
+
+def test_fake_llm_searches_after_a_lookup_by_its_tool_name(deps):
+    """The unscripted CVE question's second step (search how to prevent its kind of bug) follows lookup_cve only.
+    check_affected's one-CVE result also has a watch_status, and gets its verdict line, not a search."""
+    cve = _result(deps, "lookup_cve", cve_id="CVE-2025-3248")
+    reply = FakeLLM().step(_conversation([("lookup_cve", cve)]), [])
+    assert [(c.name, c.args) for c in reply.tool_calls] == [("search_security", {"query": "How to prevent Injection"})]
+    verdict = _result(deps, "check_affected", cve_id="CVE-2025-3248")
+    reply = FakeLLM().step(_conversation([("check_affected", verdict)]), [])
+    assert not reply.tool_calls and reply.content.startswith("**CVE-2025-3248** in Langflow [1]: **")
+    failed = {"error": {"code": "cve_not_in_snapshot", "message": "CVE-2025-3248 isn't in my snapshot."}}
+    reply = FakeLLM().step(_conversation([("lookup_cve", failed)]), [])
+    assert not reply.tool_calls and reply.content == "CVE-2025-3248 isn't in my snapshot."
 

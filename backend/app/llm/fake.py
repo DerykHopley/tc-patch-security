@@ -1,7 +1,8 @@
 """FakeLLM: the test-only model, scripted, free, same every run (L1). Moved from proto. Reads fixtures/fake_script.json.
 
 Tool choice, rewrites and filters are scripted. The answer text is a template filled from the
-real tool results in `messages`, so retrieval and tools are tested for real.
+real tool results in `messages`, so retrieval and tools are tested for real. Each result is read by its tool's name
+(from this model's own tool calls), in the shape the tool declares (app.tools.registry), never guessed from its keys.
 
 Unscripted questions: a CVE id → lookup_cve, then search_security for how to prevent its OWASP
 category (what the dashboard's "Ask about this" sends). A CWE or ATLAS id → explain_weakness.
@@ -191,48 +192,54 @@ class FakeLLM:
         question = messages[last_user]["content"]
         script = self._match(question)
         tool_msgs = [m for m in messages[last_user:] if m["role"] == "tool"]
+        results = self._results(messages[last_user:])
         n_input = _tokens(json.dumps(messages) + json.dumps(tools))
 
         calls = None
         if not tool_msgs:
             calls = script["tool_calls"] if script else self._default_calls(question)
-        elif script is None and len(tool_msgs) == 1:
+        elif script is None and len(results) == 1 and results[0][0] == "lookup_cve" and "error" not in results[0][1]:
             # Unscripted CVE question: after the lookup, search for how to prevent its kind of bug.
-            data = json.loads(guard.unwrap(tool_msgs[0]["content"]))
-            if "watch_status" in data:
-                # No product name in the query: it would pull in more CVEs instead of the guidance.
-                topic = data["owasp"]["title"].split(" ", 1)[-1] if data["owasp"] else "this vulnerability"
-                calls = [{"name": "search_security", "args": {"query": f"How to prevent {topic}"}}]
+            data = results[0][1]
+            # No product name in the query: it would pull in more CVEs instead of the guidance.
+            topic = data["owasp"]["title"].split(" ", 1)[-1] if data["owasp"] else "this vulnerability"
+            calls = [{"name": "search_security", "args": {"query": f"How to prevent {topic}"}}]
         if calls:
             tool_calls = [ToolCall(id=f"call_{len(tool_msgs)}_{i}", name=c["name"], args=c["args"])
                           for i, c in enumerate(calls)]
             return LLMReply(tool_calls=tool_calls, input_tokens=n_input,
                             output_tokens=_tokens(json.dumps([t.model_dump() for t in tool_calls])), estimated=True)
 
-        content = self._answer(script, tool_msgs, _level(messages))
+        content = self._answer(script, results, _level(messages))
         return LLMReply(content=content, input_tokens=n_input, output_tokens=_tokens(content), estimated=True)
 
     @staticmethod
-    def _answer(script: dict | None, tool_msgs: list[dict], level: str = "normal") -> str:
+    def _results(turn: list[dict]) -> list[tuple[str, dict]]:
+        """Each tool result in this turn with its tool's name, from this model's own assistant messages."""
+        names = {tc["id"]: tc["function"]["name"] for m in turn if m["role"] == "assistant"
+                 for tc in m.get("tool_calls") or []}
+        return [(names.get(m["tool_call_id"], ""), json.loads(guard.unwrap(m["content"])))
+                for m in turn if m["role"] == "tool"]
+
+    @staticmethod
+    def _answer(script: dict | None, results: list[tuple[str, dict]], level: str = "normal") -> str:
+        """The template's fields, each from its tool by name (the result shapes are the tools' declared models)."""
         fields: dict = {}
         sources: list[dict] = []
-        for m in tool_msgs:
-            data = json.loads(guard.unwrap(m["content"]))
+        for name, data in results:
             if "error" in data and isinstance(data["error"], dict):
                 fields["error"] = data["error"]["message"]
-            elif "sources" in data:
+            elif name == "search_security":
                 sources += data["sources"]
-            elif "verdict" in data and "reason" in data:  # check_affected, one CVE (A15)
-                fields["affected"] = _verdict_line(data)
-            elif "counts" in data:  # check_affected, one product
-                fields["affected"] = _verdict_counts(data)
-            elif "total_open" in data:  # prioritise (A18)
+            elif name == "check_affected":  # one CVE, or one product's open CVEs (A15)
+                fields["affected"] = _verdict_counts(data) if "counts" in data else _verdict_line(data)
+            elif name == "prioritise":  # A18
                 fields["fix_first"] = _fix_first(data)
-            elif "watch_status" in data:
+            elif name == "lookup_cve":
                 fields["cve"] = _cve_card(data)
-            elif data.get("kind") in ("cwe", "atlas_technique"):
+            elif name == "explain_weakness":
                 fields["weakness"] = _weakness(data)
-            elif "watchlist" in data:
+            elif name == "update_watchlist":
                 fields["watch"] = data["message"] + " Watching: " + ", ".join(data["watchlist"]) + "."
 
         if script is None:
