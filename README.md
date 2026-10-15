@@ -124,6 +124,22 @@ ollama pull mxbai-embed-large   # the default embedder for real embeddings
 
 In `backend/.env`: `LLM_PROVIDER=local`, `LOCAL_LLM_MODEL=qwen3.8:27b`, `EMBEDDER=ollama`, `INDEX_PATH=data/index-ollama`. Then build the index and start as above. The local URL must be on this machine (`LOCAL_LLM_URL`, default Ollama's `http://localhost:11434/v1`). You can also switch models at runtime on the Dev page.
 
+### In a container
+
+One image runs the whole app on one port: the API (under `/api`) and the built frontend, with the search index built in. Needs Docker. Build the index first, then the image, from the repo root:
+
+```bash
+(cd backend && EMBEDDER=hash INDEX_PATH=data/index-image uv run python -m app.rag.build_index)   # free, no key
+docker build -t patch .
+docker run --rm -p 8080:8080 patch                       # http://localhost:8080, FakeLLM
+docker run --rm -p 8080:8080 --env-file backend/.env patch   # with your settings (keys stay outside the image)
+```
+
+- No key or `.env` is in the image; settings come from environment variables at `docker run`.
+- The image records the embedder its index was built with. For a real embedder, build its index into `backend/data/index-image` with that `EMBEDDER`, then pass it to the build: `docker build --build-arg EMBEDDER=ollama -t patch .`. Run the image with another embedder and it stops at start-up with the index-mismatch error. *Unverified:* only the hash index has been run in the image so far.
+- Your state lives inside the container and goes when it's removed. Keep it with a volume: `-v patch-data:/app/backend/data`.
+- In `--env-file backend/.env`, leave out `INDEX_PATH`, `STATE_PATH` and `FRONTEND_DIR`: the image sets them. A local URL such as Ollama's `localhost` means the container itself, not your machine.
+
 ### The model check and the report
 
 ```bash
@@ -145,10 +161,12 @@ cd backend && uv run pytest                            # 774 tests (2026-10-15)
 cd frontend && npx tsc -b && npm run lint && npm test  # types, lint (oxlint), unit tests (node --test)
 python3 frontend/e2e/check_waits.py                    # no fixed wait in the browser check without a reason
 frontend/e2e/run.sh                                    # browser check (Playwright), Firefox and Chromium
+frontend/e2e/container.sh                              # builds the image and smoke-tests it (needs Docker)
 ```
 
 - `frontend/e2e/run.sh` starts its own backend (FakeLLM, a throwaway state file and index) and frontend on two free ports, so it never touches an app on 8000/5173. Extra arguments go to pytest: `run.sh -k a02` still runs both browsers.
 - Slow mode: `E2E_LATENCY_MS=300 frontend/e2e/run.sh` delays every API response, to find timing races before CI's slower runner does.
+- `frontend/e2e/container.sh` builds the hash index and the image, starts it on a free port with FakeLLM, checks `/health`, the embedder check and that no `.env` got in, then runs a short browser check in Chromium (the dashboard loads, the chat answers). It removes its container and image afterwards.
 - First time: `uv run --project frontend/e2e playwright install firefox chromium`.
 - Review rules that lint can't check: [CODING_STANDARDS.md](./CODING_STANDARDS.md).
 

@@ -79,6 +79,8 @@ class Settings:
     as_of: str = field(default_factory=snapshot_date)
     cors_origins: list[str] = field(default_factory=lambda: _list(DEFAULT_CORS))
     dev_panel: bool = True  # the Dev page (and later its routes) exist only when this is on
+    # The built frontend (B12): set, one port serves it and the API moves under /api. The container sets it.
+    frontend_dir: pathlib.Path | None = None
     # Alert channels (Settings page, A13). Secrets live here only: never in the state file or an API reply.
     app_url: str = "http://localhost:5173"  # alerts link back to the CVE in the app
     ntfy_url: str = "https://ntfy.sh"
@@ -116,6 +118,7 @@ class Settings:
             as_of=os.environ.get("AS_OF", "").strip() or snapshot_date(),
             cors_origins=_list(os.environ.get("CORS_ORIGINS", DEFAULT_CORS)),
             dev_panel=_flag(os.environ.get("DEV_PANEL", ""), default=True),
+            frontend_dir=_path("FRONTEND_DIR", pathlib.Path()) if _env("FRONTEND_DIR") else None,
             app_url=_env("APP_URL", cls.app_url).rstrip("/"),
             ntfy_url=_env("NTFY_URL", cls.ntfy_url).rstrip("/"),
             ntfy_topic=_env("NTFY_TOPIC"),
@@ -159,6 +162,9 @@ class Settings:
             raise ConfigError(f"FEEDS must be one of {', '.join(FEED_KINDS)}, not {self.feeds!r}.")
         if self.fake_feeds_day not in (1, 2):
             raise ConfigError(f"FAKE_FEEDS_DAY must be 1 or 2, not {self.fake_feeds_day}.")
+        if self.frontend_dir is not None and not (self.frontend_dir / "index.html").is_file():
+            raise ConfigError(f"FRONTEND_DIR is {self.frontend_dir}, but there's no index.html there. Build the "
+                              "frontend first (cd frontend && npm run build), or leave FRONTEND_DIR empty.")
         if self.embedder not in EMBEDDERS:
             raise ConfigError(f"EMBEDDER must be one of {', '.join(EMBEDDERS)}, not {self.embedder!r}.")
         if self.embedder == "openrouter" and not self.openrouter_api_key:

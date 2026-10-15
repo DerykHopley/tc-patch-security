@@ -21,6 +21,7 @@ from app.deps import Deps, build_deps
 from app.dev import dev_router
 from app.errors import InputError, LLMError
 from app.notify import NotifyError, channel_status, deliver, format_alert
+from app.one_port import one_port
 from app.refresh import CheckReply
 from app.schemas import ChatReply, ChatRequest
 from app.verdict import USAGES
@@ -244,6 +245,9 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     if deps.settings.dev_panel:
         app.include_router(dev_router(deps))
 
+    # --- One port (B12): with FRONTEND_DIR set (the container), the built frontend too, and the API under /api
+    if deps.settings.frontend_dir is not None:
+        return one_port(app, deps.settings.frontend_dir)
     return app
 
 
