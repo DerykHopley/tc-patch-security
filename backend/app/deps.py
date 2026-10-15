@@ -15,6 +15,7 @@ from app.rag.keyword import BM25Index
 from app.rag.pipeline import SearchOptions
 from app.rag.vector import ChromaIndex, IndexMismatch, build_index, open_index
 from app.state import State
+from app.web_research import WebResearch
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class Deps:
     transports: Transports = field(default_factory=Transports)  # how alerts leave the machine; tests pass fakes
     keyword: BM25Index | None = None  # the keyword retriever (A10); built from the index's chunks when not given
     http_client: object = None  # httpx.Client for model servers and model discovery; tests pass an in-memory one
+    web: WebResearch | None = None  # web research (B08); None without a Tavily key: research_web is off
 
     def __post_init__(self):
         if self.keyword is None:
@@ -83,6 +85,7 @@ def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge 
         state=state,
         index=index or load_index(settings, knowledge),
         http_client=http_client,
+        web=WebResearch(settings) if settings.tavily_api_key else None,
     )
     if llm is None:
         deps.llm = LLMRouter(settings, deps.dev, http_client)

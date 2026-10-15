@@ -14,5 +14,5 @@ def turn(req: ChatRequest, deps) -> ChatReply:
     level = req.explain_level or deps.state.settings().explain_level  # an override is for this message only
     page, dropped = page_context.validate(req.page, deps.knowledge.resolve_product)  # fixed fields only (A18)
     reply = agent.answer(message, history, deps, level=level, page=page)
-    reply.flags, reply.dropped_context = flags, dropped
+    reply.flags, reply.dropped_context = flags + reply.flags, dropped  # the message's flags, then the sources'
     return reply

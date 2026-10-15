@@ -19,6 +19,8 @@ DEFAULT_CORS = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:517
 PROVIDERS = ("fake", "openrouter", "local")
 EMBEDDERS = ("hash", "openrouter", "ollama")  # hash: the free test fake; the other two need the index built (A09)
 LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "::1"]
+# The one user while sign-in is off (spec B: per-user state comes with B09). Per-user counters key by this id.
+DEFAULT_USER = "local"
 
 
 def snapshot_date() -> str:
@@ -95,6 +97,13 @@ class Settings:
     index_path: pathlib.Path = ROOT / "data" / "index"
     search_min_score: float | None = None  # empty = the embedder's default threshold
     ollama_url: str = "http://localhost:11434"
+    # Web research (B08). Without the key the research_web tool is off and not offered to the model. The key is a
+    # secret: .env only. It goes in a header, never in a URL, so no log line can carry it.
+    tavily_api_key: str = ""
+    tavily_mcp_url: str = "https://mcp.tavily.com/mcp/"  # Tavily's hosted remote MCP server
+    tavily_api_url: str = "https://api.tavily.com"  # the plain search API, the fallback
+    web_research_daily_cap: int = 30  # searches a day, all users together: the free 1,000 credits a month
+    web_research_user_daily_cap: int = 30  # searches a day, per user
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -125,6 +134,11 @@ class Settings:
             index_path=_path("INDEX_PATH", cls.index_path),
             search_min_score=_float("SEARCH_MIN_SCORE"),
             ollama_url=_env("OLLAMA_URL", cls.ollama_url).rstrip("/"),
+            tavily_api_key=_env("TAVILY_API_KEY"),
+            tavily_mcp_url=_env("TAVILY_MCP_URL", cls.tavily_mcp_url),
+            tavily_api_url=_env("TAVILY_API_URL", cls.tavily_api_url).rstrip("/"),
+            web_research_daily_cap=_int("WEB_RESEARCH_DAILY_CAP", cls.web_research_daily_cap),
+            web_research_user_daily_cap=_int("WEB_RESEARCH_USER_DAILY_CAP", cls.web_research_user_daily_cap),
         )
 
     def check(self) -> None:

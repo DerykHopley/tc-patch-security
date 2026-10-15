@@ -34,7 +34,14 @@ export const health = () => request<Health>('/health')
 // --- Chat (A06). Shapes written by hand from backend/app/schemas.py. Severity is the dashboard's, below.
 
 export type Role = 'user' | 'assistant'
-export type DocType = 'owasp_llm' | 'owasp_web' | 'atlas_technique' | 'atlas_mitigation' | 'atlas_case' | 'cve'
+export type DocType =
+  | 'owasp_llm'
+  | 'owasp_web'
+  | 'atlas_technique'
+  | 'atlas_mitigation'
+  | 'atlas_case'
+  | 'cve'
+  | 'web' // a web result from research_web (B08): unverified
 
 export interface Turn {
   role: Role
@@ -56,6 +63,8 @@ export interface Source {
   severity: Severity | null
   cvss: number | null
   kev: boolean | null
+  site?: string | null // web only (B08): the page's site
+  flags?: string[] // web only: "injection_phrasing" when the page tries to give instructions
 }
 
 export interface QueryInfo {
@@ -92,7 +101,7 @@ export interface ChatReply {
   query: QueryInfo | null
   usage: Usage
   steps: number
-  flags: string[] // "injection_phrasing": flagged, still answered
+  flags: string[] // "injection_phrasing": flagged, still answered; "web_injection_phrasing": a web result was
   bad_citations: number[] // [n] removed from the answer: no source n
   no_citations: boolean // has sources but cites none of them
   explain_level: ExplainLevel // the level this answer was pitched at (A19)

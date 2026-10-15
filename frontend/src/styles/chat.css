@@ -809,6 +809,39 @@
   margin: 0;
 }
 
+/* research_web's card and web sources (B08, DESIGN.md §6.2). "Web result, unverified" in --text on the surface
+   with a --muted edge: set apart from knowledge sources without a warning colour. "Flagged" like "Possible match":
+   --text on --warn-soft with a --warn edge (--warn on --warn-soft is under 4.5:1 for small text). */
+.web-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+}
+
+.web-list a {
+  overflow-wrap: anywhere;
+}
+
+.web-facts .meta {
+  overflow-wrap: anywhere;
+}
+
+.chip.web-unverified {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--muted);
+  color: var(--text);
+}
+
+.chip.web-flagged {
+  background: var(--warn-soft);
+  box-shadow: inset 0 0 0 1px var(--warn);
+  color: var(--text);
+}
+
 /* Page-context values the backend dropped (A18): the words in --text, the warn colour only as the edge (--warn on
    --warn-soft is under 4.5:1 for small text). */
 .context-dropped {

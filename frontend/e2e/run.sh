@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # The browser check, end to end: start a throwaway backend (FakeLLM, hash embedder, temp state file and
 # index) and the frontend on two free ports, run the checks in Firefox and Chromium, stop both servers.
+# Web research (B08) is on, against a fake Tavily (backend/tests/fake_tavily.py) on a third free port: no network.
 # Never touches the user's app on 8000/5173. Used locally and in CI.
 #
 #   frontend/e2e/run.sh                      # both browsers
@@ -18,11 +19,11 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 # Two free ports from the OS, both held open until both are known, so they differ. Parallel runs and worktrees
 # then never collide, and the ports are never 8000/5173 (the OS hands out ports above 32767).
-read -r FREE_API FREE_UI < <(python3 -c '
+read -r FREE_API FREE_UI TAVILY_PORT < <(python3 -c '
 import socket
-a, b = socket.socket(), socket.socket()
-a.bind(("127.0.0.1", 0)); b.bind(("127.0.0.1", 0))
-print(a.getsockname()[1], b.getsockname()[1])')
+a, b, c = socket.socket(), socket.socket(), socket.socket()
+a.bind(("127.0.0.1", 0)); b.bind(("127.0.0.1", 0)); c.bind(("127.0.0.1", 0))
+print(a.getsockname()[1], b.getsockname()[1], c.getsockname()[1])')
 API_PORT="${E2E_API_PORT:-$FREE_API}"
 UI_PORT="${E2E_UI_PORT:-$FREE_UI}"
 
@@ -43,9 +44,13 @@ cleanup() {
 }
 trap cleanup EXIT
 
+(cd "$ROOT/backend" && exec uv run python tests/fake_tavily.py --port "$TAVILY_PORT") >"$LOG_DIR/tavily.log" 2>&1 &
+PIDS+=($!)
 (cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/state.json" AS_OF= \
   EMBEDDER=hash INDEX_PATH="$STATE_DIR/index" SEARCH_MIN_SCORE= \
   CORS_ORIGINS="http://localhost:$UI_PORT,http://127.0.0.1:$UI_PORT" \
+  TAVILY_API_KEY=tvly-fake-e2e TAVILY_MCP_URL="http://127.0.0.1:$TAVILY_PORT/mcp/" \
+  TAVILY_API_URL="http://127.0.0.1:$TAVILY_PORT" WEB_RESEARCH_DAILY_CAP=1000 WEB_RESEARCH_USER_DAILY_CAP=1000 \
   exec uv run uvicorn app.main:app --port "$API_PORT") >"$LOG_DIR/backend.log" 2>&1 &
 PIDS+=($!)
 (cd "$ROOT/frontend" && VITE_API_URL="http://localhost:$API_PORT" \

@@ -24,6 +24,7 @@ from test_explain_levels import settings_group, switch
 from test_fix_first import FIX_FIRST, VIEW, chip, fix_card, table_ids
 from test_fix_first import open_chat as open_chat_by_key
 from test_priority import open_settings  # noqa: F401 (fixture)
+from test_research_web import ASK as WEB_ASK, details as web_details
 from test_settings import settings_page  # noqa: F401 (fixture)
 from test_shell import CURSOR_OPACITIES, WIDTHS_DURING_COLLAPSE, open_app  # noqa: F401 (fixture)
 from test_snapshot_additions import RECENT, table
@@ -295,10 +296,22 @@ def a19_6_explain_levels(fx):
     still(page, "the saved level on Settings")
 
 
+def b08_13_research_web(fx):
+    page = fx("open_app")(reduced=True)
+    open_bubble(page)
+    answer = ask(page, WEB_ASK)
+    web_details(answer, "Tool calls")
+    expect(answer.locator(".research-card")).to_be_visible()
+    still(page, "the research_web card")
+    answer.get_by_role("tab", name="Sources", exact=False).click()
+    expect(answer.locator(".source .chip.web-unverified")).to_have_count(3)
+    still(page, "the web sources")
+
+
 SCENES = {f.__name__: f for f in (
     a02_10_shell, a04_9_dashboard, a04b_9_cves_page, a05_8_charts_and_banner, a06_8_chat, a06b_7_patch_variants,
     a07_8_chat_layout, a11_7_dev_page, a13_7_settings, a14_12_snapshot_additions, a15_9_verdict, a15b_8_watchlist,
-    a16_12_priority, a16b_13_decisions, a18_6_fix_first, a19_6_explain_levels,
+    a16_12_priority, a16b_13_decisions, a18_6_fix_first, a19_6_explain_levels, b08_13_research_web,
 )}
 
 

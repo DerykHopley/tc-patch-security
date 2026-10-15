@@ -13,6 +13,7 @@ dependencies = [
     "httpx>=0.27",
     "packaging>=24",
     "semver>=3.0",
+    "langchain-mcp-adapters>=0.3.2",
 ]
 
 [dependency-groups]
