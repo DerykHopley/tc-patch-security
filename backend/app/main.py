@@ -2,7 +2,6 @@
 
 Run: `uv run uvicorn app.main:app --port 8000` (settings from the environment, see .env.example).
 """
-import datetime as dt
 import logging
 
 from fastapi import FastAPI, Query, Request
@@ -13,20 +12,18 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
-from app import agent, dashboard, guard, page_context
+from app import agent, cve_filters, dashboard, guard, page_context
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.config import Settings
 from app.deps import Deps, build_deps
 from app.dev import dev_router
 from app.errors import InputError, LLMError
-from app.knowledge import SEVERITY_ORDER
 from app.notify import NotifyError, channel_status, deliver, format_alert, most_urgent_open
 from app.schemas import ChatReply, ChatRequest
-from app.verdict import USAGES, VERDICTS
+from app.verdict import USAGES
 
 log = logging.getLogger(__name__)
 
-CVE_STATUS_FILTERS = ("open", "fixed", "not_affected", "accepted", "all")
 Text = Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)]
 
 
@@ -124,22 +121,21 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def get_cves(product: str | None = None, severity_min: str | None = None, status: str = "open",
                  limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), kev: bool | None = None,
                  published_since: str | None = None, verdict: str | None = None):
-        pid = None
+        pid = None  # the shared rules (app.cve_filters), the same as the chat's page context
         if product:
-            pid = deps.knowledge.resolve_product(product)
+            pid = cve_filters.product(product, deps.knowledge.resolve_product)
             if not pid:
                 raise InputError(f"{product!r} isn't a product I track.")
-        severity = severity_min.upper() if severity_min else None
-        if severity and severity not in SEVERITY_ORDER:
+        severity = cve_filters.severity(severity_min) if severity_min else None
+        if severity_min and not severity:
             raise InputError("severity_min must be LOW, MEDIUM, HIGH or CRITICAL.")
-        if status not in CVE_STATUS_FILTERS:
+        if not cve_filters.status(status):
             raise InputError("status must be open, fixed, not_affected, accepted or all.")
         if published_since:
-            try:
-                published_since = dt.date.fromisoformat(published_since).isoformat()
-            except ValueError:
-                raise InputError("published_since must be a date, YYYY-MM-DD.") from None
-        if verdict and verdict not in VERDICTS:
+            published_since = cve_filters.date(published_since)
+            if not published_since:
+                raise InputError("published_since must be a date, YYYY-MM-DD.")
+        if verdict and not cve_filters.verdict(verdict):
             raise InputError("verdict must be affected, not_affected or unknown.")
         return dashboard.list_cves(deps.knowledge, deps.state.snapshot(), deps.settings.as_of, pid, severity, status, limit, offset,
                                    kev, published_since, verdict)

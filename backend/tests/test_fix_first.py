@@ -64,6 +64,25 @@ def test_a18_1_free_text_and_odd_types_never_pass(client):
     assert [d.split("=")[0] for d in body["dropped_context"]] == ["product", "severity", "since"]
 
 
+# The page context's filter → the /cves query parameter for the same rule
+QUERY = {"product": "product", "severity": "severity_min", "status": "status", "verdict": "verdict",
+         "since": "published_since"}
+
+
+@pytest.mark.parametrize("key,value", [
+    ("product", "langflow"), ("product", "LangFlow"), ("product", "Notion"),
+    ("severity", "high"), ("severity", "extreme"),
+    ("status", "all"), ("status", "accepted"), ("status", "closed"),
+    ("verdict", "affected"), ("verdict", "maybe"),
+    ("since", "2025-01-01"), ("since", "20250101"), ("since", "2025-W01-1"), ("since", "2026-02-30"),
+])
+def test_a18_1_page_context_and_the_cves_query_share_one_set_of_rules(client, key, value):
+    """Review fix 9: one validator for CVE filters, so the chat's page context and the CVEs page never drift."""
+    kept = key in ask(client, "Explain CWE-918", {key: value})["page_context"]
+    accepted = client.get(f"/cves?{QUERY[key]}={value}").status_code == 200
+    assert kept == accepted
+
+
 def test_a18_1_patch_reads_only_the_checked_fields(deps, client):
     spy = Spy()
     deps.llm = spy

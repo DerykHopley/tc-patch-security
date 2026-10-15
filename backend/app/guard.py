@@ -1,12 +1,11 @@
 """Validation and security: input limits (V1), injection flagging (V2), filter validation (S3),
 id formats (V7) and wrapping tool output as untrusted data (V3). Moved from proto (A06)."""
-import datetime as dt
 import json
 import logging
 import re
 
+from app import cve_filters
 from app.errors import InputError
-from app.knowledge import SEVERITY_ORDER
 
 log = logging.getLogger(__name__)
 
@@ -59,15 +58,9 @@ def check_message(message: str, history: list[dict]) -> tuple[str, list[str]]:
     return message, flags
 
 
-def _iso_date(value) -> str | None:
-    try:
-        return dt.date.fromisoformat(str(value)).isoformat()
-    except ValueError:
-        return None
-
-
 def validate_filters(raw: dict, resolve_product) -> tuple[dict, list[str]]:
-    """Keep valid filters, normalised; list the rest as dropped (S3). Never raises."""
+    """Keep valid filters, normalised; list the rest as dropped (S3). Never raises. Product, severity and dates
+    follow the shared CVE filter rules (app.cve_filters)."""
     kept, dropped = {}, []
     for key, value in (raw or {}).items():
         if value in (None, "", False):
@@ -75,16 +68,16 @@ def validate_filters(raw: dict, resolve_product) -> tuple[dict, list[str]]:
         v = str(value).strip()
         if key == "doc_type" and v.lower() in DOC_TYPES:
             kept[key] = v.lower()
-        elif key == "product" and resolve_product(v):
-            kept[key] = resolve_product(v)
-        elif key == "severity_min" and v.upper() in SEVERITY_ORDER:
-            kept[key] = v.upper()
+        elif key == "product" and cve_filters.product(v, resolve_product):
+            kept[key] = cve_filters.product(v, resolve_product)
+        elif key == "severity_min" and cve_filters.severity(v):
+            kept[key] = cve_filters.severity(v)
         elif key == "owasp" and v.upper() in OWASP_CODES:
             kept[key] = v.upper()
         elif key == "kev" and v.lower() in ("true", "1", "yes"):
             kept[key] = True
-        elif key in ("date_from", "date_to") and _iso_date(v):
-            kept[key] = _iso_date(v)
+        elif key in ("date_from", "date_to") and cve_filters.date(v):
+            kept[key] = cve_filters.date(v)
         else:
             dropped.append(f"{key}={value}")
     return kept, dropped

@@ -16,35 +16,21 @@ never carry free text to Patch: an instruction can't ride in on it.
 | since    | a date, YYYY-MM-DD                                            | the date             |
 | cve      | CVE-YYYY-NNNN…                                                | upper case           |
 """
-import datetime as dt
 import json
 import re
 
-from app import guard
-from app.knowledge import SEVERITY_ORDER
-from app.status import STATUSES
-from app.verdict import VERDICTS
+from app import cve_filters, guard
 
 PAGES = ("dashboard", "cves", "settings", "dev")
-STATUS_FILTERS = (*STATUSES, "all")
+STATUS_FILTERS = cve_filters.STATUS_FILTERS
 FIELDS = ("page", "product", "severity", "status", "verdict", "kev", "since", "cve")
-PRODUCT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .-]{0,39}$")
 CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d{4,7}$", re.IGNORECASE)
-DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 SHOWN = 40  # characters of a dropped value listed back
 
 
-def _date(v: str) -> str | None:
-    if not DATE_RE.match(v):
-        return None
-    try:
-        return dt.date.fromisoformat(v).isoformat()
-    except ValueError:
-        return None
-
-
 def _check(key: str, value, resolve_product) -> tuple[bool, object]:
-    """(ok, the kept value). ok with None kept: a value that means "no filter" (kev false)."""
+    """(ok, the kept value). ok with None kept: a value that means "no filter" (kev false). The CVE filters use
+    the shared rules in app.cve_filters, the same as the CVEs page's query."""
     if key == "kev":
         if value in (True, 1, "1", "true"):
             return True, True
@@ -52,21 +38,17 @@ def _check(key: str, value, resolve_product) -> tuple[bool, object]:
     if not isinstance(value, str):
         return False, None
     v = value.strip()
-    if key == "page" and v in PAGES:
-        return True, v
-    if key == "product" and PRODUCT_RE.match(v) and (pid := resolve_product(v)):
-        return True, pid
-    if key == "severity" and v.upper() in SEVERITY_ORDER:
-        return True, v.upper()
-    if key == "status" and v in STATUS_FILTERS:
-        return True, v
-    if key == "verdict" and v in VERDICTS:
-        return True, v
-    if key == "since" and (d := _date(v)):
-        return True, d
-    if key == "cve" and CVE_ID_RE.match(v):
-        return True, v.upper()
-    return False, None
+    if key == "page":
+        kept = v if v in PAGES else None
+    elif key == "cve":
+        kept = v.upper() if CVE_ID_RE.match(v) else None
+    elif key == "product":
+        kept = cve_filters.product(v, resolve_product)
+    elif key == "since":
+        kept = cve_filters.date(v)
+    else:  # severity, status, verdict
+        kept = getattr(cve_filters, key)(v)
+    return kept is not None, kept
 
 
 def _shown(key: str, value) -> str:
