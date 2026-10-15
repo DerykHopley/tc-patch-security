@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { chat, type ChatReply, type ExplainLevel, type PageContext, type Turn } from '../api.ts'
+import { announceWatchlistChanged, checkedFromChat } from '../watchlistEvents.ts'
 
 export interface Message {
   id: number // unique for the page's lifetime: a new chat never reuses one
@@ -43,6 +44,7 @@ export function useChat(pageContext: () => PageContext) {
     try {
       const reply = await chat(text, history, level, page)
       setMessages((ms) => [...ms, { id: nextId++, role: 'assistant', content: reply.answer, reply }])
+      if (checkedFromChat(reply)) announceWatchlistChanged() // the dashboard shows the new CVEs and last check
     } catch (e) {
       const error = e instanceof Error ? e.message : 'Something went wrong. Try again.'
       setMessages((ms) => [...ms, { id: nextId++, role: 'assistant', content: '', error }])

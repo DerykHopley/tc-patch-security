@@ -455,6 +455,21 @@
     "status_unchanged": true,
     "cites": true
    }
+  },
+  {
+   "id": "Q-updates",
+   "question": "Anything new since Monday?",
+   "keywords": [
+    "new",
+    "since"
+   ],
+   "tool_calls": [
+    {
+     "name": "check_updates",
+     "args": {}
+    }
+   ],
+   "answer": "{updates}\n\nNothing here changed any CVE status: those decisions stay yours."
   }
  ]
 }
