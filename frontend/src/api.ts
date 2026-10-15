@@ -484,6 +484,21 @@ export const getDevSettings = () => request<DevSettingsReply>('/dev/settings')
 export const saveDevSettings = (s: DevSettings) => request<{ settings: DevSettings }>('/dev/settings', json('PUT', s))
 export const devInfo = () => request<DevInfo>('/dev/info')
 export const devModels = (url: string) => request<{ models: string[] }>(`/dev/models?${new URLSearchParams({ url })}`)
+
+/** One OpenRouter model this key may use that takes tools (A11.10). Prices are USD per million tokens; null =
+ *  variable (unknown). `check` = its latest model-check run, if any. */
+export interface OpenRouterModel {
+  id: string
+  name: string
+  input_per_m: number | null
+  output_per_m: number | null
+  context_length: number | null
+  check: { passed: number; total: number; run: string } | null
+}
+
+/** Cheapest input first. Empty with a plain `reason` when there's no key or OpenRouter can't be asked. */
+export const devOpenRouterModels = () =>
+  request<{ models: OpenRouterModel[]; reason: string | null }>('/dev/openrouter-models')
 export const devSearch = (query: string) => request<DevSearch>('/dev/search', json('POST', { query }))
 export const devMap = () => request<EmbeddingMapData>('/dev/map')
 

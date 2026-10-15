@@ -269,6 +269,15 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - The query plan (semantic query, filters) in a soft nested card.
 - One column per search step (semantic query, each rewrite, fused, final): soft nested cards, radius 18px, column title in purple Fredoka. **Fused** has a 2px purple inner edge; **Final sources** a 2px green (`--ok`) edge with a green title.
 
+#### 5.6.1 Model card: the OpenRouter model (Dev panel, A11.10, 2026-10-15)
+
+- With OpenRouter picked, "OpenRouter model" is a **native `<select>`** (§5.3: radius 14px, surface fill, border purple on hover, the global focus ring) of the models this key may use that take tools, cheapest input first. A native select: keyboard, screen readers and phones work as the platform does, and both themes come from the tokens.
+- **Option text**: `id (default) · $1.00 / $5.00 per M tokens · 12/14 in the model check`. "(default)" only on the env default; the score only when a finished model check exists; a variable price reads "price unknown" (never $0), a zero price "free". The last option is **"Other…"**.
+- **Under the select**, in `.meta` text: the picked model in full (name, price, score or "not in a model check yet", context size), tied to the select by `aria-describedby`. On a phone (400px) the closed select cuts its option's text; this line is where you read it. Then one line on what the list is.
+- **Other…** shows a "Model id" text field (mono, as the local model's) and moves focus to it. Its value is the current id: picking Other changes nothing until you type. A saved id not in the list opens as Other with its value and a note "Not in the list for this key: OpenRouter's guardrail may refuse it."
+- **Loading**: the select is disabled, `aria-busy`, with one option "Loading the models this key may use…". **No list** (no key, OpenRouter unreachable or refusing): the plain text field as before, with a `role="note"` line giving the reason.
+- The select takes the row's width (`flex: 1 1 12rem`, `min-width: 0`): long options never widen the card. Nothing animates. *Checked* by the browser check A11.10 in both themes at 400px and 1400px, by keyboard; the option words by `npm test`.
+
 ### 5.7 Settings parts
 
 ![Settings](img/settings-light.png)
@@ -321,6 +330,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - [ ] Tiles link to the CVEs page with their filter; the count there matches the tile.
 - [ ] Dashboard product filter (A15b): toggle pills with `aria-pressed`, a tick as well as colour, in the URL only, carried by the tile links and "See all CVEs"; the watchlist is edited on Settings, in a card that shares the save bar.
 - [ ] CVEs page: full width; filters in the URL survive a reload; stacked cards when narrow; row actions always in view.
+- [ ] Dev page OpenRouter model (A11.10): a native select with price, score and "(default)" per option; the picked model in full under it; "Other…" opens a focused text field; a saved id not listed shows as Other, unchanged; a loading state; no list = the text field and the reason; never wider than its card at 400px.
 - [ ] Decision dialog (A16b): named fields, focus trapped, Esc closes, focus back on the opener, server errors inside it, fits at 400px, nothing moves with reduced motion; the justification picker has all five; accepted rows show reason, review date and control; review due shows its chip; the history opens by keyboard; "No fix yet · open N days" replaces "Overdue" (CVEs page, Top 5, Patch's card).
 
 ---

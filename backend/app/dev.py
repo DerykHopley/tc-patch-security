@@ -9,6 +9,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
+from app import openrouter_models
 from app.app_settings import DevSettings
 from app.errors import InputError
 from app.evals import model_check, report, retrieval
@@ -56,6 +57,7 @@ def _not_found(message: str) -> JSONResponse:
 
 def dev_router(deps) -> APIRouter:
     r = APIRouter(prefix="/dev")
+    openrouter_list = openrouter_models.ModelList()  # one per app: tests each get a fresh cache
 
     @r.get("/settings")
     def get_dev_settings():
@@ -101,6 +103,18 @@ def dev_router(deps) -> APIRouter:
                 client.close()
         items = data.get("data") if isinstance(data, dict) else None
         return {"models": sorted(str(m["id"]) for m in items or [] if isinstance(m, dict) and m.get("id"))}
+
+    @r.get("/openrouter-models")
+    def openrouter_model_list():
+        """The OpenRouter models this key may use that take tools, for the Dev page's dropdown."""
+        client = deps.http_client or httpx.Client()
+        try:
+            models, reason = openrouter_list.get(client, deps.settings.openrouter_api_key)
+        finally:
+            if client is not deps.http_client:
+                client.close()
+        scores = model_check.openrouter_scores(deps)  # read fresh: a run just finished shows at once
+        return {"models": [m | {"check": scores.get(m["id"])} for m in models], "reason": reason}
 
     @r.post("/search")
     def playground(body: SearchRequest):

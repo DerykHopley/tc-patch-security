@@ -7,6 +7,13 @@
   flex: 1 1 12rem;
 }
 
+/* The OpenRouter model dropdown (§5.6.1): its options are long (id, price, score), so it takes the row's width and
+   may shrink below them (min-width 0 from controls.css); the closed select cuts the text, the open list shows it all. */
+.dev-page .or-select {
+  flex: 1 1 12rem;
+  max-width: 100%;
+}
+
 /* A group of buttons (presets, examples, map groups): a fieldset for its name, without the nested-card look. */
 .dev-page .settings-card fieldset.plain {
   min-width: 0;

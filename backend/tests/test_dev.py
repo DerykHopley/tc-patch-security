@@ -27,7 +27,7 @@ def dev_body(client, **changes) -> dict:
 
 @pytest.mark.parametrize("method,path", [
     ("get", "/dev/settings"), ("put", "/dev/settings"), ("get", "/dev/info"), ("get", "/dev/models"),
-    ("post", "/dev/search"), ("get", "/dev/map"),
+    ("post", "/dev/search"), ("get", "/dev/map"), ("get", "/dev/openrouter-models"),
 ])
 def test_a11_5_dev_routes_are_404_when_the_dev_panel_is_off(settings, knowledge, index, method, path):
     off, _ = make_client(replace(settings, dev_panel=False), knowledge, index)
@@ -332,3 +332,140 @@ def test_a11_4_playground_places_the_query_and_every_rewrite(client):
     body = client.post("/dev/search", json={"query": Q5}).json()
     assert [m["query"] for m in body["map"]] == [body["query"]["semantic_query"], *body["query"]["rewrites"]]
     assert all(isinstance(m["x"], float) and isinstance(m["y"], float) for m in body["map"])
+
+
+# --- A11.10: the OpenRouter models this key may use, for the Dev page's dropdown -------------------------------------
+
+KEY = "sk-or-test-not-a-real-key"
+
+
+def or_model(id_, prompt="0.000001", completion="0.000005", tools=True, context=200000, name=None):
+    """One entry of OpenRouter's GET /models/user: prices are USD per token, as strings."""
+    return {"id": id_, "name": name or id_, "context_length": context,
+            "pricing": {"prompt": prompt, "completion": completion},
+            "supported_parameters": ["temperature", "tools"] if tools else ["temperature"]}
+
+
+def openrouter(models=None, status=200):
+    """OpenRouter's model list in memory. Returns the client and the requests it saw."""
+    def handler(request):
+        if request.url.path != "/api/v1/models/user":
+            return 404, {}
+        return (200, {"data": models or []}) if status == 200 else (status, {"error": {"message": "nope"}})
+    return fake_server(handler)
+
+
+def keyed_client(settings, knowledge, index, http):
+    return make_client(replace(settings, openrouter_api_key=KEY), knowledge, index, http)
+
+
+def test_a11_10_lists_tool_capable_models_with_prices_per_million_sorted_by_input_price(settings, knowledge, index):
+    http, seen = openrouter([
+        or_model("openai/gpt-5-mini", "0.00000025", "0.000002", name="OpenAI: GPT-5 mini", context=400000),
+        or_model("anthropic/claude-haiku-5.5", "0.000001", "0.000005", name="Anthropic: Claude Haiku 5.5"),
+        or_model("some/no-tools", "0", "0", tools=False),
+        or_model("google/gemini-flash", "0.0000001", "0.0000004", context=1048576),
+    ])
+    c, _ = keyed_client(settings, knowledge, index, http)
+    body = c.get("/dev/openrouter-models").json()
+    assert body["reason"] is None
+    assert [m["id"] for m in body["models"]] == ["google/gemini-flash", "openai/gpt-5-mini",
+                                                 "anthropic/claude-haiku-5.5"]
+    assert body["models"][1] == {"id": "openai/gpt-5-mini", "name": "OpenAI: GPT-5 mini", "input_per_m": 0.25,
+                                 "output_per_m": 2.0, "context_length": 400000, "check": None}
+    assert str(seen[0].url) == "https://openrouter.ai/api/v1/models/user"
+    assert seen[0].headers["authorization"] == f"Bearer {KEY}"  # the key goes to OpenRouter...
+    assert KEY not in c.get("/dev/openrouter-models").text  # ...and never back to the browser
+
+
+def test_a11_10_a_variable_price_is_unknown_and_sorts_last(settings, knowledge, index):
+    http, _ = openrouter([or_model("openrouter/auto", "-1", "-1"), or_model("cheap/one", "0.0000002", "0.0000008")])
+    c, _ = keyed_client(settings, knowledge, index, http)
+    models = c.get("/dev/openrouter-models").json()["models"]
+    assert [m["id"] for m in models] == ["cheap/one", "openrouter/auto"]
+    assert models[0]["input_per_m"] == 0.2 and models[0]["output_per_m"] == 0.8
+    assert models[1]["input_per_m"] is None and models[1]["output_per_m"] is None
+
+
+def test_a11_10_no_key_is_an_empty_list_with_a_plain_reason_and_no_call(settings, knowledge, index):
+    http, seen = openrouter([or_model("a/b")])
+    c, _ = make_client(settings, knowledge, index, http)
+    r = c.get("/dev/openrouter-models")
+    assert r.status_code == 200
+    assert r.json() == {"models": [], "reason": "no OpenRouter key in backend/.env"}
+    assert seen == []
+
+
+@pytest.mark.parametrize("status", [401, 500])
+def test_a11_10_an_openrouter_error_is_an_empty_list_with_a_plain_reason(settings, knowledge, index, status, caplog):
+    http, _ = openrouter(status=status)
+    c, _ = keyed_client(settings, knowledge, index, http)
+    r = c.get("/dev/openrouter-models")
+    assert r.status_code == 200 and r.json()["models"] == []
+    assert f"OpenRouter answered {status}" in r.json()["reason"]
+    assert KEY not in r.text and KEY not in caplog.text
+
+
+def test_a11_10_openrouter_unreachable_is_an_empty_list_with_a_plain_reason(settings, knowledge, index, caplog):
+    c, _ = keyed_client(settings, knowledge, index, refusing_server())
+    r = c.get("/dev/openrouter-models")
+    assert r.json()["models"] == [] and "Can't reach OpenRouter" in r.json()["reason"]
+    assert KEY not in r.text and KEY not in caplog.text
+
+
+def test_a11_10_the_list_is_cached_for_an_hour(settings, knowledge, index, monkeypatch):
+    from app import openrouter_models
+
+    http, seen = openrouter([or_model("a/b")])
+    c, _ = keyed_client(settings, knowledge, index, http)
+    first, second = c.get("/dev/openrouter-models").json(), c.get("/dev/openrouter-models").json()
+    assert first == second and len(seen) == 1  # the second ask is served from memory
+    monkeypatch.setattr(openrouter_models, "CACHE_SECONDS", 0)  # an hour later
+    c.get("/dev/openrouter-models")
+    assert len(seen) == 2
+
+
+def test_a11_10_a_failure_is_not_cached(settings, knowledge, index):
+    answers = iter([500, 200])
+
+    def handler(request):
+        status = next(answers)
+        return (status, {"data": [or_model("a/b")]}) if status == 200 else (status, {})
+    http, seen = fake_server(handler)
+    c, _ = keyed_client(settings, knowledge, index, http)
+    assert c.get("/dev/openrouter-models").json()["models"] == []
+    assert [m["id"] for m in c.get("/dev/openrouter-models").json()["models"]] == ["a/b"]  # tried again
+
+
+def saved_run(store, run_id, model, passed, questions=14, status="done", provider="openrouter"):
+    """A model-check run as model_check saves it (only the fields the dropdown reads differ)."""
+    label = f"OpenRouter · {model}" if provider == "openrouter" else f"Local · {model}"
+    store.save("models", {"id": run_id, "kind": "model", "status": status, "model": label, "provider": provider,
+                          "settings": {"provider": provider, "openrouter_model": model},
+                          "summary": {"questions": questions, "passed": passed}})
+
+
+def test_a11_10_each_model_shows_its_latest_model_check_score(settings, knowledge, index):
+    from app.evals.runs import RunStore
+
+    store = RunStore.for_settings(settings)
+    saved_run(store, "20261014-100000-000-aaaa", "anthropic/claude-haiku-5.5", 10)
+    saved_run(store, "20261015-100000-000-bbbb", "anthropic/claude-haiku-5.5", 12)  # the latest counts
+    saved_run(store, "20261015-110000-000-cccc", "anthropic/claude-haiku-5.5", 1, status="failed")  # not finished
+    saved_run(store, "20261015-120000-000-dddd", "openai/gpt-5-mini", 3, provider="local")  # a local model, same name
+    http, _ = openrouter([or_model("anthropic/claude-haiku-5.5"), or_model("openai/gpt-5-mini")])
+    c, _ = keyed_client(settings, knowledge, index, http)
+    checks = {m["id"]: m["check"] for m in c.get("/dev/openrouter-models").json()["models"]}
+    assert checks == {"anthropic/claude-haiku-5.5": {"passed": 12, "total": 14, "run": "20261015-100000-000-bbbb"},
+                      "openai/gpt-5-mini": None}
+
+
+def test_a11_10_a_new_model_check_shows_without_waiting_for_the_cache(settings, knowledge, index):
+    from app.evals.runs import RunStore
+
+    http, seen = openrouter([or_model("anthropic/claude-haiku-5.5")])
+    c, _ = keyed_client(settings, knowledge, index, http)
+    assert c.get("/dev/openrouter-models").json()["models"][0]["check"] is None
+    saved_run(RunStore.for_settings(settings), "20261015-100000-000-bbbb", "anthropic/claude-haiku-5.5", 13)
+    assert c.get("/dev/openrouter-models").json()["models"][0]["check"]["passed"] == 13
+    assert len(seen) == 1  # the list came from memory; the scores were read fresh

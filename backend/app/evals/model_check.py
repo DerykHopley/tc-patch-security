@@ -168,6 +168,19 @@ def get(deps, run_id: str) -> dict | None:
     return RunStore.for_settings(deps.settings).get(KIND, run_id)
 
 
+def openrouter_scores(deps) -> dict[str, dict]:
+    """Each OpenRouter model's latest finished run: questions passed of those asked (the Dev page's dropdown)."""
+    scores: dict[str, dict] = {}
+    for r in RunStore.for_settings(deps.settings).all(KIND):  # newest first: the first seen per model is the latest
+        if r.get("provider") != "openrouter" or r.get("status") != "done" or not r.get("summary"):
+            continue
+        model = (r.get("settings") or {}).get("openrouter_model") or str(r.get("model", "")).removeprefix(
+            "OpenRouter · ")
+        scores.setdefault(model, {"passed": r["summary"]["passed"], "total": r["summary"]["questions"],
+                                  "run": r["id"]})
+    return scores
+
+
 def listing(deps) -> list[dict]:
     """Saved runs, newest first, without the per-question rows (the dev panel's list and comparison)."""
     keep = ("id", "kind", "model", "provider", "started", "finished", "status", "total", "error", "summary",

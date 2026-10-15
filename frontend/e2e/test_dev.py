@@ -58,10 +58,12 @@ def local_models_server():
 def dev_page(browser: Browser, ui_url: str):
     contexts = []
 
-    def _open(width=DESKTOP, scheme="light", reduced=False) -> Page:
+    def _open(width=DESKTOP, scheme="light", reduced=False, setup=None) -> Page:
         ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme,
                                   reduced_motion="reduce" if reduced else "no-preference")
         contexts.append(ctx)
+        if setup:
+            setup(ctx)  # routes that must be in place before the first request
         page = ctx.new_page()
         page.goto(ui_url)
         page.get_by_role("button", name="Dev", exact=True).click()
@@ -385,3 +387,153 @@ def test_a11_9_buttons_have_accessible_names(dev_page):
         .trim()).length""")
     assert unnamed == 0
     assert page.locator(".emap-box svg").get_attribute("aria-label").startswith("Map of ")
+
+
+# --- A11.10: the OpenRouter model as a dropdown of the models this key may use ---------------------------------------
+# The throwaway backend has no key, so OpenRouter can't be picked or saved there, and the real OpenRouter must never
+# be asked. These checks route /dev/settings (a key, OpenRouter saved) and /dev/openrouter-models in the browser; the
+# backend's own tests check the route and the save's validation.
+
+DEFAULT = "anthropic/claude-haiku-5.5"
+LISTED = [
+    {"id": "google/gemini-flash", "name": "Google: Gemini Flash", "input_per_m": 0.1, "output_per_m": 0.4,
+     "context_length": 1048576, "check": None},
+    {"id": "openai/gpt-5-mini", "name": "OpenAI: GPT-5 mini", "input_per_m": 0.25, "output_per_m": 2.0,
+     "context_length": 400000, "check": {"passed": 9, "total": 14, "run": "r2"}},
+    {"id": DEFAULT, "name": "Anthropic: Claude Haiku 5.5", "input_per_m": 1.0, "output_per_m": 5.0,
+     "context_length": 200000, "check": {"passed": 12, "total": 14, "run": "r1"}},
+]
+
+
+class OpenRouterRoutes:
+    """The browser's view of a backend with a key: OpenRouter saved with `saved`, the list given, saves recorded.
+    With hold=True the list waits until release(), to see the loading state."""
+
+    def __init__(self, api_url: str, saved: str = DEFAULT, models=None, reason=None, hold=False):
+        self.api_url, self.saved, self.hold = api_url, saved, hold
+        self.list = {"models": LISTED if models is None else models, "reason": reason}
+        self.puts: list[dict] = []
+        self.held = []
+
+    def __call__(self, ctx):
+        ctx.route(f"{self.api_url}/dev/settings", self._settings)
+        ctx.route(f"{self.api_url}/dev/openrouter-models", self._models)
+
+    def _settings(self, route):
+        if route.request.method == "PUT":
+            body = route.request.post_data_json
+            self.puts.append(body)
+            route.fulfill(json={"settings": body})
+            return
+        reply = route.fetch().json()
+        reply["settings"] |= {"provider": "openrouter", "openrouter_model": self.saved}
+        route.fulfill(json=reply | {"openrouter_key": True})
+
+    def _models(self, route):
+        if self.hold:
+            self.held.append(route)
+        else:
+            route.fulfill(json=self.list)
+
+    def release(self):
+        for route in self.held:
+            route.fulfill(json=self.list)
+
+
+def saved_body(page: Page, routes: OpenRouterRoutes) -> dict:
+    save(page)
+    return routes.puts[-1]
+
+
+def test_a11_10_the_select_lists_the_models_with_prices_and_scores_and_saves_one(dev_page, api_url):
+    routes = OpenRouterRoutes(api_url, hold=True)
+    page = dev_page(setup=routes)
+    select = page.get_by_label("OpenRouter model")
+    expect(select).to_be_disabled()  # loading
+    expect(select).to_contain_text("Loading the models")
+    routes.release()
+    expect(select).to_be_enabled()
+    expect(select).to_have_value(DEFAULT)
+    texts = [t.strip() for t in select.locator("option").all_inner_texts()]
+    assert texts == [
+        "google/gemini-flash · $0.10 / $0.40 per M tokens",
+        "openai/gpt-5-mini · $0.25 / $2.00 per M tokens · 9/14 in the model check",
+        f"{DEFAULT} (default) · $1.00 / $5.00 per M tokens · 12/14 in the model check",
+        "Other…",
+    ]
+    expect(page.get_by_label("Model id")).to_have_count(0)  # the text field is only for Other
+    picked = page.locator(".or-picked")  # the picked model in full: a phone's closed select cuts the option
+    expect(picked).to_have_text("Anthropic: Claude Haiku 5.5 · $1.00 / $5.00 per M tokens · 12/14 in the model check"
+                                " · 200K context")
+    assert select.get_attribute("aria-describedby") == picked.get_attribute("id")
+    select.select_option("openai/gpt-5-mini")
+    expect(picked).to_contain_text("OpenAI: GPT-5 mini · $0.25 / $2.00 per M tokens · 9/14 in the model check")
+    assert saved_body(page, routes)["openrouter_model"] == "openai/gpt-5-mini"
+    expect(select).to_have_value("openai/gpt-5-mini")
+
+
+def test_a11_10_other_shows_the_text_field_and_saves_a_custom_id(dev_page, api_url):
+    routes = OpenRouterRoutes(api_url)
+    page = dev_page(setup=routes)
+    page.get_by_label("OpenRouter model").select_option(label="Other…")
+    field = page.get_by_label("Model id")
+    expect(field).to_be_visible()
+    expect(field).to_be_focused()  # straight to typing
+    field.fill("meta-llama/llama-4-scout:free")
+    assert saved_body(page, routes)["openrouter_model"] == "meta-llama/llama-4-scout:free"
+    expect(page.get_by_label("OpenRouter model")).to_have_value("other")  # still Other after the save
+
+
+def test_a11_10_a_saved_model_not_in_the_list_shows_as_other_with_its_value(dev_page, api_url):
+    routes = OpenRouterRoutes(api_url, saved="mistralai/mistral-small")
+    page = dev_page(setup=routes)
+    expect(page.get_by_label("OpenRouter model")).to_have_value("other")
+    expect(page.get_by_label("Model id")).to_have_value("mistralai/mistral-small")
+    expect(page.get_by_text("Not in the list for this key")).to_be_visible()
+    expect(page.locator(".save-bar")).to_contain_text("All changes saved")  # nothing changed silently
+
+
+def test_a11_10_an_empty_list_falls_back_to_the_text_field_with_the_reason(dev_page, api_url):
+    routes = OpenRouterRoutes(api_url, models=[], reason="Can't reach OpenRouter (ConnectError).")
+    page = dev_page(setup=routes)
+    field = page.get_by_label("OpenRouter model")
+    expect(field).to_have_value(DEFAULT)
+    assert field.evaluate("el => el.tagName") == "INPUT"
+    expect(page.get_by_role("note").filter(has_text="Can't reach OpenRouter")).to_be_visible()
+    field.fill("openai/gpt-5-mini")
+    assert saved_body(page, routes)["openrouter_model"] == "openai/gpt-5-mini"
+
+
+def test_a11_10_the_select_and_other_field_by_keyboard(dev_page, api_url):
+    routes = OpenRouterRoutes(api_url)
+    page = dev_page(setup=routes)
+    select = page.get_by_label("OpenRouter model")
+    expect(select).to_be_enabled()
+    page.get_by_role("radio", name="OpenRouter").focus()
+    page.keyboard.press("Tab")
+    expect(select).to_be_focused()
+    assert style(select, "outlineStyle") != "none"
+    select.select_option("other")  # a keyboard pick fires the same change
+    expect(page.get_by_label("Model id")).to_be_focused()
+
+
+@pytest.mark.parametrize("width", [PHONE, DESKTOP])
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_a11_10_the_dropdown_in_both_themes_at_both_widths(dev_page, api_url, browser_name, width, scheme):
+    routes = OpenRouterRoutes(api_url, saved="mistralai/mistral-small")
+    page = dev_page(width=width, scheme=scheme, reduced=True, setup=routes)
+    select = page.get_by_label("OpenRouter model")
+    expect(page.get_by_label("Model id")).to_be_visible()
+    assert style(select, "borderTopLeftRadius") == "14px"  # DESIGN.md §5.3: selects 14px
+    card = page.locator("section.card", has=select).bounding_box()
+    box = select.bounding_box()
+    assert card and box and box["x"] + box["width"] <= card["x"] + card["width"]  # the long options don't widen it
+    assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
+    SHOTS.mkdir(exist_ok=True)
+    shot = SHOTS / f"a11-10-{browser_name}-{width}-{scheme}-openrouter"
+    page.locator("section.card", has=select).screenshot(path=f"{shot}-other.png")
+    select.select_option(DEFAULT)  # the longest option: cut in the closed select, never wider than the card
+    expect(page.get_by_label("Model id")).to_have_count(0)
+    box = select.bounding_box()
+    assert box and box["x"] + box["width"] <= card["x"] + card["width"]
+    page.locator("section.card", has=select).screenshot(path=f"{shot}-listed.png")

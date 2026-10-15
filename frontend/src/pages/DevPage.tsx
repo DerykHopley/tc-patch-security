@@ -17,6 +17,7 @@ import { Card } from '../components/StatusCard.tsx'
 import { useDevSettings } from '../components/useDevSettings.ts'
 import { EmbeddingMap } from '../dev/EmbeddingMap.tsx'
 import { ModelCheck } from '../dev/ModelCheck.tsx'
+import { OpenRouterModelField } from '../dev/OpenRouterModelField.tsx'
 import { RetrievalCheck } from '../dev/RetrievalCheck.tsx'
 import '../styles/dev.css'
 
@@ -305,11 +306,8 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
           </fieldset>
 
           {d.provider === 'openrouter' && (
-            <div className="field-row">
-              <label htmlFor="dev-or-model">OpenRouter model</label>
-              <input id="dev-or-model" className="mono-input" value={d.openrouter_model} spellCheck={false}
-                onChange={(e) => set({ openrouter_model: e.target.value.trim() })} />
-            </div>
+            <OpenRouterModelField value={d.openrouter_model} defaultId={s.reply.defaults.openrouter_model}
+              onChange={(id) => set({ openrouter_model: id })} />
           )}
 
           {d.provider === 'local' && (
