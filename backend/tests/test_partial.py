@@ -83,7 +83,8 @@ def test_b20_4_the_dashboard_has_the_last_run_with_each_feed_for_the_partial_ban
     data = live.client.get("/dashboard").json()["data"]
     assert data["last_result"] == r
     assert client.get("/dashboard").json()["data"] == {"mode": "snapshot", "last_checked": None,
-                                                      "last_result": None}
+                                                      "last_result": None,
+                                                      "schedule": {"hours": 6, "paused": False, "next_due": None}}
 
 
 def test_b20_5_the_fake_feeds_fail_by_env_switch_or_by_the_fake_only_route(live, monkeypatch):  # noqa: F811

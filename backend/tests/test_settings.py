@@ -30,8 +30,8 @@ def no_desktop():
 def test_a13_1_defaults_when_nothing_is_saved(client):
     s = client.get("/settings").json()["settings"]["alerts"]
     assert s == {"enabled": True, "min_severity": "HIGH", "kev": True, "kev_recheck": True, "unscored": True,
-                 "now_critical": True, "digest_over": 5, "schedule_hours": 6, "quiet_start": None, "quiet_end": None,
-                 "channels": ["desktop"]}
+                 "now_critical": True, "digest_over": 5, "schedule_hours": 6, "schedule_paused": False,
+                 "quiet_start": None, "quiet_end": None, "channels": ["desktop"]}
 
 
 def test_a13_1_channels_set_up_in_the_environment_are_on_by_default(settings, knowledge):

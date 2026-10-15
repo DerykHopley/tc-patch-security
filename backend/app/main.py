@@ -23,7 +23,7 @@ from app.errors import InputError, LLMError
 from app.notify import NotifyError, channel_status, deliver, format_alert
 from app.one_port import one_port
 from app.proposals import ProposalEdit, ProposalError
-from app.refresh import CheckReply
+from app.refresh import CheckReply, schedule_due
 from app.llm.base import ToolCall
 from app.schemas import ChatReply, ChatRequest, ToolCallRecord
 from app.tools.registry import Context, run_tool
@@ -128,6 +128,15 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return {"mode": deps.settings.data_mode,
                 "last_checked": deps.refresher.last_checked() if deps.refresher else None}
 
+    def schedule_status() -> dict:
+        """B19: the schedule as the user set it: every N hours, paused or not, and when the next scheduled run is
+        due (None: paused, snapshot mode, or never checked, so the next tick runs). In the user's settings, so it
+        moves per user with B09."""
+        a = deps.state.settings().alerts
+        due = schedule_due(deps.refresher, a.schedule_hours) if deps.refresher and not a.schedule_paused else None
+        return {"hours": a.schedule_hours, "paused": a.schedule_paused,
+                "next_due": due.isoformat(timespec="seconds") if due else None}
+
     @app.get("/health")
     def health():
         return {"status": "ok", "llm": deps.llm.name, "model": deps.llm.label(), "as_of": deps.as_of,
@@ -178,7 +187,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         # The freshness panel: Live or Snapshot, last checked (B02), and the last run for its partial or failed
         # banner (B20). The next try is the run's start + 5 minutes, the one rule for every trigger.
         last = deps.refresher.last_result() if deps.refresher else None
-        return summary | {"data": {**data_status(), "last_result": last.model_dump() if last else None}}
+        return summary | {"data": {**data_status(), "last_result": last.model_dump() if last else None,
+                                    "schedule": schedule_status()}}  # B19: "Schedule paused"
 
     @app.get("/cves")
     def get_cves(request: Request, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
@@ -278,6 +288,12 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def refresh_status():
         return {**data_status(), **(deps.refresher.status() if deps.refresher else
                                     {"running": False, "next_allowed": None, "last_result": None})}
+
+    @app.get("/refresh/runs")
+    def refresh_runs():
+        """B19: the "Refresh runs" card: the schedule (paused or not, when next due) and the last 20 runs."""
+        return {**data_status(), "schedule": schedule_status(),
+                "runs": deps.refresher.history() if deps.refresher else []}
 
     if deps.live and deps.settings.feeds == "fake":
         @app.post("/refresh/reset")
