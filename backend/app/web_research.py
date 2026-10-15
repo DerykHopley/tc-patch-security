@@ -75,9 +75,7 @@ def parse_mcp_text(text: str) -> list[Hit]:
                 hits.append(current)
             if key and current is not None:
                 current[key] = value
-        elif not line.strip():
-            key = None if key != "content" else key
-        elif key and current is not None:
+        elif line.strip() and key and current is not None:
             current[key] = f"{current[key]}\n{line}"
     return [Hit(h.get("title") or h["url"], h["url"], (h.get("content") or "").strip(), None)
             for h in hits if h.get("url")]
