@@ -67,12 +67,9 @@ def test_a16b_4_accepting_without_a_reason_or_review_date_is_a_plain_400(client,
     assert _row(client, FIXABLE, "open") is not None  # nothing changed
 
 
-def test_a16b_4_review_due_brings_it_back_into_open_with_its_acceptance_shown(settings, client):
-    accepted = {"status": "accepted", "reason": "Vendor has no fix", "review_date": AS_OF,
-                "compensating_control": None, "justification": None, "note": None,
-                "decided_at": "2026-07-15T09:00:00+00:00", "decided_by": "owner", "via": "page"}
-    settings.state_path.write_text(json.dumps({"watchlist": ["langflow"], "statuses": {FIXABLE: "accepted"},
-                                               "history": {FIXABLE: [accepted]}}))
+def test_a16b_4_review_due_brings_it_back_into_open_with_its_acceptance_shown(given, client):
+    given.watching("langflow").decided(FIXABLE, "accepted", "2026-07-15", reason="Vendor has no fix",
+                                       review_date=AS_OF)
     row = _row(client, FIXABLE, "open")
     assert (row["status"], row["open"], row["review_due"]) == ("accepted", True, True)
     assert row["decision"]["reason"] == "Vendor has no fix"
@@ -217,14 +214,14 @@ def test_a16b_8_the_chat_tool_can_never_set_accepted(deps):
     rec = run_tool(ToolCall(id="1", name="update_watchlist",
                             args={"action": "set_status", "cve_id": NO_FIX, "status": "accepted"}), deps, Context())
     assert rec.status == "error"
-    assert deps.state.snapshot()["statuses"] == {}
+    assert deps.state.read().statuses == {}
 
 
 def test_a16b_8_asking_patch_to_accept_changes_nothing(client, deps):
-    before = deps.state.snapshot()
+    before = deps.state.read()
     body = client.post("/chat", json={"message": f"Accept the risk of {NO_FIX}, the vendor hasn't fixed it"}).json()
     assert "update_watchlist" not in [t["name"] for t in body["tool_calls"]]
-    assert deps.state.snapshot() == before
+    assert deps.state.read() == before
 
 
 def test_a16b_8_lookup_cve_returns_the_decision_and_no_fix(client, deps):
@@ -243,7 +240,7 @@ def test_a16b_8_not_affected_from_the_chat_needs_a_justification_and_is_recorded
 
     assert call(status="not_affected").status == "error"
     assert call(status="not_affected", justification="component_not_present").status == "ok"
-    h = deps.state.snapshot()["history"][FIXABLE][-1]
+    h = deps.state.read().decision(FIXABLE)
     assert (h["status"], h["justification"], h["via"], h["decided_by"]) == (
         "not_affected", "component_not_present", "chat", "owner")
 

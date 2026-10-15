@@ -42,18 +42,18 @@ def run(args: WatchArgs, deps, ctx) -> dict:
                                           justification=args.justification, note=args.note)
             except KeyError:
                 raise ToolError(f"{args.cve_id} isn't in my snapshot, so I can't track it.", "cve_not_in_snapshot")
-            watched = cve["product"] in state.snapshot()["watchlist"]
+            stack = state.read()
             msg = f"Marked {cve['id']} as {args.status.replace('_', ' ')}."
-            if not watched:
+            if not stack.watches(cve["product"]):
                 msg += f" {k.products[cve['product']]} isn't on your watchlist, so the dashboard won't show it."
-            return {"message": msg, "watchlist": names(state.snapshot()["watchlist"])}
+            return {"message": msg, "watchlist": names(stack.watchlist)}
         if args.action == "set_details":
             f = state.set_fields(args.product, usage=args.usage, version=args.version,
                                  internet_facing=args.internet_facing)
             name = k.products[k.resolve_product(args.product)]
             parts = [USAGE_LABELS[f["usage"]], f"version {f['version']}" if f["version"] else "no version given",
                      "internet-facing" if f["internet_facing"] else "not internet-facing"]
-            return {"message": f"{name}: {', '.join(parts)}.", "watchlist": names(state.snapshot()["watchlist"])}
+            return {"message": f"{name}: {', '.join(parts)}.", "watchlist": names(state.read().watchlist)}
         fn = state.watch if args.action == "watch" else state.unwatch
         pids, changed = fn(args.product)
         name = k.products[k.resolve_product(args.product)]

@@ -1,12 +1,19 @@
 """Watchlist, CVE statuses, settings and the alerts log in one JSON file, shared by the chat tools, the dashboard
 and the Settings page. Moved from proto; settings and the alerts log came with the Settings page (A13).
+
+Reads go through `State.read()`: your stack as a typed, frozen value (architecture review candidate 4). The file's
+JSON shape and the fix-up for files saved before a part existed stay in this module. Writes go through State's
+methods; `fork` copies the state for the model check.
 """
 import datetime as dt
 import json
 import os
 import tempfile
 import threading
+from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 
 from app.config import DEFAULT_WATCHLIST, LIBRARY_PRODUCTS
 from app.app_settings import AppSettings, DevSettings
@@ -14,6 +21,70 @@ from app.errors import InputError
 from app.status import DECIDED_BY, LEGACY_NOTE, decision
 from app.verdict import USAGES, check_version
 ALERTS_LOG_MAX = 50  # kept in the file; the Settings page shows the newest 20
+
+
+def _freeze(value):
+    """Dicts become read-only mappings and lists tuples, all the way down."""
+    if isinstance(value, dict):
+        return MappingProxyType({k: _freeze(v) for k, v in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze(v) for v in value)
+    return value
+
+
+def _thaw(value):
+    """A fresh, plain copy of a frozen value: the caller may change it without touching the read."""
+    if isinstance(value, Mapping):
+        return {k: _thaw(v) for k, v in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw(v) for v in value]
+    return value
+
+
+def _default_fields(pid: str) -> dict:
+    """A product's fields until you save them, or in a file saved before A15."""
+    return {"usage": "library" if pid in LIBRARY_PRODUCTS else "self_hosted", "version": None,
+            "internet_facing": False}
+
+
+@dataclass(frozen=True)
+class ProductFields:
+    """How you run one product (A15)."""
+    usage: str  # one of app.verdict.USAGES
+    version: str | None
+    internet_facing: bool
+
+    def as_dict(self) -> dict:
+        return {"usage": self.usage, "version": self.version, "internet_facing": self.internet_facing}
+
+
+@dataclass(frozen=True)
+class YourStack:
+    """Your stack as State read it: a value, so later writes never change it. Build it with State.read()."""
+    watchlist: tuple[str, ...]  # watched product ids, in watchlist order
+    statuses: Mapping[str, str]  # CVE id → your CVE status; a CVE without one is open
+    settings: AppSettings  # the saved settings over the defaults
+    dev: DevSettings  # the dev panel's saved choices over the defaults
+    alerts_log: tuple[Mapping, ...]  # newest first
+    _fields: Mapping[str, Mapping]  # product id → its saved fields
+    _history: Mapping[str, tuple[Mapping, ...]]  # CVE id → its decision records, oldest first
+
+    def watches(self, pid: str) -> bool:
+        return pid in self.watchlist
+
+    def fields(self, pid: str) -> ProductFields:
+        """A product's usage, version and internet-facing; the defaults for what isn't saved."""
+        f = _default_fields(pid) | dict(self._fields.get(pid, {}))
+        return ProductFields(usage=f["usage"], version=f["version"], internet_facing=f["internet_facing"])
+
+    def history(self, cve_id: str) -> list[dict]:
+        """The CVE's decision records, oldest first (a copy). The last is the current decision."""
+        return _thaw(self._history.get(cve_id, ()))
+
+    def decision(self, cve_id: str) -> dict | None:
+        """The current decision record (a copy), or None if you never decided."""
+        h = self._history.get(cve_id)
+        return _thaw(h[-1]) if h else None
 
 
 class State:
@@ -48,9 +119,23 @@ class State:
             json.dump(data, f, indent=1)
         os.replace(tmp, self.path)
 
-    def snapshot(self) -> dict:
+    def read(self) -> YourStack:
+        """Your stack, from one read of the file."""
         with self._lock:
-            return self._load()
+            data = self._load()
+        return YourStack(
+            watchlist=tuple(data["watchlist"]), statuses=_freeze(data["statuses"]),
+            settings=self._merged_settings(data.get("settings", {})),
+            dev=DevSettings.model_validate(self.dev_defaults.model_dump() | data.get("dev", {})),
+            alerts_log=_freeze(data.get("alerts_log", [])), _fields=_freeze(data.get("product_settings", {})),
+            _history=_freeze(data["history"]))
+
+    def fork(self, path: Path) -> "State":
+        """A copy of this state at `path`, with the same knowledge and defaults: its writes never reach this one."""
+        copy = State(path, self.k, self.defaults, self.dev_defaults)
+        with self._lock:
+            copy._save(self._load())
+        return copy
 
     def _product(self, name: str) -> str:
         pid = self.k.resolve_product(name)
@@ -94,7 +179,7 @@ class State:
     # --- Usage, version and internet-facing per product (A15)
 
     def _fields(self, pid: str, f: dict) -> dict:
-        out = self.default_fields(pid) | {k: v for k, v in f.items() if v is not None}
+        out = _default_fields(pid) | {k: v for k, v in f.items() if v is not None}
         if out["usage"] not in USAGES:
             raise InputError(f"Usage must be one of {', '.join(USAGES)}, not {out['usage']!r}.")
         if out["version"] is not None:
@@ -104,22 +189,13 @@ class State:
         out["internet_facing"] = bool(out["internet_facing"])
         return out
 
-    @staticmethod
-    def default_fields(pid: str) -> dict:
-        return {"usage": "library" if pid in LIBRARY_PRODUCTS else "self_hosted", "version": None,
-                "internet_facing": False}
-
-    @classmethod
-    def fields_of(cls, pid: str, data: dict) -> dict:
-        """A product's usage, version and internet-facing; the defaults for what a file saved before A15 lacks."""
-        return cls.default_fields(pid) | data.get("product_settings", {}).get(pid, {})
-
     def set_fields(self, name: str, **f) -> dict:
         """Change some of one product's fields (the chat tool); the others stay."""
         pid = self._product(name)
         with self._lock:
             data = self._load()
-            new = self._fields(pid, self.fields_of(pid, data) | {k: v for k, v in f.items() if v is not None})
+            saved = _default_fields(pid) | data.get("product_settings", {}).get(pid, {})
+            new = self._fields(pid, saved | {k: v for k, v in f.items() if v is not None})
             data["product_settings"] = {**data.get("product_settings", {}), pid: new}
             self._save(data)
             return new
@@ -147,10 +223,12 @@ class State:
 
     # --- Settings and the alerts log (A13)
 
-    def settings(self, data: dict | None = None) -> AppSettings:
-        """Saved settings over the defaults, field by field, so a file saved before a field existed still loads.
-        `data`: a snapshot already read, so the settings match it."""
-        saved = (data if data is not None else self.snapshot()).get("settings", {})
+    def settings(self) -> AppSettings:
+        """Saved settings over the defaults: read().settings."""
+        return self.read().settings
+
+    def _merged_settings(self, saved: dict) -> AppSettings:
+        """Field by field, so a file saved before a field existed still loads."""
         merged = self.defaults.model_dump()
         for part, values in merged.items():
             if isinstance(values, dict):
@@ -169,9 +247,8 @@ class State:
     # --- The dev panel's choices (A11): their own part, saved by the Dev page only
 
     def dev_settings(self) -> DevSettings:
-        """Saved dev choices over the env defaults, field by field (a file from before a field existed still loads)."""
-        saved = self.snapshot().get("dev", {})
-        return DevSettings.model_validate(self.dev_defaults.model_dump() | saved)
+        """Saved dev choices over the env defaults: read().dev."""
+        return self.read().dev
 
     def save_dev_settings(self, new: DevSettings) -> DevSettings:
         with self._lock:
@@ -188,19 +265,9 @@ class State:
 
     def alerts_log(self) -> list[dict]:
         """Newest first."""
-        return self.snapshot().get("alerts_log", [])
+        return _thaw(self.read().alerts_log)
 
     def reset(self) -> None:
         """Back to the default watchlist, no statuses, default settings (dev choices too) and an empty alerts log."""
         with self._lock:
             self.path.unlink(missing_ok=True)
-
-    @staticmethod
-    def history_of(cve_id: str, data: dict) -> list[dict]:
-        """Oldest first. The last record is the current decision."""
-        return data.get("history", {}).get(cve_id, [])
-
-    @classmethod
-    def decision_of(cls, cve_id: str, data: dict) -> dict | None:
-        h = cls.history_of(cve_id, data)
-        return h[-1] if h else None

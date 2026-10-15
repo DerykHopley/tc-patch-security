@@ -22,7 +22,6 @@ from app.evals.checks import cited, fix_first_lists, score, score_levels
 from app.evals.readability import flesch_reading_ease
 from app.evals.runs import LISTED, RunStore, new_id, now
 from app.schemas import ChatRequest
-from app.state import State
 
 KIND = "models"
 # These errors fail every question the same way: stop instead of waiting through the rest.
@@ -121,8 +120,7 @@ def _run(run: dict, qs: list[dict], deps, store: RunStore) -> None:
     tmp = tempfile.TemporaryDirectory()
     status = "done"
     try:
-        state = State(Path(tmp.name) / "state.json", deps.knowledge, deps.state.defaults, deps.state.dev_defaults)
-        state._save(deps.state.snapshot())  # a copy: the watchlist questions write here
+        state = deps.state.fork(Path(tmp.name) / "state.json")  # a copy: the watchlist questions write here
         run_deps = dataclasses.replace(deps, state=state, llm=_pinned(deps.llm))
         for q in qs:
             row = _ask(q, run_deps)

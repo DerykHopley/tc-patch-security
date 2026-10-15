@@ -214,8 +214,8 @@ def test_a13_3_the_log_shows_the_newest_20(client):
     assert [e["at"] for e in log] == sorted((e["at"] for e in log), reverse=True)
 
 
-def test_a13_3_test_alert_with_an_empty_watchlist_is_400(settings, client):
-    settings.state_path.write_text(json.dumps({"watchlist": [], "statuses": {}}))
+def test_a13_3_test_alert_with_an_empty_watchlist_is_400(given, client):
+    given.watching()
     r = client.post("/alerts/test", json={"channel": "preview"})
     assert r.status_code == 400 and "no open CVEs" in r.json()["error"]["message"]
 
@@ -243,12 +243,11 @@ def test_a13_5_reset_needs_the_word_reset(client):
     assert client.post("/state/reset", json={}).status_code == 400
 
 
-def test_a13_5_reset_restores_watchlist_statuses_settings_and_an_empty_log(settings, client):
-    settings.state_path.write_text(json.dumps({
-        "watchlist": ["vllm"], "statuses": {"CVE-2024-8309": "fixed"},
-        "settings": {"alerts": {"min_severity": "LOW"}}, "alerts_log": [{"title": "x"}]}))
+def test_a13_5_reset_restores_watchlist_statuses_settings_and_an_empty_log(given, client, deps):
+    given.watching("vllm").decided("CVE-2024-8309", "fixed").settings(alerts={"min_severity": "LOW"})
+    given.alerted({"title": "x"})
     r = client.post("/state/reset", json={"confirm": "reset"})
     assert r.status_code == 200 and r.json() == {"reset": True, "watchlist": DEFAULT_WATCHLIST}
     assert client.get("/settings").json()["settings"]["alerts"]["min_severity"] == "HIGH"
     assert client.get("/alerts").json() == {"alerts": []}
-    assert not settings.state_path.exists() or json.loads(settings.state_path.read_text())["statuses"] == {}
+    assert deps.state.read().statuses == {}
