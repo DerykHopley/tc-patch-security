@@ -1,4 +1,5 @@
-# Tests: backend tests, type check, lint, the fixed-wait check, and the browser check in Firefox and Chromium.
+# Tests: backend tests, type check, lint, the fixed-wait check, the browser check in Firefox and Chromium, and the
+# container image's smoke test (B12).
 # FakeLLM and a throwaway state file: no keys, no secrets, no network calls from the app. proto/ is frozen and not
 # checked here.
 #
@@ -9,8 +10,9 @@
 #   would repeat its push run, so its jobs are skipped. A newer push to such a pull request cancels the older run.
 # - Other branches run nothing on a push: open a pull request.
 # - When a push (or a pull request, against its base) changes only docs (docs/**, *.md at the root), the browser
-#   check is skipped. The backend tests and the type check still run: they're quick, and docs/report/ is built by
-#   backend code. Markdown elsewhere (e.g. the knowledge base in backend/) isn't docs and runs everything.
+#   check and the container smoke test are skipped. The backend tests and the type check still run: they're
+#   quick, and docs/report/ is built by backend code. Markdown elsewhere (e.g. the knowledge base in backend/)
+#   isn't docs and runs everything.
 name: CI
 
 on:
@@ -119,3 +121,18 @@ jobs:
         with:
           name: server-logs
           path: ${{ runner.temp }}/*.log
+
+  container:
+    name: Container image (build and smoke test)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+      - run: uv sync --locked
+        working-directory: backend
+      - run: uv run --locked --project frontend/e2e playwright install --with-deps chromium
+      # Builds the hash index and the image, starts it with FakeLLM on a free port, checks /health, the embedder
+      # check and that no .env got in, then a short browser check in Chromium (test_container.py)
+      - run: frontend/e2e/container.sh

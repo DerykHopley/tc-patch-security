@@ -33,6 +33,7 @@ All checked 2026-10-15 on `spec-a` (28cc2e9). No key, no network.
 | Fixed waits | `python3 frontend/e2e/check_waits.py` | clean |
 | Browser check | `frontend/e2e/run.sh` (Firefox and Chromium) | 356 checks per browser; all passed in both, 2 skipped |
 | Slow mode | `E2E_LATENCY_MS=300 frontend/e2e/run.sh` | finds timing races before CI does |
+| Container image (B12) | `frontend/e2e/container.sh` (needs Docker) | image builds; /health, embedder check, no `.env`, 3 browser checks in Chromium |
 | Report builds | `cd backend && uv run python -m app.evals fake-report --out /tmp/r.html` | FakeLLM and fake embedders; CI uploads it |
 
 - CI ([.github/workflows/ci.yml](./.github/workflows/ci.yml)) runs all of these once per push to `main` or `spec-*`, and on pull requests from other branches. A docs-only push skips the browser check.
