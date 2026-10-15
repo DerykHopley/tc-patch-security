@@ -243,6 +243,16 @@ def test_b09_9_the_owner_comes_from_the_environment(tmp_path, index_dir, index):
     assert len(app.live.channels.ntfy) == len(alerts["alice"])
 
 
+def test_b09_9_only_the_owner_can_send_a_test_alert_on_a_channel(users):
+    alice = users("alice")
+    r = alice.post("/alerts/test", json={"channel": "desktop"})
+    assert r.status_code == 400 and r.json()["error"]["code"] == "not_owner"
+    assert "owner" in r.json()["error"]["message"]
+    assert alice.post("/alerts/test", json={"channel": "preview"}).status_code == 200  # recorded only: allowed
+    assert [e["kind"] for e in alice.get("/alerts").json()["alerts"]] == ["test"]
+    assert users.client.get("/alerts").json()["alerts"] == []
+
+
 def test_b09_9_quiet_hours_hold_only_what_would_be_sent(tmp_path, index_dir, index):
     app = LiveUsers(tmp_path, index_dir)
     bob = app("bob")

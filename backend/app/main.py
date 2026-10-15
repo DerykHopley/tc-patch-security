@@ -249,7 +249,11 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     @app.post("/alerts/test")
     def test_alert(body: TestAlertRequest, d: You):
-        """A real alert from the most urgent open CVE on the watchlist, on one channel. "preview" only records it."""
+        """A real alert from the most urgent open CVE on the watchlist, on one channel. "preview" only records it.
+        The channels are the owner's (B09): another user may only preview."""
+        if body.channel != "preview" and d.user_id != deps.settings.owner:
+            raise InputError("Alerts go to the owner's channels only, so you can't send a test alert. Use Preview to "
+                             "see the message.", "not_owner")
         row = WatchedCves.of(d).most_urgent()  # the top of the priority order, with its due date
         if row is None:
             raise InputError("There are no open CVEs on your watchlist to build a test alert from.")
