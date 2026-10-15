@@ -106,6 +106,10 @@ _Avoid_: unfixable, unpatched
 Your mark on a watched product that people outside can reach. Raises priority.
 _Avoid_: exposed, public
 
+**Assessment**:
+Everything Patch knows about one CVE for your stack: the verdict, your decision record, the priority and the due date. A CVE whose product isn't on your watchlist still gets one: not watched, no status, no priority.
+_Avoid_: evaluation, report, row (that's the CVEs page's view of it)
+
 ### Safety
 
 **Untrusted text**:

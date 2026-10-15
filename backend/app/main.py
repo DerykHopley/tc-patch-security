@@ -18,9 +18,10 @@ from app.config import Settings
 from app.deps import Deps, build_deps
 from app.dev import dev_router
 from app.errors import InputError, LLMError
-from app.notify import NotifyError, channel_status, deliver, format_alert, most_urgent_open
+from app.notify import NotifyError, channel_status, deliver, format_alert
 from app.schemas import ChatReply, ChatRequest
 from app.verdict import USAGES
+from app.watched import WatchedCves
 
 log = logging.getLogger(__name__)
 
@@ -116,9 +117,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.get("/dashboard")
     def get_dashboard(product: str | None = None):
         """`product`: the dashboard's filter (A15b), `a,b`. Unknown or unwatched products are ignored."""
-        data = deps.state.snapshot()
-        return dashboard.summary(deps.knowledge, data, deps.settings.as_of,
-                                 dashboard.applied_filter(deps.knowledge, data, product))
+        watched = WatchedCves.of(deps)
+        return dashboard.summary(deps.knowledge, watched, dashboard.applied_filter(deps.knowledge, watched, product))
 
     @app.get("/cves")
     def get_cves(product: str | None = None, severity_min: str | None = None, status: str = "open",
@@ -142,8 +142,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
                 raise InputError("published_since must be a date, YYYY-MM-DD.")
         if verdict and not cve_filters.verdict(verdict):
             raise InputError("verdict must be affected, not_affected or unknown.")
-        return dashboard.list_cves(deps.knowledge, deps.state.snapshot(), deps.settings.as_of, pid, severity, status, limit, offset,
-                                   kev, published_since, verdict)
+        rows = WatchedCves.of(deps).rows(pid, severity, status, kev, published_since, verdict)
+        return {"total": len(rows), "rows": rows[offset:offset + limit]}
 
     @app.patch("/cves/{cve_id}")
     def patch_cve(cve_id: str, body: StatusUpdate):
@@ -195,7 +195,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.post("/alerts/test")
     def test_alert(body: TestAlertRequest):
         """A real alert from the most urgent open CVE on the watchlist, on one channel. "preview" only records it."""
-        row = most_urgent_open(deps.knowledge, deps.state.snapshot(), deps.settings.as_of)
+        row = WatchedCves.of(deps).most_urgent()  # the top of the priority order, with its due date
         if row is None:
             raise InputError("There are no open CVEs on your watchlist to build a test alert from.")
         cve = deps.knowledge.cves.get(row["id"])

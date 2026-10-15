@@ -70,14 +70,6 @@ def format_alert(cve: dict, reason: str, knowledge, app_url: str = "", due: dict
             "tags": [reason, cve["product"]], "click": f"{app_url}/#cve={cve['id']}"}
 
 
-def most_urgent_open(knowledge, data: dict, as_of: str) -> dict | None:
-    """The open CVE on the watchlist a test alert is built from: the top of the priority order (A16), the CVEs
-    page's first row (with its due date)."""
-    from app.dashboard import watched_rows
-
-    return next((r for r in watched_rows(knowledge, data, as_of) if r["open"]), None)
-
-
 class PreviewNotifier:
     """Sends nothing: the Settings page's preview, and what tests can look at."""
     name = "preview"

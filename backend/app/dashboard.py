@@ -1,113 +1,11 @@
-"""Numbers for the dashboard tiles and charts, and the CVE table. Moved from proto (its D1, D2)."""
+"""Numbers for the dashboard tiles and charts. Moved from proto (its D1). The rows come from app.watched."""
 import datetime as dt
 from collections import Counter
 
 from app import cve_filters
-from app.app_settings import PolicySettings, PrioritySettings
-from app.knowledge import SEVERITY_ORDER
-from app.priority import CveFacts, priority, sort_key
-from app.status import is_open, review_due
-from app.verdict import no_fix, verdict
+from app.watched import WatchedCves
 
 SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
-
-
-def affected(k, cve: dict, data: dict) -> dict:
-    """The verdict for one CVE from the product's saved usage and version (A15). Advice only: never the status."""
-    from app.state import State
-
-    f = State.fields_of(cve["product"], data)
-    coverage = k.osv["products"].get(cve["product"], {}).get("coverage", "none")
-    entries = [e for e in k.osv["cves"].get(cve["id"], []) if e["product"] == cve["product"]]
-    v = verdict(coverage, entries, f["usage"], f["version"])
-    return {"verdict": v.verdict, "verdict_reason": v.reason, "fixed_version": v.fixed_version,
-            "who_acts": v.who_acts, "usage": f["usage"], "version": f["version"],
-            "internet_facing": f["internet_facing"], "no_fix": no_fix(coverage, entries)}
-
-
-def decided(cve: dict, status: str, data: dict, as_of: str) -> dict:
-    """Your decision on one CVE (A16b): the current record, the history, and whether it's open or its review due."""
-    from app.state import State
-
-    d = State.decision_of(cve["id"], data)
-    review_date = d["review_date"] if d and status == "accepted" else None
-    return {"open": is_open(status, review_date, as_of), "review_due": review_due(status, review_date, as_of),
-            "review_date": review_date, "decision": d, "history": State.history_of(cve["id"], data),
-            "open_days": (dt.date.fromisoformat(as_of) - dt.date.fromisoformat(cve["published"])).days}
-
-
-def prioritised(k, cve: dict, status: str, v: dict, data: dict, as_of: str, review_date: str | None = None) -> dict:
-    """The priority rules' output for one watched CVE (A16), from the saved policy and threshold."""
-    saved = data.get("settings", {})
-    kev, epss = k.cves.kev.get(cve["id"]), k.epss_of(cve["id"])
-    p = priority(CveFacts(severity=cve["severity"], kev=bool(kev), epss_percentile=epss["percentile"] if epss else None,
-                          verdict=v["verdict"], internet_facing=v["internet_facing"], status=status,
-                          published=cve["published"], kev_added=kev["dateAdded"] if kev else None,
-                          kev_deadline=kev["dueDate"] if kev else None, review_date=review_date,
-                          no_fix=v["no_fix"]),
-                 PolicySettings.model_validate(saved.get("policy", {})), as_of,
-                 PrioritySettings.model_validate(saved.get("priority", {})).epss_percentile)
-    return {"priority": p.level, "priority_reasons": list(p.reasons), "priority_rule": p.rule,
-            "alert_priority": p.alert_priority, "due_date": p.due_date, "due_from": p.due_from, "overdue": p.overdue}
-
-
-def _row(cve: dict, status: str, k, data: dict, as_of: str) -> dict:
-    kev = k.cves.kev.get(cve["id"])
-    cat = k.category(cve["owasp"])
-    v = affected(k, cve, data)
-    d = decided(cve, status, data, as_of)
-    return {
-        "id": cve["id"], "product": cve["product"], "product_name": k.products[cve["product"]],
-        "severity": cve["severity"], "cvss": cve["cvss"], "published": cve["published"],
-        "owasp": cve["owasp"], "owasp_title": cat["title"] if cat else None,
-        "kev": bool(kev), "kev_deadline": kev["dueDate"] if kev else None,  # CISA's, a fact; not your due date
-        "status": status, "summary": cve["description"][:220], "url": cve["url"],
-        "epss": k.epss_of(cve["id"]), "possible_match": k.possible_match(cve["id"]),
-        **v, **d, **prioritised(k, cve, status, v, data, as_of, d["review_date"]),
-    }
-
-
-def _sort_key(r: dict):
-    # By priority (A16): most urgent first, then the earliest due date, then the highest CVSS, then newest
-    return (*sort_key(r["priority"], r["due_date"]), -(r["cvss"] or 0), _neg_date(r["published"]))
-
-
-def _neg_date(iso: str) -> int:
-    return -dt.date.fromisoformat(iso).toordinal()
-
-
-def watched_rows(k, data: dict, as_of: str, keep=lambda cve: True) -> list[dict]:
-    """Every CVE of a watched product, sorted by priority. `keep`: a cheap test on the snapshot's CVE record, run
-    before the row (verdict, decision, priority) is built."""
-    from app.state import State
-
-    watch = set(data["watchlist"])
-    rows = [_row(c, State.status_of(c, data), k, data, as_of) for c in k.cves.all()
-            if c["product"] in watch and keep(c)]
-    return sorted(rows, key=_sort_key)
-
-
-def list_cves(k, data: dict, as_of: str, product=None, severity_min=None, status="open", limit=50, offset=0,
-              kev=None, published_since=None, verdict=None) -> dict:
-    """`product`: one id or several, comma-separated (`langflow,ollama`), as app.cve_filters.products gives them."""
-    products = set(product.split(",")) if product else None
-
-    def keep(c: dict) -> bool:  # the filters that need only the snapshot: applied before the rows are built
-        return ((kev is None or bool(k.cves.kev.get(c["id"])) == kev)
-                # inclusive, YYYY-MM-DD: the "new in 30 days" tile links here with kpis.new_since
-                and (not published_since or c["published"] >= published_since)
-                and (not products or c["product"] in products)
-                and (not severity_min
-                     or SEVERITY_ORDER.get(c["severity"] or "", 0) >= SEVERITY_ORDER[severity_min]))
-
-    rows = watched_rows(k, data, as_of, keep)
-    if status == "open":  # open, or accepted with its review due (A16b)
-        rows = [r for r in rows if r["open"]]
-    elif status != "all":
-        rows = [r for r in rows if r["status"] == status]
-    if verdict:
-        rows = [r for r in rows if r["verdict"] == verdict]
-    return {"total": len(rows), "rows": rows[offset:offset + limit]}
 
 
 def _months(start: str, end: str) -> list[str]:
@@ -119,16 +17,17 @@ def _months(start: str, end: str) -> list[str]:
     return out
 
 
-def applied_filter(k, data: dict, value: str | None) -> list[str]:
+def applied_filter(k, watched: WatchedCves, value: str | None) -> list[str]:
     """The dashboard's product filter (A15b): `a,b` from the URL, as watched product ids in watchlist order.
     Unknown or unwatched products are ignored, so a stale link still opens; none left means every watched product."""
     wanted = {cve_filters.product(v, k.resolve_product) for v in (value or "").split(",") if v.strip()}
-    return [p for p in data["watchlist"] if p in wanted]
+    return [p for p in watched.watchlist if p in wanted]
 
 
-def summary(k, data: dict, as_of: str, products: list[str] | None = None) -> dict:
+def summary(k, watched: WatchedCves, products: list[str] | None = None) -> dict:
     """Tiles, charts and side panels. `products`: the dashboard's filter (applied_filter); empty = every watched."""
-    every = watched_rows(k, data, as_of)
+    as_of, watchlist = watched.as_of, watched.watchlist
+    every = watched.rows(status="all")
     rows = [r for r in every if r["product"] in products] if products else every
     open_rows = [r for r in rows if r["open"]]
     since = (dt.date.fromisoformat(as_of) - dt.timedelta(days=30)).isoformat()
@@ -136,7 +35,7 @@ def summary(k, data: dict, as_of: str, products: list[str] | None = None) -> dic
     kev_open = sorted((r for r in open_rows if r["kev"]), key=lambda r: r["due_date"])  # your due date (A16)
 
     by_product = []
-    for pid in products or data["watchlist"]:
+    for pid in products or watchlist:
         counts = Counter(r["severity"] or "NONE" for r in open_rows if r["product"] == pid)
         by_product.append({"product": pid, "name": k.products[pid], "total": sum(counts.values()),
                            **{s: counts.get(s, 0) for s in SEVERITIES}})
@@ -153,13 +52,13 @@ def summary(k, data: dict, as_of: str, products: list[str] | None = None) -> dic
 
     return {
         "as_of": as_of,
-        "watchlist": data["watchlist"],
+        "watchlist": watchlist,
         "filter": products or [],
         # One per watched product, whatever the filter: the filter's chips show which have open KEV CVEs
         "watched": [{"product": p, "name": k.products[p],
                      "open": sum(r["open"] and r["product"] == p for r in every),
                      "kev": sum(r["open"] and r["kev"] and r["product"] == p for r in every)}
-                    for p in data["watchlist"]],
+                    for p in watchlist],
         "products": [{"id": p, "name": n} for p, n in k.products.items()],
         "kpis": {
             "open": len(open_rows),
