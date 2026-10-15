@@ -145,14 +145,14 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def watchlist_body():
         """The watchlist, and every product with its fields (watched first, in watchlist order), so the editor
         can show a product's fields as soon as it's ticked."""
-        data, k = deps.state.snapshot(), deps.knowledge
+        stack, k = deps.state.read(), deps.knowledge
         products = []
-        for pid in data["watchlist"] + [p for p in k.products if p not in data["watchlist"]]:
+        for pid in [*stack.watchlist, *(p for p in k.products if not stack.watches(p))]:
             osv = k.osv["products"].get(pid, {"coverage": "none", "packages": []})
-            products.append({"product": pid, "name": k.products[pid], "watched": pid in data["watchlist"],
-                             **deps.state.fields_of(pid, data), "coverage": osv["coverage"],
+            products.append({"product": pid, "name": k.products[pid], "watched": stack.watches(pid),
+                             **stack.fields(pid).as_dict(), "coverage": osv["coverage"],
                              "ecosystem": osv["packages"][0]["ecosystem"] if osv["packages"] else None})
-        return {"watchlist": data["watchlist"], "products": products}
+        return {"watchlist": list(stack.watchlist), "products": products}
 
     @app.get("/watchlist")
     def get_watchlist():
@@ -197,7 +197,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.post("/state/reset")
     def reset_state(body: ResetRequest):
         deps.state.reset()
-        return {"reset": True, "watchlist": deps.state.snapshot()["watchlist"]}
+        return {"reset": True, "watchlist": list(deps.state.read().watchlist)}
 
     # --- Dev panel (A11): only when DEV_PANEL is on, because it shows internals. Off, every /dev route is a 404.
     if deps.settings.dev_panel:

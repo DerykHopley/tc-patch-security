@@ -188,16 +188,11 @@ def test_a18_3_only_open_cves_whatever_the_status_filter(client, deps):
     assert "status" not in res["filters"] and "only open" in res["ignored"][0]
 
 
-def test_a18_3_accepted_is_out_and_review_due_is_back(settings, client, deps):
-    import json
-
-    accepted = {"status": "accepted", "reason": "Behind the VPN", "review_date": deps.settings.as_of,
-                "compensating_control": None, "justification": None, "note": None,
-                "decided_at": "2026-07-01T09:00:00+00:00", "decided_by": "owner", "via": "page"}
+def test_a18_3_accepted_is_out_and_review_due_is_back(given, client, deps):
     due, later = table(client, "&product=langflow")[:2]
-    settings.state_path.write_text(json.dumps({
-        "watchlist": ["langflow"], "statuses": {due: "accepted", later: "accepted"},
-        "history": {due: [accepted], later: [accepted | {"review_date": "2099-01-01"}]}}))
+    given.watching("langflow")
+    given.decided(due, "accepted", "2026-07-01", reason="Behind the VPN", review_date=deps.settings.as_of)
+    given.decided(later, "accepted", "2026-07-01", reason="Behind the VPN", review_date="2099-01-01")
     res = call(deps, limit=10)[0].result
     assert later not in ids(res)  # accepted, review not due yet: not open, not in the order
     row = next(c for c in res["cves"] if c["id"] == due)
@@ -218,12 +213,12 @@ def test_a18_3_no_fix_cves_show_as_such(client, deps):
 
 
 def test_a18_3_errors_and_read_only(client, deps):
-    before = deps.state.snapshot()
+    before = deps.state.read()
     assert call(deps, product="Notion")[0].error["code"] == "bad_value"
     assert call(deps, product="vLLM")[0].error["code"] == "not_watched"
     assert call(deps, limit=0)[0].error["code"] == "bad_arguments"
     assert call(deps, limit=11)[0].error["code"] == "bad_arguments"
-    assert deps.state.snapshot() == before
+    assert deps.state.read() == before
 
 
 def test_a18_3_nothing_open_in_the_view_says_so(deps):
@@ -251,9 +246,9 @@ def test_a18_3_asking_patch_from_the_cves_page_gives_the_rules_order_for_that_vi
 
 
 def test_a18_3_patch_never_changes_a_status_when_asked_what_to_fix_first(client, deps):
-    before = deps.state.snapshot()
+    before = deps.state.read()
     ask(client, FIX_FIRST, {"page": "dashboard"})
-    assert deps.state.snapshot() == before
+    assert deps.state.read() == before
 
 
 # --- A18.4: the system prompt: explain the given order, never change it -----------------------------------------

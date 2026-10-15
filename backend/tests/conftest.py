@@ -44,6 +44,44 @@ def deps(settings, knowledge, index):
     return build_deps(settings, knowledge=knowledge, index=index)
 
 
+class Given:
+    """Seeds state through State's own methods, so a test never writes the state file's JSON by hand. Each step
+    returns the builder: `given.watching("langflow").decided(cve, "fixed")`. Hand-written JSON stays only in the
+    tests of old state files loading."""
+
+    def __init__(self, state):
+        self.state = state
+
+    def watching(self, *products: str, **fields: dict) -> "Given":
+        """Exactly these products; `fields` by product: its usage, version, internet_facing."""
+        self.state.set_watchlist(list(products), fields)
+        return self
+
+    def decided(self, cve_id: str, status: str, as_of: str | None = None, **record) -> "Given":
+        """Your decision, as the CVEs page would save it on `as_of` (an earlier date makes a review date due)."""
+        self.state.set_status(cve_id, status, as_of, **record)
+        return self
+
+    def settings(self, **parts: dict) -> "Given":
+        """Change some settings: settings(alerts={"min_severity": "LOW"}). The rest keep what's saved."""
+        from app.app_settings import AppSettings
+
+        merged = self.state.settings().model_dump()
+        for part, values in parts.items():
+            merged[part] = merged[part] | values if isinstance(values, dict) else values
+        self.state.save_settings(AppSettings.model_validate(merged))
+        return self
+
+    def alerted(self, entry: dict) -> "Given":
+        self.state.log_alert(entry)
+        return self
+
+
+@pytest.fixture
+def given(deps):
+    return Given(deps.state)
+
+
 @pytest.fixture
 def client(deps):
     from fastapi.testclient import TestClient
