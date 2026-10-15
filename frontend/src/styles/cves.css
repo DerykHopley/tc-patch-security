@@ -507,3 +507,13 @@ table.cves tr.selected > td:first-child {
   box-shadow: inset 0 0 0 1px var(--accent);
   white-space: nowrap;
 }
+
+/* "New" (B05): new since the last check. --text on --accent-soft with an --ok edge (the §5.7 edge rule): the word
+   says it, so colour is never the only cue. */
+.chip.new-chip {
+  margin-left: 0.35rem;
+  color: var(--text);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--ok);
+  white-space: nowrap;
+}

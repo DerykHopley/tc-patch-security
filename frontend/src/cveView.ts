@@ -3,8 +3,8 @@ import { SEVERITIES, sevLabel } from './severity.ts'
 import { VERDICT_LABEL, VERDICTS } from './verdict.ts'
 
 // The CVE view: what the CVEs page shows, its filters. One set of names everywhere: the page's URL
-// (`/cves?product=langflow&severity=CRITICAL&status=all&verdict=affected&kev=1&since=2026-09-14`), the /cves query
-// and the page context Patch is told (A18) all say product, severity, status, verdict, kev, since, the same names as
+// (`/cves?product=langflow&severity=CRITICAL&status=all&verdict=affected&kev=1&since=2026-09-14&new=1`), the /cves
+// query and the page context Patch is told (A18) all say product, severity, status, verdict, kev, since, new, the same names as
 // the backend's CveView (app/cve_filters.py). Plain TypeScript, so it runs under node --test (cveView.test.ts).
 
 export type StatusFilter = CveStatus | 'all'
@@ -16,6 +16,7 @@ export interface CveView {
   verdict?: Verdict // A15
   kev?: true // only CVEs in CISA KEV (the KEV tile's link)
   since?: string // YYYY-MM-DD, published on or after (the "new in 30 days" tile's link)
+  new?: true // only CVEs new since the last check (B05)
 }
 
 /** The defaults: every watched product, any severity, open. They need no parameters. */
@@ -58,6 +59,7 @@ export function viewFromSearch(search: string): CveView {
     ...(VERDICTS.includes(verdict) && { verdict }),
     ...(p.get('kev') === '1' && { kev: true as const }),
     ...(DATE.test(since) && { since }),
+    ...(p.get('new') === '1' && { new: true as const }),
   }
 }
 
@@ -69,6 +71,7 @@ function params(v: CveView): URLSearchParams {
   if (v.verdict) p.set('verdict', v.verdict)
   if (v.kev) p.set('kev', '1')
   if (v.since) p.set('since', v.since)
+  if (v.new) p.set('new', '1')
   return p
 }
 
@@ -98,6 +101,7 @@ export function viewToContext(v: CveView): PageContext {
     ...(v.verdict && { verdict: v.verdict }),
     ...(v.kev && { kev: true }),
     ...(v.since && { since: v.since }),
+    ...(v.new && { new: true }),
   }
 }
 
@@ -110,6 +114,7 @@ export function contextWords(ctx: PageContext, productName?: string): string[] {
     ctx.verdict && VERDICT_LABEL[ctx.verdict],
     ctx.kev && 'In KEV',
     ctx.since && `Since ${ctx.since}`,
+    ctx.new && 'New since last check',
     ctx.cve,
   ].filter((w): w is string => !!w)
 }

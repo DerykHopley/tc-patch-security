@@ -70,18 +70,20 @@ class WatchedCves:
         return self._assess(cve)
 
     def rows(self, product: str | None = None, severity: str | None = None, status: str = "open",
-             kev: bool | None = None, since: str | None = None, verdict: str | None = None) -> list[dict]:
+             kev: bool | None = None, since: str | None = None, verdict: str | None = None,
+             new: bool | None = None) -> list[dict]:
         """The CVEs page's rows for a view, most urgent first. Only watched products have rows. The filters are the
         CVE view's (app.cve_filters.CveView, checked there; pass `**view.filters()`): `product` one id or several,
         comma-separated (`langflow,ollama`, A15b); `severity` LOW..CRITICAL, this or worse; `status` open (open, or
         accepted with its review due: A16b), all, or one CVE status; `kev`; `since` YYYY-MM-DD, inclusive;
-        `verdict`."""
-        k, watch = self.k, set(self._stack.watchlist)
+        `verdict`; `new`, new since your previous check (B05)."""
+        k, watch, fresh = self.k, set(self._stack.watchlist), self._stack.new_since_check
         products = set(product.split(",")) if product else None
 
         def keep(c: dict) -> bool:  # the filters that need only the snapshot: applied before the assessment
             return (c["product"] in watch
                     and (kev is None or bool(k.cves.kev.get(c["id"])) == kev)
+                    and (new is None or (c["id"] in fresh) == new)
                     # inclusive: the dashboard's "new in 30 days" tile links here with kpis.new_since
                     and (not since or c["published"] >= since)
                     and (not products or c["product"] in products)
@@ -109,6 +111,7 @@ class WatchedCves:
             "id": cve["id"], "product": cve["product"], "product_name": k.products[cve["product"]],
             "severity": cve["severity"], "cvss": cve["cvss"], "published": cve["published"],
             "owasp": cve["owasp"], "owasp_title": cat["title"] if cat else None,
+            "new": cve["id"] in self._stack.new_since_check,  # B05: new since your previous check
             "kev": bool(kev), "kev_deadline": kev["dueDate"] if kev else None,  # CISA's, a fact; not your due date
             "status": a.status, "summary": cve["description"][:220], "url": cve["url"],
             "epss": k.epss_of(cve["id"]), "possible_match": k.possible_match(cve["id"]),

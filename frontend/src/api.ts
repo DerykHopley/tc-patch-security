@@ -131,6 +131,7 @@ export interface PageContext {
   verdict?: Verdict
   kev?: boolean
   since?: string // YYYY-MM-DD
+  new?: boolean // new since the last check (B05)
   cve?: string // the selected CVE
 }
 
@@ -278,6 +279,7 @@ export interface CveRow {
   owasp_title: string | null
   kev: boolean
   kev_deadline: string | null // CISA's remediation date: a fact, not your due date
+  new: boolean // new since the user's previous check (B05): the "New" chip
   status: CveStatus
   summary: string
   url: string
