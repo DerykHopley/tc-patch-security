@@ -40,6 +40,7 @@ class Decision(ToolResult):
     decided_at: str | None  # None: recorded before decision records
     decided_by: str | None
     via: str | None
+    proposal: str | None = None  # the proposal you approved, for a change Patch proposed (B21)
 
 
 class Priority(ToolResult):

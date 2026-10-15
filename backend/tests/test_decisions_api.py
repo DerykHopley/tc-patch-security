@@ -238,8 +238,12 @@ def test_a16b_8_not_affected_from_the_chat_needs_a_justification_and_is_recorded
         return run_tool(ToolCall(id="1", name="update_watchlist", args={"action": "set_status", "cve_id": FIXABLE,
                                                                        **args}), deps, Context())
 
+    from app import proposals
+
     assert call(status="not_affected").status == "error"
-    assert call(status="not_affected", justification="component_not_present").status == "ok"
+    rec = call(status="not_affected", justification="component_not_present")
+    assert rec.status == "ok"
+    proposals.approve(deps, rec.result["proposal_id"])  # you approve Patch's proposal (B21)
     h = deps.state.read().decision(FIXABLE)
     assert (h["status"], h["justification"], h["via"], h["decided_by"]) == (
         "not_affected", "component_not_present", "chat", "owner")

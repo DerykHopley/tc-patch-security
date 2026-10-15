@@ -1,5 +1,7 @@
 """Builds the app's parts once. Tests pass their own knowledge, index and settings."""
+import datetime as dt
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from app.app_settings import DevSettings, default_dev_settings, default_settings
@@ -29,6 +31,7 @@ class Deps:
     transports: Transports = field(default_factory=Transports)  # how alerts leave the machine; tests pass fakes
     keyword: BM25Index | None = None  # the keyword retriever (A10); built from the index's chunks when not given
     http_client: object = None  # httpx.Client for model servers and model discovery; tests pass an in-memory one
+    clock: Callable[[], dt.datetime] = lambda: dt.datetime.now(dt.UTC)  # the time; tests pass one they move
 
     def __post_init__(self):
         if self.keyword is None:

@@ -21,6 +21,7 @@ from app.errors import InputError
 from app.status import DECIDED_BY, LEGACY_NOTE, decision
 from app.verdict import USAGES, check_version
 ALERTS_LOG_MAX = 50  # kept in the file; the Settings page shows the newest 20
+PROPOSALS_MAX = 50  # proposed changes kept in the file (B21), the newest; older ones are long expired
 
 
 def _freeze(value):
@@ -95,6 +96,7 @@ class State:
         self.defaults = defaults or AppSettings()  # from the environment; saved settings override them
         self.dev_defaults = dev_defaults or DevSettings()
         self._lock = threading.Lock()  # FastAPI runs sync routes in a thread pool
+        self.approvals = threading.Lock()  # held by app.proposals from a proposal's check to its record (B21)
 
     def _load(self) -> dict:
         if not self.path.exists():
@@ -189,6 +191,10 @@ class State:
         out["internet_facing"] = bool(out["internet_facing"])
         return out
 
+    def check_fields(self, name: str, f: dict) -> dict:
+        """One product's fields as set_fields would save them, checked, without saving (B21's preview)."""
+        return self._fields(self._product(name), f)
+
     def set_fields(self, name: str, **f) -> dict:
         """Change some of one product's fields (the chat tool); the others stay."""
         pid = self._product(name)
@@ -201,16 +207,18 @@ class State:
             return new
 
     def set_status(self, cve_id: str, status: str, as_of: str | None = None, via: str = "page",
-                   **fields) -> tuple[dict, dict]:
+                   proposal: str | None = None, **fields) -> tuple[dict, dict]:
         """The user's decision (A16b): the status plus its record, appended to the CVE's history. Only the user
-        decides: the CVEs page, or the chat tool after the user's yes (`via` says which). Returns the CVE and the
-        record. Fields per status are checked by app.status.decision."""
+        decides: the CVEs page, or a change Patch proposed and the user approved (`via` "chat", with the
+        `proposal` id, B21). Returns the CVE and the record. Fields per status are checked by app.status.decision."""
         record = decision(status, fields, as_of or dt.date.today().isoformat())
         cve = self.k.cves.get(cve_id)
         if cve is None:
             raise KeyError(cve_id)
         record |= {"decided_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), "decided_by": DECIDED_BY,
                    "via": via}
+        if proposal:
+            record["proposal"] = proposal
         with self._lock:
             data = self._load()
             if status == "open":
@@ -266,6 +274,21 @@ class State:
     def alerts_log(self) -> list[dict]:
         """Newest first."""
         return _thaw(self.read().alerts_log)
+
+    # --- Proposed changes (B21): app.proposals decides what they do; this keeps them
+
+    def proposal(self, pid: str) -> dict | None:
+        with self._lock:
+            return self._load().get("proposals", {}).get(pid)
+
+    def save_proposal(self, rec: dict) -> None:
+        """Add or replace one proposal; only the newest PROPOSALS_MAX are kept."""
+        with self._lock:
+            data = self._load()
+            kept = {**data.get("proposals", {}), rec["id"]: rec}
+            newest = sorted(kept.values(), key=lambda r: r["created_at"], reverse=True)[:PROPOSALS_MAX]
+            data["proposals"] = {r["id"]: r for r in newest}
+            self._save(data)
 
     def reset(self) -> None:
         """Back to the default watchlist, no statuses, default settings (dev choices too) and an empty alerts log."""

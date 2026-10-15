@@ -12,7 +12,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
-from app import agent, chat_turn, dashboard
+from app import agent, chat_turn, dashboard, proposals
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.config import Settings
 from app.cve_filters import CveView, InvalidFilter
@@ -21,6 +21,7 @@ from app.dev import dev_router
 from app.errors import InputError, LLMError
 from app.notify import NotifyError, channel_status, deliver, format_alert
 from app.one_port import one_port
+from app.proposals import ProposalEdit, ProposalError
 from app.schemas import ChatReply, ChatRequest
 from app.verdict import USAGES
 from app.watched import WatchedCves
@@ -83,6 +84,10 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         log.warning("LLM error: %s", exc.message)
         return _error(502, "llm_error", exc.public or LLMError.GENERIC)
 
+    @app.exception_handler(ProposalError)
+    async def proposal_error(request: Request, exc: ProposalError):
+        return _error(exc.status, exc.code, exc.message)
+
     @app.exception_handler(NotifyError)
     async def notify_error(request: Request, exc: NotifyError):
         return _error(400 if exc.code == "not_configured" else 502, exc.code, exc.message)
@@ -106,6 +111,24 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.get("/examples")
     def examples():
         return agent.examples()
+
+    # --- Changes Patch proposes (B21): nothing changes until you approve the card
+
+    @app.get("/proposals/{pid}")
+    def get_proposal(pid: str):
+        return proposals.get(deps, pid)
+
+    @app.post("/proposals/{pid}/approve")
+    def approve_proposal(pid: str):
+        return proposals.approve(deps, pid)
+
+    @app.post("/proposals/{pid}/cancel")
+    def cancel_proposal(pid: str):
+        return proposals.cancel(deps, pid)
+
+    @app.patch("/proposals/{pid}")
+    def edit_proposal(pid: str, body: ProposalEdit):
+        return proposals.edit(deps, pid, body)
 
     # --- Dashboard (A04). Reads and writes deps.state, the same state the chat's tools use.
 

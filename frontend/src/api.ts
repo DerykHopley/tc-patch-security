@@ -160,6 +160,7 @@ export interface Decision {
   decided_at: string | null // ISO date and time (UTC); null for a status saved before decision records
   decided_by: string | null // "owner" until there are users
   via: 'page' | 'chat' | null
+  proposal?: string // the proposal you approved, for a change Patch proposed in the chat (B21)
 }
 
 /** What the user enters when changing a status. Which fields a status takes is checked by the backend. */
