@@ -67,3 +67,29 @@ Candidates for the bonus (2 medium, 1 hard) that also serve ai-digest: prompt in
 - **No course material** in anything published, including [REQUIREMENTS.md](./REQUIREMENTS.md).
 - **Course choices aren't ai-digest decisions.** The brief's stack (LangChain, OpenRouter, Streamlit or Next.js) is only a suggestion, so this project can try what ai-digest is considering. Whatever turns up becomes evidence for ai-digest's stack questions, not a decision.
 - **Bring back findings, not just code.** When something here answers an open question in `ideas.md`, write it there with a link, like the "Findings from the RAG experiments" section.
+
+## Earlier findings behind query translation
+
+Moved here from CLAUDE.md (2026-10-15). Each technique maps to a problem seen in the earlier RAG experiments:
+
+- Short questions sit far from every chunk (0.5–0.6 cosine distance) → HyDE or multi-query.
+- The top-k cut-off was fragile (#6 scored 0.348, #7 0.342) → multi-query or fusion.
+- A question about Beyoncé's albums retrieved the wrong Beyoncé chunk → decomposition.
+- Paired with **structured retrieval**: the LLM turns the question into metadata filters plus a semantic query (self-query).
+- Built in Patch: multi-query rewrites merged by reciprocal rank fusion, and self-query filters checked by the server. Not built: HyDE, decomposition, step-back.
+
+## Prior work: tc-ai-experiments
+
+Moved here from CLAUDE.md (2026-10-15). All in `../../tc-ai-experiments/` (public repo DerykHopley/tc-ai-experiments, published with GitHub Pages; its README has a findings table).
+
+- `rag-langchain/`: LangChain.js + Chroma + OpenAI embeddings + OpenRouter. Walkthrough page, embedding map, LLM-as-judge eval, re-ranking, a per-source cap on chunks.
+- `ragas-evaluation/`: RAGAS on the same pipeline, and how far the judge can be trusted.
+- `agent-tools-mcp/`: Python LangChain/LangGraph agent with local and MCP tools.
+- `embedding-model-comparison/`: five embedding models compared.
+
+Lessons that shaped this project:
+
+- Chroma's JS client needs a separate server, which was painful. → Patch runs Chroma in-process from Python.
+- LangChain.js v1 needed `legacy-peer-deps`. → Patch uses LangChain only at the model seam, in Python.
+- Reasoning models were slow (9–12 s) and spent most output tokens on hidden reasoning. → Seen again with GPT-5-mini in the model check.
+- Self-contained HTML pages worked well for showing results. → The model-check report is one.

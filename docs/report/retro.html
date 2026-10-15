@@ -24,7 +24,7 @@
     <span class="px-2 py-0.5 rounded bg-red-100 text-red-800 font-semibold">High</span>
     <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">Medium</span>
     <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold">Low</span>
-    <span class="text-slate-500">· status shows what was decided on 2026-10-15</span>
+    <span class="text-slate-500">· all eight findings decided and done on 2026-10-15; each card shows what was done</span>
   </div>
 </header>
 
@@ -33,20 +33,21 @@
   <div class="overflow-x-auto"><table class="w-full text-sm">
     <thead class="text-left text-slate-500"><tr><th class="py-1 pr-3">#</th><th class="pr-3">Finding</th><th class="pr-3">Severity</th><th class="pr-3">Category</th><th>Decided</th></tr></thead>
     <tbody class="divide-y divide-slate-100">
-      <tr><td class="py-1.5 pr-3">1</td><td class="pr-3"><a class="underline" href="#f1">CLAUDE.md is always loaded, and it's now wrong</a></td><td class="pr-3 text-red-700">High</td><td class="pr-3">steering file</td><td>In A21 (#23)</td></tr>
-      <tr><td class="py-1.5 pr-3">2</td><td class="pr-3"><a class="underline" href="#f2">CI runs everything twice; pushes cancel the results</a></td><td class="pr-3 text-red-700">High</td><td class="pr-3">automated checks</td><td>Guardrails ticket</td></tr>
-      <tr><td class="py-1.5 pr-3">3</td><td class="pr-3"><a class="underline" href="#f3">Timing races in the browser checks keep coming back</a></td><td class="pr-3 text-red-700">High</td><td class="pr-3">automated checks</td><td>Guardrails ticket</td></tr>
-      <tr><td class="py-1.5 pr-3">4</td><td class="pr-3"><a class="underline" href="#f4">The report rebuild depends on run ids pasted in a README</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">automated checks</td><td>Guardrails ticket</td></tr>
-      <tr><td class="py-1.5 pr-3">5</td><td class="pr-3"><a class="underline" href="#f5">run.sh: ports by hand, one browser by accident</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">tool economy</td><td>Guardrails ticket</td></tr>
-      <tr><td class="py-1.5 pr-3">6</td><td class="pr-3"><a class="underline" href="#f6">Two sessions working in one checkout</a></td><td class="pr-3 text-amber-700">Medium-low</td><td class="pr-3">information access</td><td>Agent memory</td></tr>
-      <tr><td class="py-1.5 pr-3">7</td><td class="pr-3"><a class="underline" href="#f7">User-only skills can't run in a subagent</a></td><td class="pr-3 text-slate-600">Low</td><td class="pr-3">information access</td><td>Agent memory</td></tr>
-      <tr><td class="py-1.5 pr-3">8</td><td class="pr-3"><a class="underline" href="#f8">Shared scratchpad: a stray inspect.py</a></td><td class="pr-3 text-slate-600">Low</td><td class="pr-3">tool economy</td><td>Prompt line</td></tr>
+      <tr><td class="py-1.5 pr-3">1</td><td class="pr-3"><a class="underline" href="#f1">CLAUDE.md is always loaded, and it's now wrong</a></td><td class="pr-3 text-red-700">High</td><td class="pr-3">steering file</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> in A21 (#23)</td></tr>
+      <tr><td class="py-1.5 pr-3">2</td><td class="pr-3"><a class="underline" href="#f2">CI runs everything twice; pushes cancel the results</a></td><td class="pr-3 text-red-700">High</td><td class="pr-3">automated checks</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> in #56</td></tr>
+      <tr><td class="py-1.5 pr-3">3</td><td class="pr-3"><a class="underline" href="#f3">Timing races in the browser checks keep coming back</a></td><td class="pr-3 text-red-700">High</td><td class="pr-3">automated checks</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> in #56</td></tr>
+      <tr><td class="py-1.5 pr-3">4</td><td class="pr-3"><a class="underline" href="#f4">The report rebuild depends on run ids pasted in a README</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">automated checks</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> in #56</td></tr>
+      <tr><td class="py-1.5 pr-3">5</td><td class="pr-3"><a class="underline" href="#f5">run.sh: ports by hand, one browser by accident</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">tool economy</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> in #56</td></tr>
+      <tr><td class="py-1.5 pr-3">6</td><td class="pr-3"><a class="underline" href="#f6">Two sessions working in one checkout</a></td><td class="pr-3 text-amber-700">Medium-low</td><td class="pr-3">information access</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> agent memory</td></tr>
+      <tr><td class="py-1.5 pr-3">7</td><td class="pr-3"><a class="underline" href="#f7">User-only skills can't run in a subagent</a></td><td class="pr-3 text-slate-600">Low</td><td class="pr-3">information access</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> agent memory</td></tr>
+      <tr><td class="py-1.5 pr-3">8</td><td class="pr-3"><a class="underline" href="#f8">Shared scratchpad: a stray inspect.py</a></td><td class="pr-3 text-slate-600">Low</td><td class="pr-3">tool economy</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> prompt line</td></tr>
     </tbody>
   </table></div>
 </section>
 
 <article id="f1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">1 · CLAUDE.md is always loaded, and it's now wrong</h2><span class="px-2 py-0.5 rounded bg-red-100 text-red-800 text-xs font-semibold">High</span></div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Done in A21 (#23). CLAUDE.md is now 23 lines of pointers: a one-line description, the reading list (STATUS, DECISIONS, DESIGN, GLOSSARY, README) and only the rules no file shows. STATUS.md and README.md were rewritten for the real build. Its old decisions list was already in DECISIONS.md; the earlier query-translation findings and the tc-ai-experiments lessons moved to <code>AI-DIGEST-OVERLAP.md</code>.</p>
   <div class="grid md:grid-cols-2 gap-4 text-sm">
     <div class="rounded-lg border border-red-200 bg-red-50 p-3 space-y-1"><div class="lbl text-red-700">What every agent reads first</div>
       <p>"a working prototype in <code>proto/</code>… Answers come from a scripted FakeLLM; no real model has answered yet."</p>
@@ -57,11 +58,11 @@
   </div>
   <p><b>Why it matters.</b> CLAUDE.md is pushed into every agent's context. A fresh implementer is told the code lives in the wrong place and that nothing is decided. Its "Decisions so far" repeats DECISIONS.md, so one copy goes stale.</p>
   <p><b>Change.</b> Cut it to about 25 lines of pointers: a one-line description, the reading list (STATUS, DECISIONS, DESIGN, GLOSSARY), and only the rules no file shows (no keys, the 8000/5173 rule, the writing style, never publish the course brief).</p>
-  <p class="text-sm text-slate-500">Decided: part of A21 (#23), which rewrites STATUS.md anyway.</p>
 </article>
 
 <article id="f2" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">2 · CI runs everything twice; pushes cancel the results</h2><span class="px-2 py-0.5 rounded bg-red-100 text-red-800 text-xs font-semibold">High</span></div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Done in #56. <code>ci.yml</code> runs on a push to <code>main</code> or <code>spec-*</code> and on pull requests from other branches only; integration branches never cancel a run, so every commit keeps its verdict; a docs-only push skips the browser job (the backend tests and type check still run).</p>
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">Before: one push to spec-a</div>
 <pre class="mermaid">
@@ -86,6 +87,7 @@ flowchart LR
 
 <article id="f3" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">3 · Timing races in the browser checks keep coming back</h2><span class="px-2 py-0.5 rounded bg-red-100 text-red-800 text-xs font-semibold">High</span></div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Done in #56. Slow mode: <code>E2E_LATENCY_MS</code> delays every API response through a Playwright route in <code>conftest.py</code>; at 300 ms it found three more races, now fixed. <code>check_waits.py</code> runs in CI and fails on a fixed wait without <code># allowed: &lt;reason&gt;</code>. <code>CODING_STANDARDS.md</code> points at <code>settled()</code> and <code>eventually()</code>.</p>
   <div class="rounded-lg border border-slate-200 p-4">
     <div class="lbl text-slate-500 mb-3">Races found on CI's slower runner, each passing locally</div>
     <div class="flex flex-wrap gap-2 text-xs">
@@ -108,28 +110,33 @@ flowchart LR
 
 <article id="f4" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">4 · The report rebuild depends on run ids pasted in a README</h2><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Medium</span></div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Done in #56. <code>docs/report-src/runs.json</code> names the runs; <code>report --runs</code> reads it, has no fallback, and stops with an error naming a missing id. Checked: it rebuilds the published report byte for byte except the generated-at time.</p>
   <p><b>What happened.</b> A <code>grep</code> for the run ids in <code>docs/report-src/README.md</code> came back empty, the report command fell back to "the latest run per model", and a report with an unreviewed run and a blocked run went live for a few minutes.</p>
   <p><b>Change.</b> The runs to show live in <code>docs/report-src/runs.json</code>; <code>report --runs</code> reads it and stops with an error on a missing id instead of falling back.</p>
 </article>
 
 <article id="f5" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">5 · run.sh: ports by hand, one browser by accident</h2><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Medium</span></div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Done in #56. <code>run.sh</code> picks two free ports itself (<code>E2E_API_PORT</code> and <code>E2E_UI_PORT</code> still override) and runs Firefox and Chromium unless a <code>--browser</code> is given, so <code>run.sh -k a02</code> runs both.</p>
   <p><b>What happened.</b> Each implementer prompt carried a port pair tracked by hand (8271/5241, 8281/5251, 8291/5261…). <code>run.sh</code> adds both browsers only when it gets no arguments, so <code>-k</code> or a file name quietly runs one.</p>
   <p><b>Change.</b> <code>run.sh</code> picks two free ports itself (the variables still override) and adds both browsers unless a <code>--browser</code> is given.</p>
 </article>
 
 <article id="f6" class="rounded-xl border border-slate-200 bg-white p-6 space-y-2">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">6 · Two sessions working in one checkout</h2><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Medium-low</span></div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Done: an agent memory ("the main checkout is shared"): check for unpushed local commits before pulling, and commit only in worktrees.</p>
   <p>Another session committed the #49 row in the main checkout without pushing, so local <code>spec-a</code> diverged and the app couldn't be refreshed until it was rebased. Decided: an agent memory to check for unpushed local commits first and to commit only in worktrees.</p>
 </article>
 
 <article id="f7" class="rounded-xl border border-slate-200 bg-white p-6 space-y-2">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">7 · User-only skills can't run in a subagent</h2><span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-xs font-semibold">Low</span></div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Done: an agent memory. <code>improve-codebase-architecture</code> and <code>retro</code> run in the main session; their exploration step can still use a sub-agent.</p>
   <p><code>improve-codebase-architecture</code> and <code>retro</code> can only be started by the owner; one subagent was spent finding that out. Decided: an agent memory. They run in the main session; their exploration step can still use a sub-agent.</p>
 </article>
 
 <article id="f8" class="rounded-xl border border-slate-200 bg-white p-6 space-y-2">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">8 · Shared scratchpad: a stray inspect.py</h2><span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-xs font-semibold">Low</span></div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Done: implementer prompts now say to put scratch scripts in a subfolder of the scratchpad, not its root.</p>
   <p>A subagent left <code>inspect.py</code> in the scratchpad root; it shadowed Python's own <code>inspect</code> module and broke a screenshot script. Decided: implementer prompts say to put scripts in a subfolder.</p>
 </article>
 
