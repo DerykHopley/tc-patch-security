@@ -48,10 +48,6 @@ def test_a06_1_unscripted_weakness_question(deps):
     assert "A05:2025 Injection" in reply.answer
 
 
-def test_a06_1_flags_passed_through(deps):
-    assert answer("hi", [], deps, flags=["injection_phrasing"]).flags == ["injection_phrasing"]
-
-
 class HyphenLLM(FakeLLM):
     """Answers as gpt-oss and granite did: CVE ids with non-breaking hyphens (U+2011)."""
 

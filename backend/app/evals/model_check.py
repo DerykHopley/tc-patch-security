@@ -15,13 +15,13 @@ import threading
 import time
 from pathlib import Path
 
-from app.agent import answer
+from app.chat_turn import turn
 from app.config import FIXTURES
 from app.errors import InputError, LLMError
 from app.evals.checks import cited, fix_first_lists, score, score_levels
 from app.evals.readability import flesch_reading_ease
 from app.evals.runs import LISTED, RunStore, new_id, now
-from app.guard import check_message
+from app.schemas import ChatRequest
 
 KIND = "models"
 # These errors fail every question the same way: stop instead of waiting through the rest.
@@ -63,10 +63,9 @@ def _ask(q: dict, deps) -> dict:
            "sources": 0, "bad_citations": [], "no_citations": False, "estimated": False, "error": None}
     start = time.perf_counter()
     try:
-        message, flags = check_message(q["question"], [])
-        levels = q["expect"].get("levels") or ["normal"]  # A19: asked once per explain level
-        replies = {lv: answer(message, [], deps, max_steps=deps.dev().max_steps, flags=flags, level=lv)
-                   for lv in levels}
+        levels = q["expect"].get("levels") or ["normal"]  # A19: asked once per explain level, never the saved one
+        replies = {lv: turn(ChatRequest(message=q["question"], explain_level=lv, page=q.get("page")), deps)
+                   for lv in levels}  # the same turn as /chat, with the question's page context if it has one
         reply = replies["normal"] if "normal" in replies else next(iter(replies.values()))
         checks = score_levels(q["expect"], replies) if len(replies) > 1 else score(q["expect"], reply)
         every = list(replies.values())
@@ -79,6 +78,8 @@ def _ask(q: dict, deps) -> dict:
                 "llm_calls": sum(r.usage.llm_calls for r in every), "steps": sum(r.steps for r in every),
                 "sources": len(reply.sources), "bad_citations": sorted({n for r in every for n in r.bad_citations}),
                 "no_citations": any(r.no_citations for r in every), "estimated": any(r.usage.estimated for r in every)}
+        if q.get("page"):  # the checked page context it was asked from, for the report
+            row["page"] = reply.page_context
         if len(replies) > 1:
             row["levels"] = {lv: _level_row(r) for lv, r in replies.items()}
         if q["expect"].get("fix_first") and (lists := fix_first_lists(reply)):  # the report's "fix first" (A18)

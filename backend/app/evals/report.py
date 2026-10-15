@@ -434,28 +434,40 @@ def _explain_levels(runs: list[dict], placeholder: str) -> str:
     return out or placeholder
 
 
+def _view(page: dict | None) -> str:
+    """Where a fix-first question was asked from: the whole watchlist, or a page and its filters (its page context)."""
+    if not page:
+        return "Whole watchlist"
+    filters = ", ".join(f"{k}={v}" for k, v in page.items() if k != "page")
+    return f"{page.get('page', 'any')} page" + (f": {filters}" if filters else "")
+
+
 def _fix_first(runs: list[dict], placeholder: str) -> str:
-    """Per model: the rules' top 3 against the answer's top 3, in order (A18), with the answer. A placeholder while
-    no run has asked the question. A model that errored on the question gets a failed row, so it doesn't vanish."""
+    """Per model and view: the rules' top 3 against the answer's top 3, in order (A18), with the answer. A
+    placeholder while no run has asked the question. A model that errored on the question gets a failed row, so it
+    doesn't vanish."""
     from app.evals.model_check import questions
 
-    fix_first_ids = {q["id"] for q in questions() if q["expect"].get("fix_first")}
+    pages = {q["id"]: q.get("page") for q in questions() if q["expect"].get("fix_first")}
+    view = lambda row: _e(_view(row.get("page") or pages.get(row["id"])))  # noqa: E731 - checked context first
     rows, answers = [], ""
     for r in runs:
         for row in (x for x in r["results"] if x.get("fix_first")):
             f, ok = row["fix_first"], row["checks"].get("fix_first", False)
             mark = f'<span class="{"pass" if ok else "fail"}">{"✓ Same order" if ok else "✕ Different"}</span>'
-            rows.append([_e(r["model"]), _e(", ".join(f["rules"]) or "none open"),
+            rows.append([_e(r["model"]), view(row), _e(", ".join(f["rules"]) or "none open"),
                          _e(", ".join(f["answer"]) or "no CVE named"), mark, str(f["total_open"])])
-            answers += f'<dt>{_e(r["model"])}</dt><dd>{_e(row["answer"])}</dd>'
+            answers += f'<dt>{_e(r["model"])} · {view(row)}</dt><dd>{_e(row["answer"])}</dd>'
         for row in (x for x in r["results"] if "fix_first" in x["checks"] and not x.get("fix_first")):
-            rows.append([_e(r["model"]), "–", "prioritise wasn't called", '<span class="fail">✕ Different</span>', "–"])
-        for row in (x for x in r["results"] if x.get("error") and x["id"] in fix_first_ids):  # crashed: a failure
-            rows.append([_e(r["model"]), "–", f'Error: {_e(row["error"])}', '<span class="fail">✕ Error</span>', "–"])
+            rows.append([_e(r["model"]), view(row), "–", "prioritise wasn't called",
+                         '<span class="fail">✕ Different</span>', "–"])
+        for row in (x for x in r["results"] if x.get("error") and x["id"] in pages):  # crashed: a failure
+            rows.append([_e(r["model"]), view(row), "–", f'Error: {_e(row["error"])}',
+                         '<span class="fail">✕ Error</span>', "–"])
     if not rows:
         return placeholder
-    out = _table("What to fix first, per model", ["Model", "Rules' top 3", "Answer's top 3", "Result", "Open"],
-                 rows, text_cols=4)
+    out = _table("What to fix first, per model and view",
+                 ["Model", "View", "Rules' top 3", "Answer's top 3", "Result", "Open"], rows, text_cols=5)
     if answers:
         out += f'<details><summary>The answers</summary><dl class="failure">{answers}</dl></details>'
     return out
