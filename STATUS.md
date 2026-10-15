@@ -31,7 +31,7 @@ All checked 2026-10-15 on `spec-a` (28cc2e9). No key, no network.
 | Backend | `cd backend && uv run pytest` | 774 passed |
 | Types, lint, unit tests | `cd frontend && npx tsc -b && npm run lint && npm test` | type check clean; 24 unit tests passed |
 | Fixed waits | `python3 frontend/e2e/check_waits.py` | clean |
-| Browser check | `frontend/e2e/run.sh` (Firefox and Chromium) | 356 checks per browser collected |
+| Browser check | `frontend/e2e/run.sh` (Firefox and Chromium) | 356 checks per browser; all passed in both, 2 skipped |
 | Slow mode | `E2E_LATENCY_MS=300 frontend/e2e/run.sh` | finds timing races before CI does |
 | Report builds | `cd backend && uv run python -m app.evals fake-report --out /tmp/r.html` | FakeLLM and fake embedders; CI uploads it |
 
