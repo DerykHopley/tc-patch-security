@@ -195,7 +195,7 @@ export interface Dashboard {
   by_owasp: { code: string; title: string; count: number }[] // open CVEs per OWASP web category
   owasp_unmapped: number // open CVEs whose CWE isn't in OWASP's lists
   latest_incidents: Incident[] // the 5 latest MITRE ATLAS incidents
-  freshness: Source[] // one per snapshot source
+  freshness: SnapshotSource[] // one per snapshot source
 }
 
 /** A watched product's open CVEs and how many of them are in CISA KEV (A15b: the dashboard filter's chips). */
@@ -216,7 +216,8 @@ export interface Incident {
   summary: string
 }
 
-export interface Source {
+/** One source of the snapshot, for the freshness panel. Not a chat answer's Source. */
+export interface SnapshotSource {
   id: string // owasp_llm, owasp_web, atlas, nvd, kev, osv, epss
   name: string
   licence: string
