@@ -16,11 +16,14 @@ class InputError(AppError):
 
 
 class LLMError(AppError):
+    """`public` is safe to show; without it, callers show GENERIC."""
     code = "llm_error"
 
     def __init__(self, message: str, public: str | None = None):
         super().__init__(message)
         self.public = public  # safe to show the user, e.g. "Is Ollama running?"; None → a generic message
+
+    GENERIC = "The language model didn't respond properly. Try again in a moment."
 
 
 class ToolError(AppError):

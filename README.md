@@ -140,6 +140,42 @@ docker run --rm -p 8080:8080 --env-file backend/.env patch   # with your setting
 - Your state lives inside the container and goes when it's removed. Keep it with a volume: `-v patch-data:/app/backend/data`.
 - In `--env-file backend/.env`, leave out `INDEX_PATH`, `STATE_PATH` and `FRONTEND_DIR`: the image sets them. A local URL such as Ollama's `localhost` means the container itself, not your machine.
 
+### As an MCP server for other assistants
+
+Patch's knowledge can be used from another assistant, such as Claude Desktop or Claude Code, over MCP (B23, [#61](https://github.com/DerykHopley/tc-patch-security/issues/61)). The client starts the server itself, over stdio:
+
+```bash
+cd backend && uv run python -m app.mcp_server   # what the client runs; it waits for MCP messages on stdin
+```
+
+- **Four read-only tools:** `search_security`, `lookup_cve`, `explain_weakness` and `check_affected`. `check_affected` takes the version (and optionally the usage) in the call.
+- **No one's stack is read or changed.** The server never reads your watchlist, statuses or decisions, and has no tool that changes anything. `lookup_cve` answers "not watched", with no priority.
+- **Output is untrusted data,** wrapped as in the chat. Each result lists its sources with their URLs.
+- `search_security` uses the chat model to translate the query. Without `--env-file` that's FakeLLM (no key, no cost). With `--env-file .env` it's your model, and each search costs one model call.
+
+Claude Code (use your own absolute path to `backend/`):
+
+```bash
+claude mcp add patch -- uv --directory /absolute/path/to/backend run python -m app.mcp_server
+```
+
+Claude Desktop, in `claude_desktop_config.json` (Settings → Developer → Edit Config):
+
+```json
+{
+  "mcpServers": {
+    "patch": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/backend", "run", "python", "-m", "app.mcp_server"]
+    }
+  }
+}
+```
+
+- For your own model, add `"--env-file", ".env"` after `"run"`. It needs `backend/.env` to exist, or the server won't start. Checked: the command starts from another folder and lists the four tools, with and without `--env-file`.
+- *Unverified:* the `claude mcp add` syntax and the Desktop menu path were not run here. The human demo checks them: [docs/mcp-demo.md](./docs/mcp-demo.md).
+- **Not built:** the deployed server over streamable HTTP, behind Clerk or a token and rate-limited like the app. It's optional and waits on the rate limits ([#43](https://github.com/DerykHopley/tc-patch-security/issues/43)).
+
 ### The model check and the report
 
 ```bash
@@ -228,6 +264,7 @@ More:
 - [CODING_STANDARDS.md](./CODING_STANDARDS.md): the judgement rules for review.
 - [docs/adr/](./docs/adr/): architecture decision records.
 - [docs/SOURCE-CHECKS.md](./docs/SOURCE-CHECKS.md): facts about outside services, checked against their official docs.
+- [docs/mcp-demo.md](./docs/mcp-demo.md): Patch as an MCP server, used from another assistant: the demo steps and transcripts.
 - [FEASIBILITY.md](./FEASIBILITY.md): the data check behind the domain.
 - [ALERTS-PLAN.md](./ALERTS-PLAN.md): the alert design, built in spec B.
 - [docs/process-map.html](./docs/process-map.html): the system map and its flows. Download and open it in a browser (GitHub shows HTML as source).
