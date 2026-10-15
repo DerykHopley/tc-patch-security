@@ -13,6 +13,7 @@ import type {
   CweResult,
   FixFirstResult,
   Proposal,
+  ResearchResult,
   TechniqueResult,
   WatchlistResult,
 } from '../toolResults.ts'
@@ -222,6 +223,50 @@ function WatchlistCard({ r }: { r: WatchlistResult | Proposal }) {
   )
 }
 
+/** A web result's facts (B08), on its source and in research_web's card: always "Web result, unverified", the site,
+ *  the date when Tavily gives one, and "Flagged" when the page tries to give instructions. */
+export function WebFacts({ site, date, flagged }: { site?: string | null; date: string | null; flagged: boolean }) {
+  return (
+    <div className="chips web-facts">
+      <span className="chip web-unverified">Web result, unverified</span>
+      {flagged && (
+        <span className="chip web-flagged" title="This page's text tries to give instructions. Patch ignores them.">
+          Flagged: instructions ignored
+        </span>
+      )}
+      <span className="meta">
+        {site}
+        {date ? ` · ${date}` : ' · no date given'}
+      </span>
+    </div>
+  )
+}
+
+const VIA = { mcp: "Tavily's MCP server", api: "Tavily's search API (the MCP server didn't answer)" }
+
+function ResearchCard({ r }: { r: ResearchResult }) {
+  return (
+    <div className="result-card research-card">
+      <p className="result-title">Web search: “{r.query}”</p>
+      <p className="meta">
+        {r.results.length} {r.results.length === 1 ? 'result' : 'results'} · via {VIA[r.via]}
+        {r.flagged > 0 && ` · ${r.flagged} flagged`} · {r.searches_left} searches left today
+      </p>
+      {r.results.length > 0 && (
+        <ol className="web-list">
+          {r.results.map((w) => (
+            <li key={w.n}>
+              <span className="source-n">{w.n}</span>{' '}
+              <External href={w.url}>{w.title}</External>
+              <WebFacts site={w.site} date={w.date} flagged={w.flagged} />
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  )
+}
+
 function ResultCard({ call }: { call: ToolCallRecord }) {
   // Checking the name narrows the result to that tool's type.
   if (call.name === 'lookup_cve' && call.result) return <CveCard r={call.result} />
@@ -229,6 +274,7 @@ function ResultCard({ call }: { call: ToolCallRecord }) {
   if (call.name === 'check_affected' && call.result) return <AffectedCard r={call.result} />
   if (call.name === 'prioritise' && call.result) return <FixFirstCard r={call.result} />
   if (call.name === 'update_watchlist' && call.result) return <WatchlistCard r={call.result} />
+  if (call.name === 'research_web' && call.result) return <ResearchCard r={call.result} />
   return null
 }
 

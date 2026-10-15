@@ -43,7 +43,7 @@ def test_a06_1_reply_has_answer_sources_tool_calls_query_usage_steps_and_flags(c
     assert set(body) == {"answer", "sources", "tool_calls", "query", "usage", "steps", "flags", "bad_citations",
                          "no_citations", "explain_level", "page_context", "dropped_context"}
     assert set(body["sources"][0]) == {"n", "chunk_id", "doc_id", "doc_type", "title", "section", "date", "url",
-                                       "snippet", "score", "product", "severity", "cvss", "kev"}
+                                       "snippet", "score", "product", "severity", "cvss", "kev", "site", "flags"}
     assert [s["n"] for s in body["sources"]] == list(range(1, len(body["sources"]) + 1))  # numbered from 1
     assert body["usage"]["estimated"] is True and body["usage"]["llm_calls"] >= 2
     assert body["steps"] == 2 and body["flags"] == []

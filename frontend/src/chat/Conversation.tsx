@@ -129,6 +129,9 @@ function Answer({ reply }: { reply: ChatReply }) {
       {reply.flags.includes('injection_phrasing') && (
         <p className="flag-note">This message looks like an injection attempt. It was answered, and logged.</p>
       )}
+      {reply.flags.includes('web_injection_phrasing') && (
+        <p className="flag-note">A web result tries to give instructions. It's shown as data, and Patch ignored it.</p>
+      )}
       <CitationNote reply={reply} />
       {reply.dropped_context?.length > 0 && (
         <p className="context-dropped">

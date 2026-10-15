@@ -12,6 +12,7 @@ from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
+from app.config import DEFAULT_USER
 from app.errors import LLMError, ToolError
 from app.llm.base import LLMReply, ToolCall
 from app.schemas import QueryInfo, Source, ToolCallRecord, Usage
@@ -22,11 +23,13 @@ log = logging.getLogger(__name__)
 @dataclass
 class Context:
     """Per-request state the tools add to: sources across search calls, the last query, usage. `page`: the checked
-    page context (A18), read by prioritise."""
+    page context (A18), read by prioritise. `user_id`: whose request it is; the default user while sign-in is off
+    (B09 sets it per user). research_web counts its daily cap by it (B08)."""
     sources: list[Source] = field(default_factory=list)
     query: QueryInfo | None = None
     usage: Usage = field(default_factory=Usage)
     page: dict = field(default_factory=dict)
+    user_id: str = DEFAULT_USER
 
     def add_usage(self, reply: LLMReply) -> None:
         self.usage.input_tokens += reply.input_tokens
@@ -63,6 +66,7 @@ class ToolSpec:
     args_model: type[BaseModel]
     result: Any  # a ToolResult model, or a union of them (Annotated with a discriminator where there is one)
     run: Callable  # (args, deps, ctx) -> dict, in the shape of `result`
+    offered: Callable = lambda deps: True  # (deps) -> bool: an off tool isn't offered to the model, nor run (B08)
 
     def __post_init__(self):
         self.results = TypeAdapter(self.result)
@@ -86,8 +90,9 @@ def register(spec: ToolSpec) -> ToolSpec:
     return spec
 
 
-def tool_schemas() -> list[dict]:
-    return [t.schema() for t in TOOLS.values()]
+def tool_schemas(deps=None) -> list[dict]:
+    """The tools offered to the model. Without deps, every tool."""
+    return [t.schema() for t in TOOLS.values() if deps is None or t.offered(deps)]
 
 
 def _plain(e: ValidationError) -> str:
@@ -106,6 +111,8 @@ def run_tool(call: ToolCall, deps, ctx: Context, tools: dict[str, ToolSpec] | No
     spec = (TOOLS if tools is None else tools).get(call.name)
     if spec is None:
         return record("error", error={"code": "unknown_tool", "message": f"There is no tool called {call.name!r}."})
+    if not spec.offered(deps):  # a model may name a tool it wasn't offered
+        return record("error", error={"code": "tool_off", "message": f"The {call.name} tool is off."})
     try:
         args = spec.args_model.model_validate(call.args)
     except ValidationError as e:
@@ -127,4 +134,4 @@ def run_tool(call: ToolCall, deps, ctx: Context, tools: dict[str, ToolSpec] | No
 
 
 # Importing the tool modules registers them.
-from app.tools import affected, cve, prioritise, search, watchlist, weakness  # noqa: E402,F401
+from app.tools import affected, cve, prioritise, search, watchlist, weakness, web  # noqa: E402,F401

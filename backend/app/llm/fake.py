@@ -6,6 +6,7 @@ real tool results in `messages`, so retrieval and tools are tested for real. Eac
 
 Unscripted questions: a CVE id → lookup_cve, then search_security for how to prevent its OWASP
 category (what the dashboard's "Ask about this" sends). A CWE or ATLAS id → explain_weakness.
+A question about the web, news or advisories, while research_web is offered (B08) → research_web, first.
 Anything else → search_security with the question as is.
 
 Explain levels (A19): the level is read from the system prompt's level line, as a real model would read it. A script
@@ -21,6 +22,7 @@ from app.llm.base import LLMReply, QueryPlan, ToolCall
 NOTHING_FOUND = "I found nothing relevant in the knowledge base for that question."
 LEVEL_LINE = re.compile(r"^Explain level: (simple|normal|deep dive)\.", re.M)
 SEVERITY_WORD = {"CRITICAL": "critical", "HIGH": "high", "MEDIUM": "medium", "LOW": "low"}
+WEB_QUESTION = re.compile(r"\b(web|online|news|advisor(y|ies)|who'?s talking)\b", re.I)
 
 
 def _tokens(text: str) -> int:
@@ -140,6 +142,21 @@ def _weakness(w: dict) -> str:
     return "\n".join(lines)
 
 
+def _web(r: dict) -> str:
+    """research_web's result (B08): web results, unverified; a flagged page's instructions ignored, never followed."""
+    if not r["results"]:
+        return f"I searched the web for \"{r['query']}\" and found nothing."
+    lines = ["From the web (web results, unverified):", ""]
+    for w in r["results"]:
+        when = f", {w['date']}" if w["date"] else ""
+        if w["flagged"]:
+            lines.append(f"- **{w['title']}** ({w['site']}{when}): this page tries to give me instructions. I "
+                         f"ignored them [{w['n']}]")
+        else:
+            lines.append(f"- **{w['title']}** ({w['site']}{when}): {_first_sentence(w['snippet'])} [{w['n']}]")
+    return "\n".join(lines)
+
+
 def _level(messages: list[dict]) -> str:
     system = next((m["content"] or "" for m in messages if m["role"] == "system"), "")
     found = LEVEL_LINE.search(system)
@@ -180,7 +197,13 @@ class FakeLLM:
         return plan, reply
 
     @staticmethod
-    def _default_calls(question: str) -> list[dict]:
+    def _default_calls(question: str, tools: list[dict]) -> list[dict]:
+        offered = {t["function"]["name"] for t in tools}
+        if "research_web" in offered and WEB_QUESTION.search(question):
+            args = {"query": question[:200]}
+            if m := guard.CVE_RE.search(question):
+                args["cve_id"] = m.group(0).upper()
+            return [{"name": "research_web", "args": args}]
         if m := guard.CVE_RE.search(question):
             return [{"name": "lookup_cve", "args": {"cve_id": m.group(0).upper()}}]
         if m := (guard.CWE_RE.search(question) or guard.ATLAS_RE.search(question)):
@@ -197,7 +220,7 @@ class FakeLLM:
 
         calls = None
         if not tool_msgs:
-            calls = script["tool_calls"] if script else self._default_calls(question)
+            calls = script["tool_calls"] if script else self._default_calls(question, tools)
         elif script is None and len(results) == 1 and results[0][0] == "lookup_cve" and "error" not in results[0][1]:
             # Unscripted CVE question: after the lookup, search for how to prevent its kind of bug.
             data = results[0][1]
@@ -239,13 +262,15 @@ class FakeLLM:
                 fields["cve"] = _cve_card(data)
             elif name == "explain_weakness":
                 fields["weakness"] = _weakness(data)
+            elif name == "research_web":
+                fields["web"] = _web(data)
             elif name == "update_watchlist":  # a proposal (B21), or nothing to change
                 fields["watch"] = (f"I've proposed this: {data['title']}. {data['before']} → {data['after']}. "
                                    f"{data['message']}" if "proposal_id" in data else
                                    data["message"] + " Watching: " + ", ".join(data["watchlist"]) + ".")
 
         if script is None:
-            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness") if k in fields]
+            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness", "web") if k in fields]
             if sources:
                 head = "How to prevent this kind of bug:" if "cve" in fields else "From the knowledge base:"
                 parts.append(f"{head}\n\n{_bullets(sources, 3 if 'cve' in fields else 2)}")
