@@ -2,7 +2,7 @@
 
 A security assistant for people who build LLM apps. Ask Patch about a risk, an attack or a CVE, and get an answer that cites its sources. A dashboard tracks the CVEs in the LLM products you use, says which ones affect your versions, and ranks what to fix first by rules you set.
 
-Built for the Turing College sprint 2 project: advanced RAG with query translation and structured retrieval, tool calling, and a web UI.
+Built for the Turing College sprint 2 project: a RAG assistant that rewrites questions before searching, turns them into checked filters, calls tools, and runs in the browser.
 
 ![The dashboard, filtered to Langflow and Open WebUI](docs/media/dashboard-light.png)
 
