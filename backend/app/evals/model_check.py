@@ -1,7 +1,7 @@
 """Run the scripted questions against the saved model and score each answer with the exact checks (checks.py).
 
 A run happens in a background thread, on a copy of the state: Q9 and Q10 only propose changes now (B21), but a model
-that misbehaves must still never reach the real state. The model is fixed when the run starts, so switching models on the Dev page mid-run doesn't mix two
+that misbehaves must still never reach the real state. It has no refresher, so check_updates never fetches (B15). The model is fixed when the run starts, so switching models on the Dev page mid-run doesn't mix two
 models in one run. Each run is saved (runs.py) with model, provider, per-check scores, per-question cost and time,
 and totals.
 
@@ -128,7 +128,9 @@ def _run(run: dict, qs: list[dict], deps, store: RunStore) -> None:
     status = "done"
     try:
         state = deps.state.fork(Path(tmp.name) / "state.json")  # a copy: the watchlist questions write here
-        run_deps = dataclasses.replace(deps, state=state, llm=_pinned(deps.llm))
+        # No refresher: check_updates answers as on the snapshot, so a run never fetches or changes the live data
+        # that everyone's dashboard reads (B15), and its answer repeats.
+        run_deps = dataclasses.replace(deps, state=state, llm=_pinned(deps.llm), refresher=None)
         for q in qs:
             row = _ask(q, run_deps)
             with _lock:
