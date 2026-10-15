@@ -249,6 +249,7 @@ export default function App() {
           suggestions={SUGGESTIONS[page]}
           examples={examples}
           layout={layout}
+          asOf={status?.as_of ?? null}
           onClose={closeChat}
         />
       )}

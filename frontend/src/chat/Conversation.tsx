@@ -14,7 +14,8 @@ import remarkGfm from 'remark-gfm'
 import { EXPLAIN_LEVELS, type ChatReply, type Example, type ExplainLevel } from '../api.ts'
 import { AnswerDetails, firstTab, sourceId, type DetailTab } from './AnswerDetails.tsx'
 import { ProposalCard } from './ProposalCard.tsx'
-import type { Message } from './useChat.ts'
+import { ToolCallCard } from './ToolCallCard.tsx'
+import type { Message, RefinedResult } from './useChat.ts'
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 const scrollTo = (el: Element | null, block: ScrollLogicalPosition) =>
@@ -163,6 +164,38 @@ function Answer({ reply }: { reply: ChatReply }) {
   )
 }
 
+// Refined results already shown once: focus goes to a new one only, not again when the chat opens again.
+const focused = new Set<number>()
+
+/** A refine button's result (B24): chips saying what was applied, then the search card run again. No model text:
+ *  the answer above stays as it was, and asking again has Patch explain the narrower list. */
+function RefinedAnswer({ id, refined }: { id: number; refined: RefinedResult }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (focused.has(id)) return
+    focused.add(id)
+    ref.current?.focus({ preventScroll: true }) // the conversation scrolls to the end itself
+  }, [id])
+  const n = (refined.call.result as { sources?: unknown[] } | null)?.sources?.length ?? 0
+  return (
+    <>
+      <div className="refined-head" ref={ref} tabIndex={-1}>
+        <span className="visually-hidden">Applied: </span>
+        {refined.applied.map((a) => (
+          <span key={a} className="chip applied">
+            {a}
+          </span>
+        ))}
+      </div>
+      <p className="meta">
+        Searched again with {refined.applied.length === 1 ? 'this filter' : 'these filters'}: {n}{' '}
+        {n === 1 ? 'source' : 'sources'}. Patch didn't write a new answer: ask him to explain these.
+      </p>
+      <ToolCallCard call={refined.call} page={refined.page} applied={refined.filters} />
+    </>
+  )
+}
+
 /** The message list, the greeting with suggestions while empty, and the message box. */
 export function Conversation({ messages, pending, onSend, greeting, suggestions, examples }: {
   messages: Message[]
@@ -236,7 +269,15 @@ export function Conversation({ messages, pending, onSend, greeting, suggestions,
         )}
         {messages.map((m) => (
           <div key={m.id}className={`message ${m.role}${m.error ? ' error' : ''}`}>
-            {m.error ? <p role="alert">{m.error}</p> : m.reply ? <Answer reply={m.reply} /> : <p>{m.content}</p>}
+            {m.error ? (
+              <p role="alert">{m.error}</p>
+            ) : m.refined ? (
+              <RefinedAnswer id={m.id} refined={m.refined} />
+            ) : m.reply ? (
+              <Answer reply={m.reply} />
+            ) : (
+              <p>{m.content}</p>
+            )}
           </div>
         ))}
         {pending && (
