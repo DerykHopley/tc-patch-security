@@ -64,7 +64,7 @@ def open_dash(browser: Browser, ui_url: str, clean_state):
     """Opens the dashboard in a fresh context and waits for the tiles and the "Top 5 open CVEs" card."""
     contexts = []
 
-    def _open(width=DESKTOP, scheme="light", reduced=False, before=None) -> Page:
+    def _open(width=DESKTOP, scheme="light", reduced=False, before=None, fonts=True) -> Page:
         ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme,
                                   reduced_motion="reduce" if reduced else "no-preference")
         contexts.append(ctx)
@@ -74,7 +74,8 @@ def open_dash(browser: Browser, ui_url: str, clean_state):
         page.goto(ui_url)
         expect(page.locator(".tile")).to_have_count(4)
         expect(page.locator(".top-cves li").first).to_be_visible()
-        page.evaluate("document.fonts.ready.then(() => null)")  # late web fonts move the layout (CI race)
+        if fonts:  # late web fonts move the layout (CI race); a check of the first second's motion can't wait
+            page.evaluate("document.fonts.ready.then(() => null)")
         return page
 
     yield _open

@@ -237,7 +237,11 @@ GROWING = """el => el.getAnimations({ subtree: true }).filter(a => a.animationNa
 
 
 def test_a05_5_bars_grow_in_on_first_load_stacked_bars_as_one_piece(open_dash):
-    page = open_dash()
+    page = open_dash(fonts=False)
+    # Hold the bars mid-grow (0.2s delay + half of 0.9s) so the check reads the frame it means on any runner.
+    expect(page.locator(".chart .fill").first).to_be_attached()
+    page.evaluate("""document.getAnimations().filter(a => a.animationName?.startsWith('grow-'))
+        .forEach(a => { a.pause(); a.currentTime = 650 })""")
     cards = page.locator(".dash-main > .card").evaluate_all(
         "els => els.map(el => [getComputedStyle(el).animationName, getComputedStyle(el).animationDelay])")
     assert cards == [["fade-up", d] for d in ("0s", "0.12s", "0.24s", "0.24s")]  # 3 charts, then the top 5 CVEs
@@ -258,7 +262,6 @@ def test_a05_5_bars_grow_in_on_first_load_stacked_bars_as_one_piece(open_dash):
     assert column == ["grow-y", "fill-box", "0.2s"]
 
     # Mid-grow, a stacked bar's segments are still joined: each gap is 2px scaled by the same factor.
-    page.wait_for_timeout(500)  # on purpose: a frame mid-grow (if the grow is already over, the bars are joined too)
     rows = stacked.locator(".bar-row").evaluate_all("""rows => rows.map(r => [...r.querySelectorAll('.fill')]
         .map(el => { const b = el.getBoundingClientRect(); return [b.left, b.right] }))""")
     full = stacked.locator(".bar-row").evaluate_all("""rows => rows.map(r => [...r.querySelectorAll('.fill')]
