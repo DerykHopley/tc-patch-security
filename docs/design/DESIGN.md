@@ -485,7 +485,7 @@ He always **overlaps what he sits on**, so he looks like he's in the scene, not 
 
 - **Contrast**: section 3.1 and 5.1 values (*checked*). Open issues in 12.1.
 - **Colour is never alone**: map shapes, chart legends, "Show as table" under every chart and the map, KEV has a label and an icon, the unread dot sits on a named button.
-- **Keyboard**: everything reachable; visible focus (purple ring on sliders and the divider, purple border on Patch's pill); Ctrl/Cmd+K and Esc; divider moves with arrow keys.
+- **Keyboard**: everything reachable; visible focus (purple ring on sliders and the divider, purple border on Patch's pill); Ctrl/Cmd+K and Esc; divider moves with arrow keys. Each chart is **one Tab stop**: Tab lands on its bar last focused (the first at the start), arrow keys, Home and End move between its bars with their tooltips, and the next Tab leaves the chart (a roving tabindex; review, 2026-10-15).
 - **Screen readers**: collapsed sidebar keeps its labels (visually hidden); Patch is `aria-hidden`; buttons have names ("Ask Patch", "Close the chat", "Make larger", "Pin: dock the chat beside the page", "Unpin: float the chat over the page", "Switch to dark mode", "Close Patch's welcome", "Collapse the sidebar").
 - **Reduced motion**: section 7.
 

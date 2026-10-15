@@ -339,6 +339,36 @@ def test_a05_9_light_dark_phone_and_desktop(open_dash, browser_name, width, sche
         assert side["x"] > main["x"] + main["width"] - 1
 
 
+@pytest.mark.parametrize("title", [BY_PRODUCT, PER_MONTH, BY_OWASP])
+def test_a05_10_each_chart_is_one_tab_stop_with_arrow_keys_between_bars(open_dash, title):
+    """Review item 20: about 50 bars were each a Tab stop. Now a chart is one stop (DESIGN.md §10): Tab lands on its
+    first bar and leaves with the next Tab; arrow keys, Home and End move between bars, each with its tooltip."""
+    page = open_dash(reduced=True)
+    targets = chart(page, title).locator("svg [aria-label]:is(.fill, .hit)")
+    expect(targets.first).to_be_attached()
+    count = targets.count()
+    assert count >= 2
+    assert chart(page, title).locator("svg [tabindex='0']").count() == 1
+    tip = page.get_by_role("tooltip")
+    targets.first.focus()
+    expect(tip).to_have_text(targets.first.get_attribute("aria-label") or "")
+    page.keyboard.press("ArrowRight")
+    expect(targets.nth(1)).to_be_focused()
+    expect(tip).to_have_text(targets.nth(1).get_attribute("aria-label") or "")
+    page.keyboard.press("ArrowLeft")
+    expect(targets.first).to_be_focused()
+    page.keyboard.press("End")
+    expect(targets.last).to_be_focused()
+    page.keyboard.press("ArrowDown")  # stays on the last
+    expect(targets.last).to_be_focused()
+    page.keyboard.press("Home")
+    expect(targets.first).to_be_focused()
+    page.keyboard.press("Tab")  # out of the chart in one press
+    assert not chart(page, title).locator("svg").evaluate("el => el.contains(document.activeElement)")
+    page.keyboard.press("Shift+Tab")  # back in: the bar last focused
+    expect(targets.first).to_be_focused()
+
+
 def test_a05_10_keyboard_reaches_banner_bars_tables_and_panels(open_dash):
     page = open_dash(reduced=True)
     hello = banner(page)

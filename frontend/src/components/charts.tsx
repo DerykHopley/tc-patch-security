@@ -35,19 +35,44 @@ function useGrowOnce() {
   return { className: growing ? ' grow' : '', onAnimationEnd }
 }
 
+// One Tab stop per chart (DESIGN.md §10): only the bar last focused is in the Tab order; arrow keys, Home and End
+// move between the chart's bars (a roving tabindex). Without it every bar was its own stop, about 50 on the page.
+const STEP: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
+
+function moveFocus(e: React.KeyboardEvent<SVGElement>) {
+  const svg = e.currentTarget.closest('svg')
+  const bars = svg ? [...svg.querySelectorAll<SVGElement>('[data-bar]')] : []
+  const i = bars.indexOf(e.currentTarget)
+  const next = e.key in STEP ? i + STEP[e.key] : e.key === 'Home' ? 0 : e.key === 'End' ? bars.length - 1 : null
+  if (i < 0 || next === null) return
+  e.preventDefault() // arrows would scroll the page
+  bars[Math.min(bars.length - 1, Math.max(0, next))].focus()
+}
+
+function useRoving() {
+  const [active, setActive] = useState(0)
+  return { active, setActive }
+}
+type Roving = ReturnType<typeof useRoving>
+
 // Hover and keyboard focus show the same tooltip: above the pointer, or above the bar when focused.
-function tipHandlers(text: string, onTip: OnTip) {
+function tipHandlers(text: string, onTip: OnTip, i: number, roving: Roving) {
   const atBar = (el: Element): Tip => {
     const r = el.getBoundingClientRect()
     return { x: r.left + r.width / 2, y: r.top, text }
   }
   return {
     'aria-label': text,
-    tabIndex: 0,
+    'data-bar': '',
+    tabIndex: i === roving.active ? 0 : -1,
     onMouseMove: (e: React.MouseEvent) => onTip({ x: e.clientX, y: e.clientY, text }),
     onMouseLeave: () => onTip(null),
-    onFocus: (e: React.FocusEvent) => onTip(atBar(e.currentTarget)),
+    onFocus: (e: React.FocusEvent) => {
+      roving.setActive(i)
+      onTip(atBar(e.currentTarget))
+    },
     onBlur: () => onTip(null),
+    onKeyDown: moveFocus,
   }
 }
 
@@ -106,6 +131,7 @@ const GAP = 2 // surface gap between touching fills
 export function StackedBars({ rows, onTip }: { rows: ProductCounts[]; onTip: OnTip }) {
   const [ref, width] = useWidth<HTMLDivElement>()
   const grow = useGrowOnce()
+  const roving = useRoving()
   const labelW = Math.min(110, Math.max(70, width * 0.28))
   const endW = 40
   const max = Math.max(1, ...rows.map((r) => r.total))
@@ -120,6 +146,7 @@ export function StackedBars({ rows, onTip }: { rows: ProductCounts[]; onTip: OnT
             const y = i * (ROW + 10) + 4
             let x = labelW
             const segs = SEVERITIES.filter((s) => r[s] > 0)
+            const first = rows.slice(0, i).reduce((n, p) => n + SEVERITIES.filter((s) => p[s] > 0).length, 0)
             return (
               <g key={r.product} className="bar-row">
                 <text x={labelW - 8} y={y + ROW / 2} className="axis-label" textAnchor="end" dominantBaseline="middle">
@@ -132,7 +159,7 @@ export function StackedBars({ rows, onTip }: { rows: ProductCounts[]; onTip: OnT
                   x += w
                   return (
                     <path key={s} d={d} className={`fill sev-${s.toLowerCase()}`} data-severity={s}
-                      {...tipHandlers(`${r.name} · ${sevLabel(s)}: ${r[s]} open`, onTip)} />
+                      {...tipHandlers(`${r.name} · ${sevLabel(s)}: ${r[s]} open`, onTip, first + j, roving)} />
                   )
                 })}
                 <text x={x + 6} y={y + ROW / 2} className="value-label" dominantBaseline="middle">
@@ -156,6 +183,7 @@ function vbar(x: number, y: number, w: number, h: number) {
 export function Columns({ data, onTip }: { data: { month: string; count: number }[]; onTip: OnTip }) {
   const [ref, width] = useWidth<HTMLDivElement>()
   const grow = useGrowOnce()
+  const roving = useRoving()
   const h = 180
   const pad = { l: 32, r: 8, t: 18, b: 22 }
   const max = Math.max(1, ...data.map((d) => d.count))
@@ -173,7 +201,8 @@ export function Columns({ data, onTip }: { data: { month: string; count: number 
   return (
     <div ref={ref} className={`chart-box vbars${grow.className}`} onAnimationEnd={grow.onAnimationEnd}>
       {width > 0 && (
-        <svg width={width} height={h} aria-label="CVEs per month for watched products">
+        <svg width={width} height={h} aria-label="CVEs per month for watched products"
+         >
           {ticks.map((t) => (
             <g key={t}>
               <line x1={pad.l} x2={width - pad.r} y1={y(t)} y2={y(t)} className="grid" />
@@ -189,7 +218,7 @@ export function Columns({ data, onTip }: { data: { month: string; count: number 
                 {d.count > 0 && <path d={vbar(x, y(d.count), bw, pad.t + plotH - y(d.count))} className="fill series-1" />}
                 {/* The hover target is the whole month's slot: bigger than a thin column, and there for empty months. */}
                 <rect x={pad.l + i * slot} y={pad.t} width={slot} height={plotH} className="hit"
-                  {...tipHandlers(`${d.month}: ${d.count} CVEs`, onTip)} />
+                  {...tipHandlers(`${d.month}: ${d.count} CVEs`, onTip, i, roving)} />
                 {labelled.has(i) && d.count > 0 && (
                   <text x={x + bw / 2} y={y(d.count) - 4} className="value-label" textAnchor="middle">
                     {d.count}
@@ -221,6 +250,7 @@ function fit(label: string, px: number) {
 export function Bars({ data, onTip }: { data: { label: string; count: number }[]; onTip: OnTip }) {
   const [ref, width] = useWidth<HTMLDivElement>()
   const grow = useGrowOnce()
+  const roving = useRoving()
   const labelW = Math.min(230, Math.max(48, width * 0.4))
   const endW = 40
   const max = Math.max(1, ...data.map((d) => d.count))
@@ -240,7 +270,7 @@ export function Bars({ data, onTip }: { data: { label: string; count: number }[]
                   {fit(d.label, labelW - 12)}
                 </text>
                 <path d={hbar(labelW, y, w, row, true)} className="fill series-1"
-                  {...tipHandlers(`${d.label}: ${d.count} open`, onTip)} />
+                  {...tipHandlers(`${d.label}: ${d.count} open`, onTip, i, roving)} />
                 <text x={labelW + w + 6} y={y + row / 2} className="value-label" dominantBaseline="middle">
                   {d.count}
                 </text>
