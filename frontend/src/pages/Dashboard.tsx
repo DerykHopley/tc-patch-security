@@ -6,6 +6,7 @@ import { WarningIcon } from '../components/Icons.tsx'
 import { OverdueMark, PriorityChip, PriorityReasons } from '../components/Priority.tsx'
 import { NoFixMark } from '../components/Decision.tsx'
 import { PossibleMatch } from '../components/SnapshotFacts.tsx'
+import type { Variant } from '../components/patchPose.ts'
 import { WelcomeBanner } from '../components/WelcomeBanner.tsx'
 import type { CveView } from '../pageContext.ts'
 import { followLink } from '../route.ts'
@@ -36,11 +37,13 @@ function withFilter(href: string, filter: string[]): string {
 
 // search: the query string the page was opened with. onNavigate: opens an in-app link (a tile, "See all CVEs").
 // onAskPatch: the welcome banner's "Ask Patch". onView: the product filter Patch is told about (A15b).
-export function DashboardPage({ search, onNavigate, onAskPatch, onView }: {
+// patchVariant: Patch's idle animation in the banner, picked on page load (DESIGN.md §8.3).
+export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVariant }: {
   search: string
   onNavigate: (href: string) => void
   onAskPatch: () => void
   onView?: (view: CveView) => void
+  patchVariant: Variant
 }) {
   const [filter, setFilter] = useState<string[]>(() => filterFromSearch(search))
   const [data, setData] = useState<DashboardData | null>(null)
@@ -90,7 +93,7 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView }: {
   if (!data) {
     return (
       <div className="page dashboard">
-        <WelcomeBanner onAsk={onAskPatch} />
+        <WelcomeBanner onAsk={onAskPatch} variant={patchVariant} />
         {error ? (
           <p className="dash-error" role="alert">
             {error}
@@ -104,7 +107,7 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView }: {
 
   return (
     <div className="page dashboard">
-      <WelcomeBanner onAsk={onAskPatch} />
+      <WelcomeBanner onAsk={onAskPatch} variant={patchVariant} />
       {error && (
         <p className="dash-error" role="alert">
           {error}{' '}

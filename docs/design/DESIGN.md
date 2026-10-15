@@ -73,6 +73,7 @@ Fixed colours (same in both modes):
 
 - **Primary gradient** `--gradient-primary` (primary buttons, active sidebar item, brand mark): `linear-gradient(135deg, #7454f7, #5a3ff0)`. Started at `#8b6cff` in the prototype (fault 12.1). Text on it is `--on-primary` (`#ffffff`).
 - **Purple shadow** used everywhere: `rgba(108, 76, 245, α)`, α between 0.09 and 0.4 (values per component below).
+- **Patch's colours** (§8.1): body `#9483FF`, visor `#2A2457`, eyes `#7FF0DD`, antenna light `#FFC94D`, and the cheeks and extras listed there.
 
 Contrast (*checked*: WCAG 2 formula, 2026-10-14, after the fixes; the browser check A02.3 re-measures muted and the gradient):
 
@@ -163,7 +164,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 ### Checklist: tokens
 
 - [ ] Every colour in sections 3.1 and 3.2 is a token with light and dark values.
-- [ ] No component uses a hard-coded colour except the fixed ones listed (primary gradient, purple shadow, tile gradients, Patch's own colours).
+- [ ] No component uses a hard-coded colour except the fixed ones listed (primary gradient, purple shadow, tile gradients, Patch's own colours listed in §8.1).
 - [ ] Fonts load from `index.html`; no flash of the wrong font on first load.
 - [ ] Dark mode is driven by `data-theme` on `<html>`, not by `prefers-color-scheme`, so the toggle can override the system.
 
@@ -282,7 +283,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 
 ### 5.8 Welcome banner (dashboard)
 
-- Above the dashboard: white-to-soft-purple card (radius 28px). Patch (110px, waving) on the left, his head rising over the top edge. Title "Hi there! I'm Patch, your security sidekick." (1.25rem Fredoka, purple), one line of help, an "Ask Patch" button.
+- Above the dashboard: white-to-soft-purple card (radius 28px). Patch (110px, idle in a variant picked on page load, §8.3) on the left, his head rising over the top edge. Title "Hi there! I'm Patch, your security sidekick." (1.25rem Fredoka, purple), one line of help, an "Ask Patch" button.
 - A quiet ✕ in the top right (32px round, muted, soft purple on hover). Once closed, it stays closed in that browser.
 
 ### 5.9 CVEs page and the "Top 5 open CVEs" card (A04b, 2026-10-14)
@@ -315,6 +316,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - [ ] Map colours and dimming as specified, in both modes.
 - [ ] Buttons, inputs, checkboxes, radios and sliders are on-brand in both modes and in Firefox and Chrome.
 - [ ] Save bar never hidden behind Patch.
+- [ ] Patch's colours are the fixed ones in §8.1 (body `#9483FF`, visor `#2A2457`, eyes `#7FF0DD`, light `#FFC94D`, cheeks, extras), the same in both modes; no token changes them.
 - [ ] Welcome banner closes and stays closed.
 - [ ] Tiles link to the CVEs page with their filter; the count there matches the tile.
 - [ ] Dashboard product filter (A15b): toggle pills with `aria-pressed`, a tick as well as colour, in the URL only, carried by the tile links and "See all CVEs"; the watchlist is edited on Settings, in a card that shares the save bar.
@@ -345,7 +347,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - **Fix-first card (A18)**: `prioritise`'s tool card. Title "N open · {view} · in the rules' order", then a numbered list in the rules' order (never re-sorted): id, priority chip, severity, KEV, "Review due", "No fix yet · open N days" or the overdue mark; under it the product, the reasons and "due" (or "decide by") date. A status filter that doesn't apply is listed as "Not applied: …".
 - **Dropped page context (A18)**: under an answer, "Page context not used (not a valid value): severity=EXTREME" in `--text` on `--warn-soft` with a `--warn` edge. The app never sends such values; it shows when a request was crafted.
 - **Explain-level switch** (A19), a row under the header's buttons: "Explain level" and three pills (radios: Simple, Normal, Deep dive) showing the saved level. Picked pill: `--text` on `--accent-soft` with an `--accent` edge. Another level applies to the next question only ("next question only" note, muted italic), then the switch goes back to the saved level. Each answer shows the level it used as a small chip (`--muted` on `--accent-soft`) before the usage line.
-- **Empty chat**: Patch (92px, waving) tucked behind a soft purple speech bubble: "Hi, I'm Patch! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack. What shall we look at?" Below: 1–2 suggested questions for the current page, and "More examples" (folded).
+- **Empty chat**: Patch (92px, idle in a variant picked on page load, §8.3) tucked behind a soft purple speech bubble: "Hi, I'm Patch! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack. What shall we look at?" Below: 1–2 suggested questions for the current page, and "More examples" (folded).
 - **Messages**: user on the right in `--user`, assistant on the left on the surface. Each answer can open "Show N sources · N tool calls": tabs (Sources, Tool calls, Query plan) inline under the answer. Citations `[1]` open those details and scroll to the source.
 - **Under each answer** (A08): the citation check's note, quiet (`--muted`, italic, no fill; unlike the warning-coloured flag note): "No sources cited." when a sourced answer cites none, "Removed citation [9]: no matching source." when the check took one out. Then the usage line: tokens in and out, LLM calls, steps, and the cost in dollars to two significant figures ("$0.00061"; "$0" for local models and FakeLLM).
 
@@ -418,58 +420,67 @@ See section 8.3.
 
 ## 8. Patch
 
-![Patch's four moods](img/patch-moods-light.png)
+![Patch's four moods, four animations each (still poses)](img/patch-moods-light.png)
 
 ### 8.1 Drawing
 
-An original SVG (`viewBox="0 0 120 130"`, height = width × 1.08). Parts, back to front:
+The **squircle robot** from the design canvas "Robot Style Explorations" (2026-10-14, A06b). The canvas's four artboards are saved in [patch/](./patch/) (reference only), so the design doesn't depend on a private link. `viewBox="0 0 160 170"`, height = width × 170 / 160. Parts, back to front:
 
 | Part | Shape | Colour |
 |---|---|---|
-| Shadow | ellipse at (60, 124), 26 × 4.5 | `rgba(42,37,89,.16)` |
-| Antenna | line (60,22)→(60,11), 3px, round cap; light: circle r 5 at (60, 8) | stem `#8d97c9`; light `#ff5d73` |
-| Hands | two 14 × 22 rounded rects (r 7) at x 2 and 104, y 70 | `#6c4cf5` |
-| Ears | two 9 × 24 rounded rects at x 15 and 96, y 44 | `#6c4cf5` |
-| Body | 76 × 86 rounded rect (r 36) at (22, 20), 2px stroke | gradient `#ffffff` → `#d9defb` (top to bottom), stroke `#c3cbf3` |
-| Visor | 58 × 34 rounded rect (r 17) at (31, 33); a 20 × 4 highlight at (36, 36), 18% white | `#23265a` |
-| Eyes | idle/thinking: two 12 × 16 rounded rects (r 6) at x 42, 66, y 42. Happy: two arcs (`M41 54 q7 -9 14 0`, `M65 54 q7 -9 14 0`), 4px stroke. Alert: two circles r 8 at (48, 50), (72, 50). | radial gradient `#e6fdff` → `#5cf2ff` → `#13b6d6`; happy arcs `#5cf2ff` |
-| Chest lights | three circles r 3 at (50/60/70, 82) | `#35d07f`, `#ffc93c`, `#ff5d73` |
-| Thruster | `M46 105 h28 l-4 8 h-20 z` | `#c3cbf3` |
+| Shadow | ellipse, ry 5, under the body (cy 148–160, rx 42–50 by variant) | `#2A2457`, 12% (14% where it animates) |
+| Antenna | line (80,42)→(80,22), 5px, round cap; light: circle r 7 at (80, 19) | stem `#9483FF`; light `#FFC94D` (heart eyes `#FF6F91`, alert `#FF6B8E`, siren `#FF4D6D`) |
+| Body | 112 × 106 rounded rect, **rx 44**, at (24, 40) | `#9483FF` |
+| Highlight | ellipse 11 × 6 at (50, 60), rotated −32° | white, 35% |
+| Visor | 72 × 40 rounded rect, rx 20, at (44, 68) | `#2A2457` |
+| Eyes | by variant: ovals 6 × 7 at (67/93, 88); scanning dots; three typing dots; arcs (happy); hearts; wide circles r 9 with a highlight or a pupil (alert) | `#7FF0DD` |
+| Cheeks | ellipses at (44/116, 122) on some variants | `#FFB3CF` (idle), `#FF9EC0` (happy) |
+| Mouth | by variant: small smile, flat line, wavy "hmm", dot, open smile, grin, "o" | `#2A2457` |
+| Extras (outside the body) | thought dots, radar pings, sparkles, music notes, floating hearts, alarm lines, the siren beam and halo, the "!" badge | `#B4A9FF`, `#FFC94D`, `#9483FF`, `#FF9EC0`, `#FF6F91`, `#FF6B8E`, `#FF4D6D` |
 
+- **Fixed colours**: all of the above are the same in light and dark mode, and are the only literal colours outside the tokens besides those in §3.1 and §5.1 (see the token checklist). The purple body stands out on both page backgrounds and surfaces (*checked*, img/patch-moods-dark.png).
 - Patch is decorative (`aria-hidden`); the button or text next to him carries the meaning.
-- Gradient ids must be unique per instance (several Patches can be on one page).
-- The same drawing in light and dark mode (*checked*, img/patch-moods-dark.png).
+- He uses no gradients or other ids, so several Patches on one page can't clash (the browser check asserts ids stay unique).
+- Each `svg.robot` says what it shows: `data-mood` and `data-variant`.
 
 ### 8.2 Where he appears, and how he overlaps
 
 He always **overlaps what he sits on**, so he looks like he's in the scene, not pasted on.
 
-| Place | Size | Overlap |
-|---|---|---|
-| Chat button | 58px | stands **in front** of the pill, overlapping its top edge, shadow on the pill |
-| Chat header | 34px | sits in the title row |
-| Empty-chat greeting | 92px | sits **behind** the speech bubble (bubble in front, 2.1rem overlap); always waving |
-| Welcome banner | 110px | head rises **over the banner's top edge** (−2.4rem); always waving |
-| Sidebar snapshot card | 64px | head pokes **over the card's top edge** (−2.6rem) |
+| Place | Size | Overlap | Shows |
+|---|---|---|---|
+| Chat button | 58px | stands **in front** of the pill, overlapping its top edge, shadow on the pill | his mood |
+| Chat header | 34px | sits in the title row | his mood (the same animation as the button) |
+| Empty-chat greeting | 92px | sits **behind** the speech bubble (bubble in front, 2.1rem overlap) | idle, picked on page load |
+| Welcome banner | 110px | head rises **over the banner's top edge** (−2.4rem) | idle, picked on page load |
+| Sidebar snapshot card | 64px | head pokes **over the card's top edge** (−2.6rem) | idle, picked on page load |
+
+- Thought dots, sparkles, notes, hearts, the "!" badge and the siren beam reach outside the 160 × 170 box (the spin jump rises 30 units, the beam 33 above the light). No container around Patch cuts him off, and his extras never cover the unread dot or the header's buttons; the open pill's ✕ never meets him (he steps off). *Checked* for all 16 variants through their whole animation at 400px and 1400px, in both themes, Firefox and Chromium (A06b.6).
 
 ### 8.3 Moods
 
-| Mood | When | Looks | Motion |
-|---|---|---|---|
-| **Idle** | otherwise | round eyes | body bobs up 5px (3s, ease-in-out, forever); shadow shrinks to 80% / 60% opacity in time with the bob; hands drift up 3px and tilt −6° (3s; right hand 0.4s later); eyes blink (squash to 10% at 96% of a 4.5s cycle) |
-| **Thinking** | an answer is on its way | round eyes | eyes **scan** ±4px (1.1s, forever); antenna light **blinks** to `#ffd6dc` (0.5s, `steps(2)`); chest lights pulse to 25% opacity one after another (0.9s, delays 0 / 0.15 / 0.3s) |
-| **Happy** | for **3 seconds** after an answer arrives; on the chat button while an answer is unread | smiling arc eyes | right hand **waves**: up 14–16px, rotating +10° ↔ −22° (1.1s, forever) |
-| **Alert** | the last message is an error | wide round eyes | body **shakes** ±3px (0.5s, twice) |
+| Mood | When | Option A | Option B | Option C | Option D |
+|---|---|---|---|---|---|
+| **Idle** | otherwise | **Float**: hovers up 7px (2.6s); shadow shrinks to 80% (2.6s); antenna sways ±10° (1.8s); blink (4s) | **Breathe**: sits, squishes to 103.5% × 96.5% (3.2s); light glows 35–100% (3.2s); slow blink (6s); cheeks | **Look around**: eyes glance −7px then +7px while the body leans ±3° (5s); blink (4s) | **Little hop**: rests, then squash, hop up 16px, land (3s, last 30%); shadow shrinks with it; blink; cheeks |
+| **Thinking** | an answer is on its way | **Tilt & scan**: tilted −7°, eyes scan ±3px (1.6s); three thought dots and the light pulse 25–100% (1.2s, delays 0 / 0.2 / 0.4s); flat mouth | **Typing dots**: the eyes become three dots that rise 5px in turn (1.2s, delays 0 / 0.15 / 0.3s); floats 5px (2.6s) | **Ponder**: rocks ±6° (3s); eyes up; light pulses; wavy "hmm" mouth | **Radar**: two rings ping out from the light to 3.4× (1.8s, 0.9s apart); blink; dot mouth |
+| **Happy** | for **3 seconds** after an answer arrives; on the chat button while an answer is unread | **Bounce**: squash and stretch, up 8px (1s); antenna wiggles (0.45s); two sparkles pulse; arc eyes, open smile | **Spin jump**: squash, leap 30px with a full turn, land (2.2s); shadow shrinks; arc eyes | **Dance**: sways ±6px and ±10° (0.9s); antenna wiggles; ♪ ♫ rise and fade (1.8s, 0.9s apart); grin | **Heart eyes**: heart eyes beat to 125% then 115% (1.2s); two hearts rise (1.8s); floats 6px; pink light |
+| **Alert** | the last message is an error | **Shake**: stretched tall, trembles ±3px (0.5s); alarm lines; wide eyes, "o" mouth | **Startle jump**: squash, jolt up 24px, land (2.4s); pinprick pupils | **Siren**: the light flashes red/yellow (0.6s), a three-beam light turns (1.2s), the halo pulses (0.6s); wide eyes | **Pop-up "!"**: a red "!" badge pops in and out (2.6s) as he freezes tall and his eyes widen to 110% |
 
-- Mood logic lives in one hook (`useMood`) used by the chat header and the chat button, so they always agree.
-- "Waving" is also a fixed style for the greeting and the banner, whatever the mood.
+All animations repeat forever, with the canvas's keyframes and easings (`styles/robot.css`).
+
+- **The random rule**: each time Patch **enters** a mood he gets one of its four at random. While he stays in it he keeps it, so a re-render never makes him flicker. The pick lives in the one mood source, `usePatch` (the chat button and the header read it, so they always agree). Its random source is injectable: tests pick a known variant.
+- **Places without a mood** (the greeting, the banner, the snapshot card) show idle, in one variant picked at random on page load.
+- **Reduced motion**: nothing moves. Each variant shows its still pose (the canvas drawing), which keeps its face: arc eyes or heart eyes for happy, wide eyes and the "!" badge or the beam for alert, the typing dots for thinking. Animated shadows and the halo rest at their first keyframe's opacity (*checked*, the shared reduced-motion scene a06b_7).
+
+![Patch's four moods in dark mode](img/patch-moods-dark.png)
 
 ### Checklist: Patch
 
-- [ ] Drawing matches 8.1; unique gradient ids.
-- [ ] Every placement in 8.2 with its size and overlap.
-- [ ] All four moods with their triggers and motion; header and button always agree.
-- [ ] Reduced motion stops all of Patch's movement.
+- [ ] Drawing matches 8.1 and the artboards in [patch/](./patch/); ids unique per instance; `aria-hidden`.
+- [ ] Every placement in 8.2 with its size and overlap; extras never cut off and never on the unread dot or the header's buttons.
+- [ ] All four moods with their triggers; all 16 variants with the canvas keyframes; a new pick only on entering a mood; header and button always agree.
+- [ ] Reduced motion stops all of Patch's movement and keeps each variant's face.
+- [ ] The same drawing in light and dark mode.
 
 ---
 
@@ -537,6 +548,6 @@ He always **overlaps what he sits on**, so he looks like he's in the scene, not 
 - Chart colours: the dataviz skill's validator (commands in 3.2).
 - Contrast: measured with the WCAG formula (values in 3.1 and 5.1).
 - The real build's browser check (`frontend/e2e/test_shell.py`, Firefox and Chromium) covers tokens, contrast, the shell, both themes, 400px and 1400px, and motion with and without reduced motion.
-- `frontend/e2e/test_chat.py` (A06) covers Patch (drawing, unique gradient ids, placements and overlaps, the four moods and their triggers, the unread dot), the bubble window (position above the pill, pop, header, greeting, suggestions), inline details and citations, the flag notice, keyboard, both themes at 400px and 1400px, and that nothing in the chat moves with reduced motion. The open pill uses the primary gradient, not `--accent`: white on dark-mode `--accent` would be 2.6:1. The prototype's check did **not** check animations or reduced motion. Worth adding in the real build: one test that the bars and Patch animate, one that nothing animates with reduced motion.
+- `frontend/e2e/test_chat.py` (A06, A06b) covers Patch (the squircle drawing, unique ids, all 16 variants with the canvas keyframes and faces, the random pick only on entering a mood, his motion envelope against every place's clipping and nearby controls, placements and overlaps, the four moods and their triggers, the unread dot), the bubble window (position above the pill, pop, header, greeting, suggestions), inline details and citations, the flag notice, keyboard, both themes at 400px and 1400px, and that nothing in the chat moves with reduced motion. The open pill uses the primary gradient, not `--accent`: white on dark-mode `--accent` would be 2.6:1. The prototype's check did **not** check animations or reduced motion. Worth adding in the real build: one test that the bars and Patch animate, one that nothing animates with reduced motion.
 - `frontend/e2e/test_cves_page.py` (A04b) covers the CVEs page: navigation and paths, the table at full width (moved A04.7 and A04.11 checks), filters in the URL and reload, the tile links (count matches the tile), the "Top 5 open CVEs" card, the alert link on `/cves`, stacked cards at 400px, row actions in view with the chat pinned at 1400px, fade-up delays, reduced motion, light and dark.
 - `frontend/e2e/test_priority.py` (A16) covers priority and due dates: the Priority and Due columns and their order, the KEV deadline as its own fact, internet-facing and the verdict moving a CVE, the Top 5 and the KEV tile, the policy card (save, out-of-order days, threshold), the `lookup_cve` card, chip contrast for all four levels in light and dark at 400px and 1400px (pinned too), reduced motion and the keyboard.

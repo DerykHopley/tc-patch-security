@@ -11,7 +11,8 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from test_affected import set_stack
-from test_chat import Q3, ask, head_bot, hold_chat, release, send, window
+from test_chat import (
+    OPTIONS, Q3, ask, has_face, head_bot, hold_chat, pick, release, send, to_alert, to_thinking, window)
 from test_chat import open_chat as open_bubble
 from test_chat_layout import ALERT_CVE, PIN, UNPIN, divider, head_button
 from test_cves_page import open_cves  # noqa: F401 (fixture)
@@ -90,14 +91,10 @@ def a05_8_charts_and_banner(fx):
     names = page.locator(".chart .fill, .hello .robot *").evaluate_all(
         "els => [...new Set(els.map(el => getComputedStyle(el).animationName))]")
     assert names == ["none"]
-    # Bars are drawn at full length straight away, and Patch's waving hand stands still.
+    # Bars are drawn at full length straight away (Patch in the banner: scene a06b_7).
     full = chart(page, BY_PRODUCT).locator(".fill").first.evaluate(
         "el => Math.abs(el.getBoundingClientRect().width - el.getBBox().width) < 0.6")
     assert full
-    hand = banner(page).locator(".bot-hand.right").evaluate("""async el => { const seen = new Set();
-        for (let i = 0; i < 8; i++) { seen.add(getComputedStyle(el).transform); await new Promise(r => setTimeout(r, 60)) }
-        return [...seen] }""")
-    assert hand == ["none"]
 
 
 def a06_8_chat(fx):
@@ -117,6 +114,34 @@ def a06_8_chat(fx):
     expect(head_bot(page)).to_have_class(re.compile("mood-alert"))
     still(page, "no shake")
     assert chat.evaluate("el => getComputedStyle(el).animationName") == "none"
+
+
+def a06b_7_patch_variants(fx):
+    """All 16 of Patch's animations stand still, each in a pose that keeps its face (arc eyes, wide eyes, ...)."""
+    for option in range(4):
+        page = fx("open_app")(reduced=True, init_script=pick(option))
+        places = [page.locator(".patch-fab svg.robot"), page.locator(".hello svg.robot"),
+                  page.locator(".side-card svg.robot")]
+        for robot in places:
+            expect(robot).to_have_attribute("data-variant", OPTIONS["idle"][option])
+        still(page, f"idle {OPTIONS['idle'][option]}: the button, the banner, the snapshot card")
+        has_face(places[0], OPTIONS["idle"][option])
+        open_bubble(page)
+        held = to_thinking(page)
+        still(page, f"thinking {OPTIONS['thinking'][option]}")
+        has_face(head_bot(page), OPTIONS["thinking"][option])
+        release(page, held)
+        expect(head_bot(page)).to_have_attribute("data-mood", "happy")
+        still(page, f"happy {OPTIONS['happy'][option]}")
+        has_face(head_bot(page), OPTIONS["happy"][option])
+        to_alert(page)
+        still(page, f"alert {OPTIONS['alert'][option]}")
+        has_face(head_bot(page), OPTIONS["alert"][option])
+        # The still pose shows every part: nothing is left at a keyframe's scale(0) or opacity 0.
+        hidden = head_bot(page).evaluate("""el => [...el.querySelectorAll('*')].filter(c => {
+            const s = getComputedStyle(c); return s.transform.startsWith('matrix(0, 0, 0, 0') || s.opacity === '0' })
+            .length""")
+        assert hidden == 0
 
 
 def a07_8_chat_layout(fx):
@@ -271,9 +296,9 @@ def a19_6_explain_levels(fx):
 
 
 SCENES = {f.__name__: f for f in (
-    a02_10_shell, a04_9_dashboard, a04b_9_cves_page, a05_8_charts_and_banner, a06_8_chat, a07_8_chat_layout,
-    a11_7_dev_page, a13_7_settings, a14_12_snapshot_additions, a15_9_verdict, a15b_8_watchlist, a16_12_priority,
-    a16b_13_decisions, a18_6_fix_first, a19_6_explain_levels,
+    a02_10_shell, a04_9_dashboard, a04b_9_cves_page, a05_8_charts_and_banner, a06_8_chat, a06b_7_patch_variants,
+    a07_8_chat_layout, a11_7_dev_page, a13_7_settings, a14_12_snapshot_additions, a15_9_verdict, a15b_8_watchlist,
+    a16_12_priority, a16b_13_decisions, a18_6_fix_first, a19_6_explain_levels,
 )}
 
 

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Squircle happy animation options</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&amp;display=swap">
+<style>
+body{margin:0}
+svg{overflow:visible}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes squish{0%,100%{transform:translateY(0) scale(1,1)}30%{transform:translateY(0) scale(1.08,.9)}60%{transform:translateY(-8px) scale(.95,1.06)}}
+@keyframes wiggle{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(10deg)}}
+@keyframes spinjump{0%,15%{transform:translateY(0) rotate(0deg) scale(1,1)}22%{transform:translateY(0) rotate(0deg) scale(1.08,.9)}48%{transform:translateY(-30px) rotate(180deg) scale(.96,1.04)}72%{transform:translateY(0) rotate(360deg) scale(1,1)}78%{transform:translateY(0) rotate(360deg) scale(1.08,.9)}86%,100%{transform:translateY(0) rotate(360deg) scale(1,1)}}
+@keyframes spinshadow{0%,15%,72%,100%{transform:scaleX(1);opacity:.14}48%{transform:scaleX(.55);opacity:.05}}
+@keyframes dance{0%,100%{transform:translateX(0) rotate(0deg)}25%{transform:translateX(-6px) rotate(-10deg)}75%{transform:translateX(6px) rotate(10deg)}}
+@keyframes rise{0%{transform:translateY(8px);opacity:0}25%{opacity:1}100%{transform:translateY(-24px);opacity:0}}
+@keyframes beat{0%,100%{transform:scale(1)}15%{transform:scale(1.25)}30%{transform:scale(1)}45%{transform:scale(1.15)}60%{transform:scale(1)}}
+.float{animation:float 2.6s ease-in-out infinite}
+.p1{animation:pulse 1.2s infinite}.p3{animation:pulse 1.2s .4s infinite}
+.squish{transform-box:fill-box;transform-origin:50% 100%;animation:squish 1s ease-in-out infinite}
+.wiggle-fast{transform-box:fill-box;transform-origin:50% 100%;animation:wiggle .45s ease-in-out infinite}
+.spinjump{transform-box:fill-box;transform-origin:50% 50%;animation:spinjump 2.2s ease-in-out infinite}
+.spinshadow{transform-box:fill-box;transform-origin:center;animation:spinshadow 2.2s ease-in-out infinite}
+.dance{transform-box:fill-box;transform-origin:50% 100%;animation:dance .9s ease-in-out infinite}
+.rise1{animation:rise 1.8s ease-out infinite}.rise2{animation:rise 1.8s .9s ease-out infinite}
+.beat{transform-box:fill-box;transform-origin:center;animation:beat 1.2s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="width: 1120px; height: 340px; box-sizing: border-box; padding: 32px; background: #EEF0FF; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; font-family: Nunito, 'Avenir Next', 'Segoe UI', sans-serif; color: #2A2457">
+
+<div style="background: #FFFFFF; border-radius: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+<svg width="160" height="170" viewBox="0 0 160 170" role="img" aria-label="Happy option A, bounce">
+<ellipse cx="80" cy="160" rx="46" ry="5" fill="#2A2457" opacity="0.12"></ellipse>
+<path class="p1" d="M134 40 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z" fill="#FFC94D"></path>
+<path class="p3" d="M20 54 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 z" fill="#FFC94D"></path>
+<g class="squish">
+<g class="wiggle-fast">
+<line x1="80" y1="42" x2="80" y2="22" stroke="#9483FF" stroke-width="5" stroke-linecap="round"></line>
+<circle cx="80" cy="19" r="7" fill="#FFC94D"></circle>
+</g>
+<rect x="24" y="40" width="112" height="106" rx="44" fill="#9483FF"></rect>
+<ellipse cx="50" cy="60" rx="11" ry="6" fill="#FFFFFF" opacity="0.35" transform="rotate(-32 50 60)"></ellipse>
+<rect x="44" y="68" width="72" height="40" rx="20" fill="#2A2457"></rect>
+<path d="M60 92 Q67 81 74 92" stroke="#7FF0DD" stroke-width="4.5" fill="none" stroke-linecap="round"></path>
+<path d="M86 92 Q93 81 100 92" stroke="#7FF0DD" stroke-width="4.5" fill="none" stroke-linecap="round"></path>
+<ellipse cx="44" cy="122" rx="8" ry="5" fill="#FF9EC0"></ellipse>
+<ellipse cx="116" cy="122" rx="8" ry="5" fill="#FF9EC0"></ellipse>
+<path d="M72 119 Q80 132 88 119 Z" fill="#2A2457" stroke="#2A2457" stroke-width="2" stroke-linejoin="round"></path>
+</g>
+</svg>
+<div style="text-align: center"><div style="font-size: 16px; font-weight: 800">A · Bounce (current)</div><div style="font-size: 13px; font-weight: 600; color: #6B6890">squash &amp; stretch, sparkles</div></div>
+</div>
+
+<div style="background: #FFFFFF; border-radius: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+<svg width="160" height="170" viewBox="0 0 160 170" role="img" aria-label="Happy option B, spin jump">
+<ellipse class="spinshadow" cx="80" cy="160" rx="46" ry="5" fill="#2A2457"></ellipse>
+<g transform="translate(0 6)">
+<g class="spinjump">
+<line x1="80" y1="42" x2="80" y2="22" stroke="#9483FF" stroke-width="5" stroke-linecap="round"></line>
+<circle cx="80" cy="19" r="7" fill="#FFC94D"></circle>
+<rect x="24" y="40" width="112" height="106" rx="44" fill="#9483FF"></rect>
+<ellipse cx="50" cy="60" rx="11" ry="6" fill="#FFFFFF" opacity="0.35" transform="rotate(-32 50 60)"></ellipse>
+<rect x="44" y="68" width="72" height="40" rx="20" fill="#2A2457"></rect>
+<path d="M60 92 Q67 81 74 92" stroke="#7FF0DD" stroke-width="4.5" fill="none" stroke-linecap="round"></path>
+<path d="M86 92 Q93 81 100 92" stroke="#7FF0DD" stroke-width="4.5" fill="none" stroke-linecap="round"></path>
+<ellipse cx="44" cy="122" rx="8" ry="5" fill="#FF9EC0"></ellipse>
+<ellipse cx="116" cy="122" rx="8" ry="5" fill="#FF9EC0"></ellipse>
+<path d="M72 119 Q80 132 88 119 Z" fill="#2A2457" stroke="#2A2457" stroke-width="2" stroke-linejoin="round"></path>
+</g>
+</g>
+</svg>
+<div style="text-align: center"><div style="font-size: 16px; font-weight: 800">B · Spin jump</div><div style="font-size: 13px; font-weight: 600; color: #6B6890">leaps and does a flip</div></div>
+</div>
+
+<div style="background: #FFFFFF; border-radius: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+<svg width="160" height="170" viewBox="0 0 160 170" role="img" aria-label="Happy option C, little dance">
+<ellipse cx="80" cy="150" rx="50" ry="5" fill="#2A2457" opacity="0.12"></ellipse>
+<text class="rise1" x="128" y="46" font-size="24" font-weight="800" fill="#9483FF" font-family="Nunito, sans-serif">♪</text>
+<text class="rise2" x="16" y="62" font-size="22" font-weight="800" fill="#FF9EC0" font-family="Nunito, sans-serif">♫</text>
+<g class="dance">
+<g class="wiggle-fast">
+<line x1="80" y1="42" x2="80" y2="22" stroke="#9483FF" stroke-width="5" stroke-linecap="round"></line>
+<circle cx="80" cy="19" r="7" fill="#FFC94D"></circle>
+</g>
+<rect x="24" y="40" width="112" height="106" rx="44" fill="#9483FF"></rect>
+<ellipse cx="50" cy="60" rx="11" ry="6" fill="#FFFFFF" opacity="0.35" transform="rotate(-32 50 60)"></ellipse>
+<rect x="44" y="68" width="72" height="40" rx="20" fill="#2A2457"></rect>
+<path d="M60 92 Q67 81 74 92" stroke="#7FF0DD" stroke-width="4.5" fill="none" stroke-linecap="round"></path>
+<path d="M86 92 Q93 81 100 92" stroke="#7FF0DD" stroke-width="4.5" fill="none" stroke-linecap="round"></path>
+<ellipse cx="44" cy="122" rx="8" ry="5" fill="#FF9EC0"></ellipse>
+<ellipse cx="116" cy="122" rx="8" ry="5" fill="#FF9EC0"></ellipse>
+<path d="M73 121 Q80 129 87 121" stroke="#2A2457" stroke-width="3" fill="none" stroke-linecap="round"></path>
+</g>
+</svg>
+<div style="text-align: center"><div style="font-size: 16px; font-weight: 800">C · Dance</div><div style="font-size: 13px; font-weight: 600; color: #6B6890">sways side to side, music notes</div></div>
+</div>
+
+<div style="background: #FFFFFF; border-radius: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+<svg width="160" height="170" viewBox="0 0 160 170" role="img" aria-label="Happy option D, heart eyes">
+<ellipse cx="80" cy="160" rx="46" ry="5" fill="#2A2457" opacity="0.12"></ellipse>
+<g transform="translate(124 34) scale(0.8)"><path class="rise1" d="M8 14 C8 14 0 9 0 4 C0 -1 6 -2 8 3 C10 -2 16 -1 16 4 C16 9 8 14 8 14 Z" fill="#FF6F91"></path></g>
+<g transform="translate(18 50) scale(0.6)"><path class="rise2" d="M8 14 C8 14 0 9 0 4 C0 -1 6 -2 8 3 C10 -2 16 -1 16 4 C16 9 8 14 8 14 Z" fill="#FF9EC0"></path></g>
+<g class="float">
+<line x1="80" y1="42" x2="80" y2="22" stroke="#9483FF" stroke-width="5" stroke-linecap="round"></line>
+<circle cx="80" cy="19" r="7" fill="#FF6F91"></circle>
+<rect x="24" y="40" width="112" height="106" rx="44" fill="#9483FF"></rect>
+<ellipse cx="50" cy="60" rx="11" ry="6" fill="#FFFFFF" opacity="0.35" transform="rotate(-32 50 60)"></ellipse>
+<rect x="44" y="68" width="72" height="40" rx="20" fill="#2A2457"></rect>
+<g transform="translate(59 81)"><path class="beat" d="M8 14 C8 14 0 9 0 4 C0 -1 6 -2 8 3 C10 -2 16 -1 16 4 C16 9 8 14 8 14 Z" fill="#FF6F91"></path></g>
+<g transform="translate(85 81)"><path class="beat" d="M8 14 C8 14 0 9 0 4 C0 -1 6 -2 8 3 C10 -2 16 -1 16 4 C16 9 8 14 8 14 Z" fill="#FF6F91"></path></g>
+<ellipse cx="44" cy="122" rx="9" ry="5.5" fill="#FF9EC0"></ellipse>
+<ellipse cx="116" cy="122" rx="9" ry="5.5" fill="#FF9EC0"></ellipse>
+<path d="M73 121 Q80 129 87 121" stroke="#2A2457" stroke-width="3" fill="none" stroke-linecap="round"></path>
+</g>
+</svg>
+<div style="text-align: center"><div style="font-size: 16px; font-weight: 800">D · Heart eyes</div><div style="font-size: 13px; font-weight: 600; color: #6B6890">eyes beat, hearts float up</div></div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1120,"height":340}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import type { Example, PageContext } from '../api.ts'
 import { PinIcon } from '../components/Icons.tsx'
-import { Robot, type Mood } from '../components/Robot.tsx'
+import { Robot, type Mood, type Variant } from '../components/Robot.tsx'
 import { contextWords } from '../pageContext.ts'
 import '../styles/chat.css'
 import { Conversation } from './Conversation.tsx'
@@ -13,11 +13,14 @@ import type { ChatLayout } from './useChatLayout.ts'
 // The chat window (DESIGN.md §6.2, §6.3): the bubble above Patch's button (opens with a pop), the enlarged bubble,
 // or pinned beside the page. Header: Patch with his mood, the page underneath with the
 // filters and selected CVE Patch is told about (A18), New chat, Pin (enlarged or pinned
-// only), Make larger (not when pinned), close; under them the explain-level switch (A19). Empty: Patch waving behind a speech bubble, with suggested questions.
+// only), Make larger (not when pinned), close; under them the explain-level switch (A19). Empty: Patch (idle, in the
+// variant picked on page load) behind a speech bubble, with suggested questions.
 // The same element in every layout, so pinning never loses the conversation's scroll.
-export function ChatWindow({ chat, mood, pageTitle, context, productName, suggestions, examples, layout, onClose }: {
+export function ChatWindow({ chat, mood, variant, restVariant, pageTitle, context, productName, suggestions, examples, layout, onClose }: {
   chat: ChatState
   mood: Mood
+  variant: Variant // the mood's animation, the same as on the button
+  restVariant: Variant // the greeting's idle animation
   pageTitle: string
   context: PageContext // what Patch is told about the page (A18): the chip shows it
   productName?: string
@@ -33,7 +36,7 @@ export function ChatWindow({ chat, mood, pageTitle, context, productName, sugges
   const greeting = (
     <div className="greeting">
       <div className="robot-slot">
-        <Robot mood="happy" size={92} className="wave" />
+        <Robot size={92} variant={restVariant} />
       </div>
       <p className="greeting-bubble">
         Hi, I'm <strong>Patch</strong>! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack. What
@@ -49,7 +52,7 @@ export function ChatWindow({ chat, mood, pageTitle, context, productName, sugges
     >
       <header className="chat-head">
         <div className="chat-title">
-          <Robot mood={mood} size={34} />
+          <Robot mood={mood} variant={variant} size={34} />
           <strong>Patch</strong>
           <span
             className="context-chip"
