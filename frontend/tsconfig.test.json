@@ -1,10 +1,11 @@
-// Unit tests (npm test: node --test, which runs TypeScript directly). Node types, no DOM.
+// Unit tests (npm test: node --test, which runs TypeScript directly). Node types. DOM and Vite's types only so the
+// type checker can follow type-only imports (api.ts, route.ts); node strips those imports, so tests never load them.
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
     "target": "es2023",
-    "lib": ["ES2023"],
-    "types": ["node"],
+    "lib": ["ES2023", "DOM"],
+    "types": ["node", "vite/client"],
     "skipLibCheck": true,
 
     /* Bundler mode */

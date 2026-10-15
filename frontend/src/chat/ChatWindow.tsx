@@ -1,8 +1,7 @@
 import type { CSSProperties } from 'react'
-import type { Example, PageContext } from '../api.ts'
+import type { Example } from '../api.ts'
 import { PinIcon } from '../components/Icons.tsx'
 import { Robot, type Mood, type Variant } from '../components/Robot.tsx'
-import { contextWords } from '../pageContext.ts'
 import '../styles/chat.css'
 import { Conversation } from './Conversation.tsx'
 import { LevelSwitch } from './LevelSwitch.tsx'
@@ -16,14 +15,13 @@ import type { ChatLayout } from './useChatLayout.ts'
 // only), Make larger (not when pinned), close; under them the explain-level switch (A19). Empty: Patch (idle, in the
 // variant picked on page load) behind a speech bubble, with suggested questions.
 // The same element in every layout, so pinning never loses the conversation's scroll.
-export function ChatWindow({ chat, mood, variant, restVariant, pageTitle, context, productName, suggestions, examples, layout, onClose }: {
+export function ChatWindow({ chat, mood, variant, restVariant, pageTitle, words, suggestions, examples, layout, onClose }: {
   chat: ChatState
   mood: Mood
   variant: Variant // the mood's animation, the same as on the button
   restVariant: Variant // the greeting's idle animation
   pageTitle: string
-  context: PageContext // what Patch is told about the page (A18): the chip shows it
-  productName?: string
+  words: string[] // what Patch is told about the page (A18), in words: the chip shows them
   suggestions: string[]
   examples: Example[]
   layout: ChatLayout
@@ -31,7 +29,6 @@ export function ChatWindow({ chat, mood, variant, restVariant, pageTitle, contex
 }) {
   const { expanded, pinned } = layout
   const savedLevel = useSavedLevel()
-  const words = contextWords(context, productName)
   const chipText = [`on ${pageTitle}`, ...words].join(' · ')
   const greeting = (
     <div className="greeting">
