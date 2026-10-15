@@ -133,7 +133,7 @@ To mark a message as looking like an injection attempt, log it, and still answer
 _Avoid_: block, reject (a flagged message is never blocked)
 
 **Proposal** (proposed change):
-A change Patch suggests to your watchlist, a CVE's status or a product's details. Nothing changes until you approve it; you can edit or cancel it. It expires after an hour.
+A change Patch suggests to your watchlist, a CVE's status or a product's details. Nothing changes until you approve it; you can edit or cancel it. It expires after an hour. A **proposed decision** (B22) is a proposal of a CVE's decision record at the end of web research: it lists the sources it rests on.
 _Avoid_: action, pending change, request
 
 ### Alerts

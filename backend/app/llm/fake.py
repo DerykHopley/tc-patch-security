@@ -9,6 +9,9 @@ category (what the dashboard's "Ask about this" sends). A CWE or ATLAS id → ex
 A question about the web, news or advisories, while research_web is offered (B08) → research_web, first.
 Anything else → search_security with the question as is.
 
+A script with `steps` is a workflow (B22): each step's tool calls go out after the previous step's results came back,
+as a real model's would; the answer comes after the last step.
+
 Explain levels (A19): the level is read from the system prompt's level line, as a real model would read it. A script
 with `answers` has one template per level, with the same facts and citations.
 """
@@ -255,7 +258,10 @@ class FakeLLM:
         n_input = _tokens(json.dumps(messages) + json.dumps(tools))
 
         calls = None
-        if not tool_msgs:
+        rounds = sum(1 for m in messages[last_user:] if m["role"] == "assistant" and m.get("tool_calls"))
+        if script and "steps" in script:  # a workflow (B22): one step's calls per round, after the last's results
+            calls = script["steps"][rounds] if rounds < len(script["steps"]) else None
+        elif not tool_msgs:
             calls = script["tool_calls"] if script else self._default_calls(question, tools)
         elif script is None and len(results) == 1 and results[0][0] == "lookup_cve" and "error" not in results[0][1]:
             # Unscripted CVE question: after the lookup, search for how to prevent its kind of bug.
@@ -302,13 +308,18 @@ class FakeLLM:
                 fields["web"] = _web(data)
             elif name == "check_updates":  # B06
                 fields["updates"] = _updates(data)
-            elif name == "update_watchlist":  # a proposal (B21), or nothing to change
+            elif name == "propose_decision" and "proposal_id" in data:  # B22: a proposed decision, with its sources
+                cites = ", ".join(f"[{x['n']}] ({x['label']})" for x in data["sources"])
+                fields["decision"] = (f"I've proposed this: {data['title']}. {data['before']} → {data['after']}. "
+                                      f"It rests on {cites}. {data['message']}")
+            elif name in ("update_watchlist", "propose_decision"):  # a proposal (B21), or nothing to change
                 fields["watch"] = (f"I've proposed this: {data['title']}. {data['before']} → {data['after']}. "
                                    f"{data['message']}" if "proposal_id" in data else
                                    data["message"] + " Watching: " + ", ".join(data["watchlist"]) + ".")
 
         if script is None:
-            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness", "web", "updates") if k in fields]
+            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness", "web", "updates")
+                     if k in fields]
             if sources:
                 head = "How to prevent this kind of bug:" if "cve" in fields else "From the knowledge base:"
                 parts.append(f"{head}\n\n{_bullets(sources, 3 if 'cve' in fields else 2)}")

@@ -245,7 +245,11 @@ export function WebFacts({ site, date, flagged }: { site?: string | null; date: 
   )
 }
 
-const VIA = { mcp: "Tavily's MCP server", api: "Tavily's search API (the MCP server didn't answer)" }
+const VIA = {
+  mcp: "Tavily's MCP server",
+  api: "Tavily's search API (the MCP server didn't answer)",
+  canned: "the model check's saved web results",
+}
 
 function ResearchCard({ r }: { r: ResearchResult }) {
   return (
@@ -353,6 +357,7 @@ function ResultCard({ call }: { call: ToolCallRecord }) {
   if (call.name === 'check_affected' && call.result) return <AffectedCard r={call.result} />
   if (call.name === 'prioritise' && call.result) return <FixFirstCard r={call.result} />
   if (call.name === 'update_watchlist' && call.result) return <WatchlistCard r={call.result} />
+  if (call.name === 'propose_decision' && call.result) return <WatchlistCard r={call.result} />
   if (call.name === 'research_web' && call.result) return <ResearchCard r={call.result} />
   if (call.name === 'check_updates' && call.result) return <UpdatesCard r={call.result} />
   return null
