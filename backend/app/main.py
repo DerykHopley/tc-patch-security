@@ -190,11 +190,11 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.post("/alerts/test")
     def test_alert(body: TestAlertRequest):
         """A real alert from the most urgent open CVE on the watchlist, on one channel. "preview" only records it."""
-        cve = most_urgent_open(deps.knowledge, deps.state.snapshot(), deps.settings.as_of)
-        if cve is None:
+        row = most_urgent_open(deps.knowledge, deps.state.snapshot(), deps.settings.as_of)
+        if row is None:
             raise InputError("There are no open CVEs on your watchlist to build a test alert from.")
-        msg = format_alert(cve, "kev" if deps.knowledge.cves.kev.get(cve["id"]) else "new", deps.knowledge,
-                           deps.settings.app_url)
+        cve = deps.knowledge.cves.get(row["id"])
+        msg = format_alert(cve, "kev" if row["kev"] else "new", deps.knowledge, deps.settings.app_url, due=row)
         msg["title"] = "Test · " + msg["title"]
         entry = deliver(body.channel, msg, deps.settings, deps.transports, deps.state)
         note = ("Recorded only: nothing was sent." if body.channel == "preview"

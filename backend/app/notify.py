@@ -51,14 +51,18 @@ class Notifier(Protocol):
     def send(self, title: str, body: str, priority: int, tags: list[str], click: str | None) -> None: ...
 
 
-def format_alert(cve: dict, reason: str, knowledge, app_url: str = "") -> dict:
-    """Structured fields only: never the CVE description, which is untrusted and shows on a lock screen."""
+def format_alert(cve: dict, reason: str, knowledge, app_url: str = "", due: dict | None = None) -> dict:
+    """Structured fields only: never the CVE description, which is untrusted and shows on a lock screen.
+    `due`: the CVE's row from the priority rules (due_date, no_fix), worded as on the dashboard: "due" your due
+    date, or "decide by" when there's no fix yet. Without it, a KEV CVE shows CISA's date as the "KEV deadline"."""
     product = knowledge.products[cve["product"]]
     sev = (cve["severity"] or "unscored").lower() + (f" {cve['cvss']:g}" if cve["cvss"] else "")
     body = f"{cve['id']} · {sev}"
     kev = knowledge.cves.kev.get(cve["id"])
-    if kev:
-        body += f" · remediation due {kev['dueDate']}"
+    if due and due.get("due_date"):
+        body += f" · {'decide by' if due.get('no_fix') else 'due'} {due['due_date']}"
+    elif kev:
+        body += f" · KEV deadline {kev['dueDate']}"
     if cve.get("product_source") == "text":
         body += " · possible match"
     priority = PRIORITY[reason] + (1 if reason == "new" and cve["severity"] == "CRITICAL" else 0)
@@ -68,11 +72,10 @@ def format_alert(cve: dict, reason: str, knowledge, app_url: str = "") -> dict:
 
 def most_urgent_open(knowledge, data: dict, as_of: str) -> dict | None:
     """The open CVE on the watchlist a test alert is built from: the top of the priority order (A16), the CVEs
-    page's first row."""
+    page's first row (with its due date)."""
     from app.dashboard import watched_rows
 
-    top = next((r for r in watched_rows(knowledge, data, as_of) if r["open"]), None)
-    return knowledge.cves.get(top["id"]) if top else None
+    return next((r for r in watched_rows(knowledge, data, as_of) if r["open"]), None)
 
 
 class PreviewNotifier:

@@ -115,7 +115,10 @@ def test_a13_3_preview_records_the_alert_and_sends_nothing(client):
     assert body["channel"] == "preview" and body["sent"] is False and "nothing was sent" in body["note"]
     a = body["alert"]
     assert a["title"] == "Test · In CISA KEV: Langflow" and a["priority"] == 5  # the most urgent open CVE: KEV
-    assert a["body"].startswith("CVE-") and "remediation due" in a["body"]
+    # Your due date from the policy, worded as on the dashboard (review item 18), never "remediation due"
+    top = client.get("/cves?status=open&limit=1").json()["rows"][0]
+    assert a["body"].startswith(top["id"]) and "remediation" not in a["body"]
+    assert a["body"].endswith(f" · {'decide by' if top['no_fix'] else 'due'} {top['due_date']}")
     log = client.get("/alerts").json()["alerts"]
     assert len(log) == 1 and (log[0]["title"], log[0]["channel"], log[0]["sent"]) == (a["title"], "preview", False)
 

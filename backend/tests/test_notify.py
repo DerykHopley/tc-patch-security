@@ -7,7 +7,7 @@ import pytest
 from app.config import Settings
 from app.notify import DesktopNotifier, EmailNotifier, NotifyError, NtfyNotifier, format_alert, mask_email
 
-MSG = {"title": "In CISA KEV: Langflow", "body": "CVE-2025-3248 · critical 9.8 · remediation due 2025-05-26",
+MSG = {"title": "In CISA KEV: Langflow", "body": "CVE-2025-3248 · critical 9.8 · due 2025-05-26",
        "priority": 5, "tags": ["kev", "langflow"], "click": "http://localhost:5173/#cve=CVE-2025-3248"}
 
 
@@ -106,6 +106,12 @@ def test_a13_4_alert_priority_and_possible_match(knowledge):
     critical = knowledge.cves.get("CVE-2024-8309")
     assert format_alert(critical, "new", knowledge)["priority"] == 4  # new and critical
     kev = format_alert(knowledge.cves.get("CVE-2025-3248"), "kev", knowledge)
-    assert kev["priority"] == 5 and kev["title"] == "In CISA KEV: Langflow" and "remediation due" in kev["body"]
+    assert kev["priority"] == 5 and kev["title"] == "In CISA KEV: Langflow"
+    assert kev["body"].endswith(" · KEV deadline 2025-05-26")  # no due date given: CISA's date, named as such
+    mine = format_alert(knowledge.cves.get("CVE-2025-3248"), "kev", knowledge,
+                        due={"due_date": "2025-06-01", "no_fix": False})
+    assert mine["body"].endswith(" · due 2025-06-01") and "KEV deadline" not in mine["body"]
+    no_fix = format_alert(critical, "new", knowledge, due={"due_date": "2025-07-01", "no_fix": True})
+    assert no_fix["body"].endswith(" · decide by 2025-07-01")
     guessed = next(c for c in knowledge.cves.all() if c.get("product_source") == "text")
     assert format_alert(guessed, "new", knowledge)["body"].endswith("possible match")
