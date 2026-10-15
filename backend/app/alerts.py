@@ -184,16 +184,17 @@ class Alerter:
         self.settings, self.state, self.transports = settings, state, transports
 
     def __call__(self, previous: dict | None, current: dict | None, folder: Path | None,
-                 now: dt.datetime) -> dict[str, list[dict]]:
+                 now: dt.datetime, complete: bool = True) -> dict[str, list[dict]]:
         """`previous` and `current`: the live versions before and after the run, `folder` the current one's
-        folder (None, None, None after a failed fetch: then only held alerts can go out)."""
-        return {DEFAULT_USER: self._for_user(self.state, previous, current, folder, now)}
+        folder (None, None, None after a failed fetch: then only held alerts can go out). `complete` False: a
+        partial run (B20), which doesn't count as a check for "new since last check"."""
+        return {DEFAULT_USER: self._for_user(self.state, previous, current, folder, now, complete)}
 
-    def _for_user(self, state, previous, current, folder, now: dt.datetime) -> list[dict]:
+    def _for_user(self, state, previous, current, folder, now: dt.datetime, complete: bool = True) -> list[dict]:
         at = now.astimezone(dt.UTC).isoformat(timespec="seconds")
         changes = diff(previous, current) if current is not None and previous is not None else None
         if changes is not None:  # B05: the CVEs page's "new since last check", alerts on or off
-            state.set_new_since_check(list(changes.new), at)
+            state.note_new_cves(list(changes.new), at, complete)
         s = state.settings().alerts
         if not s.enabled:
             return []

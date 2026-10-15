@@ -238,6 +238,55 @@ export interface FoundSource {
   text: string
 }
 
+/** check_updates: this check, or the last one when refused, with what it found for this user. */
+export interface UpdatesResult {
+  mode: 'live' | 'snapshot'
+  as_of: string
+  ran: boolean
+  refusal: UpdatesRefusal | null
+  last_checked: string | null
+  trigger: string | null
+  ok: boolean | null
+  status: 'ok' | 'partial' | 'failed' | null
+  problems: string[]
+  counts: UpdateCounts
+  new_cves: NewCve[]
+  alerts: UpdateAlert[]
+  alerts_total: number
+  note: string
+}
+
+export interface UpdatesRefusal {
+  reason: 'too_soon' | 'running' | 'snapshot'
+  next_allowed: string | null
+  message: string
+}
+
+export interface UpdateCounts {
+  new: number
+  updated: number
+  kev_added: number
+  rescored: number
+}
+
+export interface NewCve {
+  n: number | null
+  id: string
+  product: string | null
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' | null
+  kev: boolean
+  watched: boolean
+  priority: 'urgent' | 'high' | 'normal' | 'low' | null
+}
+
+export interface UpdateAlert {
+  n: number | null
+  cve: string
+  reason: string
+  priority: number
+  held: boolean
+}
+
 /** explain_weakness for a CWE: its OWASP Top 10 category and the snapshot's CVEs with it. */
 export interface CweResult {
   kind: 'cwe'
@@ -309,6 +358,7 @@ export interface ToolResults {
   propose_decision: Proposal | WatchlistResult
   prioritise: FixFirstResult
   search_security: SearchResult
+  check_updates: UpdatesResult
   explain_weakness: CweResult | TechniqueResult
   research_web: ResearchResult
 }

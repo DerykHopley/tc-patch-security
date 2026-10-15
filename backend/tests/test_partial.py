@@ -48,7 +48,7 @@ def test_b20_1_only_the_feeds_decide_partial_and_a_partial_run_still_sends_alert
 
     seen = []
 
-    def alerter(previous, files, folder, now):
+    def alerter(previous, files, folder, now, complete=True):  # complete: B05
         seen.append(files is not None)
         raise RuntimeError("ntfy down")
 

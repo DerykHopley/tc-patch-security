@@ -59,9 +59,18 @@ def test_b05_3_new_since_check_survives_a_restart_and_a_failed_check_and_needs_n
     assert ids(app, "new=1&status=all") == [NEW_DAY1]
 
     app.clock.advance(60 * 24)
-    app.feeds.fail = "nvd"  # the check fails: nothing was checked, so the previous check's new CVEs stay
-    assert app.check_now()["result"]["ok"] is False
+    app.feeds.fail = "nvd"  # partial (B20): last checked stays, so this run isn't a check; what was new stays
+    assert app.check_now()["result"]["status"] == "partial"
     assert ids(app, "new=1&status=all") == [NEW_DAY1]
+
+    app.feeds.fail, app.feeds.day = None, 2
+    app.clock.advance(10)
+    assert app.check_now()["result"]["status"] == "ok"  # the next good check: new since the last good check
+    assert ids(app, "new=1&status=all") == [NEW_DAY2]
+
+    app.clock.advance(10)
+    assert app.check_now()["result"]["status"] == "ok"  # a good check that finds nothing: nothing is new
+    assert ids(app, "new=1&status=all") == []
 
 
 # --- B05.4: the snapshot has no checks, so nothing is new ----------------------------------------------------------
