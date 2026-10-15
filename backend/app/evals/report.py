@@ -259,7 +259,10 @@ def _explain_levels(runs: list[dict], placeholder: str) -> str:
 
 def _fix_first(runs: list[dict], placeholder: str) -> str:
     """Per model: the rules' top 3 against the answer's top 3, in order (A18), with the answer. A placeholder while
-    no run has asked the question."""
+    no run has asked the question. A model that errored on the question gets a failed row, so it doesn't vanish."""
+    from app.evals.model_check import questions
+
+    fix_first_ids = {q["id"] for q in questions() if q["expect"].get("fix_first")}
     rows, answers = [], ""
     for r in runs:
         for row in (x for x in r["results"] if x.get("fix_first")):
@@ -270,6 +273,8 @@ def _fix_first(runs: list[dict], placeholder: str) -> str:
             answers += f'<dt>{_e(r["model"])}</dt><dd>{_e(row["answer"])}</dd>'
         for row in (x for x in r["results"] if "fix_first" in x["checks"] and not x.get("fix_first")):
             rows.append([_e(r["model"]), "–", "prioritise wasn't called", '<span class="fail">✕ Different</span>', "–"])
+        for row in (x for x in r["results"] if x.get("error") and x["id"] in fix_first_ids):  # crashed: a failure
+            rows.append([_e(r["model"]), "–", f'Error: {_e(row["error"])}', '<span class="fail">✕ Error</span>', "–"])
     if not rows:
         return placeholder
     out = _table("What to fix first, per model", ["Model", "Rules' top 3", "Answer's top 3", "Result", "Open"],

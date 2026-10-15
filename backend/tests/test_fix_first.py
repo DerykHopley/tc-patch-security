@@ -324,6 +324,36 @@ class Reranker(FakeLLM):
         return reply
 
 
+class Crasher(FakeLLM):
+    """A local model whose server fails on every call."""
+    name = "local"
+
+    def label(self):
+        return "Local · crasher"
+
+    def step(self, messages, tools):
+        from app.errors import LLMError
+
+        raise LLMError("boom", "The model server answered 500.")
+
+
+def test_a18_5_a_model_that_errored_on_the_question_still_has_a_row(deps):
+    """Review fix 8: an error is a failure in the fix-first table, not a missing model."""
+    import re
+
+    from app.evals import model_check, report
+
+    qid = next(q["id"] for q in model_check.questions() if q["question"] == FIX_FIRST)
+    real_llm, deps.llm = deps.llm, Crasher()
+    model_check.start(deps, [qid], wait=True)
+    deps.llm = real_llm
+    html = report.from_store(report.store_of(deps.settings), as_of=deps.settings.as_of)
+    sec = re.search(r'<section id="fix-first".*?</section>', html, re.S).group(0)
+    assert "Not run yet" not in sec
+    row = re.search(r"<tr>(?:(?!</tr>).)*Local · crasher.*?</tr>", sec, re.S).group(0)
+    assert "The model server answered 500." in row and "✕" in row
+
+
 def test_a18_5_the_reports_fix_first_section_shows_each_models_top_3(deps):
     import re
 
