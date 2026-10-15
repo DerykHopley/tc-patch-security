@@ -24,6 +24,8 @@ OLLAMA_LAST = [entry("Go", "github.com/ollama/ollama", ("0", None, "0.3.14"))]  
 CORE_TWO_LINES = [entry("PyPI", "langchain-core", ("1.0.0", "1.0.7", None), ("0", "0.3.80", None))]  # CVE-2025-65106
 COMMUNITY_LATER = [entry("PyPI", "langchain-community", ("0.2.0", "0.2.19", None))]  # CVE-2024-8309
 NO_FIX_YET = [entry("PyPI", "vllm", ("0.5.0", None, None))]
+BAD_OSV_FIX = [entry("PyPI", "langflow", ("0", "1.3.x", None))]  # OSV data we can't read: unknown, never an error
+BAD_OSV_START = [entry("PyPI", "langflow", ("abc123", "1.3.0", None))]
 
 TABLE = [
     # case, coverage, entries, your version, verdict, reason, fixed version
@@ -87,6 +89,12 @@ TABLE = [
     ("covered product, CVE not in OSV", "package", [], "1.2.0", "unknown", "no version data for this CVE", None),
     ("a version we can't read", "package", LANGFLOW, "latest",
      "unknown", "version not understood: 'latest' isn't a PyPI (PEP 440) version", "1.3.0"),
+    ("an OSV fixed version we can't read", "package", BAD_OSV_FIX, "1.2.0",
+     "unknown", "OSV version not understood: '1.3.x' isn't a PyPI (PEP 440) version", None),
+    ("an OSV fixed version we can't read, no version given", "package", BAD_OSV_FIX, None,
+     "unknown", "no version given", None),
+    ("an OSV introduced version we can't read", "package", BAD_OSV_START, "1.2.0",
+     "unknown", "OSV version not understood: 'abc123' isn't a PyPI (PEP 440) version", "1.3.0"),
 ]
 
 

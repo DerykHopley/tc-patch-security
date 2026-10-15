@@ -154,7 +154,7 @@ def _fix_first(expect: dict, r: ChatReply) -> Check | None:
     whole = len(rules) == min(TOP, total)  # the model asked for enough to know the top 3
     passed = whole and named == rules
     return Check("fix_first", passed, f"the rules' top {TOP}, in order: {', '.join(rules) or 'none open'}",
-                 ", ".join(named) or "no CVE named" + ("" if whole else f" (prioritise gave {len(rules)})"))
+                 (", ".join(named) or "no CVE named") + ("" if whole else f" (prioritise gave {len(rules)})"))
 
 
 CHECKS: dict[str, Callable[[dict, ChatReply], Check | None]] = {

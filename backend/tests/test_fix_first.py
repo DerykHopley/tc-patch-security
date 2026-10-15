@@ -241,6 +241,17 @@ def test_a18_5_fix_first_check(answer, result, passed):
     assert checks["fix_first"].expected.startswith("the rules' top")
 
 
+def test_a18_5_fix_first_check_says_when_prioritise_gave_too_few():
+    """Review fix 1: the "(prioritise gave N)" note shows even when the answer named CVEs."""
+    from app.evals.checks import score
+
+    short = {"total_open": 5, "cves": [{"id": "CVE-2025-0001"}, {"id": "CVE-2025-0002"}]}
+    check = next(c for c in score({"fix_first": True}, _reply("Fix CVE-2025-0001, then CVE-2025-0002.", short))
+                 if c.name == "fix_first")
+    assert not check.passed
+    assert check.got == "CVE-2025-0001, CVE-2025-0002 (prioritise gave 2)"
+
+
 def test_a18_5_the_question_is_in_the_model_check_and_fakellm_passes_it(deps):
     from app.evals import model_check
     from app.evals.checks import LABELS

@@ -86,8 +86,16 @@ def check_version(product_osv: dict, name: str, version: str) -> None:
                          "bad_version")
 
 
+def _readable(ecosystem: str, text: str):
+    try:
+        return parse_version(ecosystem, text)
+    except ValueError:
+        return None
+
+
 def _newest_fix(entries: list[dict]):
-    fixes = [(parse_version(e["ecosystem"], f), f) for e in entries for f in e["fixed"]]
+    """The newest fixed version OSV lists. Fixed versions we can't read are skipped, not an error."""
+    fixes = [(p, f) for e in entries for f in e["fixed"] if (p := _readable(e["ecosystem"], f)) is not None]
     return max(fixes)[1] if fixes else None
 
 
@@ -118,13 +126,29 @@ def verdict(coverage: str, entries: list[dict], usage: str, version: str | None)
         return unknown(NO_VERSION, newest)
     version = version.strip()
 
+    try:
+        return _compare(entries, version, who, newest)
+    except _BadOsvVersion as err:  # one CVE's odd OSV data: that CVE is unknown, the rest of the list still works
+        return unknown(f"OSV version not understood: {err}", newest)
+
+
+class _BadOsvVersion(ValueError):
+    """A version in OSV's own data (introduced, fixed, last affected) that its ecosystem's rules can't read."""
+
+
+def _compare(entries: list[dict], version: str, who: str, newest) -> Verdict:
     passed = []  # fixes at or below your version, for the "not affected" reason
     for e in entries:
         try:
             mine = parse_version(e["ecosystem"], version)
         except ValueError as err:
-            return unknown(f"version not understood: {err}", newest)
-        v = lambda s: parse_version(e["ecosystem"], s)  # noqa: E731
+            return Verdict("unknown", f"version not understood: {err}", newest, who)
+
+        def v(text, eco=e["ecosystem"]):
+            try:
+                return parse_version(eco, text)
+            except ValueError as err:
+                raise _BadOsvVersion(str(err)) from None
         for r in e["ranges"]:
             if r["introduced"] not in ("0", None) and mine < v(r["introduced"]):
                 continue
