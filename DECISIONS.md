@@ -103,6 +103,7 @@ Every decision made so far, in one place, with why and where the detail lives. C
 | 2026-10-13 | Due dates come from **your policy**, which may adopt KEV's dates | KEV dates are set for US federal agencies | ALERTS-PLAN.md |
 | 2026-10-13 | Web search results go through the guard like tool output; no exploit fetching | Web pages are where indirect prompt injection lives | process map Flow 5 |
 | later | Two-way Patch bot (Slack or Telegram), CI comment wrapping osv-scanner, sign-in and deployment (Cloud Run suggested; needs a database), policy mapped to TiSAX or ISO 27001 | Valuable, but after the shortlist | process map Flow 5 note |
+| later | **Find installed LLM software** and offer to add it to the watchlist, with version and usage filled in; nothing added without the user's yes. Needs thought: where the scan runs once deployed (a lockfile or SBOM upload works everywhere), privacy of the inventory, a read-only fixed scan | Typing usage and version by hand is slow, and a missing version leaves the verdict "unknown" | [#49](https://github.com/DerykHopley/tc-patch-security/issues/49) |
 
 ## Open questions
 
