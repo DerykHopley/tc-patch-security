@@ -41,7 +41,8 @@ class WebHit(ToolResult):
 class ResearchResult(ToolResult):
     """research_web: what was searched, how, and the numbered web results."""
     query: str  # exactly what was sent to Tavily
-    via: Literal["mcp", "api"]  # Tavily's MCP server, or its plain search API after the MCP call failed
+    # Tavily's MCP server; its plain search API after the MCP call failed; or saved results (the model check, B22)
+    via: Literal["mcp", "api", "canned"]
     results: list[WebHit]
     flagged: int
     searches_left: int  # today, for this user

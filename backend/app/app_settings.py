@@ -87,7 +87,7 @@ class DevSettings(BaseModel):
     local_url: str = Field("http://localhost:11434/v1", max_length=200)  # checked by the SSRF guard on save
     local_model: str = Field("", max_length=200, pattern=r"^[\w.:/@\-]*$")
     temperature: float = Field(0.2, ge=0, le=2)
-    max_steps: int = Field(4, ge=1, le=8)
+    max_steps: int = Field(6, ge=1, le=8)  # 6 (B22): the research workflow is four tool rounds and an answer
     # Search (SearchOptions): the defaults are the spec's values.
     top_n: int = Field(5, ge=1, le=10)
     per_query_k: int = Field(10, ge=1, le=30)

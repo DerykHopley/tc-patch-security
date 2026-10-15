@@ -123,6 +123,32 @@ function EditForm({ p, onSave, onBack, busy }: {
   )
 }
 
+/** What a proposed decision rests on (B22): each cited source with its number, a link, and where it's from. A web
+ *  source always says "Web result, unverified", as it does in the answer's sources. */
+function ProposalSources({ p }: { p: Proposal }) {
+  if (p.sources.length === 0) return null
+  return (
+    <div className="proposal-sources">
+      <p className="meta">It rests on:</p>
+      <ul>
+        {p.sources.map((s) => (
+          <li key={s.n}>
+            <span className="source-n">{s.n}</span>{' '}
+            <a href={s.url} target="_blank" rel="noreferrer">
+              {s.title}
+            </a>{' '}
+            {s.kind === 'web' ? (
+              <span className="chip web-unverified">Web result, unverified</span>
+            ) : (
+              <span className="chip source-kb">Knowledge base</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export function ProposalCard({ proposal }: { proposal: Proposal }) {
   const titleId = useId()
   const [p, setP] = useState<Proposal>(() => latest.get(proposal.proposal_id) ?? proposal)
@@ -189,6 +215,7 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
           {p.after}
         </span>
       </p>
+      <ProposalSources p={p} />
       {open && !editing && (
         <p className="meta">Nothing has changed yet. Approve it by {utcTime(p.expires_at)}, or ask Patch again later.</p>
       )}
