@@ -48,7 +48,8 @@ document.querySelectorAll('[data-switch]').forEach(group => {
   buttons.forEach(b => b.addEventListener('click', () => {
     buttons.forEach(o => {
       o.setAttribute('aria-pressed', String(o === b));
-      document.getElementById(o.dataset.show).hidden = o !== b;
+      // toggleAttribute, not .hidden: the charts are <svg>s, and only HTML elements have .hidden
+      document.getElementById(o.dataset.show).toggleAttribute('hidden', o !== b);
     });
   }));
 });
