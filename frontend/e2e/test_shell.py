@@ -386,6 +386,8 @@ def tab_order(page: Page, steps: int = 14) -> list[str]:
 @pytest.mark.parametrize("collapsed", [False, True])
 def test_a02_11_every_control_reachable_by_keyboard_with_visible_focus(open_app, collapsed):
     page = open_app()
+    # The Dev link appears once /health says the dev panel is on: wait for it before tabbing (CI race, 54cd6c9)
+    expect(page.get_by_role("button", name="Dev", exact=True)).to_be_visible()
     if collapsed:
         page.get_by_role("button", name="Collapse the sidebar").click()
     page.locator(".brand").click()  # a start point before the first nav button (the dashboard has controls below)
