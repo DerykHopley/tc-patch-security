@@ -29,6 +29,11 @@ def api_url() -> str:
 
 def _slow(route: Route) -> None:
     # A wait inside the handler yields to Playwright's loop, so other requests (and the test) carry on meanwhile.
+    # It waits on the page that asked. A page opened by a link (the report in a new tab) has no page to wait on
+    # until its first load is through, so navigations go straight on: only the app's own API calls are delayed.
+    if route.request.is_navigation_request():
+        route.continue_()
+        return
     try:
         route.request.frame.page.wait_for_timeout(LATENCY_MS)  # allowed: slow mode is the delay
         route.continue_()
