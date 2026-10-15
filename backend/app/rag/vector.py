@@ -67,7 +67,9 @@ class ChromaIndex:
         res = self.collection.query(query_embeddings=[q.tolist()], n_results=k,
                                     where=where(filters) if filters else None, include=["distances"])
         threshold = self.min_score if min_score is None else min_score
-        hits = [Hit(self._by_id[cid], 1.0 - dist) for cid, dist in zip(res["ids"][0], res["distances"][0])]
+        # An id this index doesn't know is a chunk a live refresh (B02) is adding right now: the next index has it.
+        hits = [Hit(self._by_id[cid], 1.0 - dist) for cid, dist in zip(res["ids"][0], res["distances"][0])
+                if cid in self._by_id]
         return [h for h in hits if h.score >= threshold]
 
 
@@ -91,6 +93,25 @@ def build_index(chunks: list[Chunk], embedder: Embedder, path: pathlib.Path, pro
         if progress:
             progress(start + len(batch), len(chunks))
     return ChromaIndex(collection, chunks, embedder)
+
+
+def sync_index(index: ChromaIndex, chunks: list[Chunk]) -> tuple[ChromaIndex, int]:
+    """Bring the collection from `index.chunks` to `chunks` (live data, B02): embed and upsert only the chunks that
+    are new or changed, delete the ones that are gone, and record the new fingerprint, so the next start-up opens it.
+    Returns the new index (the old one keeps working meanwhile) and the number of chunks embedded."""
+    old, new_ids = index._by_id, {c.chunk_id for c in chunks}
+    changed = [c for c in chunks if old.get(c.chunk_id) != c]
+    gone = [cid for cid in old if cid not in new_ids]
+    collection = index.collection
+    for start in range(0, len(changed), BATCH):
+        batch = changed[start:start + BATCH]
+        vectors = index.embedder.embed([index_text(c) for c in batch])
+        collection.upsert(ids=[c.chunk_id for c in batch], embeddings=vectors.tolist(),
+                          metadatas=[metadata(c) for c in batch], documents=[c.text for c in batch])
+    if gone:
+        collection.delete(ids=gone)
+    collection.modify(metadata={**collection.metadata, "chunks": fingerprint(chunks)})
+    return ChromaIndex(collection, chunks, index.embedder, index.min_score), len(changed)
 
 
 def open_index(path: pathlib.Path, embedder: Embedder, chunks: list[Chunk],
