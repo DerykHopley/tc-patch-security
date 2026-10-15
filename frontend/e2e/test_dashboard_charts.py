@@ -290,22 +290,7 @@ def test_a05_5_bars_do_not_grow_again_on_hover_resize_or_reload(open_dash, api_u
     assert dash.evaluate(GROWING) == []
 
 
-def test_a05_8_reduced_motion_nothing_in_charts_or_banner_moves(open_dash):
-    page = open_dash(reduced=True)
-    expect(banner(page).locator("svg.robot")).to_be_visible()
-    expect(chart(page, BY_PRODUCT).locator(".fill").first).to_be_visible()
-    assert page.evaluate("document.getAnimations().length") == 0
-    names = page.locator(".chart .fill, .hello .robot *").evaluate_all(
-        "els => [...new Set(els.map(el => getComputedStyle(el).animationName))]")
-    assert names == ["none"]
-    # Bars are drawn at full length straight away, and Patch's waving hand stands still.
-    full = chart(page, BY_PRODUCT).locator(".fill").first.evaluate(
-        "el => Math.abs(el.getBoundingClientRect().width - el.getBBox().width) < 0.6")
-    assert full
-    hand = banner(page).locator(".bot-hand.right").evaluate("""async el => { const seen = new Set();
-        for (let i = 0; i < 8; i++) { seen.add(getComputedStyle(el).transform); await new Promise(r => setTimeout(r, 60)) }
-        return [...seen] }""")
-    assert hand == ["none"]
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a05_8).
 
 
 # --- Light and dark, phone and desktop, keyboard (DESIGN.md §9, §4.2, §10) -----------------------------------------

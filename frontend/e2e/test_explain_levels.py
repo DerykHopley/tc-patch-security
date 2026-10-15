@@ -132,16 +132,7 @@ def test_a19_4_explain_it_ignores_a_level_picked_for_the_next_question(open_app,
 
 # --- A19.6: reduced motion: nothing in this ticket moves ---------------------------------------------------------
 
-def test_a19_6_reduced_motion_nothing_moves_when_switching_levels(open_app):
-    page = open_app(reduced=True)
-    still = lambda: page.evaluate("document.getAnimations().length") == 0  # noqa: E731
-    open_chat(page)
-    for name in ("Simple", "Deep dive", "Normal"):
-        switch(page).get_by_role("radio", name=name).check()
-        assert still()
-    page.get_by_role("button", name="Settings", exact=True).click()
-    settings_group(page).get_by_role("radio", name="Simple").check()
-    assert still()
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a19_6).
 
 
 # --- A19.7: light and dark, phone and desktop ---------------------------------------------------------------------

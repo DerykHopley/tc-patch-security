@@ -318,14 +318,7 @@ def test_a11_6_sliders_buttons_and_cards_on_brand(dev_page, scheme):
 
 # --- A11.7: reduced motion ------------------------------------------------------------------------------------------
 
-def test_a11_7_reduced_motion_nothing_moves_on_the_dev_page(dev_page):
-    page = dev_page(reduced=True)
-    page.get_by_label("Sources per search").fill("4")
-    run_search(page)
-    page.get_by_role("button", name="Show all").click()
-    page.locator(".emap .hit").first.hover(force=True)
-    page.get_by_role("button", name="Discard").hover()
-    assert page.evaluate("document.getAnimations().length") == 0
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a11_7).
 
 
 def test_a11_7_nothing_on_the_dev_page_animates_even_with_normal_motion(dev_page):

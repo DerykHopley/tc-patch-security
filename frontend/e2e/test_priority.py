@@ -184,19 +184,7 @@ def test_a16_11_lookup_cve_card_shows_priority_and_due_date(open_cves):
 
 # --- A16.12: reduced motion ---------------------------------------------------------------------------------------
 
-def test_a16_12_reduced_motion_nothing_moves(open_cves, open_dash, open_settings, api_url):
-    set_stack(api_url, langflow={"internet_facing": True, "version": "99.0.0"})
-    page = open_cves(reduced=True)
-    expect(page.locator("table.cves .chip.priority").first).to_be_visible()
-    expect(page.locator("table.cves .overdue").first).to_be_visible()
-    assert page.evaluate("document.getAnimations().length") == 0
-    dash = open_dash(reduced=True)
-    expect(dash.locator(".top-cves .chip.priority").first).to_be_visible()
-    assert dash.evaluate("document.getAnimations().length") == 0
-    settings = open_settings(reduced=True)
-    settings.get_by_label("Urgent", exact=True).fill("60")
-    expect(settings.get_by_role("alert").filter(has_text="urgent ≤ high")).to_be_visible()
-    assert settings.evaluate("document.getAnimations().length") == 0
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a16_12).
 
 
 # --- A16.13: light and dark, phone and desktop --------------------------------------------------------------------

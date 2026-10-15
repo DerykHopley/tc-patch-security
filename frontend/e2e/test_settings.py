@@ -242,13 +242,7 @@ def test_a13_6_save_bar_floats_at_the_bottom_clear_of_patch(settings_page, width
 
 # --- A13.7: reduced motion --------------------------------------------------------------------------------------------
 
-def test_a13_7_reduced_motion_nothing_moves_on_settings(settings_page):
-    page = settings_page(reduced=True)
-    page.get_by_label("Minimum severity").select_option("LOW")
-    page.get_by_role("button", name="Preview an alert (send nothing)").click()
-    expect(page.locator(".push-preview")).to_be_visible()
-    page.get_by_role("button", name="Discard").hover()
-    assert page.evaluate("document.getAnimations().length") == 0
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a13_7).
 
 
 # --- A13.8: light and dark, phone and desktop -------------------------------------------------------------------------

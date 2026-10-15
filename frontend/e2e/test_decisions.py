@@ -273,14 +273,7 @@ def test_a16b_13_phone_and_pinned_show_the_decision_and_history_without_sideways
     assert no_sideways_scroll(wide)
 
 
-def test_a16b_13_reduced_motion_nothing_moves(open_cves):
-    page = open_cves("?product=langflow&kev=1", reduced=True)
-    page.get_by_role("button", name=f"Accept the risk of {FIXABLE}", exact=True).click()
-    expect(page.get_by_role("dialog")).to_be_visible()
-    assert page.evaluate("document.getAnimations().length") == 0
-    page.keyboard.press("Escape")
-    page.get_by_role("button", name=f"Mark {FIXABLE} not affected", exact=True).click()
-    assert page.evaluate("document.getAnimations().length") == 0
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a16b_13).
 
 
 @pytest.mark.parametrize("width", [PHONE, DESKTOP])

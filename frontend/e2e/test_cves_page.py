@@ -339,16 +339,7 @@ def test_a04b_9_cves_card_and_top_5_card_fade_up(open_cves, open_dash):
     assert top == ["fade-up", "0.24s"]
 
 
-def test_a04b_9_reduced_motion_nothing_on_the_cves_page_moves(open_cves):
-    page = open_cves(reduced=True)
-    assert page.evaluate("document.getAnimations().length") == 0
-    page.get_by_role("combobox", name="Severity").select_option("HIGH")
-    page.get_by_role("button", name=f"Mark {rows(page)[0]} fixed").click()
-    confirm(page)
-    expect(page.locator("table.cves tbody tr").first).to_be_visible()
-    assert page.evaluate("document.getAnimations().length") == 0
-    phone = open_cves(width=PHONE, reduced=True)
-    assert phone.evaluate("document.getAnimations().length") == 0
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a04b_9).
 
 
 # --- A04b.10: light and dark, phone and desktop, pinned -------------------------------------------------------------

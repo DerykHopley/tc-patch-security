@@ -377,23 +377,7 @@ def test_a06_8_normal_motion_patch_moves(open_app):
     assert running > 0
 
 
-def test_a06_8_reduced_motion_nothing_in_the_chat_moves(open_app):
-    page = open_app(reduced=True)
-    assert page.evaluate("document.getAnimations().length") == 0  # Patch on the button
-    chat = open_chat(page)
-    held = hold_chat(page)
-    send(page, Q3)
-    expect(head_bot(page)).to_have_class(re.compile("mood-thinking"))
-    assert page.evaluate("document.getAnimations().length") == 0  # no pop, no thinking motion
-    release(page, held)
-    expect(head_bot(page)).to_have_class(re.compile("mood-happy"))
-    assert page.evaluate("document.getAnimations().length") == 0  # no waving
-    page.route("**/chat", lambda route: route.fulfill(
-        status=502, headers={"Access-Control-Allow-Origin": "*"}, json={"error": {"code": "x", "message": "Down."}}))
-    send(page, Q3)
-    expect(head_bot(page)).to_have_class(re.compile("mood-alert"))
-    assert page.evaluate("document.getAnimations().length") == 0  # no shake
-    assert chat.evaluate("el => getComputedStyle(el).animationName") == "none"
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a06_8).
 
 
 # --- Light, dark, phone, desktop (DESIGN.md §9, §4.2) ------------------------------------------------------------

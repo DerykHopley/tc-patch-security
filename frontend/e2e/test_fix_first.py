@@ -206,18 +206,7 @@ def test_a18_3_the_dashboard_asks_for_the_whole_watchlist(open_dash, api_url):
 
 # --- A18.6: reduced motion: nothing in this ticket moves -----------------------------------------------------------
 
-def test_a18_6_reduced_motion_nothing_moves(open_cves):
-    page = open_cves(VIEW, reduced=True)
-    still = lambda: page.evaluate("document.getAnimations().length") == 0  # noqa: E731
-    open_chat(page)
-    assert still()
-    answer = ask(page, FIX_FIRST)
-    fix_card(answer)
-    assert still()
-    cve = table_ids(page, 1)[0]
-    page.get_by_role("button", name=f"Ask about this: {cve}").click()
-    expect(chip(page)).to_contain_text(cve)
-    assert still()
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a18_6).
 
 
 # --- A18.7: light and dark, phone and desktop ---------------------------------------------------------------------

@@ -212,17 +212,7 @@ def test_a04_9_tiles_and_cards_fade_up_with_the_listed_delays(open_dash):
     assert card == ["fade-up", "0.45s", "0.12s", "cubic-bezier(0.2, 0.8, 0.2, 1)"]
 
 
-def test_a04_9_reduced_motion_nothing_on_the_dashboard_moves(open_dash):
-    page = open_dash(reduced=True)
-    editor = page.get_by_role("region", name="Watchlist", exact=True)
-    editor.get_by_label("vLLM").check()
-    editor.get_by_role("button", name="Save watchlist").click()  # a reload must not animate either
-    expect(editor.get_by_text("Saved.")).to_be_visible()
-    assert page.evaluate("document.getAnimations().length") == 0
-    transforms = tile(page, TILES[2][0]).evaluate("""async el => { const seen = new Set();
-        for (let i = 0; i < 10; i++) { seen.add(getComputedStyle(el).transform); await new Promise(r => setTimeout(r, 50)) }
-        return [...seen] }""")
-    assert transforms == ["none"]
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a04_9).
 
 
 # --- Light and dark, phone and desktop, keyboard ------------------------------------------------------------------

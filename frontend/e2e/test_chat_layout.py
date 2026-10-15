@@ -401,30 +401,7 @@ def test_a07_7_pin_icon_rotates_from_35_degrees_to_0_when_pinned(open_app):
     assert any(s not in ("0deg", "35deg", "none") for s in seen), seen  # in between: it turns
 
 
-def test_a07_8_reduced_motion_nothing_in_the_chat_layout_moves(open_app):
-    page = open_app(reduced=True, query=f"#cve={ALERT_CVE}")
-    still = lambda: page.evaluate("document.getAnimations().length") == 0  # noqa: E731
-    assert still()  # the alert banner
-    page.keyboard.press("Control+k")
-    expect(window(page)).to_be_visible()
-    assert still()  # no pop
-    window(page).get_by_role("group", name="Explain level").get_by_role("radio", name="Deep dive").check()
-    assert still()  # A19.6: the explain-level switch's pills
-    head_button(page, "Make larger").click()
-    assert still()
-    head_button(page, PIN).click()
-    expect(head_button(page, UNPIN)).to_be_visible()
-    assert still()  # the pin icon jumps to 0°
-    assert head_button(page, UNPIN).locator("svg").evaluate("el => getComputedStyle(el).transitionDuration") == "0s"
-    divider(page).hover()
-    divider(page).focus()
-    page.keyboard.press("ArrowLeft")
-    assert still()  # the divider's colour
-    head_button(page, UNPIN).click()
-    assert still()
-    page.keyboard.press("Escape")
-    expect(window(page)).to_have_count(0)
-    assert still()
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a07_8).
 
 
 # --- A07.9: light and dark, phone and desktop (DESIGN.md §9, §4.2) -----------------------------------------------

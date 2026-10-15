@@ -157,29 +157,7 @@ def test_a15_7_am_i_affected_shows_the_verdict_card_and_changes_nothing(open_cve
 
 # --- A15.9: reduced motion -----------------------------------------------------------------------------------------
 
-def test_a15_9_reduced_motion_nothing_moves(open_cves, open_dash, api_url):
-    set_stack(api_url, langflow={"version": "99.0.0"})
-    page = open_cves("?product=langflow", reduced=True)
-    page.get_by_role("combobox", name="Verdict").select_option("not_affected")
-    # The filter reloads the table: a row read before that may be an unfiltered one with no suggestion (CI race, run #62).
-    # So wait on the first row of the filtered table itself, re-found on every retry.
-    expect(page).to_have_url(re.compile(r"verdict=not_affected"))
-    first_suggestion = page.locator("table.cves tbody tr").first.get_by_role(
-        "button", name=re.compile(r"Suggested by the version check$"))
-    expect(first_suggestion).to_be_visible()
-    first_suggestion.click()
-    expect(page.get_by_role("dialog")).to_be_visible()
-    assert page.evaluate("document.getAnimations().length") == 0  # the decision dialog doesn't move either (A16b)
-    confirm(page)
-    expect(page.locator("table.cves tbody tr").first).to_be_visible()
-    assert page.evaluate("document.getAnimations().length") == 0
-    dash = open_dash(reduced=True)
-    dash_editor = editor(dash)
-    dash_editor.get_by_label("Dify", exact=True).check()
-    dash_editor.get_by_role("group", name="Langflow").get_by_label("Internet-facing").check()
-    dash_editor.get_by_role("button", name="Save watchlist").click()
-    expect(dash_editor.get_by_text("Saved.")).to_be_visible()
-    assert dash.evaluate("document.getAnimations().length") == 0
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a15_9).
 
 
 # --- A15.10: light and dark, phone and desktop -------------------------------------------------------------------

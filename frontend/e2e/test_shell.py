@@ -368,14 +368,7 @@ def test_a02_9_normal_motion_cursor_blinks_and_sidebar_width_animates(open_app):
     assert chevron == "0.2s"
 
 
-def test_a02_10_reduced_motion_nothing_moves(open_app):
-    page = open_app(reduced=True)
-    cursor = page.evaluate(CURSOR_OPACITIES)
-    assert cursor["seen"] == ["1"]  # the cursor stays put
-    widths = page.evaluate(WIDTHS_DURING_COLLAPSE)
-    assert all(w == 78 for w in widths), widths  # jumps straight to the rail
-    running = page.evaluate("document.getAnimations().length")
-    assert running == 0  # no CSS animation or transition anywhere, Patch included
+# Reduced motion: in the shared check, test_reduced_motion.py (scene a02_10).
 
 
 # --- Keyboard and names (DESIGN.md §10) ---------------------------------------------------------------------------

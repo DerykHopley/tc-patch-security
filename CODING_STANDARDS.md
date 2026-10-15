@@ -4,7 +4,7 @@ Judgement calls a reviewer checks by reading. Anything a tool can check goes int
 
 ## UI
 
-- **The DESIGN.md checklist applies to every UI change.** Each area of [docs/design/DESIGN.md](./docs/design/DESIGN.md) ends with a checklist (tokens, layout, components, chat, motion, Patch, theme). A UI change is done when its checklists pass, animations included, in light and dark, on a phone, with reduced motion, by keyboard. The browser check grows with each UI ticket.
+- **The DESIGN.md checklist applies to every UI change.** Each area of [docs/design/DESIGN.md](./docs/design/DESIGN.md) ends with a checklist (tokens, layout, components, chat, motion, Patch, theme). A UI change is done when its checklists pass, animations included, in light and dark, on a phone, with reduced motion, by keyboard. The browser check grows with each UI ticket. Reduced motion has one shared check (`frontend/e2e/test_reduced_motion.py`): add a scene to it, not a test of your own.
 - **Tokens, never hard-coded colours.** Components use the CSS custom properties from DESIGN.md §3. The only literal colours allowed are the fixed ones DESIGN.md lists: the primary gradient and the purple shadow (§3.1), the stat-tile gradients and shadows (§5.1), and Patch's drawing (§8.1). Why: one place to change a colour, and dark mode can't miss a component.
 
 ## Safety
