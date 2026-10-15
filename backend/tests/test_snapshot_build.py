@@ -186,3 +186,14 @@ def test_a14_6_manifest_licences_attributions_and_nvd_notice(built):
 @pytest.mark.parametrize("name", ["osv.json", "epss.json", "product_check.json", "manifest.json"])
 def test_a14_1_committed_snapshot_is_what_the_build_gives(built, name):
     assert (built / name).read_bytes() == (FIXTURES / name).read_bytes()
+
+
+def test_b01_1_snapshot_built_with_the_shared_code_matches_every_fixture(built):
+    """B01 (#32): the script builds with app/cve_build.py, and every file it writes is unchanged."""
+    from app import cve_build
+
+    assert build.build_cves is cve_build.build_cves and add.osv_versions is cve_build.osv_versions
+    written = sorted(p.relative_to(built).as_posix() for p in built.rglob("*") if p.is_file())
+    assert len(written) == 28  # 8 JSON files and 20 OWASP pages: fixtures/ minus fake_script.json
+    for name in written:
+        assert (built / name).read_bytes() == (FIXTURES / name).read_bytes(), name

@@ -87,9 +87,9 @@ Cost comparison: a chat answer on Claude Haiku 5.5 costs about $0.0015 (DECISION
 
 ### 1. Product-match check for text-matched CVEs (best fit)
 
-- **What:** 184 CVEs got their product from description text. OSV confirms 36; the other 148 are "unknown" and all show as "possible match" (`backend/fixtures/product_check.json`, `backend/scripts/snapshot_additions.py` `product_check()`). Jev answers one `noul` per CVE: is the flaw in this product, or only a mention? The result becomes a third label, e.g. "likely match" / "unlikely match", next to OSV's "confirmed". **checked** (counts read from the fixture)
+- **What:** 184 CVEs got their product from description text. OSV confirms 36; the other 148 are "unknown" and all show as "possible match" (`backend/fixtures/product_check.json`, `backend/app/cve_build.py` `product_check()`). Jev answers one `noul` per CVE: is the flaw in this product, or only a mention? The result becomes a third label, e.g. "likely match" / "unlikely match", next to OSV's "confirmed". **checked** (counts read from the fixture)
 - **Where it plugs in:**
-  - Snapshot build: a new offline step next to `product_check()` in `backend/scripts/snapshot_additions.py`, written into `product_check.json` with the model id, date and probability.
+  - Snapshot build: a new offline step next to `product_check()` (`backend/app/cve_build.py`, called by `backend/scripts/snapshot_additions.py`), written into `product_check.json` with the model id, date and probability.
   - Spec B: the shared build code (#31, slice 1) and the refresh, since new CVEs mostly match by text ("NVD's backlog means fresh CVEs mostly match by description text", spec B's expected trouble). Alerts already say "possible match" (`backend/app/notify.py`).
   - `Knowledge.possible_match()` in `backend/app/knowledge.py` reads the new label; `lookup_cve`, the CVEs page and the alert text show it.
 - **Why it's better than now:** today a CVE that only *mentions* LangChain looks the same as one *in* LangChain. A wrong match means a false alert, or a wrong item in "what should I fix first?". The rules stay rules: Jev only grades a data field, as OSV does.
