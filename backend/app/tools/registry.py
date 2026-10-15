@@ -94,7 +94,8 @@ def _plain(e: ValidationError) -> str:
     return "; ".join(f"{'.'.join(map(str, err['loc'])) or 'arguments'}: {err['msg']}" for err in e.errors())
 
 
-def run_tool(call: ToolCall, deps, ctx: Context) -> ToolCallRecord:
+def run_tool(call: ToolCall, deps, ctx: Context, tools: dict[str, ToolSpec] | None = None) -> ToolCallRecord:
+    """`tools`: the specs to run from; the chat's TOOLS by default (the MCP server passes its own, B23)."""
     start = time.perf_counter()
 
     def record(status, result=None, error=None):
@@ -102,7 +103,7 @@ def run_tool(call: ToolCall, deps, ctx: Context) -> ToolCallRecord:
         return ToolCallRecord(id=call.id, name=call.name, args=call.args, status=status,
                               result=result, error=error, duration_ms=ms)
 
-    spec = TOOLS.get(call.name)
+    spec = (TOOLS if tools is None else tools).get(call.name)
     if spec is None:
         return record("error", error={"code": "unknown_tool", "message": f"There is no tool called {call.name!r}."})
     try:

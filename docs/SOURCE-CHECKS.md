@@ -1,4 +1,4 @@
-# Source checks: OSV.dev, EPSS, Tavily, NVD, KEV, VDA ISA
+# Source checks: OSV.dev, EPSS, Tavily, MCP SDK, NVD, KEV, VDA ISA
 
 Facts the shortlist (process map, Flow 5) relies on, checked against official docs and live API calls on 2026-10-14. Everything here is *checked* unless marked otherwise.
 
@@ -46,6 +46,16 @@ Coverage of our 12 products (unique CVEs after de-duplication, against the snaps
 - Hosted remote MCP server: `https://mcp.tavily.com/mcp/?tavilyApiKey=<key>` (also a header or OAuth). Tools `tavily-search`, `tavily-extract`. Open source: `tavily-ai/tavily-mcp` (MIT). https://docs.tavily.com/documentation/mcp
   - The key sits in the URL: never log that URL.
 - Terms: use "solely for Customer's internal business purposes"; no "automated decisions without human oversight"; 18+. Nothing on attribution. https://tavily.com/terms
+
+## MCP Python SDK (checked 2026-10-15, for B23)
+
+- PyPI `mcp`: the newest release is **2.3.0** (2026-10-02). The newest 1.x is **1.30.0** (2026-09-07). Checked on https://pypi.org/pypi/mcp/json.
+- **We pin `mcp>=1.30.0,<2`.** `langchain-mcp-adapters` 0.3.2 (B08's web-research client) requires `mcp<2.0.0,>=1.24.0` (checked on PyPI), so one lock file can't hold 2.x yet. What 2.x changed: *unverified*, not read.
+- stdio in 1.30: `mcp.server.stdio.stdio_server()` gives the read and write streams; the low-level `mcp.server.lowlevel.Server.run(read, write, server.create_initialization_options())` serves them. stdout carries the protocol, so logs must go to stderr. Checked by running it as a subprocess (test B23.8).
+- `@server.call_tool(validate_input=False)` skips the SDK's own JSON-schema check, so our pydantic models give the errors. A handler may return a `CallToolResult` as is. Checked in the 1.30 source and by the tests.
+- In-process testing: `mcp.shared.memory.create_connected_server_and_client_session(server)` gives a connected `ClientSession`. Checked (tests B23.1 to B23.7).
+- Streamable HTTP in 1.30: `FastMCP.run(transport="streamable-http")` (default path `/mcp`), `FastMCP.streamable_http_app()` (a Starlette app), and `mcp.server.streamable_http_manager.StreamableHTTPSessionManager` (`handle_request`) to mount in an existing ASGI app. Present in the 1.30 source; *not run*.
+- Tool annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) are hints for the client, not enforced. Checked in `mcp.types.ToolAnnotations`.
 
 ## NVD API 2.0
 
