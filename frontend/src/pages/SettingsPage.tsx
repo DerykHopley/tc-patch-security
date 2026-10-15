@@ -12,6 +12,7 @@ import {
   type TestAlertReply,
 } from '../api.ts'
 import { AlertList } from '../components/AlertsLog.tsx'
+import { RefreshRuns } from '../components/RefreshRuns.tsx'
 import { SaveBar } from '../components/SaveBar.tsx'
 import { Card } from '../components/StatusCard.tsx'
 import { useSettings } from '../components/useSettings.ts'
@@ -29,6 +30,7 @@ const SEVERITIES: { value: Severity; label: string }[] = [
   { value: 'CRITICAL', label: 'Critical' },
 ]
 const SCHEDULES: AlertSettings['schedule_hours'][] = [1, 3, 6, 12, 24]
+const SCHEDULE_KEYS = ['schedule_hours', 'schedule_paused'] // on the Refresh runs card (B19), not Alerts
 const CHANNELS: { id: Channel; label: string; what: string }[] = [
   { id: 'desktop', label: 'Desktop notification', what: "Your OS's own notification, on the computer running the app." },
   { id: 'email', label: 'Email', what: 'A plain-text email with a link back to the CVE.' },
@@ -76,6 +78,12 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
   useEffect(() => {
     refreshLog()
   }, [refreshLog])
+
+  // B19: the dashboard's "Schedule and refresh runs" link opens /settings#schedule: bring the schedule into view
+  const loaded = !!s.draft
+  useEffect(() => {
+    if (loaded && window.location.hash === '#schedule') document.getElementById('schedule')?.scrollIntoView({ block: 'center' })
+  }, [loaded])
 
   if (!s.draft || !s.reply) {
     return (
@@ -197,17 +205,6 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
           <fieldset disabled={!a.enabled}>
             <legend>Timing</legend>
             <div className="field-row">
-              <label htmlFor="al-schedule">Check for new CVEs every</label>
-              <select id="al-schedule" value={a.schedule_hours}
-                onChange={(e) => set({ schedule_hours: Number(e.target.value) as AlertSettings['schedule_hours'] })}>
-                {SCHEDULES.map((h) => (
-                  <option key={h} value={h}>
-                    {h === 1 ? 'hour' : `${h} hours`}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field-row">
               <label htmlFor="al-digest">Bundle into one digest above</label>
               <input id="al-digest" type="number" min={1} max={50} value={a.digest_over}
                 onChange={(e) => set({ digest_over: Math.max(1, Math.min(50, Math.round(Number(e.target.value)) || 1)) })} />
@@ -231,7 +228,39 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
               time zone ({quietTz}).
             </p>
           </fieldset>
-          <NotSaved error={s.error} show={s.changed('alerts', { except: ['channels'] })} />
+          <NotSaved error={s.error} show={s.changed('alerts', { except: ['channels', ...SCHEDULE_KEYS] })} />
+        </Card>
+
+        <Card title="Refresh runs" kind="live" why="The schedule and the history of every live check">
+          <p className="meta">
+            How often the live data is checked, and the last 20 checks: the schedule's, Check now's and Patch's.
+          </p>
+          <fieldset id="schedule">
+            <legend>Schedule</legend>
+            <div className="field-row">
+              <label htmlFor="al-schedule">Check for new CVEs every</label>
+              <select id="al-schedule" value={a.schedule_hours}
+                onChange={(e) => set({ schedule_hours: Number(e.target.value) as AlertSettings['schedule_hours'] })}>
+                {SCHEDULES.map((h) => (
+                  <option key={h} value={h}>
+                    {h === 1 ? 'hour' : `${h} hours`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="check-row switch-row">
+              <input type="checkbox" id="al-paused" checked={a.schedule_paused}
+                onChange={(e) => set({ schedule_paused: e.target.checked })} aria-describedby="al-paused-why" />
+              <label htmlFor="al-paused">
+                <strong>Pause the schedule</strong>
+              </label>
+              <span id="al-paused-why" className="meta">
+                No scheduled check starts. Check now and Patch's check still work.
+              </span>
+            </div>
+          </fieldset>
+          <NotSaved error={s.error} show={s.changed('alerts', { only: SCHEDULE_KEYS })} />
+          <RefreshRuns reload={JSON.stringify(s.reply.settings.alerts)} />
         </Card>
 
         <Card title="Delivery" kind="live" why="Test alerts are really sent">

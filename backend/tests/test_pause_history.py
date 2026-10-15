@@ -108,6 +108,12 @@ def test_b19_2_skips_never_change_the_5_minute_rule_or_the_banner(refresher):
     assert refresher.run("schedule").ran
 
 
+def test_b19_2_a_skip_in_the_same_second_as_its_run_goes_above_it(refresher):
+    refresher.run("button")
+    refresher.run("button")  # the clock hasn't moved: refused, same second
+    assert [r["result"] for r in refresher.history()] == ["skipped", "ok"]
+
+
 def test_b19_2_the_history_keeps_the_last_20(refresher):
     for _ in range(12):
         refresher.run("cli")
@@ -157,6 +163,41 @@ def test_b19_3_reset_resumes_the_schedule(live):  # noqa: F811
     live.client.put("/settings", json=body)
     live.client.post("/state/reset", json={"confirm": "reset"})
     assert schedule(live)["paused"] is False
+
+
+# --- B19.9: Patch answers "when did you last check?" and "is the schedule on?" from the same data -------------------
+
+def ask(live, question: str) -> dict:  # noqa: F811
+    r = live.client.post("/chat", json={"message": question, "history": []})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_b19_9_patch_says_when_it_last_checked_and_whether_the_schedule_is_on(live):  # noqa: F811
+    live.check_now()
+    body = ask(live, "When did you last check for new CVEs, and is the schedule on?")
+    [call] = body["tool_calls"]
+    assert call["name"] == "refresh_status" and call["status"] == "ok"
+    r = call["result"]
+    assert (r["mode"], r["last_checked"]) == ("live", f"{DAY1}T09:00:00+00:00")
+    assert r["schedule"] == {"hours": 6, "paused": False, "next_due": f"{DAY1}T14:50:00+00:00"}
+    assert (r["last_run"]["trigger"], r["last_run"]["result"]) == ("button", "ok")
+    assert "Last checked in full 2026-10-14 09:00 UTC" in body["answer"]
+    assert "The schedule is on: every 6 hours" in body["answer"]
+
+    settings = live.client.get("/settings").json()["settings"]
+    settings["alerts"]["schedule_paused"] = True
+    live.client.put("/settings", json=settings)
+    body = ask(live, "Is the schedule on?")
+    assert body["tool_calls"][0]["result"]["schedule"]["paused"] is True
+    assert "The schedule is paused" in body["answer"]
+    assert len(live.client.get("/refresh/runs").json()["runs"]) == 1  # it only reads: no run started
+
+
+def test_b19_9_in_snapshot_mode_patch_says_nothing_checks(client):
+    body = client.post("/chat", json={"message": "When did you last check for updates?", "history": []}).json()
+    assert body["tool_calls"][0]["result"]["mode"] == "snapshot"
+    assert "frozen snapshot" in body["answer"]
 
 
 def test_b19_2_snapshot_mode_has_no_runs(client):

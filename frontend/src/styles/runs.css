@@ -1,0 +1,146 @@
+/* ---------- Refresh runs (B19, DESIGN.md §5.12): Settings' run history, and the dashboard's "Schedule paused" -------
+   The result chip follows the §5.7 edge rule: --text on the soft fill, the tone as a 1px edge, so the word reads at
+   4.5:1 or better and colour is never the only cue. Nothing here moves. */
+
+.run-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.run-list > li {
+  border-bottom: 1px solid var(--border);
+}
+
+.run-list > li:last-child {
+  border-bottom: 0;
+}
+
+.run-list summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.4rem 0.3rem;
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  list-style: none; /* the marker is the chevron below, so it lines up with the chip */
+}
+
+.run-list summary::-webkit-details-marker {
+  display: none;
+}
+
+.run-list summary:hover {
+  background: var(--nested-fill);
+}
+
+.run-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.5rem;
+}
+
+.run-head::before {
+  content: '▸';
+  color: var(--muted);
+}
+
+.run-list details[open] .run-head::before {
+  content: '▾';
+}
+
+.run-list .meta {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.run-result {
+  padding: 0.05rem 0.5rem;
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.run-result.ok {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--ok);
+}
+
+.run-result.warn {
+  background: var(--warn-soft);
+  box-shadow: inset 0 0 0 1px var(--warn);
+}
+
+.run-result.error {
+  background: var(--error-soft);
+  box-shadow: inset 0 0 0 1px var(--error);
+}
+
+.run-result.muted {
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.run-details {
+  margin: 0 0 0.5rem 1.1rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-input);
+  background: var(--nested-fill);
+  overflow-wrap: anywhere; /* a long feed error must not widen the card on a phone */
+}
+
+.run-details p {
+  margin: 0.25rem 0 0;
+}
+
+.run-feeds {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.run-feeds li.error {
+  font-weight: 600;
+}
+
+.run-new a {
+  font-weight: 700;
+}
+
+/* The schedule's state, under the schedule fields; paused: the §5.7 edge rule in --warn */
+.schedule-line.paused,
+.schedule-paused {
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius-input);
+  background: var(--warn-soft);
+  color: var(--text);
+}
+
+/* The dashboard's freshness card: "Schedule paused" and Resume */
+.schedule-paused {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+}
+
+.schedule-paused p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.schedule-paused button {
+  min-height: 2rem;
+}
+
+.freshness .edit-link {
+  display: inline-block;
+  margin: 0 0 0.6rem;
+}

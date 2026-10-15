@@ -23,6 +23,7 @@ export interface DataStatus {
   mode: DataMode
   last_checked: string | null
   last_result?: RefreshResult | null // /dashboard only (B20): the last run, for the partial or failed banner
+  schedule?: ScheduleStatus // /dashboard only (B19): "Schedule paused", and Resume
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -389,6 +390,48 @@ export interface CheckReply {
 
 export const checkNow = () => request<CheckReply>('/refresh', { method: 'POST' })
 
+// --- The schedule and the run history (B19). The backend's app/refresh.py `history` and main.py `schedule_status`.
+
+export interface ScheduleStatus {
+  hours: number // every N hours (Settings' schedule_hours)
+  paused: boolean
+  next_due: string | null // ISO 8601, UTC; null when paused, in snapshot mode, or never checked (the next tick runs)
+}
+
+export type RunTrigger = 'button' | 'chat' | 'schedule' | 'cli'
+
+/** One line of the "Refresh runs" card: a run (ok, partial, failed) or a refused one (skipped). */
+export interface RunRow {
+  trigger: RunTrigger
+  started: string // ISO 8601, UTC
+  finished: string | null // null for a skip
+  result: 'ok' | 'partial' | 'failed' | 'skipped'
+  duration_s: number | null
+  counts: RefreshCounts | null // null for a skip
+  new_cves: string[]
+  version: number | null
+  feeds: FeedResult[]
+  errors: { source: string; message: string }[]
+  alerts_sent: number // alerts sent to you (each one in a digest counts)
+  alerts_held: number // held for quiet hours
+  reason: 'too_soon' | 'running' | null // a skip's reason
+  next_allowed: string | null // a skip's next allowed time
+  times: number // a skip asked again before the next allowed time counts up
+}
+
+export interface RunsReply extends DataStatus {
+  schedule: ScheduleStatus
+  runs: RunRow[] // newest first, at most 20
+}
+
+export const refreshRuns = () => request<RunsReply>('/refresh/runs')
+
+/** Resume (or pause) the schedule from the dashboard: the saved settings with schedule_paused changed. */
+export async function setSchedulePaused(paused: boolean): Promise<AppSettings> {
+  const { settings } = await getSettings()
+  return (await saveSettings({ ...settings, alerts: { ...settings.alerts, schedule_paused: paused } })).settings
+}
+
 export const setStatus = (id: string, body: DecisionInput) =>
   request<{ id: string; status: CveStatus; decision: Decision }>(`/cves/${encodeURIComponent(id)}`, json('PATCH', body))
 
@@ -422,6 +465,7 @@ export interface AlertSettings {
   now_critical: boolean
   digest_over: number
   schedule_hours: 1 | 3 | 6 | 12 | 24
+  schedule_paused: boolean // B19: no scheduled check starts; Check now and Patch still check
   quiet_start: string | null // HH:MM
   quiet_end: string | null
   channels: Channel[]

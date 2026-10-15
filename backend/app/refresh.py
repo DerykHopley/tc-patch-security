@@ -221,7 +221,8 @@ class Refresher:
         data = self._log()
         rows = [_run_row(RefreshResult.model_validate(r), user_id) for r in data["runs"]]
         rows += [{**_EMPTY_ROW, **s, "result": "skipped"} for s in data.get("skipped", [])]
-        return sorted(rows, key=lambda r: r["started"], reverse=True)[:RUNS_KEPT]
+        # in the same second, a skip comes after the run that made it too soon, so it goes above it
+        return sorted(rows, key=lambda r: (r["started"], r["result"] == "skipped"), reverse=True)[:RUNS_KEPT]
 
     def last_checked(self) -> str | None:
         return self._log()["last_checked"]

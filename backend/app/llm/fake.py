@@ -26,6 +26,7 @@ NOTHING_FOUND = "I found nothing relevant in the knowledge base for that questio
 LEVEL_LINE = re.compile(r"^Explain level: (simple|normal|deep dive)\.", re.M)
 SEVERITY_WORD = {"CRITICAL": "critical", "HIGH": "high", "MEDIUM": "medium", "LOW": "low"}
 WEB_QUESTION = re.compile(r"\b(web|online|news|advisor(y|ies)|who'?s talking)\b", re.I)
+SCHEDULE_QUESTION = re.compile(r"\b(last (check|checked)|schedule|when did you (last )?check)\b", re.I)  # B19
 
 
 def _tokens(text: str) -> int:
@@ -207,6 +208,8 @@ class FakeLLM:
             if m := guard.CVE_RE.search(question):
                 args["cve_id"] = m.group(0).upper()
             return [{"name": "research_web", "args": args}]
+        if "refresh_status" in offered and SCHEDULE_QUESTION.search(question) and not guard.CVE_RE.search(question):
+            return [{"name": "refresh_status", "args": {}}]  # B19: "when did you last check?", "is the schedule on?"
         if m := guard.CVE_RE.search(question):
             return [{"name": "lookup_cve", "args": {"cve_id": m.group(0).upper()}}]
         if m := (guard.CWE_RE.search(question) or guard.ATLAS_RE.search(question)):
@@ -275,6 +278,8 @@ class FakeLLM:
                 fields["weakness"] = _weakness(data)
             elif name == "research_web":
                 fields["web"] = _web(data)
+            elif name == "refresh_status":  # B19
+                fields["refresh"] = data["message"]
             elif name == "propose_decision" and "proposal_id" in data:  # B22: a proposed decision, with its sources
                 cites = ", ".join(f"[{x['n']}] ({x['label']})" for x in data["sources"])
                 fields["decision"] = (f"I've proposed this: {data['title']}. {data['before']} → {data['after']}. "
@@ -285,7 +290,8 @@ class FakeLLM:
                                    data["message"] + " Watching: " + ", ".join(data["watchlist"]) + ".")
 
         if script is None:
-            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness", "web") if k in fields]
+            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness", "web", "refresh")
+                     if k in fields]
             if sources:
                 head = "How to prevent this kind of bug:" if "cve" in fields else "From the knowledge base:"
                 parts.append(f"{head}\n\n{_bullets(sources, 3 if 'cve' in fields else 2)}")

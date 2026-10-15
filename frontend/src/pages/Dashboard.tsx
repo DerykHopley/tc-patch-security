@@ -222,7 +222,7 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
             </ul>
           </section>
           <AlertsCard data={data.data} onNavigate={onNavigate} />
-          <FreshnessCard data={data.data} asOf={data.as_of} sources={data.freshness} />
+          <FreshnessCard data={data.data} asOf={data.as_of} sources={data.freshness} onNavigate={onNavigate} />
         </aside>
       </div>
       <Tooltip tip={tip} />

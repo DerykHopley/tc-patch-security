@@ -301,6 +301,30 @@ export interface WebHit {
   flagged: boolean
 }
 
+export interface RefreshStatus {
+  mode: 'snapshot' | 'live'
+  last_checked: string | null
+  schedule: Schedule
+  last_run: LastRun | null
+  message: string
+}
+
+export interface Schedule {
+  hours: number
+  paused: boolean
+  next_due: string | null
+}
+
+export interface LastRun {
+  trigger: 'button' | 'chat' | 'schedule' | 'cli'
+  started: string
+  result: 'ok' | 'partial' | 'failed'
+  new: number
+  kev_added: number
+  rescored: number
+  failed_sources: string[]
+}
+
 /** Each tool's result, by the tool's name. */
 export interface ToolResults {
   check_affected: AffectedOne | AffectedProduct
@@ -311,6 +335,7 @@ export interface ToolResults {
   search_security: SearchResult
   explain_weakness: CweResult | TechniqueResult
   research_web: ResearchResult
+  refresh_status: RefreshStatus
 }
 
 export type ToolName = keyof ToolResults
