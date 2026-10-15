@@ -41,6 +41,14 @@ def _thaw(value):
     return value
 
 
+def _upgraded(entry: dict) -> dict:
+    """An alerts-log entry in B04's shape. Before B04 the log held test alerts only, one channel each."""
+    if "channels" in entry:
+        return entry
+    result = {k: entry.get(k) for k in ("channel", "sent", "error", "error_code")}
+    return {"kind": "test", "cve": None, "reason": None, "alerts": [], **entry, "channels": [result]}
+
+
 def _default_fields(pid: str) -> dict:
     """A product's fields until you save them, or in a file saved before A15."""
     return {"usage": "library" if pid in LIBRARY_PRODUCTS else "self_hosted", "version": None,
@@ -264,8 +272,48 @@ class State:
             self._save(data)
 
     def alerts_log(self) -> list[dict]:
-        """Newest first."""
-        return _thaw(self.read().alerts_log)
+        """Newest first. Every entry has `kind`, `alerts` and `channels` (B04): a test alert logged before B04 gets
+        them from its one channel's fields."""
+        return [_upgraded(e) for e in _thaw(self.read().alerts_log)]
+
+    # --- The refresh's alerts (B04): sent once per key, held through quiet hours. In the user's own state, so they
+    # move with it when each user has a state (B09).
+
+    def claim_alerts(self, keys: list[str], at: str) -> set[str]:
+        """Record the de-duplication keys not seen before and return them: those alerts may go out. The rest were
+        sent (or held) already, by an earlier run or before a restart."""
+        with self._lock:
+            data = self._load()
+            alerted = data.setdefault("alerted", {})
+            fresh = {k for k in keys if k not in alerted}
+            if fresh:
+                alerted.update(dict.fromkeys(sorted(fresh), at))
+                self._save(data)
+            return fresh
+
+    def hold_alerts(self, messages: list[dict]) -> None:
+        """Keep alerts found in quiet hours, to send when they end."""
+        with self._lock:
+            data = self._load()
+            data["alerts_held"] = data.get("alerts_held", []) + messages
+            self._save(data)
+
+    def take_held_alerts(self) -> list[dict]:
+        """The held alerts, oldest first, removed from the state."""
+        with self._lock:
+            data = self._load()
+            held = data.pop("alerts_held", [])
+            if held:
+                self._save(data)
+            return held
+
+    def clear_alerts(self) -> None:
+        """No alerts sent, held or logged (the fake feeds' reset, for the browser check)."""
+        with self._lock:
+            data = self._load()
+            for key in ("alerted", "alerts_held", "alerts_log"):
+                data.pop(key, None)
+            self._save(data)
 
     def reset(self) -> None:
         """Back to the default watchlist, no statuses, default settings (dev choices too) and an empty alerts log."""

@@ -19,9 +19,11 @@ from typing import Any, Protocol
 
 from app.errors import AppError
 
-PRIORITY = {"kev": 5, "kev_recheck": 3, "new": 3, "new_unscored": 2, "now_critical": 4}
+# Without the CVE's priority (the message on its own), the reason's priority. The refresh's alerts (B04) always pass
+# the CVE's row, whose priority gives 5/4/3/2 (urgent, high, normal, low).
+PRIORITY = {"kev": 5, "kev_recheck": 3, "new": 3, "new_unscored": 2, "now_critical": 4, "due_soon": 4, "overdue": 5}
 TITLE = {"kev": "In CISA KEV", "kev_recheck": "Check your fix", "new": "New CVE", "new_unscored": "New CVE, not scored yet",
-         "now_critical": "Now critical"}
+         "now_critical": "Now critical", "due_soon": "Due in 3 days", "overdue": "Overdue"}
 CHANNELS = ("desktop", "email", "ntfy")
 
 
@@ -42,7 +44,8 @@ class Transports:
     smtp_factory: Callable[[str, int], Any] | None = None  # None: smtplib, chosen by port
     opener: Callable[..., Any] = urllib.request.urlopen  # for ntfy's HTTP POST
     runner: Callable[..., Any] = subprocess.run  # for the desktop command
-    desktop_command: Callable[[], str | None] = desktop_command
+    # looked up when called, so the tests' guard (conftest.py) can turn the real desktop command off everywhere
+    desktop_command: Callable[[], str | None] = lambda: desktop_command()  # noqa: E731
 
 
 class Notifier(Protocol):
@@ -53,8 +56,9 @@ class Notifier(Protocol):
 
 def format_alert(cve: dict, reason: str, knowledge, app_url: str = "", due: dict | None = None) -> dict:
     """Structured fields only: never the CVE description, which is untrusted and shows on a lock screen.
-    `due`: the CVE's row from the priority rules (due_date, no_fix), worded as on the dashboard: "due" your due
-    date, or "decide by" when there's no fix yet. Without it, a KEV CVE shows CISA's date as the "KEV deadline"."""
+    `due`: the CVE's row from the priority rules (due_date, no_fix, alert_priority), worded as on the dashboard: "due"
+    your due date, or "decide by" when there's no fix yet; its alert priority is the message's (B04). Without it, a
+    KEV CVE shows CISA's date as the "KEV deadline" and the reason sets the priority."""
     product = knowledge.products[cve["product"]]
     sev = (cve["severity"] or "unscored").lower() + (f" {cve['cvss']:g}" if cve["cvss"] else "")
     body = f"{cve['id']} · {sev}"
@@ -65,7 +69,8 @@ def format_alert(cve: dict, reason: str, knowledge, app_url: str = "", due: dict
         body += f" · KEV deadline {kev['dueDate']}"
     if cve.get("product_source") == "text":
         body += " · possible match"
-    priority = PRIORITY[reason] + (1 if reason == "new" and cve["severity"] == "CRITICAL" else 0)
+    priority = (due or {}).get("alert_priority") or (
+        PRIORITY[reason] + (1 if reason == "new" and cve["severity"] == "CRITICAL" else 0))
     return {"title": f"{TITLE[reason]}: {product}", "body": body, "priority": priority,
             "tags": [reason, cve["product"]], "click": f"{app_url}/#cve={cve['id']}"}
 
@@ -185,11 +190,14 @@ def channel_status(s, transports: Transports) -> dict:
 
 
 def notifier_for(channel: str, s, transports: Transports) -> Notifier:
+    """The channel's sender. With NOTIFY_DRY_RUN on (the browser check), a set-up channel records only."""
     if channel == "preview":
         return PreviewNotifier()
     status = channel_status(s, transports)[channel]
     if not status["configured"]:
         raise NotifyError(status["detail"], "not_configured")
+    if s.notify_dry_run:
+        return PreviewNotifier()
     if channel == "ntfy":
         return NtfyNotifier(s.ntfy_url, s.ntfy_topic, s.ntfy_token, opener=transports.opener)
     if channel == "email":
@@ -197,16 +205,27 @@ def notifier_for(channel: str, s, transports: Transports) -> Notifier:
     return DesktopNotifier(transports.desktop_command() or "", runner=transports.runner)
 
 
-def deliver(channel: str, msg: dict, s, transports: Transports, state) -> dict:
-    """Send on one channel and log the attempt either way: sent, recorded only, not set up, or failed."""
-    entry = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), **msg,
-             "channel": channel, "sent": False, "error": None, "error_code": None}
+def send_on(channel: str, msg: dict, s, transports: Transports) -> dict:
+    """Send one message on one channel. The result, never raised: sent, recorded only (not sent, no error), not
+    set up, or failed with its error."""
+    result = {"channel": channel, "sent": False, "error": None, "error_code": None}
     try:
-        notifier_for(channel, s, transports).send(**msg)
+        notifier = notifier_for(channel, s, transports)
+        notifier.send(**{k: msg[k] for k in ("title", "body", "priority", "tags", "click")})
     except NotifyError as e:
-        entry["error"], entry["error_code"] = e.message, e.code
-        state.log_alert(entry)
-        raise
-    entry["sent"] = channel != "preview"
+        result["error"], result["error_code"] = e.message, e.code
+    else:
+        result["sent"] = notifier.name != "preview"
+    return result
+
+
+def deliver(channel: str, msg: dict, s, transports: Transports, state) -> dict:
+    """A test alert (Settings): send on one channel and log the attempt either way, in the alerts log's shape
+    (app.alerts) plus this channel's own fields, which the Settings page reads. Re-raises a failure once logged."""
+    result = send_on(channel, msg, s, transports)
+    entry = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "kind": "test", "cve": None,
+             "reason": None, **msg, "alerts": [], "channels": [result], **result}
     state.log_alert(entry)
+    if result["error"]:
+        raise NotifyError(result["error"], result["error_code"])
     return entry

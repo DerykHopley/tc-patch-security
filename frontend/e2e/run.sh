@@ -3,7 +3,8 @@
 # index) and the frontend on two free ports, run the checks in Firefox and Chromium, stop both servers.
 # A second pair runs in live mode on the fake feeds (B02), for Check now: its refresh changes the CVE data, so it
 # never shares a backend with the snapshot checks (DECISIONS.md, 2026-10-15).
-# Never touches the user's app on 8000/5173. Used locally and in CI.
+# Never touches the user's app on 8000/5173. Used locally and in CI. NOTIFY_DRY_RUN=1: alerts (a refresh's, B04)
+# are recorded, never sent, so no desktop notification pops up on the machine running the check.
 #
 #   frontend/e2e/run.sh                      # both browsers
 #   frontend/e2e/run.sh -k a02               # extra arguments go to pytest; still both browsers
@@ -45,7 +46,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-(cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/state.json" AS_OF= \
+(cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/state.json" AS_OF= NOTIFY_DRY_RUN=1 \
   EMBEDDER=hash INDEX_PATH="$STATE_DIR/index" SEARCH_MIN_SCORE= \
   CORS_ORIGINS="http://localhost:$UI_PORT,http://127.0.0.1:$UI_PORT" \
   exec uv run uvicorn app.main:app --port "$API_PORT") >"$LOG_DIR/backend.log" 2>&1 &
@@ -54,7 +55,7 @@ PIDS+=($!)
   exec node_modules/.bin/vite --port "$UI_PORT" --strictPort) >"$LOG_DIR/frontend.log" 2>&1 &
 PIDS+=($!)
 # The live pair (B02): live mode, the fake feeds on day 2, its own state, live folder and index.
-(cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/live-state.json" AS_OF= \
+(cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/live-state.json" AS_OF= NOTIFY_DRY_RUN=1 \
   DATA_MODE=live FEEDS=fake FAKE_FEEDS_DAY=2 LIVE_PATH="$STATE_DIR/live" \
   EMBEDDER=hash INDEX_PATH="$STATE_DIR/live-index" SEARCH_MIN_SCORE= \
   CORS_ORIGINS="http://localhost:$LIVE_UI_PORT,http://127.0.0.1:$LIVE_UI_PORT" \
