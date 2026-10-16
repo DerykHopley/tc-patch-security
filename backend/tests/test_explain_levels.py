@@ -205,7 +205,8 @@ def test_a19_5_fakellm_passes_the_explain_level_question_at_all_three_levels(cli
     assert levels["simple"]["reading_ease"] > levels["normal"]["reading_ease"] > levels["deep_dive"]["reading_ease"]
     assert levels["simple"]["cited"] == levels["deep_dive"]["cited"] != []
     assert all(lv["answer"] and lv["words"] > 0 for lv in levels.values())
-    assert row["llm_calls"] >= 6  # three answers, two calls each at least
+    # one search (#51): the first level plans, searches and answers (3 calls); the other two only answer (1 each)
+    assert row["llm_calls"] == 5
 
 
 # --- A19.5: the report's readability section ----------------------------------------------------------------------
