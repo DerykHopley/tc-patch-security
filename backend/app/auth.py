@@ -83,10 +83,15 @@ def user_name(request: Request) -> str | None:
     return user.name if user else None
 
 
+def is_owner(request: Request, user: str) -> bool:
+    """Whether this user is the app's owner (OWNER: `app.state.owner`)."""
+    return user == request.app.state.owner
+
+
 def owner_only(request: Request, user: Annotated[str, Depends(current_user)]) -> str:
-    """A route only the owner may use (OWNER: `app.state.owner`): the shared schedule and the demo's switches, which
-    act for every user. Anyone else gets NotOwner (403). With sign-in off the one local user is the owner, unless
-    OWNER names someone else."""
-    if user != request.app.state.owner:
+    """A route only the owner may use (OWNER: `app.state.owner`): the shared schedule, the demo's switches and the Dev
+    page's choices (B29), which act for every user. Anyone else gets NotOwner (403). With sign-in off the one local
+    user is the owner, unless OWNER names someone else."""
+    if not is_owner(request, user):
         raise NotOwner("Only the app's owner can do this: it changes the app for every user.")
     return user

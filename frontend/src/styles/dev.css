@@ -479,3 +479,31 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* The owner's choices for anyone else (B29): label and value, one per row, the value in --text. Nothing animates. */
+.owners-choices {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.owners-choices > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.75rem;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.owners-choices dt {
+  color: var(--muted);
+}
+
+.owners-choices dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}

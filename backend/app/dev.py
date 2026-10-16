@@ -1,17 +1,23 @@
 """The dev panel's routes (A11): model switch, local-model discovery, search tuning, the playground, the embedding map.
 
 Mounted only when DEV_PANEL is on (they show internals): off, every /dev route is a 404.
+
+B29 (#76): the choices here are the owner's and apply to every user (B09). So every route that changes them, acts for
+every user, saves a run every user sees, or uses the owner's model or machine needs the owner (`owner_only`, 403
+not_owner). Reads stay open: they change nothing and spend nothing.
 """
 from collections import Counter
 
 import httpx
-from fastapi import APIRouter, Depends, Query
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from app import openrouter_models
 from app.app_settings import DevSettings
-from app.auth import owner_only
+from app.auth import current_user, is_owner, owner_only
 from app.errors import InputError
 from app.evals import model_check, report, retrieval
 from app.llm.urls import local_url_allowed
@@ -65,13 +71,17 @@ def dev_router(deps) -> APIRouter:
     r = APIRouter(prefix="/dev")
     openrouter_list = openrouter_models.ModelList()  # one per app: tests each get a fresh cache
 
+    owner = Depends(owner_only)
+
     @r.get("/settings")
-    def get_dev_settings():
+    def get_dev_settings(request: Request, user: Annotated[str, Depends(current_user)]):
+        """`yours`: the caller is the owner, so may change them. Anyone else sees them read-only (B29)."""
         return {"settings": deps.owner_state.dev_settings().model_dump(),
                 "defaults": deps.state.dev_defaults.model_dump(),
-                "openrouter_key": bool(deps.settings.openrouter_api_key)}
+                "openrouter_key": bool(deps.settings.openrouter_api_key),
+                "yours": is_owner(request, user)}
 
-    @r.put("/settings")
+    @r.put("/settings", dependencies=[owner])  # every user's model and search
     def put_dev_settings(body: DevSettings):
         if body.provider == "openrouter" and not deps.settings.openrouter_api_key:
             raise InputError("OpenRouter needs OPENROUTER_API_KEY in backend/.env. Add it and restart the backend.")
@@ -81,7 +91,7 @@ def dev_router(deps) -> APIRouter:
             raise InputError("Choose a local model first: Find models lists the ones the server has.")
         return {"settings": deps.owner_state.save_dev_settings(body).model_dump()}
 
-    @r.post("/fail-tools", dependencies=[Depends(owner_only)])  # it fails every user's answers
+    @r.post("/fail-tools", dependencies=[owner])  # it fails every user's answers
     def fail_tools(body: FailTools):
         """The tool-failure switch (B20, docs/failure-demo.md): these chat tools time out in every answer until the
         server restarts or the list is emptied; Try again still runs them. Starts as FAIL_TOOLS."""
@@ -97,7 +107,7 @@ def dev_router(deps) -> APIRouter:
                 "embedder": deps.index.embedder_name, "dim": deps.index.dim, "min_score": deps.index.min_score,
                 "as_of": deps.as_of, "local_hosts": deps.settings.local_llm_hosts}
 
-    @r.get("/models")
+    @r.get("/models", dependencies=[owner])  # calls a server on the owner's machine; only a save would use it
     def models(url: str = ""):
         """The models a local server offers (its OpenAI-compatible /models). The SSRF guard applies: only this
         machine, and redirects are never followed, so a local server can't bounce the request elsewhere."""
@@ -131,7 +141,7 @@ def dev_router(deps) -> APIRouter:
         scores = model_check.openrouter_scores(deps)  # read fresh: a run just finished shows at once
         return {"models": [m | {"check": scores.get(m["id"])} for m in models], "reason": reason}
 
-    @r.post("/search")
+    @r.post("/search", dependencies=[owner])  # asks the owner's model, outside the chat's limits (B11)
     def playground(body: SearchRequest):
         """search_security with the saved settings, every step shown: the plan, each retriever's list per query
         (before fusion), the fused ranking and the final sources (after the per-document cap and top-n)."""
@@ -165,7 +175,7 @@ def dev_router(deps) -> APIRouter:
 
     # --- The model check (A12): exact checks on the scripted questions, in the background, on a copy of the state
 
-    @r.post("/model-check")
+    @r.post("/model-check", dependencies=[owner])  # the owner's model; the run is saved for every user
     def start_model_check(body: ModelCheckRequest):
         return model_check.start(deps, body.ids or None)
 
@@ -179,7 +189,7 @@ def dev_router(deps) -> APIRouter:
 
     # --- Retrieval metrics (A12) for the embedder the index was built with; another embedder = another index
 
-    @r.post("/retrieval-check")
+    @r.post("/retrieval-check", dependencies=[owner])  # the run is saved for every user
     def run_retrieval_check():
         return retrieval.run(deps, deps.index, deps.keyword)
 

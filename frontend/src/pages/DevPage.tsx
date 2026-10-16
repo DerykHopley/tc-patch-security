@@ -18,6 +18,7 @@ import { useDevSettings } from '../components/useDevSettings.ts'
 import { EmbeddingMap } from '../dev/EmbeddingMap.tsx'
 import { ModelCheck } from '../dev/ModelCheck.tsx'
 import { OpenRouterModelField } from '../dev/OpenRouterModelField.tsx'
+import { modelChoices, searchChoices, type Choice } from '../dev/ownersChoices.ts'
 import { RetrievalCheck } from '../dev/RetrievalCheck.tsx'
 import '../styles/dev.css'
 
@@ -114,6 +115,20 @@ function Radio({ id, label, hint, checked, disabled, onChange }: {
         {hint}
       </span>
     </div>
+  )
+}
+
+/** The owner's choices for anyone else (B29): read-only, with the editable form's labels. */
+function Choices({ choices }: { choices: Choice[] }) {
+  return (
+    <dl className="owners-choices">
+      {choices.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
   )
 }
 
@@ -241,6 +256,7 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
   const d = s.draft
   const set = s.set
   const hasKey = s.reply.openrouter_key
+  const yours = s.reply.yours !== false // B29: anyone but the owner reads the owner's choices, read-only
 
   async function findModels() {
     setFinding(true)
@@ -282,10 +298,16 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
 
   return (
     <div className="page dev-page">
-      <p className="page-intro">
-        Tune the model, the agent and search, then try a query to see each step. Turn this page off with{' '}
-        <code>DEV_PANEL=false</code>: it shows internals.
-      </p>
+      {yours ? (
+        <p className="page-intro">
+          Tune the model, the agent and search, then try a query to see each step. Turn this page off with{' '}
+          <code>DEV_PANEL=false</code>: it shows internals.
+        </p>
+      ) : (
+        <p className="page-intro" role="note" data-testid="owners-choices">
+          These are the owner's choices: the chat and search use them for everyone. Only the owner can change them.
+        </p>
+      )}
       {s.dirty && (
         <p className="callout" role="note">
           The playground and the chat use the <strong>saved</strong> settings. Save to try your changes.
@@ -294,102 +316,114 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
 
       <div className="settings-grid">
         <Card title="Model" kind="live" why="Saved choices apply on the next question, with no restart">
-          <fieldset>
-            <legend>Who answers</legend>
-            <Radio id="prov-fake" label="FakeLLM" hint="scripted, free, the same every run" checked={d.provider === 'fake'}
-              onChange={() => set({ provider: 'fake' })} />
-            <Radio id="prov-openrouter" label="OpenRouter" checked={d.provider === 'openrouter'} disabled={!hasKey}
-              hint={hasKey ? 'hosted models, paid per token' : 'needs OPENROUTER_API_KEY in backend/.env'}
-              onChange={() => set({ provider: 'openrouter' })} />
-            <Radio id="prov-local" label="Local model" hint="Ollama, LM Studio or llama.cpp on this machine"
-              checked={d.provider === 'local'} onChange={() => set({ provider: 'local' })} />
-          </fieldset>
-
-          {d.provider === 'openrouter' && (
-            <OpenRouterModelField value={d.openrouter_model} defaultId={s.reply.defaults.openrouter_model}
-              onChange={(id) => set({ openrouter_model: id })} />
-          )}
-
-          {d.provider === 'local' && (
+          {yours ? (
             <>
-              <div className="field-row">
-                <label htmlFor="dev-local-url">Server URL</label>
-                <input id="dev-local-url" className="mono-input" value={d.local_url} spellCheck={false}
-                  onChange={(e) => setLocalUrl(e.target.value.trim())} />
-              </div>
-              <fieldset className="plain presets">
-                <legend className="visually-hidden">Local server presets</legend>
-                {LOCAL_PRESETS.map((p) => (
-                  <button key={p.url} type="button" aria-pressed={d.local_url === p.url} onClick={() => setLocalUrl(p.url)}>
-                    {p.name}
-                  </button>
-                ))}
+              <fieldset>
+                <legend>Who answers</legend>
+                <Radio id="prov-fake" label="FakeLLM" hint="scripted, free, the same every run" checked={d.provider === 'fake'}
+                  onChange={() => set({ provider: 'fake' })} />
+                <Radio id="prov-openrouter" label="OpenRouter" checked={d.provider === 'openrouter'} disabled={!hasKey}
+                  hint={hasKey ? 'hosted models, paid per token' : 'needs OPENROUTER_API_KEY in backend/.env'}
+                  onChange={() => set({ provider: 'openrouter' })} />
+                <Radio id="prov-local" label="Local model" hint="Ollama, LM Studio or llama.cpp on this machine"
+                  checked={d.provider === 'local'} onChange={() => set({ provider: 'local' })} />
               </fieldset>
-              <div className="field-row">
-                <label htmlFor="dev-local-model">Model name</label>
-                {models && models.length > 0 ? (
-                  <select id="dev-local-model" value={d.local_model} onChange={(e) => set({ local_model: e.target.value })}>
-                    <option value="">Choose…</option>
-                    {models.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
+
+              {d.provider === 'openrouter' && (
+                <OpenRouterModelField value={d.openrouter_model} defaultId={s.reply.defaults.openrouter_model}
+                  onChange={(id) => set({ openrouter_model: id })} />
+              )}
+
+              {d.provider === 'local' && (
+                <>
+                  <div className="field-row">
+                    <label htmlFor="dev-local-url">Server URL</label>
+                    <input id="dev-local-url" className="mono-input" value={d.local_url} spellCheck={false}
+                      onChange={(e) => setLocalUrl(e.target.value.trim())} />
+                  </div>
+                  <fieldset className="plain presets">
+                    <legend className="visually-hidden">Local server presets</legend>
+                    {LOCAL_PRESETS.map((p) => (
+                      <button key={p.url} type="button" aria-pressed={d.local_url === p.url} onClick={() => setLocalUrl(p.url)}>
+                        {p.name}
+                      </button>
                     ))}
-                  </select>
-                ) : (
-                  <input id="dev-local-model" className="mono-input" value={d.local_model} placeholder="e.g. qwen3:8b"
-                    spellCheck={false} onChange={(e) => set({ local_model: e.target.value.trim() })} />
-                )}
-                <button type="button" onClick={findModels} disabled={finding}>
-                  {finding ? 'Looking…' : 'Find models'}
-                </button>
-              </div>
-              {modelsError && (
-                <p role="alert" className="form-error">
-                  {modelsError}
-                </p>
+                  </fieldset>
+                  <div className="field-row">
+                    <label htmlFor="dev-local-model">Model name</label>
+                    {models && models.length > 0 ? (
+                      <select id="dev-local-model" value={d.local_model} onChange={(e) => set({ local_model: e.target.value })}>
+                        <option value="">Choose…</option>
+                        {models.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input id="dev-local-model" className="mono-input" value={d.local_model} placeholder="e.g. qwen3:8b"
+                        spellCheck={false} onChange={(e) => set({ local_model: e.target.value.trim() })} />
+                    )}
+                    <button type="button" onClick={findModels} disabled={finding}>
+                      {finding ? 'Looking…' : 'Find models'}
+                    </button>
+                  </div>
+                  {modelsError && (
+                    <p role="alert" className="form-error">
+                      {modelsError}
+                    </p>
+                  )}
+                  {models && models.length === 0 && <p className="meta">The server is running but has no models.</p>}
+                  {models && models.length > 0 && (
+                    <output className="meta found">
+                      Found {models.length} model{models.length === 1 ? '' : 's'}.
+                    </output>
+                  )}
+                  <p className="meta">
+                    Start the server first (<code>ollama serve</code>, then <code>ollama pull &lt;model&gt;</code>). The backend
+                    only calls this machine.
+                  </p>
+                </>
               )}
-              {models && models.length === 0 && <p className="meta">The server is running but has no models.</p>}
-              {models && models.length > 0 && (
-                <output className="meta found">
-                  Found {models.length} model{models.length === 1 ? '' : 's'}.
-                </output>
+              {d.provider === 'fake' ? (
+                <p className="meta">Scripted answers: model and temperature don't apply.</p>
+              ) : (
+                <Slider id="dev-temp" label="Temperature" hint="lower = steadier answers" value={d.temperature} min={0} max={2}
+                  step={0.1} format={(v) => v.toFixed(1)} onChange={(v) => set({ temperature: v })} />
               )}
-              <p className="meta">
-                Start the server first (<code>ollama serve</code>, then <code>ollama pull &lt;model&gt;</code>). The backend
-                only calls this machine.
-              </p>
             </>
-          )}
-          {d.provider === 'fake' ? (
-            <p className="meta">Scripted answers: model and temperature don't apply.</p>
           ) : (
-            <Slider id="dev-temp" label="Temperature" hint="lower = steadier answers" value={d.temperature} min={0} max={2}
-              step={0.1} format={(v) => v.toFixed(1)} onChange={(v) => set({ temperature: v })} />
+            <Choices choices={modelChoices(d)} />
           )}
         </Card>
 
         <Card title="Agent and search" kind="live" why="The chat and the playground read the saved values">
-          <Slider id="dev-steps" label="Max agent steps" hint="tool rounds before it stops" value={d.max_steps} min={1}
-            max={8} onChange={(v) => set({ max_steps: v })} />
-          <Slider id="dev-topn" label="Sources per search" hint="top-n after fusion" value={d.top_n} min={1} max={10}
-            onChange={(v) => set({ top_n: v })} />
-          <Slider id="dev-k" label="Results per query" hint="each list, before fusion" value={d.per_query_k} min={1}
-            max={30} onChange={(v) => set({ per_query_k: v })} />
-          <Slider id="dev-cap" label="Chunks per document" hint="per-document cap" value={d.per_doc_cap} min={1} max={5}
-            onChange={(v) => set({ per_doc_cap: v })} />
-          <Slider id="dev-rrf" label="RRF constant k" hint="higher = flatter fusion" value={d.rrf_k} min={1} max={200}
-            onChange={(v) => set({ rrf_k: v })} />
-          <Slider id="dev-kw" label="Keyword vs vector" hint="0 = vector only, 1 = keyword (BM25) only"
-            value={d.keyword_weight} min={0} max={1} step={0.05} format={(v) => v.toFixed(2)}
-            onChange={(v) => set({ keyword_weight: v })} />
-          <Switch id="dev-rewrites" label="Multi-query rewrites" checked={d.use_rewrites}
-            hint="Off: one search for the semantic query only." onChange={(v) => set({ use_rewrites: v })} />
-          <Switch id="dev-filters" label="Self-query filters" checked={d.use_filters}
-            hint="Off: the model's filters are listed as dropped, not applied." onChange={(v) => set({ use_filters: v })} />
-          <button type="button" onClick={resetSearch}>
-            Reset to the defaults
-          </button>
+          {yours ? (
+            <>
+              <Slider id="dev-steps" label="Max agent steps" hint="tool rounds before it stops" value={d.max_steps} min={1}
+                max={8} onChange={(v) => set({ max_steps: v })} />
+              <Slider id="dev-topn" label="Sources per search" hint="top-n after fusion" value={d.top_n} min={1} max={10}
+                onChange={(v) => set({ top_n: v })} />
+              <Slider id="dev-k" label="Results per query" hint="each list, before fusion" value={d.per_query_k} min={1}
+                max={30} onChange={(v) => set({ per_query_k: v })} />
+              <Slider id="dev-cap" label="Chunks per document" hint="per-document cap" value={d.per_doc_cap} min={1} max={5}
+                onChange={(v) => set({ per_doc_cap: v })} />
+              <Slider id="dev-rrf" label="RRF constant k" hint="higher = flatter fusion" value={d.rrf_k} min={1} max={200}
+                onChange={(v) => set({ rrf_k: v })} />
+              <Slider id="dev-kw" label="Keyword vs vector" hint="0 = vector only, 1 = keyword (BM25) only"
+                value={d.keyword_weight} min={0} max={1} step={0.05} format={(v) => v.toFixed(2)}
+                onChange={(v) => set({ keyword_weight: v })} />
+              <Switch id="dev-rewrites" label="Multi-query rewrites" checked={d.use_rewrites}
+                hint="Off: one search for the semantic query only." onChange={(v) => set({ use_rewrites: v })} />
+              <Switch id="dev-filters" label="Self-query filters" checked={d.use_filters}
+                hint="Off: the model's filters are listed as dropped, not applied." onChange={(v) => set({ use_filters: v })} />
+              <button type="button" onClick={resetSearch}>
+                Reset to the defaults
+              </button>
+            </>
+          ) : (
+            <Choices choices={searchChoices(d)} />
+          )}
         </Card>
 
         <Card title="Index" kind="live" why="The Chroma index the app loaded at start-up">
@@ -426,26 +460,34 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
       </div>
 
       <Card title="Search playground" kind="live" why="Runs search_security with the saved settings" className="playground">
-        <form className="play-form" onSubmit={run}>
-          <input aria-label="Search query" value={query} maxLength={500} onChange={(e) => setQuery(e.target.value)} />
-          <button type="submit" disabled={running || !query.trim()}>
-            {running ? 'Running…' : 'Run search'}
-          </button>
-        </form>
-        <fieldset className="plain play-examples">
-          <legend className="visually-hidden">Example queries</legend>
-          {EXAMPLES.map((q) => (
-            <button key={q} type="button" onClick={() => {
-              setQuery(q)
-              void run(undefined, q)
-            }}>
-              {q}
-            </button>
-          ))}
-        </fieldset>
-        {runError && (
-          <p role="alert" className="form-error">
-            {runError}
+        {yours ? (
+          <>
+            <form className="play-form" onSubmit={run}>
+              <input aria-label="Search query" value={query} maxLength={500} onChange={(e) => setQuery(e.target.value)} />
+              <button type="submit" disabled={running || !query.trim()}>
+                {running ? 'Running…' : 'Run search'}
+              </button>
+            </form>
+            <fieldset className="plain play-examples">
+              <legend className="visually-hidden">Example queries</legend>
+              {EXAMPLES.map((q) => (
+                <button key={q} type="button" onClick={() => {
+                  setQuery(q)
+                  void run(undefined, q)
+                }}>
+                  {q}
+                </button>
+              ))}
+            </fieldset>
+            {runError && (
+              <p role="alert" className="form-error">
+                {runError}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="meta" data-testid="owner-runs">
+            Only the owner can run searches here: each one asks the owner's model.
           </p>
         )}
         {result && <Playground result={result} rrfK={result.options.rrf_k} />}
@@ -459,10 +501,10 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
         )}
       </Card>
 
-      <ModelCheck modelLabel={savedModel(s.reply.settings)} dirty={s.dirty} compared={comparedModels}
+      <ModelCheck modelLabel={savedModel(s.reply.settings)} dirty={s.dirty} canRun={yours} compared={comparedModels}
         onCompare={setComparedModels} />
 
-      <RetrievalCheck embedder={info?.embedder ?? 'the loaded embedder'} compared={comparedEmbedders}
+      <RetrievalCheck embedder={info?.embedder ?? 'the loaded embedder'} canRun={yours} compared={comparedEmbedders}
         onCompare={setComparedEmbedders} />
 
       <Card title="Evaluation report" kind="live" why="One self-contained HTML page from the saved runs">
@@ -481,7 +523,10 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
         </a>
       </Card>
 
-      <SaveBar dirty={s.dirty} saving={s.saving} saved={s.saved} error={s.error} onSave={s.save} onDiscard={s.discard} />
+      {yours && (
+        <SaveBar dirty={s.dirty} saving={s.saving} saved={s.saved} error={s.error} onSave={s.save}
+          onDiscard={s.discard} />
+      )}
     </div>
   )
 }

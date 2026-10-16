@@ -698,6 +698,7 @@ export interface DevSettingsReply {
   settings: DevSettings
   defaults: DevSettings // from the backend's .env
   openrouter_key: boolean // whether OPENROUTER_API_KEY is set; the key itself never leaves the server
+  yours?: boolean // false: the caller isn't the owner, so sees the owner's choices read-only (B29)
 }
 
 export interface DevInfo {

@@ -28,8 +28,9 @@ function Misses({ m, label }: { m: RetrievalMetrics; label: string }) {
   )
 }
 
-export function RetrievalCheck({ embedder, compared, onCompare }: {
+export function RetrievalCheck({ embedder, canRun, compared, onCompare }: {
   embedder: string
+  canRun: boolean // false: not the owner (B29), so the saved runs only
   compared: string[]
   onCompare: (ids: string[]) => void
 }) {
@@ -68,11 +69,15 @@ export function RetrievalCheck({ embedder, compared, onCompare }: {
         a right document in the top 5. MRR: mean of 1 / rank of the first right one. To compare another embedder,
         build its index and restart the backend with it.
       </p>
-      <form className="eval-run" onSubmit={run}>
-        <button type="submit" disabled={running}>
-          {running ? 'Running…' : 'Run retrieval check'}
-        </button>
-      </form>
+      {canRun ? (
+        <form className="eval-run" onSubmit={run}>
+          <button type="submit" disabled={running}>
+            {running ? 'Running…' : 'Run retrieval check'}
+          </button>
+        </form>
+      ) : (
+        <p className="meta" data-testid="owner-runs">Only the owner can run it: it saves the run for everyone.</p>
+      )}
       {error && (
         <p role="alert" className="form-error">
           {error}
