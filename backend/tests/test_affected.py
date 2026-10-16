@@ -242,4 +242,5 @@ def test_a15_8_fakellm_answers_am_i_affected_from_the_rules(client):
     from app.evals.model_check import questions
 
     q = next(q for q in questions() if q["question"] == "Am I affected by CVE-2025-3248?")
-    assert q["expect"]["verdict"] and q["expect"]["status_unchanged"] and q["expect"]["tools"] == ["check_affected"]
+    assert q["expect"]["verdict"] and q["expect"]["status_unchanged"]
+    assert q["expect"]["tools_any"] == ["check_affected", "lookup_cve"]  # #54: either gives the verdict
