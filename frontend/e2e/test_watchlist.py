@@ -13,6 +13,7 @@ import pytest
 from playwright.sync_api import Browser, Locator, Page, expect
 
 from test_chat import ask
+from test_shell import LateLoads
 from test_cves_page import focused, no_sideways_scroll, params, visible_focus, window  # noqa: F401
 from test_dashboard import (  # noqa: F401 (fixtures)
     DEFAULT_WATCHLIST, DESKTOP, PHONE, SHOTS, TILES, api, clean_state, contrast, open_dash, rgb_list, tile, tile_value,
@@ -27,10 +28,12 @@ def open_watchlist(browser: Browser, ui_url: str, clean_state):
     """Opens Settings in a fresh context and waits for the Watchlist card's product fields."""
     contexts = []
 
-    def _open(width=DESKTOP, scheme="light", reduced=False) -> Page:
+    def _open(width=DESKTOP, scheme="light", reduced=False, setup=None) -> Page:
         ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme,
                                   reduced_motion="reduce" if reduced else "no-preference")
         contexts.append(ctx)
+        if setup:
+            setup(ctx)  # routes that must be in place before the first request
         page = ctx.new_page()
         page.goto(f"{ui_url}/settings")
         expect(card(page).get_by_role("group", name="Langflow")).to_be_visible()
@@ -104,6 +107,17 @@ def test_a15b_1_discard_brings_back_the_saved_watchlist(open_watchlist, api_url)
     expect(card(page).get_by_role("group", name="Langflow").get_by_label("Version")).to_have_value("")
     expect(bar(page)).to_have_text("All changes saved")
     assert api(api_url, "/watchlist")["watchlist"] == DEFAULT_WATCHLIST
+
+
+def test_a15b_1_a_late_load_never_resets_a_pick(open_watchlist, api_url):
+    # The saved watchlist can answer twice (React's double effect in development) or late: a pick made once the
+    # card shows must survive the later answer (the Dev page's race, CI run 38847853994).
+    late = []
+    page = open_watchlist(setup=lambda ctx: late.append(LateLoads(ctx, f"{api_url}/watchlist")))
+    card(page).get_by_label("Dify", exact=True).check()
+    late[0].wait_all(page)
+    expect(card(page).get_by_label("Dify", exact=True)).to_be_checked()
+    expect(bar(page)).to_have_text("Unsaved changes")
 
 
 def test_a15b_1_usage_version_and_internet_facing_per_product(open_watchlist, api_url):

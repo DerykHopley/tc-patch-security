@@ -7,7 +7,7 @@ import re
 from collections.abc import Callable
 
 import pytest
-from playwright.sync_api import Browser, Locator, Page, expect
+from playwright.sync_api import Browser, BrowserContext, Error, Locator, Page, Request, Route, expect
 
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
@@ -68,6 +68,41 @@ def eventually(page: Page, check: Callable[[], bool], timeout: float = 5000, ste
             return
         page.wait_for_timeout(step)  # allowed: the poll step of the wait on the real condition
     assert check()
+
+
+class LateLoads:
+    """Holds every GET of one API path after the first by `ms`, and counts the loads still on their way.
+
+    A page that loads its saved values in an effect asks twice in development (React's StrictMode runs effects
+    twice), and a slow network can answer in any order. The page must show its form from one load and never let a
+    later one reset what the user typed (the Dev page's race, CI run 38847853994). Install before the first request:
+    `LateLoads(ctx, f"{api_url}/dev/settings")`, then `late.wait_all(page)` before checking the edit survived."""
+
+    def __init__(self, ctx: BrowserContext, url: str, ms: float = 1500):
+        self.url, self.ms, self.started, self.done = url, ms, 0, 0
+        ctx.route(url, self._hold)
+        ctx.on("requestfinished", self._finished)
+        ctx.on("requestfailed", self._finished)
+
+    def _hold(self, route: Route) -> None:
+        if route.request.method != "GET":
+            route.fallback()
+            return
+        self.started += 1
+        if self.started > 1:
+            try:
+                route.request.frame.page.wait_for_timeout(self.ms)  # allowed: the late answer is the point
+            except Error:  # the test closed its page while the answer was held
+                return
+        route.fallback()  # on to slow mode's route, if any, then the network
+
+    def _finished(self, request: Request) -> None:
+        if request.method == "GET" and request.url == self.url:
+            self.done += 1
+
+    def wait_all(self, page: Page) -> None:
+        """Wait until every load the page started has answered: nothing can reset the form after this."""
+        eventually(page, lambda: self.started > 0 and self.done == self.started, timeout=self.ms + 10_000)
 
 
 def contrast(a: str, b: str) -> float:

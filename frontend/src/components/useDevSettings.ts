@@ -10,14 +10,21 @@ export function useDevSettings(onSaved?: () => void) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // One load fills the form. A load whose effect was cleaned up is dropped: in development React runs the effect
+  // twice, and the late answer reset whatever the user had typed since the first (CI run 38847853994).
   useEffect(() => {
+    let live = true
     getDevSettings().then(
       (r) => {
+        if (!live) return
         setReply(r)
         setDraft(r.settings)
       },
-      (e: Error) => setError(e.message),
+      (e: Error) => live && setError(e.message),
     )
+    return () => {
+      live = false
+    }
   }, [])
 
   const dirty = !!reply && !!draft && JSON.stringify(reply.settings) !== JSON.stringify(draft)

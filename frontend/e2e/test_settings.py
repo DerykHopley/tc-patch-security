@@ -11,6 +11,8 @@ import re
 import pytest
 from playwright.sync_api import Browser, Page, expect
 
+from test_shell import LateLoads
+
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
 
@@ -32,10 +34,12 @@ def settings_page(browser: Browser, ui_url: str):
     """Opens the Settings page in a fresh context, after resetting the throwaway state through the page's API."""
     contexts = []
 
-    def _open(width=DESKTOP, scheme="light", reduced=False) -> Page:
+    def _open(width=DESKTOP, scheme="light", reduced=False, setup=None) -> Page:
         ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme,
                                   reduced_motion="reduce" if reduced else "no-preference")
         contexts.append(ctx)
+        if setup:
+            setup(ctx)  # routes that must be in place before the first request
         page = ctx.new_page()
         page.goto(ui_url)
         page.get_by_role("button", name="Settings", exact=True).click()
@@ -124,6 +128,17 @@ def test_a13_2_discard_brings_back_the_saved_values(settings_page):
     page.get_by_role("button", name="Discard").click()
     expect(page.get_by_label("Send alerts")).to_be_checked()
     expect(page.get_by_role("button", name="Save changes")).to_be_disabled()
+
+
+def test_a13_2_a_late_load_never_resets_an_edit(settings_page, api_url):
+    # The saved settings can answer twice (React's double effect in development) or late: an edit made once the
+    # card shows must survive the later answer (the Dev page's race, CI run 38847853994).
+    late = []
+    page = settings_page(setup=lambda ctx: late.append(LateLoads(ctx, f"{api_url}/settings")))
+    page.get_by_label("Minimum severity").select_option("CRITICAL")
+    late[0].wait_all(page)
+    expect(page.get_by_label("Minimum severity")).to_have_value("CRITICAL")
+    expect(page.locator(".save-bar").get_by_role("status")).to_contain_text("Unsaved changes")
 
 
 def test_a13_2_the_watchlist_card_edits_the_watchlist(settings_page):

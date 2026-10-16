@@ -13,18 +13,28 @@ export function useSettings() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(() => {
+  /** Loads the saved settings into the form. `current`: false once this load is out of date, so it's dropped. */
+  const load = useCallback((current: () => boolean = () => true) => {
     getSettings().then(
       (r) => {
+        if (!current()) return
         setReply(r)
         setDraft(r.settings)
         setError(null)
         announceSavedLevel(r.settings.explain_level) // e.g. after a reset
       },
-      (e: Error) => setError(e.message),
+      (e: Error) => current() && setError(e.message),
     )
   }, [])
-  useEffect(load, [load])
+  // The first load drops its answer once its effect is cleaned up: in development React runs the effect twice, and
+  // the late answer reset whatever the user had changed since the first (the Dev page's race, CI run 38847853994).
+  useEffect(() => {
+    let live = true
+    load(() => live)
+    return () => {
+      live = false
+    }
+  }, [load])
 
   const dirty = !!reply && !!draft && JSON.stringify(reply.settings) !== JSON.stringify(draft)
 
@@ -75,5 +85,5 @@ export function useSettings() {
     setError(null)
   }
 
-  return { reply, draft, dirty, saving, saved, error, save, discard, patch, setValue, changed, reload: load }
+  return { reply, draft, dirty, saving, saved, error, save, discard, patch, setValue, changed, reload: () => load() }
 }

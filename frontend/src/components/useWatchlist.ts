@@ -44,18 +44,27 @@ export function useWatchlist() {
 
   /** Loads the saved watchlist. `keepDraft`: unsaved picks stay (a change from elsewhere moves only what's saved). */
   const reload = useCallback(
-    (keepDraft = false) => {
+    (keepDraft = false, current: () => boolean = () => true) => {
       getWatchlist().then(
         (w) => {
+          if (!current()) return
           if (keepDraft) setSaved(w)
           else take(w)
         },
-        (e: unknown) => setError(message(e)),
+        (e: unknown) => current() && setError(message(e)),
       )
     },
     [take],
   )
-  useEffect(() => reload(), [reload])
+  // The first load drops its answer once its effect is cleaned up: in development React runs the effect twice, and
+  // the late answer reset the picks made since the first (the Dev page's race, CI run 38847853994).
+  useEffect(() => {
+    let live = true
+    reload(false, () => live)
+    return () => {
+      live = false
+    }
+  }, [reload])
   useWatchlistChanged(() => reload(dirty))
 
   function edited() {
