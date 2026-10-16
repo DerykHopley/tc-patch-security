@@ -302,11 +302,13 @@ class FakeLLM:
 
     @staticmethod
     def _results(turn: list[dict]) -> list[tuple[str, dict]]:
-        """Each tool result in this turn with its tool's name, from this model's own assistant messages."""
+        """Each tool result in this turn with its tool's name, from this model's own assistant messages. The note a
+        tool call gets on a reused search (#51) isn't a result: the results are the ones above it."""
         names = {tc["id"]: tc["function"]["name"] for m in turn if m["role"] == "assistant"
                  for tc in m.get("tool_calls") or []}
-        return [(names.get(m["tool_call_id"], ""), json.loads(guard.unwrap(m["content"])))
-                for m in turn if m["role"] == "tool"]
+        results = [(names.get(m["tool_call_id"], ""), json.loads(guard.unwrap(m["content"])))
+                   for m in turn if m["role"] == "tool"]
+        return [(name, data) for name, data in results if "already_searched" not in data]
 
     @staticmethod
     def _answer(script: dict | None, results: list[tuple[str, dict]], level: str = "normal") -> str:

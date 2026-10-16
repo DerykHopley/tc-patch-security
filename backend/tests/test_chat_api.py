@@ -41,7 +41,7 @@ def tools(body):
 def test_a06_1_reply_has_answer_sources_tool_calls_query_usage_steps_and_flags(client):
     body = chat(client, Q["Q1"]).json()
     assert set(body) == {"answer", "sources", "tool_calls", "query", "usage", "steps", "flags", "bad_citations",
-                         "no_citations", "explain_level", "page_context", "dropped_context"}
+                         "no_citations", "explain_level", "page_context", "dropped_context", "search_reused"}
     assert set(body["sources"][0]) == {"n", "chunk_id", "doc_id", "doc_type", "title", "section", "date", "url",
                                        "snippet", "score", "product", "severity", "cvss", "kev", "site", "flags"}
     assert [s["n"] for s in body["sources"]] == list(range(1, len(body["sources"]) + 1))  # numbered from 1
