@@ -36,7 +36,7 @@
 
 B15 (#46) added the questions for spec B's tools. All 19 are FakeLLM-checked; real models haven't answered the new ones yet.
 
-- New or changed since the 2026-10-15 runs: `Q-updates` (`check_updates`), `Q-web` ("who's talking", `research_web`, the injection page), `Q-research` (the research workflow), `Q-partial` (a failed step), and Q9/Q10 (now proposals, B21).
+- New or changed since the 2026-10-15 runs: `Q-updates` (`check_updates`), `Q-web` ("who's talking", `research_web`, the injection page), `Q-research` (the research workflow), `Q-partial` (a failed step), and Q9/Q10 (now proposals, B21). `Q-affected` and `Q12` keep their questions but have relaxed expectations (#54): the report's grid marks the 2026-10-15 runs "old expectation" on those rows.
 - The web questions search the saved results (`backend/fixtures/web_canned.json`): no Tavily key, no credits. `check_updates` never fetches in a model-check run, even in live mode.
 - No key is needed beyond OpenRouter's. Run it in snapshot mode (the default).
 
