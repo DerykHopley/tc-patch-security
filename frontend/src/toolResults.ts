@@ -222,6 +222,7 @@ export interface QueryInfo {
   filters: Record<string, string>
   dropped_filters: string[]
   relaxed: boolean
+  off_topic?: boolean
   found_by?: Record<string, string[]>
 }
 

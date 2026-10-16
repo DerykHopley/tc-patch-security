@@ -153,7 +153,7 @@ function Playground({ result, rrfK }: { result: DevSearch; rrfK: number }) {
           ))}
           {filters.length === 0 && <span>none</span>}
         </p>
-        {(q.dropped_filters.length > 0 || q.relaxed) && (
+        {(q.dropped_filters.length > 0 || q.relaxed || q.off_topic) && (
           <p>
             <span className="meta">Dropped</span>
             {q.dropped_filters.map((f) => (
@@ -162,6 +162,7 @@ function Playground({ result, rrfK }: { result: DevSearch; rrfK: number }) {
               </span>
             ))}
             {q.relaxed && <span className="chip warn">no hits with filters: searched without them</span>}
+            {q.off_topic && <span className="chip warn">off-topic: keyword hits dropped</span>}
           </p>
         )}
       </div>
