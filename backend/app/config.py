@@ -126,6 +126,10 @@ class Settings:
     # B09: the user whose alerts go to the channels (ntfy, email, desktop: the owner's, from this environment). Other
     # users' alerts are recorded and shown in the app only. Locally, the default user.
     owner: str = DEFAULT_USER
+    # B11: chat messages per user, per minute and per UTC day (counted in memory: one instance). OpenRouter's spending
+    # cap on the key stays the backstop.
+    chat_per_minute: int = 10
+    chat_per_day: int = 200
 
     @property
     def users_path(self) -> pathlib.Path:
@@ -177,6 +181,8 @@ class Settings:
             fail_tools=_list(_env("FAIL_TOOLS").lower()),
             nvd_api_key=_env("NVD_API_KEY"),
             owner=_env("OWNER", DEFAULT_USER),
+            chat_per_minute=_int("CHAT_PER_MINUTE", cls.chat_per_minute),
+            chat_per_day=_int("CHAT_PER_DAY", cls.chat_per_day),
         )
 
     def check(self) -> None:

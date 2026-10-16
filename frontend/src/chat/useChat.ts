@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  ApiError,
   chat,
   type ChatReply,
   type ExplainLevel,
@@ -19,8 +20,12 @@ export interface Message {
   content: string
   reply?: ChatReply // assistant answers only
   error?: string // set when the request failed; never sent back as history
+  quiet?: boolean // B11: the error is a limit or the spending cap, shown as a quiet note, not an error bubble
   refined?: RefinedResult // B24: no question and no model text, so never sent back as history
 }
+
+// B11: refusals that aren't faults: a chat limit (429, the retry time in its message) and the spending cap (402).
+const QUIET = new Set(['rate_limited', 'spending_cap'])
 
 // The backend accepts at most 10 history turns of 2000 characters each (the guard's limits).
 const MAX_TURNS = 10
@@ -66,7 +71,8 @@ export function useChat(pageContext: () => PageContext) {
       return true
     } catch (e) {
       const error = e instanceof Error ? e.message : 'Something went wrong. Try again.'
-      setMessages((ms) => [...ms, { id: nextId++, role: 'assistant', content: '', error }])
+      const quiet = e instanceof ApiError && QUIET.has(e.code ?? '')
+      setMessages((ms) => [...ms, { id: nextId++, role: 'assistant', content: '', error, quiet }])
       return false
     } finally {
       setPending(false)

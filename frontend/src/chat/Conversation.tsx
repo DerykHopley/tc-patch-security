@@ -267,19 +267,26 @@ export function Conversation({ messages, pending, onSend, greeting, suggestions,
             )}
           </>
         )}
-        {messages.map((m) => (
-          <div key={m.id}className={`message ${m.role}${m.error ? ' error' : ''}`}>
-            {m.error ? (
-              <p role="alert">{m.error}</p>
-            ) : m.refined ? (
-              <RefinedAnswer id={m.id} refined={m.refined} />
-            ) : m.reply ? (
-              <Answer reply={m.reply} />
-            ) : (
-              <p>{m.content}</p>
-            )}
-          </div>
-        ))}
+        {messages.map((m) =>
+          m.quiet ? (
+            // B11: a limit or the spending cap, a quiet note under the question (DESIGN.md §6.2)
+            <output key={m.id} className="chat-limit">
+              {m.error}
+            </output>
+          ) : (
+            <div key={m.id} className={`message ${m.role}${m.error ? ' error' : ''}`}>
+              {m.error ? (
+                <p role="alert">{m.error}</p>
+              ) : m.refined ? (
+                <RefinedAnswer id={m.id} refined={m.refined} />
+              ) : m.reply ? (
+                <Answer reply={m.reply} />
+              ) : (
+                <p>{m.content}</p>
+              )}
+            </div>
+          ),
+        )}
         {pending && (
           <output className="thinking-note">Patch is thinking…</output>
         )}

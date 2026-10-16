@@ -26,6 +26,23 @@ export interface DataStatus {
   schedule?: ScheduleStatus // /dashboard only (B19): "Schedule paused", and Resume
 }
 
+/** The backend's refusal or failure: its plain message, its error code, and (B11) when to try again. */
+export class ApiError extends Error {
+  readonly status: number
+  readonly code: string | undefined
+  readonly retryAt: string | undefined // B11, a 429: ISO 8601, UTC
+  readonly body: unknown // the whole reply: a refused Check now still carries the last run
+
+  constructor(message: string, status: number, body: unknown) {
+    super(message)
+    const error = (body as { error?: { code?: string; retry_at?: string } } | null)?.error
+    this.status = status
+    this.code = error?.code
+    this.retryAt = error?.retry_at
+    this.body = body
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
@@ -36,7 +53,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const body: unknown = await res.json().catch(() => null)
   if (!res.ok) {
     const message = (body as { error?: { message?: string } } | null)?.error?.message
-    throw new Error(message ?? `The backend answered ${res.status}.`)
+    throw new ApiError(message ?? `The backend answered ${res.status}.`, res.status, body)
   }
   return body as T
 }
@@ -422,7 +439,14 @@ export interface CheckReply {
   refusal: { reason: 'too_soon' | 'running'; next_allowed: string; message: string } | null
 }
 
-export const checkNow = () => request<CheckReply>('/refresh', { method: 'POST' })
+// B11: a refused check is a 429 that still carries the reply (the refusal and the last run), so it reads as one.
+export const checkNow = () =>
+  request<CheckReply>('/refresh', { method: 'POST' }).catch((e: unknown) => {
+    if (e instanceof ApiError && e.status === 429 && (e.body as Partial<CheckReply> | null)?.refusal) {
+      return e.body as CheckReply
+    }
+    throw e
+  })
 
 // --- The schedule and the run history (B19). The backend's app/refresh.py `history` and main.py `schedule_status`.
 

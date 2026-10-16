@@ -74,7 +74,7 @@ class LiveAlerts:
 
     def check_now(self) -> dict:
         r = self.client.post("/refresh")
-        assert r.status_code == 200, r.text
+        assert r.status_code == (429 if r.json().get("refusal") else 200), r.text  # B11: a refusal is a 429
         return r.json()
 
     def next_day(self) -> dict:

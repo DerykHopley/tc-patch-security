@@ -129,7 +129,26 @@ def test_b24_3_already_so_says_so_without_a_proposal(client):
     assert body["proposal"] is None and "already on your watchlist" in body["message"]
 
 
-# --- B24.12: a button acts for the caller (B09) --------------------------------------------------------------------
+# --- B24.13: a refine counts as a chat message (B11); a proposal doesn't ---------------------------------------------
+
+def test_b24_13_a_refine_counts_against_the_chat_limit_and_a_proposal_doesnt(tmp_path, index_dir, knowledge, index):
+    from fastapi.testclient import TestClient
+
+    from app.config import Settings
+    from app.deps import build_deps
+    from app.main import create_app
+
+    settings = Settings(llm_provider="fake", state_path=tmp_path / "state.json", index_path=index_dir,
+                        chat_per_minute=1, chat_per_day=100)
+    client = TestClient(create_app(build_deps(settings, knowledge=knowledge, index=index)),
+                        raise_server_exceptions=False)
+    refine = {"action": "refine", "tool": "search_security", "query": QUERY, "filters": ["only_cves"]}
+    act(client, refine)
+    assert act(client, refine, status=429)["error"]["code"] == "rate_limited"
+    assert act(client, {"action": "propose", "change": "watch", "product": "vLLM"})["proposal"]  # no model: not limited
+
+
+# --- B24.12: a button acts for the caller (B09)--------------------------------------------------------------------
 
 def test_b24_12_a_buttons_proposal_is_the_callers(deps):
     from test_per_user import Users

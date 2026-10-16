@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useId, useRef, useState, type FormEvent } from 'react'
-import { cardAction, type CardAction, type PageContext, type RefineFilter } from '../api.ts'
+import { ApiError, cardAction, type CardAction, type PageContext, type RefineFilter } from '../api.ts'
 import { refineButtons, type ChangeButton } from '../cardActions.ts'
 import { DecisionFields, readDecision } from '../components/Decision.tsx'
 import type { Proposal } from '../toolResults.ts'
@@ -28,6 +28,9 @@ export const CardActionsContext = createContext<CardActionsHandle>({
   pending: false,
   asOf: null,
 })
+
+// B11: refusals that aren't faults, shown as a quiet line
+const QUIET = new Set(['rate_limited', 'spending_cap'])
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -229,6 +232,7 @@ export function RefineActions({ query, applied, page }: { query: string; applied
   const { addRefined } = useContext(CardActionsContext)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [limit, setLimit] = useState<string | null>(null)
   const buttons = refineButtons(applied)
   if (buttons.length === 0) return null
 
@@ -236,11 +240,15 @@ export function RefineActions({ query, applied, page }: { query: string; applied
     if (busy) return
     setBusy(label)
     setError(null)
+    setLimit(null)
     try {
       const r = await cardAction({ action: 'refine', tool: 'search_security', query, filters, page })
       addRefined({ ...r, filters, page })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong. Try again.')
+      const text = e instanceof Error ? e.message : 'Something went wrong. Try again.'
+      // B11: a chat limit (a refine counts as a message) or the spending cap is a quiet line, not an error
+      if (e instanceof ApiError && QUIET.has(e.code ?? '')) setLimit(text)
+      else setError(text)
     } finally {
       setBusy(null)
     }
@@ -263,6 +271,7 @@ export function RefineActions({ query, applied, page }: { query: string; applied
         ))}
         <span className="meta">Searches again with that filter.</span>
       </div>
+      <output className="meta card-action-limit">{limit}</output>
       {error && (
         <p className="proposal-line error" role="alert">
           {error}

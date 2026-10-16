@@ -354,6 +354,18 @@
   color: var(--error);
 }
 
+/* B11: a limit or the spending cap. Quiet: muted text under the question, right-aligned with it, no fill. */
+.chat-limit {
+  display: block;
+  align-self: flex-end;
+  max-width: 85%;
+  margin: -0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
 .message p,
 .message ul,
 .message ol {
