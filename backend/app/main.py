@@ -158,12 +158,12 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return run_tool(ToolCall(id="retry", name=body.name, args=body.args), d, Context(page=page, user_id=d.user_id))
 
     @app.post("/chat/action", response_model=card_actions.Proposed | card_actions.Refined)
-    def card_action(body: card_actions.CardAction):
-        """A button on a tool card (B24): propose a change (nothing changes until it's approved), or run the card's
-        tool again with a fixed filter."""
+    def card_action(body: card_actions.CardAction, d: You):
+        """A button on a tool card (B24): propose a change to the caller's state (nothing changes until it's
+        approved), or run the card's tool again with a fixed filter."""
         if isinstance(body, card_actions.Propose):
-            return card_actions.propose(body, deps)
-        return card_actions.refine(body, deps, page_context.validate(body.page, deps.knowledge.resolve_product)[0])
+            return card_actions.propose(body, d)
+        return card_actions.refine(body, d, page_context.validate(body.page, d.knowledge.resolve_product)[0])
 
     @app.get("/examples")
     def examples():

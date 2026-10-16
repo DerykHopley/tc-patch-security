@@ -286,7 +286,7 @@ def a18_6_fix_first(fx):
     fix_card(answer)
     still(page, "the prioritise card")
     cve = table_ids(page, 1)[0]
-    page.get_by_role("button", name=f"Ask about this: {cve}").click()
+    page.locator("table.cves").get_by_role("button", name=f"Ask about this: {cve}").click()  # the row's, not the card's (B24)
     expect(chip(page)).to_contain_text(cve)
     still(page, "the selected row")
 

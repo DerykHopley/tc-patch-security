@@ -127,3 +127,17 @@ def test_b24_3_a_proposal_checks_its_fields_like_the_forms(client, deps):
 def test_b24_3_already_so_says_so_without_a_proposal(client):
     body = act(client, {"action": "propose", "change": "watch", "product": "Ollama"})
     assert body["proposal"] is None and "already on your watchlist" in body["message"]
+
+
+# --- B24.12: a button acts for the caller (B09) --------------------------------------------------------------------
+
+def test_b24_12_a_buttons_proposal_is_the_callers(deps):
+    from test_per_user import Users
+
+    users = Users(deps)
+    alice, bob = users("alice"), users("bob")
+    p = act(alice, {"action": "propose", "change": "watch", "product": "vLLM"})["proposal"]
+    assert bob.post(f"/proposals/{p['proposal_id']}/approve").status_code == 404
+    assert alice.post(f"/proposals/{p['proposal_id']}/approve").status_code == 200
+    assert deps.users.state("alice").read().watches("vllm")
+    assert not deps.users.state("bob").read().watches("vllm")

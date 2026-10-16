@@ -97,5 +97,5 @@ def refine(body: Refine, deps, page: dict) -> Refined:
     for f in dict.fromkeys(body.filters):  # in order, once each
         force |= REFINES[f][0]
     call = ToolCall(id="refine", name=body.tool, args={"query": body.query})
-    record = run_tool(call, deps, Context(page=page, force_filters=force))
+    record = run_tool(call, deps, Context(page=page, user_id=deps.user_id, force_filters=force))
     return Refined(applied=[REFINES[f][1] for f in dict.fromkeys(body.filters)], call=record)
