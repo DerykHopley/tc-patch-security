@@ -33,10 +33,11 @@ No key, no network. Each command prints its own counts (passed, skipped), so thi
 | Fixed waits | `python3 frontend/e2e/check_waits.py` | no fixed wait in the browser check without `# allowed: <reason>` |
 | Browser check | `frontend/e2e/run.sh` (Firefox and Chromium) | the pages in light and dark, phone and desktop, by keyboard, with reduced motion; also the tooling tests (the fixed-wait check, the pre-commit hook, `scripts/ff-merge.sh`) |
 | Slow mode | `E2E_LATENCY_MS=300 frontend/e2e/run.sh` | the same check with every API answer late: finds timing races before CI does |
+| Built frontend | `E2E_BUILT=1 frontend/e2e/run.sh` | the same check against `vite build`, served by each backend as the container serves it (what CI runs) |
 | Container image (B12) | `frontend/e2e/container.sh` (needs Docker) | image builds; /health, embedder check, no `.env` or secret, the Cloud Storage client present, a short browser check in Chromium |
 | Report builds | `cd backend && uv run python -m app.evals fake-report --out /tmp/r.html` | FakeLLM and fake embedders; CI uploads it |
 
-- CI ([.github/workflows/ci.yml](./.github/workflows/ci.yml)) runs all of these once per push to `main` or `spec-*`, and on pull requests from other branches. A docs-only push skips the browser check. The browser check runs as two jobs side by side, one per browser, so it takes half as long.
+- CI ([.github/workflows/ci.yml](./.github/workflows/ci.yml)) runs all of these once per push to `main` or `spec-*`, and on pull requests from other branches. A docs-only push skips the browser check. The browser check runs as two jobs side by side, one per browser, so it takes half as long, against the built frontend (`E2E_BUILT=1`, #72): Chromium 12:27 → 9:05, Firefox 20:11 → 16:50 per job (one CI run each, before and after; DECISIONS.md, 2026-10-16).
 - The pre-commit hook (`.githooks/pre-commit`, on with `git config core.hooksPath .githooks`) runs two of CI's checks before each commit: no staged conflict markers, and the fixed-wait check.
 - Merging a ticket branch into `spec-b`: `scripts/ff-merge.sh <branch>` (`--dry-run` first shows the plan). See [docs/agents/issue-tracker.md](./docs/agents/issue-tracker.md).
 - Review rules that lint can't check: [CODING_STANDARDS.md](./CODING_STANDARDS.md). Each test names its check id (`A<ticket>.<n>`).
