@@ -277,6 +277,7 @@ def test_b03_6_a_503_or_timeout_leaves_the_data_and_last_checked_alone_and_the_n
 
 # --- B03.7: FEEDS=real picks this adapter; the NVD key is optional ------------------------------------------------
 
+@pytest.mark.builds_real_feeds  # B28: inspects the adapter, never asks it
 def test_b03_7_feeds_real_is_the_http_adapter_with_the_optional_nvd_key(monkeypatch):
     from app.config import Settings
     from app.feeds import FakeFeeds, make_feeds
@@ -289,7 +290,7 @@ def test_b03_7_feeds_real_is_the_http_adapter_with_the_optional_nvd_key(monkeypa
     assert isinstance(feeds, HttpFeeds) and feeds.nvd_api_key == "my-key" and feeds.nvd_pacer.limit == 50
     assert feeds.urls == FeedUrls()  # the fixed public URLs; nothing in the environment changes them
     assert make_feeds(Settings(feeds="real")).nvd_pacer.limit == 5
-    assert isinstance(make_feeds(Settings()), FakeFeeds)  # the fake stays the default
+    assert isinstance(make_feeds(Settings(feeds="fake")), FakeFeeds)  # the default is real since B28 (B28.1)
 
 
 # --- B03.8: the schedule: an hourly timer runs the CLI, which skips until schedule_hours has passed ---------------

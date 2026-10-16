@@ -74,7 +74,8 @@ def live(tmp_path, index_dir, index):
     from app.deps import build_deps
 
     shutil.copytree(index_dir, tmp_path / "index")
-    settings = Settings(llm_provider="fake", state_path=tmp_path / "state.json", index_path=tmp_path / "index",
+    settings = Settings(llm_provider="fake", feeds="fake", state_path=tmp_path / "state.json",
+                        index_path=tmp_path / "index",
                         data_mode="live", live_path=tmp_path / "live")
     feeds, clock = FakeFeeds(day=1), Clock(f"{DAY1}T09:00:00+00:00")
     return Live(build_deps(settings, feeds=feeds, clock=clock), feeds, clock)
@@ -251,7 +252,7 @@ def test_b02_6_the_cli_runs_the_same_refresh_and_the_server_picks_it_up(live, mo
 
     s = live.deps.settings
     for name, value in {"DATA_MODE": "live", "LIVE_PATH": str(s.live_path), "STATE_PATH": str(s.state_path),
-                        "FAKE_FEEDS_DAY": "1"}.items():
+                        "FEEDS": "fake", "FAKE_FEEDS_DAY": "1"}.items():
         monkeypatch.setenv(name, value)
     assert refresh.main() == 0
     out = json.loads(capsys.readouterr().out)

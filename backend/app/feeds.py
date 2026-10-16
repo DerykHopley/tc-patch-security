@@ -269,7 +269,7 @@ def osv_trim(record: dict) -> dict:
 
 
 def make_feeds(settings) -> Feeds:
-    """The feeds FEEDS names: the fake (B02, the default) or the real services (B03)."""
+    """The feeds FEEDS names: the real services (B03, the default since B28) or the fake (B02)."""
     if settings.feeds == "real":
         return HttpFeeds(nvd_api_key=settings.nvd_api_key)
     return FakeFeeds(day=settings.fake_feeds_day, fail=",".join(settings.fake_feeds_fail) or None)

@@ -9,6 +9,38 @@ def no_real_alerts(monkeypatch):
     monkeypatch.setattr("app.notify.desktop_command", lambda: None)
 
 
+LOCAL_HOSTS = ("127.0.0.1", "localhost", "[::1]")
+
+
+@pytest.fixture(autouse=True)
+def no_real_feeds(monkeypatch, request):
+    """No test reaches NVD, KEV, EPSS or OSV (B28: FEEDS=real is the default now). Building the real adapter at its
+    public URLs fails the test, unless it is marked `builds_real_feeds` (it only inspects the adapter). Asking any
+    host but this machine fails every test, marked or not; the fake HTTP server (`fake_http`) is on 127.0.0.1.
+    `pytest.fail` raises a BaseException, so the refresh's per-feed `except Exception` can't swallow it."""
+    from app.feeds import FeedUrls, HttpFeeds
+
+    init, ask = HttpFeeds.__init__, HttpFeeds._json
+    marked = request.node.get_closest_marker("builds_real_feeds") is not None
+
+    def guarded_init(self, *args, **kw):
+        init(self, *args, **kw)
+        public = [u for u in (self.urls.nvd, self.urls.kev, self.urls.epss, self.urls.osv)
+                  if u in vars(FeedUrls()).values()]
+        if public and not marked:
+            pytest.fail(f"This test builds the real feeds ({public[0]}). Set feeds='fake' (FEEDS=fake), pass "
+                        "FakeFeeds, or point HttpFeeds at the fake_http server.")
+
+    def guarded_ask(self, source, method, url, **kw):
+        host = url.split("://", 1)[-1].split("/", 1)[0].rsplit(":", 1)[0]
+        if host not in LOCAL_HOSTS:
+            pytest.fail(f"This test asked the network ({url}). Use the fake_http server or FakeFeeds.")
+        return ask(self, source, method, url, **kw)
+
+    monkeypatch.setattr(HttpFeeds, "__init__", guarded_init)
+    monkeypatch.setattr(HttpFeeds, "_json", guarded_ask)
+
+
 @pytest.fixture(scope="session")
 def knowledge():
     """The snapshot, loaded once per test run."""
@@ -51,10 +83,11 @@ def shared(knowledge, index):
 
 @pytest.fixture
 def settings(tmp_path, index_dir, index):
-    """FakeLLM, state in a temp folder per test, the run's hash index (never backend/data)."""
+    """FakeLLM, the fake feeds (B28: real is the default), state in a temp folder per test, the run's hash index
+    (never backend/data)."""
     from app.config import Settings
 
-    return Settings(llm_provider="fake", state_path=tmp_path / "state.json", index_path=index_dir)
+    return Settings(llm_provider="fake", feeds="fake", state_path=tmp_path / "state.json", index_path=index_dir)
 
 
 @pytest.fixture

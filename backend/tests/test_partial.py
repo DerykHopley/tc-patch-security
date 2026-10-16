@@ -92,6 +92,7 @@ def test_b20_5_the_fake_feeds_fail_by_env_switch_or_by_the_fake_only_route(live,
     from app.config import Settings
     from app.feeds import make_feeds
 
+    monkeypatch.setenv("FEEDS", "fake")
     monkeypatch.setenv("FAKE_FEEDS_FAIL", " NVD, epss ")
     settings = Settings.from_env()
     settings.check()

@@ -147,7 +147,8 @@ def scheduled_app(tmp_path, index_dir, **change):
     from test_refresh import DAY1, Clock
 
     shutil.copytree(index_dir, tmp_path / "index")
-    s = Settings(llm_provider="fake", state_path=tmp_path / "state.json", index_path=tmp_path / "index",
+    s = Settings(llm_provider="fake", feeds="fake", state_path=tmp_path / "state.json",
+                 index_path=tmp_path / "index",
                  data_mode="live", live_path=tmp_path / "live", scheduler_secret=SECRET)
     clock = Clock(f"{DAY1}T09:00:00+00:00")
     s = dataclasses.replace(s, **change)
@@ -251,7 +252,7 @@ def test_b13_4_a_cold_start_on_the_baked_index_catches_up_with_the_live_data_in_
 
     def instance(name: str):
         shutil.copytree(index_dir, tmp_path / name / "index")  # the image's baked index: built from the snapshot
-        s = Settings(llm_provider="fake", state_path=tmp_path / name / "state.json",
+        s = Settings(llm_provider="fake", feeds="fake", state_path=tmp_path / name / "state.json",
                      index_path=tmp_path / name / "index", data_mode="live", live_path=tmp_path / name / "live",
                      store="gcs", gcs_bucket="patch-test")
         deps = build_deps(s, feeds=FakeFeeds(day=1), clock=Clock(f"{DAY1}T09:00:00+00:00"), bucket=bucket)

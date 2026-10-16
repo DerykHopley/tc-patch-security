@@ -26,7 +26,7 @@ class App:
         from app.config import Settings
 
         shutil.copytree(index_dir, tmp_path / "index")
-        self.settings = Settings(llm_provider="fake", state_path=tmp_path / "state.json",
+        self.settings = Settings(llm_provider="fake", feeds="fake", state_path=tmp_path / "state.json",
                                  index_path=tmp_path / "index", live_path=tmp_path / "live", **changes)
         self.feeds, self.clock = FakeFeeds(day=1), Clock(f"{DAY1}T09:00:00+00:00")
         self.ntfy: list[dict] = []
@@ -300,7 +300,7 @@ def test_b26_7_the_cli_follows_live_mode_and_the_channels_saved_on_settings(app,
     from app import refresh
 
     for name, value in {"LIVE_PATH": str(app.settings.live_path), "STATE_PATH": str(app.settings.state_path),
-                        "FAKE_FEEDS_DAY": "1"}.items():
+                        "FEEDS": "fake", "FAKE_FEEDS_DAY": "1"}.items():
         monkeypatch.setenv(name, value)
     monkeypatch.delenv("DATA_MODE", raising=False)
     assert refresh.main() == 2  # nothing saved: the snapshot
@@ -319,7 +319,7 @@ def test_b26_7_the_cli_follows_live_mode_and_the_channels_saved_on_settings(app,
 def cli_env(app, monkeypatch, **more: str) -> None:
     """The systemd timer's environment: `.env` with no DATA_MODE line (and none of the other moved settings)."""
     for name, value in {"LIVE_PATH": str(app.settings.live_path), "STATE_PATH": str(app.settings.state_path),
-                        "FAKE_FEEDS_DAY": "1", **more}.items():
+                        "FEEDS": "fake", "FAKE_FEEDS_DAY": "1", **more}.items():
         monkeypatch.setenv(name, value)
     for name in ("DATA_MODE", "ALERT_TZ", "APP_URL", "NTFY_URL", "NTFY_TOPIC"):
         if name not in more:

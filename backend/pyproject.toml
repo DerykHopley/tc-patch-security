@@ -35,3 +35,6 @@ pythonpath = ["."]
 # passing test's folder frees its name for a later test, and Chroma's cached client for that path then points at
 # a deleted database ("attempt to write a readonly database", CI on 1eae8d2).
 tmp_path_retention_count = 1
+# B28: the conftest guard fails any test that builds the real feeds (FEEDS=real is the default); a test that only
+# inspects the adapter, never asks it, says so with this mark
+markers = ["builds_real_feeds: the test builds the real feeds adapter but never asks it (conftest guard, B28)"]

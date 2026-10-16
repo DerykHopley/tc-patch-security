@@ -135,7 +135,7 @@ class Settings:
     # Live data (B02). In live mode the as-of date is today and Check now refreshes the CVE data from the feeds.
     data_mode: str = "snapshot"
     live_path: pathlib.Path = ROOT / "data" / "live"  # the live data's versions and the refresh log
-    feeds: str = "fake"
+    feeds: str = "real"  # B28: the real services; tests, run.sh and container.sh set fake themselves
     fake_feeds_day: int = 2  # which data set the fake feeds serve (fixtures/fake_feeds/day<n>.json)
     fake_feeds_fail: list[str] = field(default_factory=list)  # B20: fake feeds that fail, for docs/failure-demo.md
     # B20: chat tools that time out inside an answer (Try again still runs them), for docs/failure-demo.md
