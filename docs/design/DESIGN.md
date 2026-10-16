@@ -288,12 +288,13 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - **Save bar**: sticky at the bottom of Settings and Dev, floating as a rounded card 0.8rem above the bottom, with "All changes saved" / "Unsaved changes" on the left and Discard / Save changes on the right. It keeps 96px clear on the right for Patch's button. On phones (≤ 800px) 96px leaves too little room and the bar wrapped to two rows, so there it floats just above Patch's button instead (A13, 2026-10-14; the browser check A13.6 checks it never overlaps his button at 400px and 1400px).
 - Text on the soft status fills ("Saved for later" chip, "urgent" tag, error messages) is `--text`, with the warn or error colour as an edge: `--warn` on `--warn-soft` is 3.9:1 and `--error` on the surface 4.2:1, both under 4.5:1 for small text (A13, 2026-10-14). Since the review fixes (2026-10-15) the light `--error`, `--warn` and `--ok` are darker (`#cf1b3e`, `#9c5508`, `#0d7b50`), so they also pass as text: `--error` 5.4:1 on the surface and 4.6:1 on `--error-soft`, `--warn` 5.1:1 on `--warn-soft`, `--ok` 5.3:1 on the surface (checked by the browser check A02.3, both modes). The edge rule stays.
 - The page heading inside Settings and Dev is hidden: the top bar already names the page.
+- **Show Patch's welcome (2026-10-16)**: a switch at the end of the "Patch's answers" card (Settings has no theme or appearance card; the banner is Patch's, so it sits with Patch's other choice). Same look as "Send alerts" (`.switch-row`): "Show Patch's welcome on the dashboard", and under it "Remembered in this browser, not saved to the server. Applies at once." (`aria-describedby`). It shows the current value: on unless the banner was closed (§5.8). Off hides the banner, on brings it back on the next visit to the dashboard, no reload. A per-browser convenience (§11), so it applies at once and is not part of the save bar: it never makes the bar say "Unsaved changes", and needs no API. With storage blocked it still works for the session. Nothing animates. *Checked* by the browser check W.1 to W.5 (both themes, 400px and 1400px, Space by keyboard, blocked storage).
 - **Watchlist card (A15b, 2026-10-15)**: the first card, across both columns. The fixed product list as checkboxes (by name, in a grid that wraps), then "How you run them" and one fieldset per ticked product, in watch order (as every Settings fieldset: nested-card fill, radius 18px, no border; legend = the product in `--text`): Usage, Version (placeholder by ecosystem: `e.g. 0.3.27`, `3.1.0`, `v0.12.3`), Internet-facing. Products without version data say so ("No version data for Dify…", "…only code commits…"). It saves with the page's save bar: one Save changes saves the watchlist and the other settings, Discard brings both back. A rejected save (a version that doesn't fit the ecosystem, an unknown product) shows its plain message inside the card (`role="alert"`) and the bar keeps "Unsaved changes". A failed save of the other settings (B20) does the same in each card with unsaved edits: "Not saved: … Your changes are still here; Save changes tries again." The edits stay. A change made by Patch (`update_watchlist`) shows in the card at once; unsaved picks stay. At 400px the fieldsets stack in one column. *Checked* by the browser check A15b.1, A15b.8.
 
 ### 5.8 Welcome banner (dashboard)
 
 - Above the dashboard: white-to-soft-purple card (radius 28px). Patch (110px, idle in a variant picked on page load, §8.3) on the left, his head rising over the top edge. Title "Hi there! I'm Patch, your security sidekick." (1.25rem Fredoka, purple), one line of help, an "Ask Patch" button.
-- A quiet ✕ in the top right (32px round, muted, soft purple on hover). Once closed, it stays closed in that browser.
+- A quiet ✕ in the top right (32px round, muted, soft purple on hover). Once closed, it stays closed in that browser, until "Show Patch's welcome on the dashboard" on Settings (§5.7) turns it back on. The ✕ and the switch share one value (`frontend/src/welcome.ts`): closing the banner turns the switch off.
 
 ### 5.9 CVEs page and the "Top 5 open CVEs" card (A04b, 2026-10-14)
 
@@ -386,7 +387,7 @@ Only with sign-in on (`AUTH=on`). Off (locally, the tests) neither exists and no
 - [ ] Buttons, inputs, checkboxes, radios and sliders are on-brand in both modes and in Firefox and Chrome.
 - [ ] Save bar never hidden behind Patch.
 - [ ] Patch's colours are the fixed ones in §8.1 (body `#9483FF`, visor `#2A2457`, eyes `#7FF0DD`, light `#FFC94D`, cheeks, extras), the same in both modes; no token changes them.
-- [ ] Welcome banner closes and stays closed.
+- [ ] Welcome banner closes and stays closed; Settings' "Show Patch's welcome on the dashboard" shows the current value, brings it back without a reload, stays out of the save bar, and works with storage blocked (for the session).
 - [ ] Tiles link to the CVEs page with their filter; the count there matches the tile.
 - [ ] Dashboard product filter (A15b): toggle pills with `aria-pressed`, a tick as well as colour, in the URL only, carried by the tile links and "See all CVEs"; the watchlist is edited on Settings, in a card that shares the save bar.
 - [ ] CVEs page: full width; filters in the URL survive a reload; stacked cards when narrow; row actions always in view.
@@ -630,9 +631,9 @@ All animations repeat forever, with the canvas's keyframes and easings (`styles/
 | `pinned` | `1` when the chat is pinned |
 | `splitWidth` | pinned chat width in px |
 | `sidenavCollapsed` | `1` when the sidebar is a rail |
-| `helloHidden` | `1` when the welcome banner was closed |
+| `helloHidden` | `1` when the welcome banner was closed or switched off on Settings; `0` (or absent) shows it |
 
-- All reads and writes are wrapped so a blocked storage (private windows) never breaks the app.
+- All reads and writes are wrapped so a blocked storage (private windows) never breaks the app. The welcome choice also keeps its last value in memory, so with storage blocked the Settings switch still holds until a reload.
 - URL: `?theme=light|dark`. Old links: `?layout=split` pins the chat; other `?layout=` and all `?design=` values are ignored.
 - Paths: `/`, `/cves`, `/settings`, `/dev` (A04b). The CVEs page's filters: `product`, `severity`, `status`, `kev=1`, `since=YYYY-MM-DD`, `new=1` (§5.9). The dashboard's product filter: `/?product=langflow,ollama` (A15b; URL only, never in localStorage). Alert links stay `#cve=CVE-…` on any path.
 
