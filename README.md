@@ -310,7 +310,7 @@ More:
 - [docs/failure-demo.md](./docs/failure-demo.md): how to make a feed or a chat tool fail locally, and what partial success and retry look like (B20).
 - [FEASIBILITY.md](./FEASIBILITY.md): the data check behind the domain.
 - [ALERTS-PLAN.md](./ALERTS-PLAN.md): the alert design, built in spec B.
-- [docs/process-map.html](./docs/process-map.html): the system map and its flows. Download and open it in a browser (GitHub shows HTML as source).
+- [docs/process-map.html](./docs/process-map.html): the system map and its flows in two tabs: the current build ("Now", as of a named commit) and the prototype's of 2026-10-13, kept for comparison. Download and open it in a browser (GitHub shows HTML as source).
 - [docs/research/openrouter-alphadecisions.md](./docs/research/openrouter-alphadecisions.md): OpenRouter's decisions endpoint and Jev, and what it could add.
 - [docs/design-examples/README.md](./docs/design-examples/README.md): the designs and layouts that were tried, and why each was kept or dropped.
 - `REQUIREMENTS.md`: the course brief. Course material, so it's kept out of this public repo.

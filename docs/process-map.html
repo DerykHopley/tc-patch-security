@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>LLM Security Assistant Process Map</title>
+<title>Patch Process Map</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -203,11 +203,758 @@ td .lc { font-family: var(--f-mono); font-size: 0.8em; }
 
 footer { border-top: 1px solid var(--line); padding-top: 20px; color: var(--muted); font-size: 0.88rem; display: grid; gap: 6px; }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+/* Two tabs (Now, Prototype), as in docs/report/architecture-review.html: role="tablist", arrow keys, a deep link opens
+   its tab. Without JavaScript both panels show, one after the other. */
+:root { --specb: #a03a7a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --specb: #ec8fc8; } }
+:root[data-theme="dark"] { --specb: #ec8fc8; }
+.js [data-panel][hidden] { display: none; }
+html:not(.js) [role="tablist"] { display: none; }
+.pagebar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.pagebar .eyebrow { line-height: 1.4; }
+[role="tablist"] { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+[role="tab"] { font: 600 0.92rem/1.2 var(--f-body); color: var(--ink); background: transparent; border: 1px solid transparent; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+[role="tab"]:hover { border-color: var(--line); }
+[role="tab"][aria-selected="true"] { background: var(--ink); color: var(--surface); }
+[role="tab"]:focus-visible { outline: 2px solid var(--chat); outline-offset: 2px; }
+[data-panel] + [data-panel] { border-top: 3px double var(--line); padding-top: 28px; }
+.js [data-panel] + [data-panel] { border-top: 0; padding-top: 0; }
+.panel-note { margin-bottom: 18px; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 0.92rem; max-width: none; }
+
+/* The Now tab: six stats, spec B's colour on the map and rails */
+.stats.six { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; background: var(--line); overflow: hidden; }
+.stats.six .stat { background: var(--surface); border: 0; }
+@media (max-width: 900px) { .stats.six { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .stats.six { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.split.even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 860px) { .split.even { grid-template-columns: 1fr; } }
+.statnote { border: 0; padding: 8px 0 0; }
+.rail.specb { --rail: var(--specb); } .rail.guard { --rail: var(--guard); }
+.map .box.specb { stroke: var(--specb); }
+.map .box.deploy { stroke-dasharray: 5 4; }
+.map .box.signin { fill: var(--specb); stroke: var(--specb); }
+.map .e.specb { stroke: var(--specb); } .map .ah.specb { fill: var(--specb); } .map .lbl.specb { fill: var(--specb); }
+.map .e.solid { stroke-dasharray: none; }
+.map .vlbl { font: 500 10px var(--f-mono); letter-spacing: 0.08em; fill: var(--surface); }
 </style>
+<script>document.documentElement.classList.add("js");</script>
 </head>
 <body>
 
 <div class="wrap">
+  <div class="pagebar">
+    <span class="eyebrow">Patch · process map · the current build and the prototype's, to compare</span>
+    <div role="tablist" aria-label="Which map">
+      <button type="button" role="tab" id="tab-now" aria-controls="now" aria-selected="true">Now</button>
+      <button type="button" role="tab" id="tab-prototype" aria-controls="prototype" aria-selected="false" tabindex="-1">Prototype · 2026-10-13</button>
+    </div>
+  </div>
+
+<div id="now" role="tabpanel" aria-labelledby="tab-now" data-panel>
+<!-- THE "NOW" TAB. How to update it:
+     1. Change the "as of" line below (date and commit) first.
+     2. Each flow's facts live once, in its own band (section.band): its rail (steps), its table and its notes. The
+        system map repeats only names and a few numbers; change those where the band changed.
+     3. Every claim carries where it was checked (file:line at the commit, or a command). Mark anything else unverified.
+     4. The stats line: from backend/, in snapshot mode:
+        uv run python -c "from app.knowledge import load_knowledge as L; from app.rag.chunking import build_chunks as B; k=L(); print(len(k.cves.all()), len(k.products), len(k.cves.kev), sum(len(k.atlas[x]) for x in ('techniques','mitigations','case_studies')), len(k.owasp['categories']), len(B(k)), len(k.osv['cves']))"
+     5. Marker ids in this tab's SVG start with "n-" so they never clash with the prototype tab's. -->
+  <header class="top">
+    <span class="eyebrow">Sprint 2 · Patch, the LLM-security assistant · as of 2026-10-16 · <code>spec-b</code> at <code>eb463c0</code></span>
+    <h1>Patch process map: now</h1>
+    <p class="lede">How public security data reaches you through Patch: a frozen snapshot or live data from four feeds, a hybrid search index, a chat with nine tools behind a guard, the dashboard and the CVEs page, and alerts on your channels. Spec B added web research, changes you approve, sign-in and a deploy setup. Every claim here was checked against the code at that commit (file:line) or a command run that day; anything not checked says <i>unverified</i>.</p>
+    <div class="legend">
+      <span><span class="chip real">Built</span> real code, tested</span>
+      <span><span class="chip mock">Mock</span> a fake behind a seam, for tests or the no-setup default</span>
+      <span><span class="chip todo">Not built</span> or not run yet: next steps</span>
+    </div>
+  </header>
+
+  <div class="stats six" aria-label="Snapshot and index size">
+    <div class="stat"><span class="v">929</span><span class="k">CVEs, 12 LLM products</span></div>
+    <div class="stat"><span class="v">9</span><span class="k">in CISA KEV</span></div>
+    <div class="stat"><span class="v">262</span><span class="k">ATLAS items</span></div>
+    <div class="stat"><span class="v">20</span><span class="k">OWASP pages</span></div>
+    <div class="stat"><span class="v">1,680</span><span class="k">chunks in the index</span></div>
+    <div class="stat"><span class="v">514</span><span class="k">CVEs with OSV versions</span></div>
+  </div>
+  <p class="example statnote">Computed 2026-10-16 from <code>backend/fixtures/</code> with <code>app.knowledge.load_knowledge</code> and <code>app.rag.chunking.build_chunks</code> (the snapshot of 2026-10-13; live data changes the CVE counts). ATLAS: 170 techniques, 35 mitigations, 57 case studies. The same numbers as the prototype: the snapshot hasn't changed.</p>
+
+  <nav class="jump" aria-label="Sections of the current map">
+    <a href="#now-map">System map</a>
+    <a href="#now-rag"><span class="dot" style="background:var(--ink)"></span>RAG and LangChain</a>
+    <a href="#now-data"><span class="dot" style="background:var(--data)"></span>Snapshot and live data</a>
+    <a href="#now-chat"><span class="dot" style="background:var(--chat)"></span>Chat request</a>
+    <a href="#now-search"><span class="dot" style="background:var(--chat)"></span>Search pipeline</a>
+    <a href="#now-dashboard"><span class="dot" style="background:var(--dash)"></span>Dashboard and CVEs</a>
+    <a href="#now-alerts"><span class="dot" style="background:var(--alert)"></span>Alerts</a>
+    <a href="#now-actionable"><span class="dot" style="background:var(--next)"></span>Make it actionable</a>
+    <a href="#now-web"><span class="dot" style="background:var(--specb)"></span>Web research</a>
+    <a href="#now-proposals"><span class="dot" style="background:var(--specb)"></span>Proposals</a>
+    <a href="#now-users"><span class="dot" style="background:var(--specb)"></span>Users and sign-in</a>
+    <a href="#now-deploy"><span class="dot" style="background:var(--specb)"></span>Deploy</a>
+    <a href="#now-guard"><span class="dot" style="background:var(--guard)"></span>Security</a>
+    <a href="#now-seams"><span class="dot" style="background:var(--muted)"></span>Mocks and next</a>
+  </nav>
+
+  <!-- SYSTEM MAP (now) -->
+  <section class="band" id="now-map" style="border-top:0; padding-top:0">
+    <div class="band-head">
+      <h2>System map</h2>
+      <p>Six public sources, a snapshot and live data, one backend, the pages and Patch. Sign-in sits in front of every route but <code>/health</code> and the scheduler's; the guard sits in front of the chat only. Two lanes below: alerts after a refresh, and what spec B added at the edges (web research, Patch as an MCP server, the deploy). The dark <span class="ragno">RAG 1–6</span> markers show where each RAG stage happens; <a href="#now-rag">the next section</a> says which parts use LangChain.</p>
+    </div>
+    <div class="map" role="img" aria-label="System map of the current build. Six sources (the OWASP Top 10 lists, MITRE ATLAS, NVD, CISA KEV, OSV.dev, FIRST EPSS) feed the snapshot of 2026-10-13; the four CVE feeds also feed the live refresh. Both write the knowledge the backend loads. The index holds 1,680 chunks in Chroma plus a BM25 keyword index. The state store keeps each user's watchlist, statuses, decisions, proposals and settings, in local JSON files or Cloud Storage. Sign-in (Clerk) is in front of the routes; the guard is in front of POST /chat, whose agent loop runs up to 6 steps with 9 tools and calls the model through LangChain's ChatOpenAI. The pages API serves the dashboard, the CVEs page and Settings. Alerts lane: an hourly tick from the systemd timer or Cloud Scheduler, Check now or the check_updates tool starts the refresh; the alerter diffs the versions, applies 7 alert reasons per user, de-duplicates, logs per user and sends the owner's alerts to ntfy, email or desktop; tapping one opens the app. Edge lane: research_web searches Tavily through its remote MCP server and its text goes through the guard; Patch is also an MCP server with 4 read-only tools for other assistants; one container runs on Cloud Run, not deployed yet.">
+      <svg viewBox="0 0 1000 860" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="n-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="n-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah data" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="n-chat" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah chat" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="n-dash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah dash" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="n-alert" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah alert" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="n-specb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah specb" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+
+        <text class="lbl" x="20" y="26">SOURCES</text>
+        <text class="lbl" x="215" y="26">DATA</text>
+        <text class="lbl" x="415" y="26">BACKEND</text>
+        <text class="lbl" x="674" y="26">API</text>
+        <text class="lbl" x="855" y="26">UI</text>
+
+        <!-- sources -->
+        <rect class="box" x="20" y="44" width="160" height="44" rx="6"/><text class="h" x="32" y="62">OWASP Top 10s</text><text class="sm" x="32" y="79">LLM + web · CC BY-SA 4.0</text>
+        <rect class="box" x="20" y="96" width="160" height="44" rx="6"/><text class="h" x="32" y="114">MITRE ATLAS</text><text class="sm" x="32" y="131">5.6.0 · Apache 2.0</text>
+        <rect class="box" x="20" y="148" width="160" height="44" rx="6"/><text class="h" x="32" y="166">NVD CVE API</text><text class="sm" x="32" y="183">12 LLM products</text>
+        <rect class="box" x="20" y="200" width="160" height="44" rx="6"/><text class="h" x="32" y="218">CISA KEV</text><text class="sm" x="32" y="235">exploited in the wild</text>
+        <rect class="box" x="20" y="252" width="160" height="44" rx="6"/><text class="h" x="32" y="270">OSV.dev</text><text class="sm" x="32" y="287">affected · fixed versions</text>
+        <rect class="box" x="20" y="304" width="160" height="44" rx="6"/><text class="h" x="32" y="322">FIRST EPSS</text><text class="sm" x="32" y="339">exploit likelihood</text>
+        <!-- OWASP and ATLAS: snapshot only. The four CVE feeds: a bus to the snapshot and the live refresh. -->
+        <path class="e data" d="M180,66 L212,66" marker-end="url(#n-data)"/>
+        <path class="e data" d="M180,118 L212,118" marker-end="url(#n-data)"/>
+        <path class="e data" d="M180,170 L198,170 M180,222 L198,222 M180,274 L198,274 M180,326 L198,326 M198,170 L198,326"/>
+        <path class="e data" d="M198,170 C198,160 202,156 212,156" marker-end="url(#n-data)"/>
+        <path class="e data" d="M198,290 L212,290" marker-end="url(#n-data)"/>
+
+        <!-- data -->
+        <rect class="box data" x="215" y="44" width="170" height="140" rx="8"/>
+        <text class="h" x="229" y="66">Snapshot</text>
+        <text class="mono" x="229" y="84">fixtures/ · 2026-10-13</text>
+        <text class="sm" x="229" y="104">build_fixtures.py,</text>
+        <text class="sm" x="229" y="120">snapshot_additions.py</text>
+        <text class="sm" x="229" y="140">manifest: licences</text>
+        <g class="ragtag"><rect x="229" y="154" width="56" height="18" rx="9"/><text x="236" y="167">RAG 1–2</text></g>
+        <rect class="box data" x="215" y="196" width="170" height="160" rx="8"/>
+        <text class="h" x="229" y="218">Live refresh</text>
+        <text class="mono" x="229" y="236">app/refresh.py</text>
+        <text class="sm" x="229" y="258">NVD since last check,</text>
+        <text class="sm" x="229" y="274">KEV, OSV, EPSS</text>
+        <text class="sm" x="229" y="294">shared build: cve_build</text>
+        <text class="sm" x="229" y="314">new version in data/live/</text>
+        <text class="sm" x="229" y="334">≤ 1 run per 5 minutes</text>
+        <path class="e data" d="M385,70 L412,70" marker-end="url(#n-data)"/>
+        <path class="e data" d="M385,232 C402,232 398,98 412,98" marker-end="url(#n-data)"/>
+
+        <!-- backend -->
+        <rect class="box store" x="415" y="44" width="200" height="70" rx="8"/>
+        <text class="h" x="429" y="66">Knowledge</text>
+        <text class="sm" x="429" y="86">CVEs, KEV, OSV, EPSS,</text>
+        <text class="sm" x="429" y="102">OWASP, ATLAS, manifest</text>
+        <path class="e data" d="M515,114 L515,123" marker-end="url(#n-data)"/>
+        <rect class="box store" x="415" y="126" width="200" height="108" rx="8"/>
+        <text class="h" x="429" y="148">Index</text>
+        <g class="ragtag"><rect x="551" y="137" width="56" height="18" rx="9"/><text x="558" y="150">RAG 3–4</text></g>
+        <text class="sm" x="429" y="168">1,680 chunks · section-aware</text>
+        <text class="sm" x="429" y="184">Chroma (vectors, in-process)</text>
+        <text class="sm" x="429" y="200">+ BM25 (keywords)</text>
+        <text class="sm" x="429" y="216">live: re-embeds changed chunks</text>
+        <rect class="box store" x="415" y="246" width="200" height="104" rx="8"/>
+        <text class="h" x="429" y="268">State store</text>
+        <text class="mono" x="429" y="286">app/store.py</text>
+        <text class="sm" x="429" y="306">per user: watchlist, statuses,</text>
+        <text class="sm" x="429" y="322">decisions, proposals, settings</text>
+        <text class="sm" x="429" y="340">local JSON · Cloud Storage</text>
+
+        <!-- backend to api: arrows stop at the sign-in bar -->
+        <path class="e chat" d="M615,79 L637,79" marker-end="url(#n-chat)"/>
+        <path class="e chat" d="M615,180 L637,180" marker-end="url(#n-chat)"/>
+        <path class="e chat" d="M615,268 C630,268 626,226 637,226" marker-end="url(#n-chat)"/>
+        <path class="e dash" d="M615,322 C630,322 626,384 637,384" marker-end="url(#n-dash)"/>
+
+        <!-- api: sign-in bars, the guard (chat only), the routes -->
+        <rect class="box signin" x="640" y="44" width="14" height="194" rx="3"/>
+        <text class="vlbl" x="647" y="141" transform="rotate(-90 647 141)" text-anchor="middle" dominant-baseline="central">SIGN-IN · CLERK</text>
+        <rect class="box guard" x="657" y="44" width="14" height="194" rx="3"/>
+        <text class="vlbl" x="664" y="141" transform="rotate(-90 664 141)" text-anchor="middle" dominant-baseline="central">GUARD</text>
+        <rect class="box chat" x="674" y="44" width="146" height="194" rx="8"/>
+        <text class="h" x="686" y="66">POST /chat</text>
+        <g class="ragtag"><rect x="760" y="55" width="56" height="18" rx="9"/><text x="767" y="68">RAG 5–6</text></g>
+        <text class="sm" x="686" y="86">agent loop, ≤ 6 steps,</text>
+        <text class="sm" x="686" y="102">9 tools:</text>
+        <text class="mono" x="686" y="118">search_security</text>
+        <text class="mono" x="686" y="132">lookup_cve</text>
+        <text class="mono" x="686" y="146">explain_weakness</text>
+        <text class="mono" x="686" y="160">check_affected</text>
+        <text class="mono" x="686" y="174">prioritise</text>
+        <text class="mono" x="686" y="188">update_watchlist</text>
+        <text class="mono" x="686" y="202">check_updates</text>
+        <text class="mono" x="686" y="216">research_web</text>
+        <text class="mono" x="686" y="230">propose_decision</text>
+
+        <path class="e chat" d="M747,241 L747,255" marker-start="url(#n-chat)" marker-end="url(#n-chat)"/>
+        <rect class="box chat" x="674" y="258" width="146" height="76" rx="8"/>
+        <text class="h" x="686" y="280">LLM seam</text>
+        <text class="sm" x="686" y="298">LangChain ChatOpenAI</text>
+        <text class="sm" x="686" y="314">OpenRouter or local;</text>
+        <text class="sm" x="686" y="328">FakeLLM in tests</text>
+
+        <rect class="box signin" x="640" y="348" width="14" height="100" rx="3"/>
+        <text class="vlbl" x="647" y="398" transform="rotate(-90 647 398)" text-anchor="middle" dominant-baseline="central">SIGN-IN</text>
+        <rect class="box dash" x="674" y="348" width="146" height="100" rx="8"/>
+        <text class="h" x="686" y="370">Pages API</text>
+        <text class="mono" x="686" y="388">GET /dashboard</text>
+        <text class="mono" x="686" y="402">GET /cves</text>
+        <text class="mono" x="686" y="416">PATCH /cves/{id}</text>
+        <text class="mono" x="686" y="430">PUT /watchlist</text>
+        <text class="mono" x="686" y="444">/proposals/…</text>
+
+        <!-- ui -->
+        <rect class="box chat" x="855" y="44" width="125" height="194" rx="8"/>
+        <text class="h" x="867" y="66">Chat · Patch</text>
+        <text class="sm" x="867" y="86">answer + [n]</text>
+        <text class="sm" x="867" y="102">sources panel</text>
+        <text class="sm" x="867" y="118">tool cards and</text>
+        <text class="sm" x="867" y="134">their buttons</text>
+        <text class="sm" x="867" y="150">proposal cards</text>
+        <text class="sm" x="867" y="166">explain level</text>
+        <text class="sm" x="867" y="182">page context</text>
+        <text class="sm" x="867" y="198">Try again</text>
+        <text class="sm" x="867" y="214">flag notice</text>
+        <rect class="box dash" x="855" y="348" width="125" height="100" rx="8"/>
+        <text class="h" x="867" y="370">Pages</text>
+        <text class="sm" x="867" y="390">Dashboard</text>
+        <text class="sm" x="867" y="406">CVEs page</text>
+        <text class="sm" x="867" y="422">Settings</text>
+        <text class="sm" x="867" y="438">Dev page</text>
+        <path class="e chat" d="M820,140 L852,140" marker-end="url(#n-chat)"/>
+        <path class="e dash" d="M820,398 L852,398" marker-end="url(#n-dash)"/>
+        <path class="e chat" d="M917,348 L917,241" stroke-dasharray="6 4" marker-end="url(#n-chat)"/>
+        <text class="sm" x="924" y="288">Ask about</text>
+        <text class="sm" x="924" y="302">this, page</text>
+        <text class="sm" x="924" y="316">context</text>
+
+        <!-- alerts lane -->
+        <line class="lane" x1="20" y1="466" x2="980" y2="466"/>
+        <text class="lbl alert" x="20" y="484">ALERTS AFTER A REFRESH</text>
+        <rect class="box alert built" x="20" y="496" width="160" height="96" rx="6"/>
+        <text class="h" x="32" y="518">Triggers</text>
+        <text class="sm" x="32" y="538">hourly tick: systemd</text>
+        <text class="sm" x="32" y="554">timer or Cloud Scheduler</text>
+        <text class="sm" x="32" y="570">Check now button</text>
+        <text class="sm" x="32" y="586">check_updates tool</text>
+        <path class="e alert solid" d="M180,520 C202,520 198,364 212,350" marker-end="url(#n-alert)"/>
+        <path class="e alert solid" d="M300,356 L300,493" marker-end="url(#n-alert)"/>
+        <rect class="box alert built" x="215" y="496" width="170" height="114" rx="8"/>
+        <text class="h" x="229" y="518">Alerter</text>
+        <text class="mono" x="229" y="536">app/alerts.py</text>
+        <text class="sm" x="229" y="556">diff the two versions</text>
+        <text class="sm" x="229" y="572">7 reasons, per user</text>
+        <text class="sm" x="229" y="588">once per CVE + reason</text>
+        <text class="sm" x="229" y="604">quiet hours · digest</text>
+        <path class="e alert solid" d="M385,520 L412,520" marker-end="url(#n-alert)"/>
+        <rect class="box alert built store" x="415" y="496" width="200" height="68" rx="8"/>
+        <text class="h" x="429" y="518">Alerts log, per user</text>
+        <text class="sm" x="429" y="538">+ "new since last check"</text>
+        <text class="sm" x="429" y="554">kept in the state store</text>
+        <path class="e alert solid" d="M515,496 L515,353" marker-end="url(#n-alert)"/>
+        <path class="e alert solid" d="M385,584 L660,584 C668,584 668,544 671,540" marker-end="url(#n-alert)"/>
+        <rect class="box alert built" x="674" y="496" width="146" height="80" rx="6"/>
+        <text class="h" x="686" y="518">Channels</text>
+        <text class="sm" x="686" y="538">ntfy · email · desktop</text>
+        <text class="sm" x="686" y="554">· preview</text>
+        <text class="sm" x="686" y="570">the owner's alerts only</text>
+        <path class="e alert solid" d="M820,534 L852,534" marker-end="url(#n-alert)"/>
+        <rect class="box alert built" x="855" y="496" width="125" height="80" rx="6"/>
+        <text class="h" x="867" y="518">You</text>
+        <text class="sm" x="867" y="538">phone, inbox,</text>
+        <text class="sm" x="867" y="554">desktop</text>
+        <path class="e alert solid" d="M955,496 L955,451" marker-end="url(#n-alert)"/>
+        <text class="sm" x="961" y="478" style="fill:var(--alert)">tap</text>
+
+        <!-- edges lane: spec B -->
+        <line class="lane" x1="20" y1="626" x2="980" y2="626"/>
+        <text class="lbl specb" x="20" y="644">SPEC B AT THE EDGES: WEB RESEARCH, MCP, DEPLOY</text>
+        <rect class="box specb" x="20" y="658" width="160" height="60" rx="6"/>
+        <text class="h" x="32" y="680">Tavily</text>
+        <text class="sm" x="32" y="698">remote MCP server;</text>
+        <text class="sm" x="32" y="712">plain API as fallback</text>
+        <path class="e specb" d="M180,688 L212,688" marker-start="url(#n-specb)" marker-end="url(#n-specb)"/>
+        <rect class="box specb" x="215" y="658" width="170" height="96" rx="8"/>
+        <text class="h" x="229" y="680">Web research</text>
+        <text class="mono" x="229" y="698">app/web_research.py</text>
+        <text class="sm" x="229" y="718">≤ 5 results, snippets</text>
+        <text class="sm" x="229" y="734">exploit sites excluded</text>
+        <text class="sm" x="229" y="750">30 searches a day</text>
+        <path class="e specb" d="M385,716 L620,716 C628,716 628,706 628,698 L628,212 C628,206 632,204 637,204" stroke-dasharray="6 3" marker-end="url(#n-specb)"/>
+        <text class="sm" x="430" y="708" style="fill:var(--guard)">web text is untrusted → through the guard</text>
+        <rect class="box specb" x="674" y="658" width="146" height="72" rx="8"/>
+        <text class="h" x="686" y="680">Patch as MCP server</text>
+        <text class="mono" x="686" y="698">app.mcp_server</text>
+        <text class="sm" x="686" y="716">stdio · 4 read-only tools</text>
+        <rect class="box specb" x="855" y="658" width="125" height="72" rx="6"/>
+        <text class="h" x="867" y="680">Other assistants</text>
+        <text class="sm" x="867" y="698">Claude Desktop,</text>
+        <text class="sm" x="867" y="714">Claude Code</text>
+        <path class="e specb" d="M855,694 L823,694" marker-end="url(#n-specb)"/>
+
+        <rect class="box specb deploy" x="20" y="774" width="960" height="66" rx="8"/>
+        <text class="h" x="32" y="796">Deploy: one container</text>
+        <text class="sm" x="32" y="815">Dockerfile: the API and the built frontend on one port (API under /api), the index built in, no keys inside. Cloud Run: 0 to 1 instance, 1 GiB.</text>
+        <text class="sm" x="32" y="832">State and live data in Cloud Storage (users/, live/); keys in Secret Manager; Cloud Scheduler ticks hourly. Not deployed yet: #45 (the owner).</text>
+      </svg>
+    </div>
+    <p class="example" style="border:0; padding:0">Checked: the 9 tools are the modules registered at <code>backend/app/tools/registry.py:161</code>; the step limit is <code>app_settings.py:91</code> (6, from 1 to 8 on the Dev page); the sign-in router is <code>main.py:103-114</code>; the guard is <code>chat_turn.py:17</code>; the MCP server's tools are <code>mcp_server.py:75-79</code>.</p>
+  </section>
+
+  <!-- RAG AND LANGCHAIN (now) -->
+  <section class="band" id="now-rag">
+    <div class="band-head">
+      <span class="tag" style="color:var(--ink)">Where the course concepts live</span>
+      <h2>Where RAG and LangChain fit</h2>
+      <p>RAG has six stages: load, split, embed, store, retrieve, generate. Every stage is real now. LangChain is used thinly, as a client: <code>ChatOpenAI</code> for the model, <code>OpenAIEmbeddings</code> for real embeddings, and its MCP adapter for Tavily. Retrieval, the filter check, fusion and the agent loop stay our own code (<a href="adr/0001-thin-langchain.md">ADR-0001</a>).</p>
+    </div>
+    <ol class="rail rag" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));">
+      <li><div class="head"><h3>Load</h3><span class="chip real">Built</span></div><p>The snapshot scripts read the raw downloads; the live refresh fetches NVD, KEV, OSV and EPSS over HTTP. One shared module builds both.</p><span class="where">scripts/build_fixtures.py · feeds.py · cve_build.py</span></li>
+      <li><div class="head"><h3>Split</h3><span class="chip real">Built</span></div><p>At section headings, then 600 characters; one chunk per CVE (up to 1,500) or ATLAS item.</p><span class="where">rag/chunking.py:11-16</span></li>
+      <li><div class="head"><h3>Embed</h3><span class="chip real">Built</span></div><p>mxbai-embed-large on Ollama or text-embedding-3-small on OpenRouter. The hash embedder stays the no-setup default, for tests and CI.</p><span class="where">rag/embed.py:59-95</span></li>
+      <li><div class="head"><h3>Store</h3><span class="chip real">Built</span></div><p>Chroma in-process (no server), filters as metadata. An index from another embedder or other data refuses to open.</p><span class="where">rag/vector.py:1-5</span></li>
+      <li><div class="head"><h3>Retrieve</h3><span class="chip real">Built</span></div><p>Query translation, filter check, each query on Chroma and BM25, weighted RRF, at most 2 chunks per document, top 5.</p><span class="where">rag/pipeline.py:62-116</span></li>
+      <li><div class="head"><h3>Generate</h3><span class="chip real">Built</span></div><p>Our agent loop with 9 tools; the model through <code>ChatOpenAI</code>; a citation check after each answer. FakeLLM for tests.</p><span class="where">agent.py:85-137 · llm/openai_compat.py</span></li>
+    </ol>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Stage</th><th>Used now</th><th>LangChain?</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><span class="ragno">1</span> Load</td><td>Own downloaders; <code>HttpFeeds</code> for the four CVE feeds (<code>feeds.py:164</code>)</td><td>No</td><td>Structured JSON and YAML from fixed URLs, not pages to scrape.</td></tr>
+          <tr><td><span class="ragno">2</span> Split</td><td>Section-aware splitter that skips link lists and score tables (<code>chunking.py:16</code>)</td><td>No</td><td>The skipping rules are ours.</td></tr>
+          <tr><td><span class="ragno">3</span> Embed</td><td><span class="lc">OpenAIEmbeddings</span> pointed at Ollama or OpenRouter (<code>embed.py:59-72</code>); our hash embedder</td><td>Yes, as a client</td><td>One class for any OpenAI-compatible embeddings endpoint.</td></tr>
+          <tr><td><span class="ragno">4</span> Store</td><td><code>chromadb</code> directly (<code>vector.py:10</code>), plus our own BM25 (<code>rag/keyword.py</code>)</td><td>No</td><td>The index records its embedder and a fingerprint of the chunks, so a mismatch is an error, never wrong results.</td></tr>
+          <tr><td><span class="ragno">5</span> Retrieve</td><td>Translation in one model call; the server checks the filters; RRF; per-document cap</td><td>No</td><td><span class="lc">SelfQueryRetriever</span> would hand the model's filters to the store unchecked (ADR-0001).</td></tr>
+          <tr><td><span class="ragno">6</span> Generate</td><td><span class="lc">ChatOpenAI</span> with <span class="lc">bind_tools</span> (<code>openai_compat.py:1-5</code>); our loop runs the tools</td><td>Yes, as a client</td><td>A core line of the course brief; the loop stays short and shows every step.</td></tr>
+          <tr><td>Web</td><td><span class="lc">langchain-mcp-adapters</span> to Tavily's remote MCP server (<code>web_research.py:148-163</code>)</td><td>Yes, as a client</td><td>The adapter's tool is called directly; it isn't bound to the model.</td></tr>
+          <tr><td>Evaluate</td><td>Model check (19 scripted questions, exact checks, no LLM judge) and retrieval check (hit rate at 5, MRR)</td><td>No</td><td>Every failure traces to a line of output. RAGAS: not used.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note" style="border-left-color:var(--ink)">
+      <h3>The stack actually used</h3>
+      <p><b>Backend:</b> Python, FastAPI, Pydantic, Chroma, <code>langchain-openai</code>, <code>langchain-mcp-adapters</code>, <code>mcp</code>, <code>clerk-backend-api</code>, <code>google-cloud-storage</code> (<code>backend/pyproject.toml:11-20</code>), <code>packaging</code> and <code>semver</code> for version checks. <b>Frontend:</b> React, TypeScript, Vite, plain SVG charts. <b>Tests:</b> pytest, Playwright (Firefox and Chromium). <b>Models:</b> Claude Haiku 5.5 on OpenRouter is the default for real runs, chosen from 11 models in the model check (<code>config.py:98</code>).</p>
+    </div>
+  </section>
+
+  <!-- DATA (now) -->
+  <section class="band" id="now-data">
+    <div class="band-head">
+      <span class="tag" style="color:var(--data)">Flow 1 · the snapshot once, the live data on a schedule</span>
+      <h2>Snapshot and live data</h2>
+      <p>The snapshot is still the default (<code>DATA_MODE=snapshot</code>, <code>config.py:136</code>): tests stay offline and give the same answer every run. Live mode keeps whole versions of the same files and refreshes them from four feeds. The owner switches it on Settings, without a restart (<code>server_settings.py</code>).</p>
+    </div>
+    <ol class="rail data">
+      <li><div class="head"><h3>Snapshot</h3><span class="chip real">Built</span></div><p>Downloaded once on 2026-10-13 (OSV and EPSS on 2026-10-14, as of 2026-10-13). The manifest lists each source's licence, count and date.</p><span class="where">scripts/build_fixtures.py · fixtures/manifest.json</span></li>
+      <li><div class="head"><h3>Shared build</h3><span class="chip real">Built</span></div><p>Match products (NVD's CPE first, else the description), map CWE to OWASP, join KEV, parse OSV ranges, attach EPSS. The snapshot and the live refresh use the same functions.</p><span class="where">app/cve_build.py:1-6</span></li>
+      <li><div class="head"><h3>Trigger</h3><span class="chip real">Built</span></div><p>Check now, the <code>check_updates</code> tool, the CLI, or the hourly tick (systemd user timer, or Cloud Scheduler deployed). A tick runs only when your schedule (1 to 24 hours, default 6) is due and not paused.</p><span class="where">refresh.py:446-486 · deploy/systemd/</span></li>
+      <li><div class="head"><h3>Fetch</h3><span class="chip real">Built</span></div><p>NVD rows modified since the last check (in windows of up to 120 days), the whole KEV catalogue, OSV per package, EPSS for every CVE. Each feed is its own step.</p><span class="where">refresh.py:300-326 · feeds.py:116-123</span></li>
+      <li class="branch"><div class="head"><h3>Partial run</h3><span class="chip real">Built</span></div><p>A feed that fails keeps its old data; the rest are written. Only when every feed fails is nothing written. <code>last_checked</code> moves only when all answered.</p><span class="where">refresh.py:11-15</span></li>
+      <li><div class="head"><h3>Write a version</h3><span class="chip real">Built</span></div><p>Each file whole (temp file, then rename), then <code>current.json</code>: a reader sees the old version or the new one. One lock; at most one run per 5 minutes.</p><span class="where">live_data.py:1-13 · refresh.py:42</span></li>
+      <li><div class="head"><h3>Reload</h3><span class="chip real">Built</span></div><p>Before each request the server loads a new version: the knowledge, the index with only the changed chunks embedded, a new BM25.</p><span class="where">deps.py:109-135 · vector.py:98-115</span></li>
+      <li><div class="head"><h3>One real run</h3><span class="chip todo">Not run</span></div><p>The real feeds are built and tested against fakes. One logged run against NVD, KEV, EPSS and OSV is the owner's step.</p><span class="where">#40</span></li>
+    </ol>
+    <div class="split even">
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Feed</th><th>Real (<code>FEEDS=real</code>)</th><th>Fake (default)</th></tr></thead>
+          <tbody>
+            <tr><td>NVD</td><td><code>services.nvd.nist.gov/rest/json/cves/2.0</code></td><td rowspan="4">The raw snapshot plus a day's data set from <code>fixtures/fake_feeds/</code>, no network (<code>feeds.py:52</code>)</td></tr>
+            <tr><td>KEV</td><td>CISA's JSON feed</td></tr>
+            <tr><td>EPSS</td><td><code>api.first.org/data/v1/epss</code></td></tr>
+            <tr><td>OSV</td><td><code>api.osv.dev/v1/query</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Document type</th><th class="num">Docs</th><th class="num">Chunks</th></tr></thead>
+          <tbody>
+            <tr><td><code>cve</code></td><td class="num">929</td><td class="num">932</td></tr>
+            <tr><td><code>atlas_technique</code></td><td class="num">170</td><td class="num">283</td></tr>
+            <tr><td><code>owasp_llm</code></td><td class="num">10</td><td class="num">163</td></tr>
+            <tr><td><code>owasp_web</code></td><td class="num">10</td><td class="num">136</td></tr>
+            <tr><td><code>atlas_case</code></td><td class="num">57</td><td class="num">127</td></tr>
+            <tr><td><code>atlas_mitigation</code></td><td class="num">35</td><td class="num">39</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="example" style="border:0; padding:0">Feed URLs: <code>feeds.py:104-109</code>. Chunk counts: <code>build_chunks</code> on the snapshot, run 2026-10-16. Of the 929 CVEs, 184 got their product from the description; OSV confirms 36 of those (<code>fixtures/manifest.json</code>).</p>
+  </section>
+
+  <!-- CHAT (now) -->
+  <section class="band" id="now-chat">
+    <div class="band-head">
+      <span class="tag" style="color:var(--chat)">Flow 2 · guard → agent loop → tools → citations</span>
+      <h2>A chat request</h2>
+      <p>One turn runs the same way for <code>/chat</code> and the model check (<code>chat_turn.py:13-23</code>). The model picks tools in a loop; every tool result goes back to it wrapped as untrusted text, and every call becomes a tool card.</p>
+    </div>
+    <div class="split">
+      <ol class="rail chat" style="grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));">
+        <li><div class="head"><h3>Ask</h3><span class="chip real">Built</span></div><p>The message, up to 10 past turns, the explain level and the page context. Counted against 10 a minute and 200 a day per user, else a 429 with a retry time.</p><span class="where">main.py:204 · config.py:156-157</span></li>
+        <li><div class="head"><h3>Check</h3><span class="chip real">Built</span></div><p>Empty, over 1,000 characters or over 10 turns → 400. Injection phrasing in the message or a past user turn → flagged and logged, still answered.</p><span class="where">guard.py:38-58</span></li>
+        <li><div class="head"><h3>Page context</h3><span class="chip real">Built</span></div><p>Fixed fields only: the page, its filters, the selected CVE. Anything else is dropped and listed, so no free text rides in.</p><span class="where">page_context.py:50</span></li>
+        <li><div class="head"><h3>Plan a step</h3><span class="chip real">Built</span></div><p>The model answers or asks for tools. Only tools that are on are offered: <code>research_web</code> and <code>propose_decision</code> need a Tavily key.</p><span class="where">agent.py:95-103</span></li>
+        <li><div class="head"><h3>Run tools</h3><span class="chip real">Built</span></div><p>Check the arguments and the result's shape, time it. Bad input becomes a tool error the model can explain; a failed step gets Try again.</p><span class="where">tools/registry.py:125</span></li>
+        <li><div class="head"><h3>Wrap output</h3><span class="chip real">Built</span></div><p>Between <code>&lt;&lt;&lt;TOOL_OUTPUT&gt;&gt;&gt;</code> delimiters, escaped so it can't close its own block. Nothing is removed.</p><span class="where">agent.py:120 · guard.py:101</span></li>
+        <li><div class="head"><h3>Loop or answer</h3><span class="chip real">Built</span></div><p>At most 6 steps (the web workflow needs four tool rounds and an answer). At the limit Patch says so and lists what it found.</p><span class="where">app_settings.py:91 · agent.py:124-128</span></li>
+        <li><div class="head"><h3>Check citations</h3><span class="chip real">Built</span></div><p>A <code>[n]</code> that no tool gave is removed and reported. Unicode hyphens in CVE ids become plain ones.</p><span class="where">citations.py:1-4 · agent.py:130-131</span></li>
+        <li><div class="head"><h3>Show</h3><span class="chip real">Built</span></div><p>The answer with citation links, the sources, a card per tool call with next-step buttons, proposal cards, the query plan, the explain level.</p><span class="where">frontend/src/chat/</span></li>
+      </ol>
+      <div class="mock" aria-label="Example chat answer from FakeLLM">
+        <div class="mock-bar"><span>Chat · example</span><span>FakeLLM</span></div>
+        <div class="chat-body">
+          <div class="msg user">Explain CVE-2024-8309 and how to prevent that kind of bug</div>
+          <div class="toolcard"><b>lookup_cve</b> LangChain · critical 9.8</div>
+          <div class="toolcard"><b>search_security</b> 5 sources</div>
+          <div class="msg bot">
+            <span><b>CVE-2024-8309</b> in LangChain (critical severity, CVSS 9.8, published 2024-10-29)<sup>[1]</sup></span>
+            <span>A vulnerability in the GraphCypherQAChain class of langchain-ai/langchain version 0.2.5 allows for SQL injection through prompt injection.</span>
+          </div>
+        </div>
+        <p class="example">Run 2026-10-16 on a throwaway server: FakeLLM called <code>lookup_cve</code> then <code>search_security</code>, 6 sources. The answer is cut short here.</p>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Tool</th><th>Does</th><th>Writes?</th><th>On</th></tr></thead>
+        <tbody>
+          <tr><td><code>search_security</code></td><td>The search pipeline below; numbered sources</td><td>No</td><td>Always; MCP too</td></tr>
+          <tr><td><code>lookup_cve</code></td><td>Severity, CWEs, OWASP, KEV, EPSS, possible match, your status, the verdict, who acts</td><td>No</td><td>Always; MCP too</td></tr>
+          <tr><td><code>explain_weakness</code></td><td>A CWE → OWASP category and CVE count; an ATLAS technique → tactics, mitigations, the LLM Top 10 risks citing it</td><td>No</td><td>Always; MCP too</td></tr>
+          <tr><td><code>check_affected</code></td><td>The verdict from your usage and version, the fixed version, who acts</td><td>No</td><td>Always; MCP too (with the version given)</td></tr>
+          <tr><td><code>prioritise</code></td><td>What to fix first, in the rules' order, narrowed to the page you're on</td><td>No</td><td>Always</td></tr>
+          <tr><td><code>update_watchlist</code></td><td>Proposes watch, unwatch, a status or your usage and version</td><td>Proposes only</td><td>Always</td></tr>
+          <tr><td><code>check_updates</code></td><td>Runs the refresh (or says when it may), new CVEs, KEV additions, your alerts, the schedule</td><td>Runs the refresh</td><td>Always; snapshot mode says there's nothing to check</td></tr>
+          <tr><td><code>research_web</code></td><td>Tavily search; numbered web sources, unverified, flagged if they try to give instructions</td><td>No</td><td>With a Tavily key</td></tr>
+          <tr><td><code>propose_decision</code></td><td>Ends the research workflow: proposes a decision record citing at least one non-web source</td><td>Proposes only</td><td>With a Tavily key</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="example" style="border:0; padding:0">From each tool's <code>ToolSpec</code> in <code>backend/app/tools/</code>; "On": <code>web.py:84</code>, <code>decision.py:108</code>; MCP: <code>mcp_server.py:75-79</code>. Adding a tool: <a href="agents/adding-a-tool.md">docs/agents/adding-a-tool.md</a>.</p>
+  </section>
+
+  <!-- SEARCH (now) -->
+  <section class="band" id="now-search">
+    <div class="band-head">
+      <span class="tag" style="color:var(--chat)">Inside search_security</span>
+      <h2>Query translation and hybrid search</h2>
+      <p>One model call turns the question into a semantic query, 3 rewrites and metadata filters. Each query then runs on both retrievers, the vector one (Chroma) and the keyword one (BM25), and the lists are fused. BM25 keeps ids like <code>CVE-2024-8309</code> and <code>AML.T0051.001</code> whole, which an embedding blurs.</p>
+    </div>
+    <ol class="rail chat">
+      <li><div class="head"><h3>Translate</h3><span class="chip real">Built</span></div><p>Semantic query (no products, severities or dates), 3 rewrites in advisory words, optional filters.</p><span class="where">openai_compat.py:25-35</span></li>
+      <li><div class="head"><h3>Check filters</h3><span class="chip real">Built</span></div><p>Each filter checked against fixed lists and normalised; unknown values dropped and shown, never an error.</p><span class="where">guard.py:61-83</span></li>
+      <li><div class="head"><h3>Search each query</h3><span class="chip real">Built</span></div><p>Semantic query plus rewrites, each on Chroma and on BM25, up to 10 hits a list. Chroma drops hits under the embedder's off-topic threshold.</p><span class="where">pipeline.py:50-53 · vector.py:58-73</span></li>
+      <li class="branch"><div class="head"><h3>Relax if empty</h3><span class="chip real">Built</span></div><p>No hits with the filters → search again without them, and say so.</p><span class="where">pipeline.py:82-85</span></li>
+      <li><div class="head"><h3>Fuse</h3><span class="chip real">Built</span></div><p>Weighted reciprocal rank fusion, Σ w/(60 + rank). Keyword weight 0.5 by default: plain RRF.</p><span class="where">rag/fusion.py:7-14 · pipeline.py:56-59</span></li>
+      <li><div class="head"><h3>Cap and number</h3><span class="chip real">Built</span></div><p>At most 2 chunks per document, top 5. The model gets the full text; the UI a 300-character snippet and which retriever found each.</p><span class="where">pipeline.py:15-17, 94-116</span></li>
+    </ol>
+    <p class="example" style="border:0; padding:0">The Dev page's playground shows the BM25 and vector lists before fusion and lets you change these numbers (<code>pipeline.py:21-29</code>). Known limit: BM25 has no score threshold, so a keyword hit can bring sources for an off-topic question (#53, open).</p>
+  </section>
+
+  <!-- DASHBOARD (now) -->
+  <section class="band" id="now-dashboard">
+    <div class="band-head">
+      <span class="tag" style="color:var(--dash)">Flow 3</span>
+      <h2>The dashboard and the CVEs page</h2>
+      <p>Both read one assessment per watched CVE (<code>watched.py:44</code>): its status, verdict, priority and due date at the as-of date. An open CVE is one on your watchlist you haven't marked fixed, not affected or accepted (until its review date).</p>
+    </div>
+    <div class="split">
+      <ol class="rail dash" style="grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));">
+        <li><div class="head"><h3>Load</h3><span class="chip real">Built</span></div><p>One call returns tiles, charts, side panels and the data's freshness; the CVEs page asks for its rows by filter.</p><span class="where">main.py:257-278</span></li>
+        <li><div class="head"><h3>Tiles</h3><span class="chip real">Built</span></div><p>Open, open and critical, open and in KEV (with the next due date), new in 30 days. Each opens the CVEs page filtered.</p><span class="where">Dashboard.tsx:242-268</span></li>
+        <li><div class="head"><h3>Charts and panels</h3><span class="chip real">Built</span></div><p>Open CVEs by product and severity, CVEs per month, by OWASP category. Top 5 open CVEs, latest AI incidents, recent alerts, data freshness with Check now.</p><span class="where">Dashboard.tsx:120-230</span></li>
+        <li><div class="head"><h3>CVEs page</h3><span class="chip real">Built</span></div><p>Priority, due, product, severity, published, OWASP, EPSS, verdict, status. Filters in the URL; "New" since the last check.</p><span class="where">CvesPage.tsx:266-289 · cve_filters.py</span></li>
+        <li><div class="head"><h3>Decide</h3><span class="chip real">Built</span></div><p>Mark fixed, not affected (with a justification), accepted (with a review date) or open again. Each change is a decision record with who and when.</p><span class="where">PATCH /cves/{id} · status.py</span></li>
+        <li class="branch"><div class="head"><h3>Ask about this</h3><span class="chip real">Built</span></div><p>Opens Patch with the page context: "What should I fix first?" on a filtered view answers for that view.</p><span class="where">page_context.py · tools/prioritise.py</span></li>
+      </ol>
+      <div class="mock" aria-label="Dashboard summary with the default watchlist">
+        <div class="mock-bar"><span>Dashboard · default watchlist</span><span>snapshot · 2026-10-13</span></div>
+        <div class="tiles">
+          <div class="tile"><span class="v">490</span><span class="k">Open CVEs</span></div>
+          <div class="tile"><span class="v">82</span><span class="k">Open and critical</span></div>
+          <div class="tile alert"><span class="v">9</span><span class="k">Open and in KEV; overdue since 2025-05-26</span></div>
+          <div class="tile"><span class="v">69</span><span class="k">New in the last 30 days</span></div>
+        </div>
+        <div class="bars" aria-label="Open CVEs by product and severity">
+          <div class="legend" style="font-size:0.78rem">
+            <span class="sev"><span class="sw" style="background:var(--sev-critical)"></span>Critical</span>
+            <span class="sev"><span class="sw" style="background:var(--sev-high)"></span>High</span>
+            <span class="sev"><span class="sw" style="background:var(--sev-medium)"></span>Medium</span>
+            <span class="sev"><span class="sw" style="background:var(--sev-low)"></span>Low</span>
+          </div>
+          <div class="barrow"><span class="name">LangChain</span><div class="stack"><span style="width:10.4%;background:var(--sev-critical)"></span><span style="width:10%;background:var(--sev-high)"></span><span style="width:4.5%;background:var(--sev-medium)"></span><span style="width:1.5%;background:var(--sev-low)"></span></div><span class="tot">53</span></div>
+          <div class="barrow"><span class="name">Langflow</span><div class="stack"><span style="width:25.9%;background:var(--sev-critical)"></span><span style="width:47.8%;background:var(--sev-high)"></span><span style="width:22.4%;background:var(--sev-medium)"></span><span style="width:4%;background:var(--sev-low)"></span></div><span class="tot">201</span></div>
+          <div class="barrow"><span class="name">LiteLLM</span><div class="stack"><span style="width:2.5%;background:var(--sev-critical)"></span><span style="width:6%;background:var(--sev-high)"></span><span style="width:3%;background:var(--sev-medium)"></span><span style="width:6.5%;background:var(--sev-low)"></span></div><span class="tot">36</span></div>
+          <div class="barrow"><span class="name">Ollama</span><div class="stack"><span style="width:1.5%;background:var(--sev-critical)"></span><span style="width:12.4%;background:var(--sev-high)"></span><span style="width:2.5%;background:var(--sev-medium)"></span><span style="width:1%;background:var(--sev-low)"></span></div><span class="tot">35</span></div>
+          <div class="barrow"><span class="name">Open WebUI</span><div class="stack"><span style="width:0.5%;background:var(--sev-critical)"></span><span style="width:38.3%;background:var(--sev-high)"></span><span style="width:39.3%;background:var(--sev-medium)"></span><span style="width:4%;background:var(--sev-low)"></span></div><span class="tot">165</span></div>
+        </div>
+        <p class="example">From <code>GET /dashboard</code> on a throwaway server, 2026-10-16, snapshot mode, the default watchlist: LangChain, Langflow, LiteLLM, Ollama, Open WebUI. Also 262 open CVEs overdue and 28 with no fix yet.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ALERTS (now) -->
+  <section class="band" id="now-alerts">
+    <div class="band-head">
+      <span class="tag" style="color:var(--alert)">Flow 4 · after every refresh</span>
+      <h2>Alerts for your watchlist</h2>
+      <p>After each refresh, for each user: what changed between the two live versions, which alert reasons apply to your watched CVEs, each sent once. Only the owner's alerts go to the channels; everyone else's are recorded and shown in the app (<code>alerts.py:9-12</code>).</p>
+    </div>
+    <div class="split">
+      <ol class="rail alert" style="grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));">
+        <li><div class="head"><h3>Diff</h3><span class="chip real">Built</span></div><p>New CVEs, CVEs added to KEV (whenever published: KEV adds old ones too), rescored CVEs, changed fixed versions.</p><span class="where">alerts.py:39-57</span></li>
+        <li><div class="head"><h3>Rules</h3><span class="chip real">Built</span></div><p>Seven reasons over your watched CVEs (table). Skips what doesn't touch you: verdict or status "not affected", or accepted.</p><span class="where">alerts.py:80-135</span></li>
+        <li><div class="head"><h3>De-duplicate</h3><span class="chip real">Built</span></div><p>One key per CVE and reason, claimed in your state, so reruns and restarts don't repeat it. Overdue is keyed by week, so it repeats weekly.</p><span class="where">alerts.py:68-77, 216</span></li>
+        <li><div class="head"><h3>Quiet hours</h3><span class="chip real">Built</span></div><p>The owner's alerts in quiet hours are held, then sent as one message when they end. Time zone from Settings.</p><span class="where">alerts.py:205-226</span></li>
+        <li><div class="head"><h3>Digest</h3><span class="chip real">Built</span></div><p>More than 5 alerts at once (your setting, 1 to 50) become one message with counts per reason.</p><span class="where">alerts.py:147-166 · app_settings.py:27</span></li>
+        <li><div class="head"><h3>Deliver</h3><span class="chip real">Built</span></div><p>ntfy, email, desktop or preview. A fixed template: id, product, severity, due date, never the description. The result per channel goes in your alerts log.</p><span class="where">notify.py:1-7, 81, 249</span></li>
+        <li class="branch"><div class="head"><h3>Tap</h3><span class="chip real">Built</span></div><p>The link opens the app at <code>#cve=…</code> with a banner; "Explain it" asks Patch. No link when the app's address can't be reached from a phone.</p><span class="where">notify.py:37-56 · AlertBanner.tsx</span></li>
+      </ol>
+      <div class="phone-wrap">
+        <div class="phone" aria-label="Example phone lock screen with two alerts">
+          <div class="clock">18:02</div>
+          <div class="date">Friday 16 October</div>
+          <div class="push">
+            <div class="app"><span>ntfy · Patch</span><span>now</span></div>
+            <b>In CISA KEV: Langflow</b>
+            <span>CVE-2025-3248 · critical 9.8 · due 2025-05-26</span>
+            <span class="prio">priority 5</span>
+          </div>
+          <div class="push quiet">
+            <div class="app"><span>ntfy · Patch</span><span>6 h ago</span></div>
+            <b>3 alerts for your watchlist</b>
+            <span>1 in CISA KEV · 2 new</span>
+            <span class="prio">priority 5 · digest</span>
+          </div>
+        </div>
+        <p class="example" style="border:0; text-align:center">The texts are real output, 2026-10-16: the first from <code>format_alert</code> (a Preview test alert, with "Test ·" dropped), the digest from <code>alerts.digest</code> on three made-up alerts. The time and the ntfy app name are made up.</p>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Reason</th><th>Fires when</th><th>Switch</th></tr></thead>
+        <tbody>
+          <tr><td><code>kev</code></td><td>A watched CVE is newly in CISA KEV and touches you</td><td>Settings</td></tr>
+          <tr><td><code>kev_recheck</code></td><td>A CVE you marked fixed is newly in KEV: check your fix</td><td>Settings</td></tr>
+          <tr><td><code>new</code></td><td>A new CVE at or above your minimum severity (default high)</td><td>Settings</td></tr>
+          <tr><td><code>new_unscored</code></td><td>A new CVE with no severity yet</td><td>Settings</td></tr>
+          <tr><td><code>now_critical</code></td><td>An open CVE rescored to critical</td><td>Settings</td></tr>
+          <tr><td><code>due_soon</code></td><td>Open, not "not affected" by the verdict, 0 to 3 days before its due date</td><td>Always on</td></tr>
+          <tr><td><code>overdue</code></td><td>Open, not "not affected" by the verdict, past its due date; once a week</td><td>Always on</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="example" style="border:0; padding:0">Reasons and switches: <code>alerts.py:62-135</code>. Each alert's priority is its CVE's priority (5 urgent, 4 high, 3 normal, 2 low; <code>priority.py</code>). The dashboard's Recent alerts and the CVEs page's "New" chip read the same per-user log.</p>
+  </section>
+
+  <!-- ACTIONABLE (now) -->
+  <section class="band" id="now-actionable">
+    <div class="band-head">
+      <span class="tag" style="color:var(--next)">Flow 5 · built in spec A</span>
+      <h2>Make each CVE actionable</h2>
+      <p>The prototype's planned shortlist is built. For each watched CVE: does it touch my version (the verdict), how urgent is it (priority), by when (due date), what did I decide (decision record), and Patch explains it at my level. Rules decide; Patch only explains, and never sets a status.</p>
+    </div>
+    <ol class="rail next" style="grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));">
+      <li><div class="head"><h3>Verdict</h3><span class="chip real">Built</span></div><p>Your usage and version against OSV's ranges, compared by each ecosystem's rules (PEP 440, SemVer): affected, not affected or unknown, with the reason. Who acts comes from your usage.</p><span class="where">verdict.py:1-21 · tools/affected.py</span></li>
+      <li><div class="head"><h3>Priority</h3><span class="chip real">Built</span></div><p>The first matching row of a fixed table (below), then one level down when the verdict says not affected.</p><span class="where">priority.py:1-25</span></li>
+      <li><div class="head"><h3>Due date</h3><span class="chip real">Built</span></div><p>Your policy: 7, 30, 90, 180 days for urgent, high, normal, low, from publication or the KEV date. Optionally CISA's KEV deadline instead (on by default).</p><span class="where">app_settings.py:38-56 · priority.py:26-30</span></li>
+      <li><div class="head"><h3>Decision</h3><span class="chip real">Built</span></div><p>Open, fixed, not affected (a VEX justification), accepted (a reason and a review date; open again when the review is due). Only you set it.</p><span class="where">status.py:1-28</span></li>
+      <li><div class="head"><h3>Fix first</h3><span class="chip real">Built</span></div><p><code>prioritise</code> gives the rules' order for the page you're on; Patch explains it and may not change it.</p><span class="where">tools/prioritise.py:124-130 · agent.py:25-27</span></li>
+      <li><div class="head"><h3>Explain level</h3><span class="chip real">Built</span></div><p>Simple, normal or deep dive: one line added to the system prompt; the tools, sources and facts stay the same. The model check scores readability per level.</p><span class="where">agent.py:51-57 · evals/readability.py</span></li>
+    </ol>
+    <div class="split even">
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>#</th><th>Condition (first match)</th><th>Priority</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>In KEV, verdict isn't "not affected"</td><td>urgent</td></tr>
+            <tr><td>2</td><td>Critical or EPSS ≥ 90th percentile, internet-facing</td><td>high</td></tr>
+            <tr><td>3</td><td>Otherwise critical</td><td>high</td></tr>
+            <tr><td>4–5</td><td>High or medium</td><td>normal</td></tr>
+            <tr><td>6</td><td>Low</td><td>low</td></tr>
+            <tr><td>7</td><td>Not scored yet</td><td>normal</td></tr>
+            <tr><td>–</td><td>Verdict "not affected"</td><td>one level lower</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Top 5 open CVEs</th><th>Product</th><th>Priority</th><th>Due</th></tr></thead>
+          <tbody>
+            <tr><td><code>CVE-2025-3248</code></td><td>Langflow</td><td>urgent</td><td>2025-05-26, overdue</td></tr>
+            <tr><td><code>CVE-2026-33017</code></td><td>Langflow</td><td>urgent</td><td>2026-04-08, overdue</td></tr>
+            <tr><td><code>CVE-2026-42208</code></td><td>LiteLLM</td><td>urgent</td><td>2026-05-11, overdue</td></tr>
+            <tr><td><code>CVE-2025-34291</code></td><td>Langflow</td><td>urgent</td><td>2026-06-04, overdue</td></tr>
+            <tr><td><code>CVE-2026-42271</code></td><td>LiteLLM</td><td>urgent</td><td>2026-06-22, overdue</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="example" style="border:0; padding:0">Rules: <code>priority.py:4-18</code> (the owner's table of 2026-10-14). Top 5: <code>GET /cves?status=open&amp;limit=5</code> on a throwaway server, 2026-10-16, snapshot, default watchlist; all in KEV, verdict unknown (no version given). "Overdue" counts against the snapshot's 2026-10-13.</p>
+  </section>
+
+  <!-- WEB RESEARCH (now) -->
+  <section class="band" id="now-web">
+    <div class="band-head">
+      <span class="tag" style="color:var(--specb)">New in spec B · B08, B22, B23</span>
+      <h2>Web research, and Patch as an MCP server</h2>
+      <p>MCP both ways. Patch is an MCP client: <code>research_web</code> searches Tavily through its hosted remote MCP server. And Patch is an MCP server: other assistants can call four of its read-only tools.</p>
+    </div>
+    <div class="split even">
+      <ol class="rail specb" style="grid-template-columns: 1fr;">
+        <li><div class="head"><h3>Search</h3><span class="chip real">Built</span></div><p>Only the query is sent, never the watchlist. Tavily's MCP server first; if that fails, its plain search API. Basic search, at most 5 results, snippets only.</p><span class="where">web_research.py:1-11, 138-146</span></li>
+        <li><div class="head"><h3>Filter</h3><span class="chip real">Built</span></div><p>Exploit and proof-of-concept sites excluded and dropped; http(s) links only. 30 searches a day in total and per user; a failed search isn't counted.</p><span class="where">web_research.py:35-38, 58-75 · config.py:133-134</span></li>
+        <li><div class="head"><h3>Scan and wrap</h3><span class="chip real">Built</span></div><p>Each result scanned for injection phrasing: flagged, kept as data, never followed. Wrapped by the guard like every tool result.</p><span class="where">tools/web.py:1-8</span></li>
+        <li><div class="head"><h3>Propose a decision</h3><span class="chip real">Built</span></div><p>Research ends in <code>propose_decision</code>: the status from the CVE and the verdict, never a web page; at least one non-web source cited.</p><span class="where">agent.py:65-69 · tools/decision.py</span></li>
+        <li><div class="head"><h3>Real run</h3><span class="chip todo">Not run</span></div><p>Built and tested against saved pages (<code>CannedWeb</code>). A run with a real Tavily key is the owner's step.</p><span class="where">#62</span></li>
+      </ol>
+      <ol class="rail specb" style="grid-template-columns: 1fr;">
+        <li><div class="head"><h3>Patch as an MCP server</h3><span class="chip real">Built</span></div><p><code>uv run python -m app.mcp_server</code>, over stdio: <code>search_security</code>, <code>lookup_cve</code>, <code>explain_weakness</code>, and <code>check_affected</code> with the version given in the call.</p><span class="where">mcp_server.py:1-3, 75-79</span></li>
+        <li><div class="head"><h3>Read-only</h3><span class="chip real">Built</span></div><p>Nobody's state: a stand-in watchlist for one call, and any write raises. Results wrapped as untrusted, like in the chat.</p><span class="where">mcp_server.py:38-53, 126</span></li>
+        <li><div class="head"><h3>Real client</h3><span class="chip todo">Not run</span></div><p>The demo in Claude Desktop or Claude Code is the owner's step.</p><span class="where">#61 · docs/mcp-demo.md</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- PROPOSALS (now) -->
+  <section class="band" id="now-proposals">
+    <div class="band-head">
+      <span class="tag" style="color:var(--specb)">New in spec B · B21, B24, B27</span>
+      <h2>Changes Patch proposes, you approve</h2>
+      <p>A security assistant shouldn't change your records on a model's say-so. Every change from the chat is a proposal card; nothing changes until you approve it. There is one way in for every proposal, so a new kind of change is one entry in one table.</p>
+    </div>
+    <ol class="rail specb" style="grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));">
+      <li><div class="head"><h3>Propose</h3><span class="chip real">Built</span></div><p><code>update_watchlist</code>, <code>propose_decision</code> and the card buttons all call <code>proposals.propose</code>. It checks what the action needs and the fields it takes; "already so" is an answer, not an error.</p><span class="where">proposals.py:256</span></li>
+      <li><div class="head"><h3>Four actions</h3><span class="chip real">Built</span></div><p>Set a status, set your usage and version, watch, unwatch. Each entry says what it rests on, its preview, how it applies and what may be edited.</p><span class="where">proposals.py:217-247</span></li>
+      <li><div class="head"><h3>Preview and edit</h3><span class="chip real">Built</span></div><p>The card shows the change; you may edit its fields under the same checks as the pages.</p><span class="where">ProposalCard.tsx · proposals.py:358</span></li>
+      <li><div class="head"><h3>Approve</h3><span class="chip real">Built</span></div><p>Applied through the same methods as the pages, with who and when. Once only, under one lock; refused when what it rested on changed; expires after 1 hour.</p><span class="where">proposals.py:1-20, 33, 329</span></li>
+      <li class="branch"><div class="head"><h3>Card buttons</h3><span class="chip real">Built</span></div><p>Open in the CVEs page, Ask about this, Mark accepted…, Watch this product, Set my version…, Only critical. A change is a proposal; a refine runs the search again and counts as a chat message.</p><span class="where">card_actions.py · main.py:222-231</span></li>
+    </ol>
+  </section>
+
+  <!-- USERS (now) -->
+  <section class="band" id="now-users">
+    <div class="band-head">
+      <span class="tag" style="color:var(--specb)">New in spec B · B09, B10, B11</span>
+      <h2>Users and sign-in</h2>
+      <p>Each user has their own state; the live data, the refresh and the schedule are shared and belong to the owner. Sign-in is built against faked tokens: no Clerk instance exists yet.</p>
+    </div>
+    <ol class="rail specb" style="grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));">
+      <li><div class="head"><h3>Who is asking</h3><span class="chip real">Built</span></div><p><code>AUTH=off</code> (local, tests): the default user, whose state is the old state file. <code>AUTH=on</code>: a Clerk session token, checked locally with the JWT key and the page's origin; anything else is 401.</p><span class="where">auth.py:1-11, 69</span></li>
+      <li><div class="head"><h3>Per-user state</h3><span class="chip real">Built</span></div><p>JSON documents by key, written only if unchanged since read: local files, memory (tests), or Cloud Storage with the object's generation as the check.</p><span class="where">store.py:1-20</span></li>
+      <li><div class="head"><h3>The owner</h3><span class="chip real">Built</span></div><p>The owner's: the channels, the schedule, the server settings, the demo switches. Others see the schedule read-only.</p><span class="where">main.py:187-191, 327, 344-349 · auth.py:86</span></li>
+      <li><div class="head"><h3>Rate limits</h3><span class="chip real">Built</span></div><p>Chat: 10 a minute, 200 a day per user, in memory (one instance). One 429 form with a retry time; OpenRouter's spending cap as a plain 402.</p><span class="where">rate_limits.py:1-8 · main.py:83-88, 132</span></li>
+      <li><div class="head"><h3>Clerk instance</h3><span class="chip todo">Not run</span></div><p>Create the instance and set its keys: the owner's step. The signed-in browser check runs only with them.</p><span class="where">#65</span></li>
+    </ol>
+  </section>
+
+  <!-- DEPLOY (now) -->
+  <section class="band" id="now-deploy">
+    <div class="band-head">
+      <span class="tag" style="color:var(--specb)">New in spec B · B12, B13, B14</span>
+      <h2>The container and Cloud Run</h2>
+      <p>One image runs the whole app; CI builds it and runs a smoke test (STATUS.md, B12). The Cloud Run setup is written and tested against fakes; nothing has run on Google Cloud yet.</p>
+    </div>
+    <ol class="rail specb" style="grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));">
+      <li><div class="head"><h3>One image</h3><span class="chip real">Built</span></div><p>The built frontend and the API on one port, the API under <code>/api</code>, <code>/health</code> at the root. The index is built in; no key or <code>.env</code> inside.</p><span class="where">Dockerfile · one_port.py:1-10</span></li>
+      <li><div class="head"><h3>Cloud Run</h3><span class="chip real">Built</span></div><p>0 to 1 instance, 1 GiB. One instance is required: the rate limits and caps are in memory.</p><span class="where">DEPLOY.md:143-151</span></li>
+      <li><div class="head"><h3>Storage and secrets</h3><span class="chip real">Built</span></div><p>Users' state under <code>users/</code>, live data under <code>live/</code>, one bucket. Keys in Secret Manager, passed in as environment variables.</p><span class="where">store.py:20 · DEPLOY.md:11</span></li>
+      <li><div class="head"><h3>Scheduled refresh</h3><span class="chip real">Built</span></div><p>Cloud Scheduler calls <code>POST /api/refresh/scheduled</code> hourly with a secret header, compared in constant time. No user needed.</p><span class="where">main.py:406-424</span></li>
+      <li><div class="head"><h3>Deploy and verify</h3><span class="chip todo">Not run</span></div><p>The owner's step, by DEPLOY.md.</p><span class="where">#45</span></li>
+      <li class="branch"><div class="head"><h3>Cold start</h3><span class="chip todo">Not built</span></div><p>The app waits for <code>/health</code> with no timeout, so a cold start can show a blank page.</p><span class="where">#69</span></li>
+    </ol>
+  </section>
+
+  <!-- SECURITY (now) -->
+  <section class="band" id="now-guard">
+    <div class="band-head">
+      <span class="tag" style="color:var(--guard)">Across the app</span>
+      <h2>Security measures for this domain</h2>
+      <p>In a security assistant, talking about attacks is the point. So the guard blocks shape problems and flags suspicious phrasing; delimiting, narrow tools, fixed fields and your approval do the rest.</p>
+    </div>
+    <div class="split">
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>What happens</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>Message and history limits</td><td>400 with a plain message</td><td><code>guard.py:38-51</code></td></tr>
+            <tr><td>Injection phrasing in the message or a past user turn</td><td>Flagged, logged, answered</td><td><code>guard.py:23-58</code></td></tr>
+            <tr><td>Tool output, retrieved and web text</td><td>Delimited and escaped, never stripped; web results scanned and flagged</td><td><code>guard.py:101</code>, <code>tools/web.py</code></td></tr>
+            <tr><td>Search filters and page context</td><td>Checked against fixed lists; unknown values dropped and shown</td><td><code>guard.py:61</code>, <code>page_context.py</code></td></tr>
+            <tr><td>Changes to your records</td><td>Proposed only; you approve</td><td><code>proposals.py</code></td></tr>
+            <tr><td>Citations</td><td>A number no tool gave is removed</td><td><code>citations.py</code></td></tr>
+            <tr><td>Web research</td><td>Only the query sent; exploit sites excluded; the key in a header, never logged</td><td><code>web_research.py:1-11</code></td></tr>
+            <tr><td>Alert text</td><td>Fixed template, never the CVE description</td><td><code>notify.py:1-7</code></td></tr>
+            <tr><td>Sign-in</td><td>Tokens checked locally; API docs hidden when on; the scheduler route needs its own secret</td><td><code>auth.py</code>, <code>main.py:95, 406-424</code></td></tr>
+            <tr><td>Owner-only switches</td><td>Server settings, demo switches, schedule: 403 for others</td><td><code>auth.py:86</code></td></tr>
+            <tr><td>Errors</td><td>502 or 500 with a generic message; the stack trace in the server log only</td><td><code>main.py:129-155</code></td></tr>
+            <tr><td>System prompt</td><td>Stay on topic; explain and defend, no working exploits, from any source</td><td><code>agent.py:35-42</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <h3>One gap, known</h3>
+        <p><code>PUT /dev/settings</code> sets the model for every user and has no owner check (<code>dev.py:74-82</code>; DECISIONS.md, BR.12, "still open"). The architecture review's candidate 3, "the owner's share", would put the owner rule in one module so a missing check can't happen by omission.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEAMS (now) -->
+  <section class="band" id="now-seams">
+    <div class="band-head">
+      <span class="tag" style="color:var(--muted)">What's still a fake, what's next</span>
+      <h2>Mocks and next steps</h2>
+      <p>Each fake sits behind a small interface and stays for tests and CI: no key, no network, the same answer every run. The real versions are built; several are waiting for a first real run by the owner.</p>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Seam</th><th>Real</th><th>Fake (tests)</th><th>Next</th></tr></thead>
+        <tbody>
+          <tr><td><code>LLM</code></td><td><span class="chip real">Built</span> <code>ChatModelLLM</code>: OpenRouter, local servers</td><td><span class="chip mock">Mock</span> FakeLLM, 19 scripted questions</td><td><span class="chip todo">Not run</span> The new questions on a real model (#47)</td></tr>
+          <tr><td><code>Embedder</code></td><td><span class="chip real">Built</span> Ollama, OpenRouter</td><td><span class="chip mock">Mock</span> Hash embedder</td><td>Models to try later (#55)</td></tr>
+          <tr><td><code>Feeds</code></td><td><span class="chip real">Built</span> <code>HttpFeeds</code></td><td><span class="chip mock">Mock</span> <code>FakeFeeds</code>, day data sets, failure switch</td><td><span class="chip todo">Not run</span> One real run, logged (#40)</td></tr>
+          <tr><td>Web search</td><td><span class="chip real">Built</span> Tavily, MCP then API</td><td><span class="chip mock">Mock</span> <code>CannedWeb</code>, with an injection page</td><td><span class="chip todo">Not run</span> A real research run (#62)</td></tr>
+          <tr><td>MCP server</td><td><span class="chip real">Built</span> stdio, 4 read-only tools</td><td>Called in tests</td><td><span class="chip todo">Not run</span> A real client (#61)</td></tr>
+          <tr><td><code>Store</code></td><td><span class="chip real">Built</span> Local files, Cloud Storage</td><td><span class="chip mock">Mock</span> Memory, a fake bucket</td><td><span class="chip todo">Not run</span> Deploy (#45)</td></tr>
+          <tr><td>Sign-in</td><td><span class="chip real">Built</span> Clerk token check</td><td><span class="chip mock">Mock</span> Faked tokens</td><td><span class="chip todo">Not run</span> The Clerk instance (#65)</td></tr>
+          <tr><td>Channels</td><td><span class="chip real">Built</span> ntfy, email, desktop</td><td><span class="chip mock">Mock</span> Preview; <code>NOTIFY_DRY_RUN</code></td><td>Optional: a two-way bot</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="split even">
+      <div class="note" style="border-left-color:var(--muted)">
+        <h3>Waiting on the owner</h3>
+        <p>The human steps: #40 one real live run, #45 deploy to Cloud Run, #47 the new questions on a real model, #61 the MCP demo in a real client, #62 a real web research run, #65 the Clerk instance. And #68: the decisions agents made in spec B, for the owner to confirm.</p>
+      </div>
+      <div class="note" style="border-left-color:var(--muted)">
+        <h3>Next for agents</h3>
+        <p>Architecture candidate 3, the owner's share: one module answers what's shared and who may change it, and closes the <code>PUT /dev/settings</code> gap. #69: a loading screen and a timeout while <code>/health</code> doesn't answer. Spec A follow-ups still in triage: #25, #28, #49 to #55.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Drawn from the code on <code>spec-b</code> at <code>eb463c0</code>, 2026-10-16, with STATUS.md, README.md, DECISIONS.md, GLOSSARY.md, docs/design/DESIGN.md, docs/agents/adding-a-tool.md and the <a href="https://derykhopley.github.io/tc-patch-security/architecture-review.html">architecture review</a>. Numbers and example outputs from commands run that day on a throwaway server (FakeLLM, hash embedder, snapshot mode). Issue states from GitHub that day. Data: OWASP (CC BY-SA 4.0), MITRE ATLAS (Apache 2.0), NVD (US government, public), CISA KEV (CC0 1.0), OSV.dev (CC-BY 4.0), EPSS (FIRST).</span>
+  </footer>
+</div>
+
+<div id="prototype" role="tabpanel" aria-labelledby="tab-prototype" data-panel>
+  <p class="panel-note">The prototype's map as of 2026-10-13, kept word for word to compare with the current build. Its links (#map, #chat, #alerts and the rest) still open here.</p>
   <header class="top">
     <span class="eyebrow">Sprint 2 · LLM-security RAG chatbot · as built 2026-10-13 · next steps added the same day</span>
     <h1>LLM Security Assistant Process Map</h1>
@@ -798,5 +1545,38 @@ footer { border-top: 1px solid var(--line); padding-top: 20px; color: var(--mute
     <span>Drawn from the built prototype in <code>proto/</code>, its SPEC.md and PLAN.md, and the findings in SECURITY-SWAP-PLAN.md, 2026-10-13; Flow 4 updated and Flow 5 added the same day. 135 backend tests and 35 browser checks pass. Data: OWASP (CC BY-SA 4.0), MITRE ATLAS (Apache 2.0), NVD and CISA KEV (US government, public).</span>
   </footer>
 </div>
+</div>
+<script>
+  // The switch: one map at a time, chosen by the tab or by a link into either (#now-chat, #alerts). The maps are inline
+  // SVG, drawn by the browser as soon as their panel shows; nothing is drawn while hidden.
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  function show(id, focus) {
+    for (const t of tabs) {
+      const on = t.getAttribute("aria-controls") === id;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+      if (on && focus) t.focus();
+    }
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => show(t.getAttribute("aria-controls")));
+    t.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      e.preventDefault();
+      const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+      show(next.getAttribute("aria-controls"), true);
+    });
+  });
+  function fromHash() {
+    let el = null;
+    try { el = location.hash && document.querySelector(location.hash); } catch { el = null; }  // a hash that isn't a selector
+    const panel = el && el.closest("[data-panel]");
+    show(panel ? panel.id : "now");
+    if (el && el !== panel) el.scrollIntoView();
+  }
+  window.addEventListener("hashchange", fromHash);
+  fromHash();
+</script>
 </body>
 </html>
