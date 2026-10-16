@@ -138,11 +138,7 @@ In `backend/.env`: `LLM_PROVIDER=local`, `LOCAL_LLM_MODEL=qwen3.8:27b`, `EMBEDDE
 
 ### Live data from the real feeds, on a schedule
 
-By default the app runs on the frozen snapshot. Live mode refreshes the CVE data from NVD, the CISA KEV catalogue, EPSS and OSV.dev (spec B, [#36](https://github.com/DerykHopley/tc-patch-security/issues/36)). No key is needed. Switch it on in Settings, Data card (Live, then Save changes), and choose the real feeds in `backend/.env`:
-
-```bash
-FEEDS=real
-```
+By default the app runs on the frozen snapshot. Live mode refreshes the CVE data from NVD, the CISA KEV catalogue, EPSS and OSV.dev (spec B, [#36](https://github.com/DerykHopley/tc-patch-security/issues/36)). No key is needed. Switch it on in Settings, Data card (Live, then Save changes). The real feeds are the default (`FEEDS=real`, B28): the Data card says "Live: NVD, CISA KEV, EPSS and OSV.dev". `FEEDS=fake` is for tests and demos only (made-up CVEs, made-up alerts); with it the Data card and the dashboard's freshness card warn "Live: the made-up test data (FEEDS=fake)".
 
 - The optional NVD key (50 requests per 30 s instead of 5; only matters after a long gap) is on the same card. `DATA_MODE=live` and `NVD_API_KEY` in `.env` still work, and win.
 
@@ -159,7 +155,8 @@ FEEDS=real
   The units are in [deploy/systemd/](./deploy/systemd/). For the timer to run while you're logged out: `loginctl enable-linger`.
 - A failed fetch (a service down, a timeout, a rate limit) stops the run before anything is written: the data and the last-checked time stay as they were, and the next run covers the gap. The error is in the run log (`GET /refresh`) and the journal.
 - The first live start copies the snapshot; the first refresh then fetches everything NVD changed since 2026-10-13, in windows of at most 120 days.
-- Coming from `FEEDS=fake`? Point `LIVE_PATH` at a fresh folder (e.g. `data/live-real`): the old one holds the fake CVEs and the fake runs' last-checked time.
+- **One kind of data per live folder.** Each refresh records which feeds wrote the live data. A start, the CLI or the Settings switch on a folder the other kind wrote stops with a message naming the folder: move it aside (e.g. `mv data/live data/live-fake`) or set `LIVE_PATH` to a fresh folder, and the next start copies the snapshot in. A folder from before B28 has no record: it is accepted, and its next refresh records the kind.
+- In snapshot mode a scheduled tick skips ("skipped: the data is the frozen snapshot", exit 0), so the timer's unit doesn't show as failed. `python -m app.refresh` by hand still exits 2.
 
 ### In a container
 

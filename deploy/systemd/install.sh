@@ -26,13 +26,13 @@ done
 
 # B26: live mode is set on Settings (Data card) or by DATA_MODE in .env, which wins. The run reads both.
 if [[ ! -f "$backend/.env" ]]; then
-  echo "Note: $backend/.env doesn't exist yet. The refresh reads FEEDS=real from it." >&2
+  echo "Note: $backend/.env doesn't exist yet. The service reads it (uv run --env-file .env): copy .env.example." >&2
 elif grep -q '^DATA_MODE=snapshot' "$backend/.env"; then
-  echo "Note: $backend/.env sets DATA_MODE=snapshot, which wins over Settings: each scheduled run will stop with" \
-    "exit code 2. Delete the line to switch live mode on Settings." >&2
+  echo "Note: $backend/.env sets DATA_MODE=snapshot, which wins over Settings: each scheduled run will skip" \
+    "(the snapshot is never refreshed). Delete the line to switch live mode on Settings." >&2
 elif ! grep -q '^DATA_MODE=live' "$backend/.env"; then
   echo "Live mode: switch it on in Settings, Data card (or DATA_MODE=live in .env). Until then each scheduled run" \
-    "stops with exit code 2." >&2
+    "skips: \"skipped: the data is the frozen snapshot\", exit 0." >&2
 fi
 
 if [[ "${1:-}" != "--no-reload" ]]; then
