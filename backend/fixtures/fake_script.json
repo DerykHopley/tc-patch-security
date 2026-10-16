@@ -372,13 +372,26 @@
     "contains_any": [
      "LLM01"
     ],
+    "key_fact_levels": [
+     "normal",
+     "deep_dive"
+    ],
     "cites": true,
     "levels": [
      "simple",
      "normal",
      "deep_dive"
     ]
-   }
+   },
+   "expect_changed": [
+    {
+     "date": "2026-10-16",
+     "issue": 54,
+     "was": "key fact LLM01 at every level",
+     "now": "key fact LLM01 at normal and deep dive only",
+     "why": "the simple level leaves codes out on purpose; 7 of 11 models failed it there"
+    }
+   ]
   },
   {
    "id": "Q-affected",
@@ -397,16 +410,26 @@
    ],
    "answer": "{affected}\n\nThe verdict is the version check's advice; the CVE's status stays your decision.",
    "expect": {
-    "tools": [
-     "check_affected"
+    "tools_any": [
+     "check_affected",
+     "lookup_cve"
     ],
     "verdict": true,
     "status_unchanged": true,
     "contains_any": [
-     "CVE-2025-3248"
+     "Langflow"
     ],
     "cites": true
-   }
+   },
+   "expect_changed": [
+    {
+     "date": "2026-10-16",
+     "issue": 54,
+     "was": "tools check_affected; key fact CVE-2025-3248",
+     "now": "tools check_affected or lookup_cve; key fact Langflow (the product)",
+     "why": "lookup_cve gives the same verdict (5 of 11 used it); the question already names the CVE, while naming the product shows the answer read your stack"
+    }
+   ]
   },
   {
    "id": "Q-fix-first",
