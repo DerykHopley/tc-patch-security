@@ -5,6 +5,7 @@ The test holds /health with its own route: late (a slow start), hung past the 15
 jumps the page's time, so no test waits 15 s), or failing outright.
 """
 import pathlib
+import re
 
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Page, Route, expect
@@ -117,7 +118,7 @@ def test_b69_7_patch_idles_on_the_loading_screen_with_normal_motion(open_loading
 def test_b69_8_a_hung_health_says_offline_and_recovers_by_itself(open_loading):
     page, health = open_loading()
     go_offline(page, health)
-    expect(card(page)).to_contain_text("Next try in 2 s.")
+    expect(card(page)).to_contain_text(re.compile(r"Next try in 2\s+s\."))  # a no-break space
     expect(page.get_by_role("button", name="Retry")).to_be_visible()
     health.answer()  # the server is up now
     page.clock.fast_forward(FIRST_RETRY_MS)  # the automatic retry

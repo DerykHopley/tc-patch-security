@@ -56,5 +56,5 @@ function NextTry({ wait }: { wait: HealthWait }) {
   }, [wait.nextTryAt])
   if (wait.trying || wait.nextTryAt === null) return <>Patch's server didn't answer. Trying again…</>
   const seconds = Math.max(1, Math.ceil((wait.nextTryAt - now) / 1000))
-  return <>Patch's server didn't answer. Next try in {seconds} s.</>
+  return <>Patch's server didn't answer. Next try in {seconds}&nbsp;s.</> // the number and its unit never split
 }
