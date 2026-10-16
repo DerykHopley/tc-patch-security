@@ -49,19 +49,21 @@ export function useServerSettings(status: ServerStatus | null | undefined, quiet
   }
 
   /** Save what changed. `quietSet`: the other settings being saved have quiet hours. Throws nothing: an error stays
-   *  in `error` and the edits stay. */
-  async function save(quietSet: boolean): Promise<void> {
-    if (!status || !base || !draft) return
+   *  in `error` and the edits stay. Returns the error too, so the page can show the fields it names. */
+  async function save(quietSet: boolean): Promise<string | null> {
+    if (!status || !base || !draft) return null
     const change = serverChanges(status, base, draft, secrets, quietSet)
-    if (Object.keys(change).length === 0) return
+    if (Object.keys(change).length === 0) return null
     setSaving(true)
     setError(null)
     try {
       onSaved(await saveServerSettings(change))
       setSecrets({}) // saved: the boxes empty again (a secret is never shown back)
       setJustSaved(true)
+      return null
     } catch (e) {
       setError((e as Error).message)
+      return (e as Error).message
     } finally {
       setSaving(false)
     }

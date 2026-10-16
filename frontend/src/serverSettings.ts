@@ -88,3 +88,36 @@ export function secretLine(status: ServerStatus, key: SecretName, edit: string |
   if (edit) return 'Saved when you save.'
   return s.set ? 'Saved. Type a new one to replace it.' : 'Not set.'
 }
+
+// --- Delivery's setup blocks: folded by default, one summary line each (DESIGN.md §5.7, DECISIONS.md 2026-10-16) ---
+
+export type SetupBlock = 'links' | 'ntfy' | 'email'
+export type SetupKey = keyof ServerFields | SecretName
+
+/** Each block's settings, in the order its fields show. */
+export const SETUP_KEYS: Record<SetupBlock, readonly SetupKey[]> = {
+  links: ['app_url'],
+  ntfy: ['ntfy_url', 'ntfy_topic', 'ntfy_token'],
+  email: ['smtp_host', 'smtp_port', 'smtp_starttls', 'smtp_user', 'smtp_password', 'alert_email_from', 'alert_email_to'],
+}
+const ALL_SETUP_KEYS: readonly string[] = Object.values(SETUP_KEYS).flat()
+
+/** The setup block a setting sits in; null for one outside Delivery. */
+export function blockOf(key: string): SetupBlock | null {
+  const entry = Object.entries(SETUP_KEYS).find(([, keys]) => keys.includes(key as SetupKey))
+  return entry ? (entry[0] as SetupBlock) : null
+}
+
+/** The setup settings a failed save names, in its order. The backend's 400 says `name: what's wrong` for each. */
+export function fieldsNamedIn(error: string): SetupKey[] {
+  return [...error.matchAll(/\b([a-z_]+):/g)].map((m) => m[1]).filter((k) => ALL_SETUP_KEYS.includes(k)) as SetupKey[]
+}
+
+/** The state on a folded block's summary. `ready`: the block's channel can send (the server's `configured`). */
+export function setupState(status: ServerStatus, block: SetupBlock, ready: boolean): string {
+  const fromEnv = block === 'links' ? status.fields.app_url.source === 'env'
+    : status.secrets[block === 'ntfy' ? 'ntfy_topic' : 'smtp_host'].source === 'env'
+  if (fromEnv) return "set in the server's environment"
+  if (block === 'links') return status.app_url_reachable ? 'phones can open it' : 'this computer only'
+  return ready ? 'set up' : 'not set up'
+}

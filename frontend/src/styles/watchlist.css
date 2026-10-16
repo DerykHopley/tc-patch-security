@@ -18,7 +18,7 @@
 }
 
 /* Setup for every other card: first, across the whole grid. */
-.settings-grid > .watchlist-card {
+.settings-layout > .watchlist-card {
   grid-column: 1 / -1;
 }
 
