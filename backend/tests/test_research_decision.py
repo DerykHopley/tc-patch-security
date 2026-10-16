@@ -145,6 +145,15 @@ def client_for(deps):
     return TestClient(create_app(deps), raise_server_exceptions=False)
 
 
+# --- B27.5: already so is just a message (B27, decision 7) ---------------------------------------------------------
+
+def test_b27_5_propose_decision_already_so_is_just_its_message(web_deps, given):
+    ctx = researched(web_deps)
+    given.decided(CVE, "fixed")
+    rec = propose(web_deps, ctx, status="fixed", review_in_days=None)
+    assert rec.status == "ok" and rec.result == {"message": f"{CVE} is already fixed: nothing to change."}
+
+
 # --- B22.4: approving uses B21's lifecycle; the decision record keeps what it cited -------------------------------
 
 def test_b22_4_approving_records_the_decision_with_its_sources(web_deps):

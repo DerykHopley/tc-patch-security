@@ -13,6 +13,7 @@ import type {
   AffectedProduct,
   CveResult,
   CweResult,
+  DecisionAlreadySo,
   FixFirstResult,
   Proposal,
   ResearchResult,
@@ -221,23 +222,25 @@ function FixFirstCard({ r, page }: { r: FixFirstResult; page: PageContext }) {
   )
 }
 
-function WatchlistCard({ r }: { r: WatchlistResult | Proposal }) {
-  const p = proposalOf({ result: r })
-  if (p) {
-    return (
-      <div className="result-card watchlist-card">
-        <p className="result-title">Proposed: {p.title}</p>
-        <p className="meta">
-          {p.before} → {p.after} · approve, edit or cancel it in the card under the answer
-        </p>
-      </div>
-    )
-  }
-  const w = r as WatchlistResult
+/** A proposal, from whichever tool made it (known by its shape, B27): the card under the answer acts on it. */
+function ProposedCard({ p }: { p: Proposal }) {
   return (
     <div className="result-card watchlist-card">
-      <p className="result-title">{w.message}</p>
-      <p className="meta">Watching: {w.watchlist.join(', ') || 'nothing'}</p>
+      <p className="result-title">Proposed: {p.title}</p>
+      <p className="meta">
+        {p.before} → {p.after} · approve, edit or cancel it in the card under the answer
+      </p>
+    </div>
+  )
+}
+
+/** Nothing to propose: it's already so. update_watchlist adds the watchlist as it is. */
+function AlreadySoCard({ r }: { r: Proposal | WatchlistResult | DecisionAlreadySo }) {
+  if ('proposal_id' in r) return null // a proposal: ProposedCard draws it
+  return (
+    <div className="result-card watchlist-card">
+      <p className="result-title">{r.message}</p>
+      {'watchlist' in r && <p className="meta">Watching: {r.watchlist.join(', ') || 'nothing'}</p>}
     </div>
   )
 }
@@ -409,13 +412,15 @@ function SearchCard({ r, query, applied, page }: {
 }
 
 function ResultCard({ call, page, applied }: { call: ToolCallRecord; page: PageContext; applied: RefineFilter[] }) {
+  const proposal = proposalOf(call) // by its shape, whichever tool proposed it (B27)
+  if (proposal) return <ProposedCard p={proposal} />
   // Checking the name narrows the result to that tool's type.
   if (call.name === 'lookup_cve' && call.result) return <CveCard r={call.result} />
   if (call.name === 'explain_weakness' && call.result) return <WeaknessCard r={call.result} />
   if (call.name === 'check_affected' && call.result) return <AffectedCard r={call.result} />
   if (call.name === 'prioritise' && call.result) return <FixFirstCard r={call.result} page={page} />
   if ((call.name === 'update_watchlist' || call.name === 'propose_decision') && call.result) {
-    return <WatchlistCard r={call.result} /> // a proposal (toolCalls.ts proposalOf), or "nothing to change"
+    return <AlreadySoCard r={call.result} /> // "nothing to change"
   }
   if (call.name === 'research_web' && call.result) return <ResearchCard r={call.result} />
   if (call.name === 'check_updates' && call.result) return <UpdatesCard r={call.result} />

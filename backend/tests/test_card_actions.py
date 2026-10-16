@@ -109,24 +109,8 @@ def test_b24_3_only_the_fixed_actions_are_accepted(client, deps, body):
     assert deps.state.read() == before
 
 
-def test_b24_3_a_proposal_checks_its_fields_like_the_forms(client, deps):
-    before = deps.state.read()
-    for body, words in [
-        ({"change": "set_status", "cve_id": CVE, "status": "accepted", "reason": "VPN"}, "review date"),
-        ({"change": "set_status", "cve_id": CVE, "status": "not_affected"}, "justification"),
-        ({"change": "set_details", "product": "Ollama", "version": "latest"}, "version"),
-        ({"change": "watch", "product": "Excel"}, "isn't a product"),
-        ({"change": "set_status", "cve_id": "CVE-1999-0001", "status": "not_affected",
-          "justification": "component_not_present"}, "isn't in the snapshot"),
-    ]:
-        err = act(client, {"action": "propose", **body}, status=400)["error"]
-        assert words in err["message"], err
-    assert deps.state.read() == before
-
-
-def test_b24_3_already_so_says_so_without_a_proposal(client):
-    body = act(client, {"action": "propose", "change": "watch", "product": "Ollama"})
-    assert body["proposal"] is None and "already on your watchlist" in body["message"]
+# What a change needs, "already so" and the errors are the proposal's own: tested once, through proposals.propose
+# (test_one_way_in.py, B27.1).
 
 
 # --- B24.13: a refine counts as a chat message (B11); a proposal doesn't ---------------------------------------------

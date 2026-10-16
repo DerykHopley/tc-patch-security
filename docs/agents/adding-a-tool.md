@@ -28,4 +28,4 @@ Where a new tool for Patch has to be wired, so it's found once instead of redisc
 
 - **Exposed to other assistants:** add it to the MCP server's specs (`app/mcp_server.py`). Read-only tools only.
 - **Next-step buttons on its card:** `app/card_actions.py` (fixed actions only). Changes go through a proposal (B21).
-- **Changes state:** it never acts. It returns a proposal through `app/proposals.py`, and the user's Approve applies it.
+- **Changes state:** it never acts. It calls the one way in, `proposals.propose(action, deps, cve_id=, product=, fields=, why=, sources=)`, and returns the proposal; the user's Approve applies it. `propose` checks what the action needs and the fields it takes, and raises `InputError` (`run_tool` makes it the tool's error): don't catch it. It returns `NoChange` when it's already so: return `{message}`. A new kind of change is one entry in `proposals.CHANGES` plus its inputs in `ProposalCard.tsx`'s `INPUTS` (B27).

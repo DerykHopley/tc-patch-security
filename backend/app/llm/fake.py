@@ -310,7 +310,8 @@ class FakeLLM:
 
     @staticmethod
     def _answer(script: dict | None, results: list[tuple[str, dict]], level: str = "normal") -> str:
-        """The template's fields, each from its tool by name (the result shapes are the tools' declared models)."""
+        """The template's fields, each from its tool by name (the result shapes are the tools' declared models); a
+        proposal, and "already so", by its shape, as the chat knows it (B27)."""
         from app.tools.registry import UNFINISHED  # here: the registry imports the tools, which import the LLM base
 
         fields: dict = {}
@@ -321,6 +322,16 @@ class FakeLLM:
                 fields["error"] = data["error"]["message"]
                 if data["error"].get("code") in UNFINISHED:
                     unfinished.append((name, data["error"]["message"]))
+            elif "proposal_id" in data:  # a proposal (B21), by its shape, whichever tool made it (B27)
+                said = f"I've proposed this: {data['title']}. {data['before']} → {data['after']}. "
+                if data["sources"]:  # a proposed decision (B22), with what it rests on
+                    cites = ", ".join(f"[{x['n']}] ({x['label']})" for x in data["sources"])
+                    fields["decision"] = f"{said}It rests on {cites}. {data['message']}"
+                else:
+                    fields["watch"] = said + data["message"]
+            elif "message" in data and set(data) <= {"message", "watchlist"}:  # nothing to propose: already so
+                fields["watch"] = fields["decision"] = data["message"] + (
+                    " Watching: " + ", ".join(data["watchlist"]) + "." if "watchlist" in data else "")
             elif name == "search_security":
                 sources += data["sources"]
             elif name == "check_affected":  # one CVE, or one product's open CVEs (A15)
@@ -335,14 +346,6 @@ class FakeLLM:
                 fields["web"] = _web(data)
             elif name == "check_updates":  # B06
                 fields["updates"] = _updates(data)
-            elif name == "propose_decision" and "proposal_id" in data:  # B22: a proposed decision, with its sources
-                cites = ", ".join(f"[{x['n']}] ({x['label']})" for x in data["sources"])
-                fields["decision"] = (f"I've proposed this: {data['title']}. {data['before']} → {data['after']}. "
-                                      f"It rests on {cites}. {data['message']}")
-            elif name in ("update_watchlist", "propose_decision"):  # a proposal (B21), or nothing to change
-                fields["watch"] = (f"I've proposed this: {data['title']}. {data['before']} → {data['after']}. "
-                                   f"{data['message']}" if "proposal_id" in data else
-                                   data["message"] + " Watching: " + ", ".join(data["watchlist"]) + ".")
 
         if script is None:
             parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness", "web", "updates")

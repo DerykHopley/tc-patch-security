@@ -148,12 +148,13 @@ export interface Proposal {
   approved_at: string | null
   approved_by: string | null
   sources: ProposalSource[]
+  editable: ('status' | 'justification' | 'note' | 'reason' | 'review_date' | 'compensating_control' | 'usage' | 'version' | 'internet_facing')[]
+  link_to: 'cve' | 'watchlist'
 }
 
-/** update_watchlist when there's nothing to change (B21): why not, and the watchlist as it is. */
-export interface WatchlistResult {
+/** propose_decision when the CVE already has that status: nothing to propose, and why (B27). */
+export interface DecisionAlreadySo {
   message: string
-  watchlist: string[]
 }
 
 /** What a proposal would set. Only the fields its action takes are filled; the others are null. */
@@ -295,6 +296,12 @@ export interface UpdatesSchedule {
   next_due: string | null
 }
 
+/** update_watchlist when there's nothing to change (B21): why not, and the watchlist as it is. */
+export interface WatchlistResult {
+  message: string
+  watchlist: string[]
+}
+
 /** explain_weakness for a CWE: its OWASP Top 10 category and the snapshot's CVEs with it. */
 export interface CweResult {
   kind: 'cwe'
@@ -362,11 +369,11 @@ export interface WebHit {
 export interface ToolResults {
   check_affected: AffectedOne | AffectedProduct
   lookup_cve: CveResult
-  update_watchlist: Proposal | WatchlistResult
-  propose_decision: Proposal | WatchlistResult
+  propose_decision: Proposal | DecisionAlreadySo
   prioritise: FixFirstResult
   search_security: SearchResult
   check_updates: UpdatesResult
+  update_watchlist: Proposal | WatchlistResult
   explain_weakness: CweResult | TechniqueResult
   research_web: ResearchResult
 }

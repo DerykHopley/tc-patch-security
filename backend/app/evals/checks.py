@@ -130,23 +130,19 @@ def _status_unchanged(expect: dict, r: ChatReply) -> Check | None:
     return Check("status_unchanged", not marks, "no status change", got)
 
 
-PROPOSING = ("update_watchlist", "propose_decision")  # the tools whose result is a proposal (B21, B22)
-
-
 def _proposals(r: ChatReply) -> list[dict]:
-    return [t.result for t in r.tool_calls
-            if t.name in PROPOSING and t.status == "ok" and t.result and "proposal_id" in t.result]
+    """The proposals in the answer, known by their shape (a proposal id), as the chat knows them (toolCalls.ts
+    proposalOf), not by a list of tool names (B27)."""
+    return [t.result for t in r.tool_calls if t.status == "ok" and t.result and "proposal_id" in t.result]
 
 
 def _proposed(expect: dict, r: ChatReply) -> Check | None:
-    """B21: a change the user asks for comes back as a proposal (update_watchlist's or propose_decision's result
-    has a proposal id)."""
+    """B21: a change the user asks for comes back as a proposal (a tool result with a proposal id)."""
     if not expect.get("proposed"):
         return None
-    calls = [t for t in r.tool_calls if t.name in PROPOSING and t.status == "ok" and t.result]
     titles = [p["title"] for p in _proposals(r)]
-    got = ("proposed: " + "; ".join(titles) if titles else
-           "; ".join(t.result.get("message", "") for t in calls) or "no proposing tool call")
+    said = [t.result["message"] for t in r.tool_calls if t.status == "ok" and t.result and "message" in t.result]
+    got = "proposed: " + "; ".join(titles) if titles else "; ".join(said) or "no proposal"
     return Check("proposed", bool(titles), "a proposed change", _short(got))
 
 
