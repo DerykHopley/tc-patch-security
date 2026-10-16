@@ -84,7 +84,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T
 }
 
-export const health = () => request<Health>('/health')
+// #69: the wait before the first paint passes a signal, to give up on a /health that doesn't answer
+export const health = (signal?: AbortSignal) => request<Health>('/health', { signal })
 
 // --- Chat (A06). Shapes written by hand from backend/app/schemas.py. Severity is the dashboard's, below.
 

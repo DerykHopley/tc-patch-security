@@ -37,10 +37,13 @@ def _short(text: str) -> str:
 
 
 def _tools(expect: dict, r: ChatReply) -> Check | None:
+    """Every tool in `tools`, or one at least of `tools_any` (#54: tools that give the same answer)."""
+    used = [t.name for t in r.tool_calls]
+    if any_of := expect.get("tools_any"):
+        return Check("tools", bool(set(any_of) & set(used)), " or ".join(any_of), ", ".join(used) or "no tool")
     want = expect.get("tools")
     if want is None:
         return None
-    used = [t.name for t in r.tool_calls]
     passed = set(want) <= set(used) if want else not used
     return Check("tools", passed, ", ".join(want) if want else "no tool", ", ".join(used) or "no tool")
 
@@ -381,15 +384,19 @@ LABELS |= {"same_citations": "Same citations at every level", "readability": "Re
 
 
 def score_levels(expect: dict, replies: dict[str, ChatReply]) -> list[Check]:
-    """Each answer's own checks must pass at every level (a failure names the level), then the comparisons."""
+    """Each answer's own checks must pass at every level (a failure names the level), then the comparisons. The key
+    fact only at the levels in `key_fact_levels`, when it's given (#54: the simple level leaves codes out)."""
     out = []
-    per_level = {lv: score(expect, r) for lv, r in replies.items()}
-    first = next(iter(per_level.values()))
-    for i, check in enumerate(first):
-        at = {lv: checks[i] for lv, checks in per_level.items()}
+    fact_at = expect.get("key_fact_levels") or list(replies)
+    per_level = {lv: {c.name: c for c in score(expect if lv in fact_at else
+                                               {k: v for k, v in expect.items() if k != "contains_any"}, r)}
+                 for lv, r in replies.items()}
+    for name in [n for n in CHECKS if any(n in checks for checks in per_level.values())]:  # in CHECKS order
+        at = {lv: checks[name] for lv, checks in per_level.items() if name in checks}
         failed = [lv for lv, c in at.items() if not c.passed]
-        got = "; ".join(f"{LEVEL_NAMES[lv]}: {at[lv].got}" for lv in failed) or check.got
-        out.append(Check(check.name, not failed, check.expected + " (at every level)", got))
+        where = "every level" if len(at) == len(replies) else ", ".join(LEVEL_NAMES[lv] for lv in at)
+        got = "; ".join(f"{LEVEL_NAMES[lv]}: {at[lv].got}" for lv in failed) or next(iter(at.values())).got
+        out.append(Check(name, not failed, next(iter(at.values())).expected + f" (at {where})", got))
     return out + [fn(expect, replies) for fn in LEVEL_CHECKS.values()]
 
 # What a failed check means, for reading a report (Deryk, 2026-10-15: one red for everything read as "can't answer").
@@ -401,16 +408,20 @@ LEVEL_ONLY = {"same_citations", "readability"}
 
 
 def failure_kind(failure: dict, levels: dict) -> str:
-    """'answer', 'safety' or 'levels'. A key fact asked at every level is a levels miss when some level has it."""
+    """'answer', 'safety' or 'levels'. A key fact asked at several levels is a levels miss when one of those levels
+    has it ("(at every level)", or since #54 "(at normal, deep dive)")."""
     name = failure["name"]
     if name in SAFETY:
         return "safety"
     if name in LEVEL_ONLY:
         return "levels"
-    if name == "key_fact" and levels and "(at every level)" in str(failure.get("expected", "")):
-        phrases = str(failure["expected"]).removeprefix("one of: ").removesuffix(" (at every level)").split(" | ")
-        found = [any(p.lower() in (v.get("answer") or "").lower().replace("\u2019", "'") for p in phrases)
-                 for v in levels.values()]
+    at = re.search(r" \(at (.+)\)$", str(failure.get("expected", "")))
+    if name == "key_fact" and levels and at:
+        asked = list(levels) if at[1] == "every level" else [
+            lv for lv, words in LEVEL_NAMES.items() if words in at[1].split(", ")]
+        phrases = failure["expected"][:at.start()].removeprefix("one of: ").split(" | ")
+        found = [any(p.lower() in (levels[lv].get("answer") or "").lower().replace("\u2019", "'") for p in phrases)
+                 for lv in asked if lv in levels]
         if any(found) and not all(found):
             return "levels"
     return "answer"

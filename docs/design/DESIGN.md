@@ -380,10 +380,29 @@ Only with sign-in on (`AUTH=on`). Off (locally, the tests) neither exists and no
 - **User menu** (`frontend/src/components/UserMenu.tsx`): in the top bar, before the light/dark switch. A 36px round button with the primary gradient, `--on-primary` initials (Fredoka 600, first letters of the first two words of the name), and the purple shadow; named "Your account: <name>". It opens a small card under it, right-aligned: `--surface`, 1px `--border`, radius `--radius-nested`, `--shadow-card`; the name (bold), the email (muted, 0.85rem) when it differs, then **Sign out** (a plain pill; "Signing out…" while it runs). It pops in like the bubble (0.16s). Esc or a click outside closes it; Esc puts the focus back on the button. Long names and emails wrap. After sign out, the sign-in screen.
 - *Checked* by the browser check B10.12–B10.15 (sign-in off: no menu, no Clerk; the screen with Clerk unreachable: Patch over the edge, 400px and 1400px, light and dark, Reload by keyboard, no API call but `/health`). The form with real Clerk, and the user menu, are checked only by B10.16, which needs the Clerk test instance (#65): *unverified* until it runs, including whether Clerk's element names for the card and heading (`cardBox`, `card`, `header`) still match.
 
+### 5.14 Loading screen (#69, 2026-10-16)
+
+What everyone sees until `/health` answers: it says whether sign-in is on, so neither the app nor the sign-in screen can show before it. Deployed with no warm instance, the first visit is a Cloud Run cold start (its time *unverified*, #45). Without this screen the page stayed blank. Why the choices: DECISIONS.md, 2026-10-16.
+
+- **Where**: `frontend/src/components/LoadingScreen.tsx`, `styles/loading.css`; the wait itself is `frontend/src/healthWait.ts`.
+- **Layout**: the sign-in screen's frame (§5.13). On the page background and glow (§3.3), one card in the middle: `--surface`, radius `--radius-card`, `--shadow-card`, max 26rem wide, centred text. Inside, top to bottom:
+  1. **Patch**, 110px, idle in a variant picked on page load, his head over the card's top edge (−3rem, §8.2).
+  2. The **brand** as in the sidebar (§4.1), with its dashed line under it.
+  3. The **status line** (an `<output>`, so a status region; 1.5rem Fredoka 700, `--accent`). Not a heading: the app's `h1` is what the browser checks wait on.
+  4. **Starting**: "Waking Patch up…" and one muted line: "The server can take a few seconds to start after a quiet spell."
+  5. **Offline**, once a try gets no answer in 15 s: "Backend offline — retrying", then an error line with a 3px `--error` edge on `--error-soft` (§5.7): "Patch's server didn't answer. Next try in N s." (counting down; "Trying again…" while a try is on its way) and **Retry** (a plain pill, never disabled). Tries repeat by themselves after 2, 4, 8, 16 s, then every 30 s; the app appears as soon as one answers.
+- A `/health` that **fails outright** (refused, an error status) is not this screen: the app shows, saying "Backend offline", as before.
+- No theme switch: the screen follows the saved or system theme, set before the first paint (§9).
+- Motion: the card fades up (0.45s, §7.1), 0.2s late, so a `/health` that answers at once never flashes it. Patch idles (§8.3). With reduced motion nothing moves (scene `b69_12_loading_screen`).
+- At 400px the card fills the width less 1rem each side; nothing scrolls sideways.
+- *Checked* by the browser check B69.7 to B69.12 (late, hung past the timeout and failing `/health`; recovers by itself and with Retry; Retry by keyboard; 400px and 1400px, light and dark; Ctrl+K the moment the shell appears after a late `/health`) and the unit tests B69.1 to B69.6 (the timeout and backoff, on a fake clock).
+
 ### Checklist: components
 
 - [ ] Settings layout (§5.7): Watchlist across the top, two packed columns (left Alerts, Refresh runs, Delivery; right Patch's answers, Priority and due dates, Data) with no holes; Tab follows that order; one column in the same order at ≤ 900px, no sideways scroll at 400px.
 - [ ] Delivery's setup blocks (§5.7): folded by default, each summary naming the block and its state; channel rows stay visible; Enter and Space open and fold, focus visible; ticking a channel that isn't set up opens its block; a failed save opens its block and focuses the field; edits survive folding; nothing animates; light and dark, 400px and 1400px.
+
+- [ ] Loading screen (#69): shows at once, before `/health` answers, with Patch idling over the card's edge and a status line; offline after 15 s with the countdown and Retry (by keyboard, focus kept); recovers by itself; an outright failure shows the app's "Backend offline"; light and dark, 400px and 1400px, nothing moves with reduced motion; Ctrl+K works the moment the app appears.
 
 - [ ] Sign-in (B10): signed out, only the sign-in screen (Patch over the card's edge, brand, heading, invite line, Clerk's form in our tokens), loading and failed states, the theme switch; at 400px nothing scrolls sideways; signed in, the user menu with name, email and Sign out, Esc and outside click close it; nothing of Clerk's with sign-in off.
 
@@ -519,6 +538,7 @@ All motion is part of the spec. **It stops with `prefers-reduced-motion: reduce`
 | KEV tile | wiggle: rotate −1.2° (91%), +1.2° (94%), −0.6° (97%), still otherwise | 4s, ease-in-out | — | forever |
 | Bubble window | pop: from `opacity 0`, `translateY(8px) scale(0.98)` | 0.16s, ease | — | on open |
 | Sign-in card (§5.13) | the cards' fade up | 0.45s, the cards' curve | 0s | once, on load |
+| Loading card (§5.14) | the cards' fade up | 0.45s, the cards' curve | 0.2s | once, on load |
 | User menu card (§5.13) | the bubble's pop | 0.16s, ease | — | on open |
 | Sidebar collapse | width 250 ↔ 78px; chevron rotates 180° | 0.2s, ease | — | on toggle |
 | Pin icon | rotates from 35° to 0° when pinned | 0.15s, ease | — | on toggle |
