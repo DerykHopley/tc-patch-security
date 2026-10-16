@@ -99,6 +99,22 @@ Spec A's tickets ([#2](https://github.com/DerykHopley/tc-patch-security/issues/2
 - Not run: `openai/gpt-oss-120b` (not on the OpenRouter workspace's allow-list), `mistralai/mistral-small-2603` (same).
 - Three bugs on our side were found by the first runs and fixed (citation rule for every tool, Unicode hyphens in CVE ids, curly apostrophes). The rest of the shared failures are follow-ups below.
 
+## Real live run (B07, 2026-10-16)
+
+The owner's app on `spec-b`, live mode with the real feeds (`FEEDS=real`), no NVD key, the systemd user timer installed. Checked in the timer's journal and the run's JSON.
+
+| | |
+|---|---|
+| Run | scheduled tick, 14:02:15 to 14:05:31 UTC: **3 min 16 s**, 3.2 s CPU, 198 MB peak |
+| Feeds | NVD, CISA KEV, OSV.dev and EPSS all answered (`status: ok`), NVD from the snapshot date (2026-10-13) |
+| Found | 2 new CVEs (CVE-2026-110719 on Ollama, Medium; CVE-2025-63390, not watched), 1 updated, 0 added to KEV, 0 rescored |
+| Alerts | none: the new watched CVE is below the minimum severity (High), and this week's overdue digest had already been sent |
+| Next tick | 14:10 UTC skipped as not due (every 6 h), exit 0 |
+
+- NVD accepted the `...000Z` dates without a key (B03's open point). The `apiKey` header is still unverified.
+- Found on the way: live mode defaulted to the **fake** feeds, so the first "live" run alerted made-up CVEs (#74 makes the real feeds the default). Snapshot-mode ticks showed as failed services (also #74).
+- Still open, not blocking: a real alert from a real run on the owner's phone, with its delay and screenshots (#75). The next weekly overdue digest (week 2026-W43) or a new watched CVE will send one.
+
 ## What's open
 
 Follow-ups from spec A, not scheduled yet (`needs-triage`):
