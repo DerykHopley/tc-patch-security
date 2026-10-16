@@ -123,16 +123,18 @@ def test_a06_3_patch_on_the_chat_button_stands_in_front_of_the_pill(open_app):
     assert round(1400 - (b["x"] + b["width"])) == round(1.25 * REM)
     assert round(900 - (b["y"] + b["height"])) == round(1.25 * REM)
     robot, pill = fab_bot(page), button.locator(".patch-pill")
-    assert robot.get_attribute("width") == "58"
+    assert robot.get_attribute("width") == "68"  # the chat button's Patch (Deryk, 2026-10-16: 58 was a bit small)
     rb, pb = box(robot), box(pill)
     assert round(pb["height"]) == 30 and round(pb["width"]) == 84
     assert rb["y"] < pb["y"] < rb["y"] + rb["height"]  # overlaps the pill's top edge
+    assert round(b["y"] - rb["y"]) == 8  # no higher than the 58px Patch was: he covers no more of the page
+    assert rb["y"] + rb["height"] <= pb["y"] + pb["height"]  # the extra size goes down, still within the pill
     z = lambda loc: int(loc.evaluate("el => getComputedStyle(el).zIndex"))  # noqa: E731
     assert z(robot) > z(pill)  # Patch in front, the pill behind
 
 
 def test_a06_3_patch_in_the_header_and_at_the_greeting_bubble_s_corner(open_app):
-    """The greeting's Patch is the chat button's Patch (58px, in front), on the bubble's top-left corner; only the
+    """The greeting's Patch (58px, in front, as on the chat button) sits on the bubble's top-left corner; only the
     first line of text sits beside him (Deryk, 2026-10-15: at 92px behind the bubble, half of him was hidden)."""
     page = open_app()
     chat = open_chat(page)
