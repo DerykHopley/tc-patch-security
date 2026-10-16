@@ -36,7 +36,7 @@ No key, no network. Each command prints its own counts (passed, skipped), so thi
 | Container image (B12) | `frontend/e2e/container.sh` (needs Docker) | image builds; /health, embedder check, no `.env` or secret, the Cloud Storage client present, a short browser check in Chromium |
 | Report builds | `cd backend && uv run python -m app.evals fake-report --out /tmp/r.html` | FakeLLM and fake embedders; CI uploads it |
 
-- CI ([.github/workflows/ci.yml](./.github/workflows/ci.yml)) runs all of these once per push to `main` or `spec-*`, and on pull requests from other branches. A docs-only push skips the browser check.
+- CI ([.github/workflows/ci.yml](./.github/workflows/ci.yml)) runs all of these once per push to `main` or `spec-*`, and on pull requests from other branches. A docs-only push skips the browser check. The browser check runs as two jobs side by side, one per browser, so it takes half as long.
 - The pre-commit hook (`.githooks/pre-commit`, on with `git config core.hooksPath .githooks`) runs two of CI's checks before each commit: no staged conflict markers, and the fixed-wait check.
 - Merging a ticket branch into `spec-b`: `scripts/ff-merge.sh <branch>` (`--dry-run` first shows the plan). See [docs/agents/issue-tracker.md](./docs/agents/issue-tracker.md).
 - Review rules that lint can't check: [CODING_STANDARDS.md](./CODING_STANDARDS.md). Each test names its check id (`A<ticket>.<n>`).
