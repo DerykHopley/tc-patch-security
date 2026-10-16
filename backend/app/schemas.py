@@ -88,3 +88,6 @@ class ChatReply(BaseModel):
     explain_level: ExplainLevel = "normal"  # the level this answer was pitched at (A19)
     page_context: dict[str, Any] = Field(default_factory=dict)  # the checked page context Patch had (A18)
     dropped_context: list[str] = Field(default_factory=list)  # page-context values dropped: "key=value"
+    # The tools didn't run again: this answers from the earlier answer's search for this question, at another
+    # explain level (#51), so its sources and numbers are the same
+    search_reused: bool = False

@@ -161,6 +161,7 @@ export interface ChatReply {
   explain_level: ExplainLevel // the level this answer was pitched at (A19)
   page_context: PageContext // the checked page context Patch had (A18)
   dropped_context: string[] // page-context values the backend dropped: "key=value"
+  search_reused: boolean // #51: answered from the earlier answer's search at another level: the same sources
 }
 
 // Page context (A18): fixed fields only, each checked by the backend (app/page_context.py). Never free text.
