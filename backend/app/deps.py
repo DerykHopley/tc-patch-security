@@ -32,6 +32,7 @@ from app.rag.keyword import BM25Index
 from app.rag.pipeline import SearchOptions
 from app.rag.vector import ChromaIndex, IndexMismatch, build_index, open_index, sync_index
 from app.refresh import Refresher, make_refresher, utc_now
+from app.search_memory import SearchMemory
 from app.server_settings import effective
 from app.state import State
 from app.store import MemoryStore, open_bucket
@@ -60,6 +61,7 @@ class Deps:
     user_id: str = DEFAULT_USER  # whose request this is (B09): `state` is theirs
     user_name: str | None = None  # the signed-in user's name (B10); None with sign-in off or a test's fake user
     env: Settings | None = None  # B26: the settings from the environment; `settings` adds the owner's saved ones
+    searches: SearchMemory = field(default_factory=SearchMemory)  # #51: each user's last search; shared by for_user
     _feeds: Feeds | None = None  # the feeds a test passed; None: the settings' (made again when the NVD key changes)
     _bucket: object = None  # STORE=gcs: the bucket, for a refresher made when live mode is switched on (B26)
     _snapshot: Knowledge | None = None  # the snapshot's knowledge, for switching back from live mode (B26)

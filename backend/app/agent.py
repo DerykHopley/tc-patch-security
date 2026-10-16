@@ -4,12 +4,13 @@ Moved from proto (A06). Our own loop, not a LangChain agent (docs/adr/0001-thin-
 """
 import json
 from collections.abc import Collection
+from dataclasses import dataclass
 
 from app import guard, page_context
 from app.app_settings import ExplainLevel
 from app.citations import check_citations
 from app.config import FIXTURES
-from app.schemas import ChatReply
+from app.schemas import ChatReply, QueryInfo, Source, ToolCallRecord
 from app.tools.registry import Context, failed_on_purpose, run_tool, tool_schemas
 
 SYSTEM_PROMPT = """You are a security assistant for people who build applications with large language models.
@@ -82,20 +83,62 @@ def examples(web: bool = False) -> list[dict]:
             if "page" not in s and "fail_tools" not in s and (web or not s.get("web"))]
 
 
+@dataclass(frozen=True)
+class Search:
+    """What the tools gave for one question (#51): each round of tool calls (the model's text with it, and the
+    records in call order), the numbered sources and the last query. Another explain level answers from it."""
+    rounds: tuple[tuple[str | None, tuple[ToolCallRecord, ...]], ...]
+    sources: tuple[Source, ...]
+    query: QueryInfo | None
+
+    @property
+    def records(self) -> list[ToolCallRecord]:
+        return [rec for _, recs in self.rounds for rec in recs]
+
+
+# A tool call on a reused search (#51) runs nothing: the sources stay the ones every level cites.
+ALREADY_SEARCHED = {"already_searched": "The tools already ran for this question, at another explain level. Answer "
+                                        "from their results above, with the same sources and numbers."}
+
+
+def _call_message(content: str | None, calls) -> dict:
+    return {"role": "assistant", "content": content, "tool_calls": [
+        {"id": c.id, "type": "function", "function": {"name": c.name, "arguments": json.dumps(c.args)}}
+        for c in calls]}
+
+
+def _tool_message(rec: ToolCallRecord) -> dict:
+    payload = rec.result if rec.status == "ok" else {"error": rec.error}
+    return {"role": "tool", "tool_call_id": rec.id, "content": guard.wrap_untrusted(rec.name, payload)}  # V3
+
+
 def answer(message: str, history: list[dict], deps, level: ExplainLevel = "normal",
-           page: dict | None = None, fail_tools: Collection[str] = ()) -> ChatReply:
-    """The agent loop for a message the guard has passed (app.chat_turn runs the guard and sets the flags).
-    `page`: the page context, already checked by app.page_context (A18); the tools read it from the Context.
-    The step limit is the dev panel's (A11). `fail_tools`: tools that time out instead of running (B20's switch)."""
+           page: dict | None = None, fail_tools: Collection[str] = (), reuse: Search | None = None) -> ChatReply:
+    """The agent loop for a message the guard has passed (app.chat_turn runs the guard and sets the flags)."""
+    return answer_and_search(message, history, deps, level, page, fail_tools, reuse)[0]
+
+
+def answer_and_search(message: str, history: list[dict], deps, level: ExplainLevel = "normal",
+                      page: dict | None = None, fail_tools: Collection[str] = (),
+                      reuse: Search | None = None) -> tuple[ChatReply, Search]:
+    """The answer, and the search it rests on. `page`: the page context, already checked by app.page_context (A18);
+    the tools read it from the Context. The step limit is the dev panel's (A11). `fail_tools`: tools that time out
+    instead of running (B20's switch). `reuse`: an earlier turn's search for this question (#51): its tool calls and
+    results reach the model as they did then, wrapped by the guard again, and no tool runs."""
     page = page or {}
     max_steps = deps.dev().max_steps
     ctx = Context(page=page, user_id=deps.user_id)
-    records = []
+    records: list[ToolCallRecord] = []
+    rounds: list[tuple[str | None, tuple[ToolCallRecord, ...]]] = []
     # One system message: some local models' chat templates accept only one, and only first.
     tools = tool_schemas(deps)  # only the tools that are on (research_web needs its key, B08)
     web = any(t["function"]["name"] == "research_web" for t in tools)
     system = system_prompt(level, web) + (f"\n\n{page_context.for_model(page)}" if page else "")
     messages = [{"role": "system", "content": system}, *history, {"role": "user", "content": message}]
+    if reuse is not None:  # the earlier turn's tool steps, as the model saw them then
+        ctx.sources, ctx.query, records, rounds = list(reuse.sources), reuse.query, reuse.records, list(reuse.rounds)
+        for content, recs in reuse.rounds:
+            messages += [_call_message(content, recs), *map(_tool_message, recs)]
     final = None
     steps = 0
 
@@ -106,20 +149,16 @@ def answer(message: str, history: list[dict], deps, level: ExplainLevel = "norma
         if not reply.tool_calls:
             final = reply.content or ""
             break
-        messages.append({
-            "role": "assistant",
-            "content": reply.content,
-            "tool_calls": [
-                {"id": tc.id, "type": "function", "function": {"name": tc.name, "arguments": json.dumps(tc.args)}}
-                for tc in reply.tool_calls
-            ],
-        })
-        for tc in reply.tool_calls:
-            rec = failed_on_purpose(tc) if tc.name in fail_tools else run_tool(tc, deps, ctx)
-            payload = rec.result if rec.status == "ok" else {"error": rec.error}
-            text = guard.wrap_untrusted(tc.name, payload)  # V3
-            records.append(rec)
-            messages.append({"role": "tool", "tool_call_id": tc.id, "content": text})
+        messages.append(_call_message(reply.content, reply.tool_calls))
+        if reuse is not None:  # the search is the earlier turn's: nothing runs, no source is added
+            messages += [{"role": "tool", "tool_call_id": tc.id,
+                          "content": guard.wrap_untrusted(tc.name, ALREADY_SEARCHED)} for tc in reply.tool_calls]
+            continue
+        recs = tuple(failed_on_purpose(tc) if tc.name in fail_tools else run_tool(tc, deps, ctx)
+                     for tc in reply.tool_calls)
+        records += recs
+        rounds.append((reply.content, recs))
+        messages += map(_tool_message, recs)
 
     if final is None:  # T7: step limit hit without a final answer
         found = "\n".join(f"- {s.title} [{s.n}]" for s in ctx.sources[:3])
@@ -129,9 +168,10 @@ def answer(message: str, history: list[dict], deps, level: ExplainLevel = "norma
 
     final = final.translate(PLAIN_HYPHENS)
     checked = check_citations(final, {s.n for s in ctx.sources})
-    return ChatReply(answer=checked.answer, sources=ctx.sources, tool_calls=records, query=ctx.query,
-                     usage=ctx.usage, steps=steps, bad_citations=checked.bad,
-                     no_citations=bool(ctx.sources) and not checked.cited, explain_level=level,
-                     page_context=page,
-                     # a web page with injection phrasing (B08): flagged and kept as data, never followed
-                     flags=["web_injection_phrasing"] if any(s.flags for s in ctx.sources) else [])
+    reply = ChatReply(answer=checked.answer, sources=ctx.sources, tool_calls=records, query=ctx.query,
+                      usage=ctx.usage, steps=steps, bad_citations=checked.bad,
+                      no_citations=bool(ctx.sources) and not checked.cited, explain_level=level,
+                      page_context=page, search_reused=reuse is not None,
+                      # a web page with injection phrasing (B08): flagged and kept as data, never followed
+                      flags=["web_injection_phrasing"] if any(s.flags for s in ctx.sources) else [])
+    return reply, Search(tuple(rounds), tuple(ctx.sources), ctx.query)

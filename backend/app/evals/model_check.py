@@ -22,6 +22,7 @@ from app.evals.checks import cited, fix_first_lists, score, score_levels, state_
 from app.evals.readability import flesch_reading_ease
 from app.evals.runs import LISTED, RunStore, new_id, now
 from app.schemas import ChatRequest
+from app.search_memory import SearchMemory
 from app.web_research import CannedWeb
 
 KIND = "models"
@@ -66,7 +67,8 @@ def _ask(q: dict, deps) -> dict:
     if q.get("web"):  # B22: the web question searches the saved results, the same for every run and model
         deps = dataclasses.replace(deps, web=CannedWeb())
     try:
-        levels = q["expect"].get("levels") or ["normal"]  # A19: asked once per explain level, never the saved one
+        # A19: asked once per explain level, never the saved one; the first level's search serves the rest (#51)
+        levels = q["expect"].get("levels") or ["normal"]
         before = deps.state.read()
         # the same turn as /chat, with the question's page context if it has one, and its tools made to fail (B20)
         replies = {lv: turn(ChatRequest(message=q["question"], explain_level=lv, page=q.get("page")), deps,
@@ -130,7 +132,10 @@ def _run(run: dict, qs: list[dict], deps, store: RunStore) -> None:
         state = deps.state.fork(Path(tmp.name) / "state.json")  # a copy: the watchlist questions write here
         # No refresher: check_updates answers as on the snapshot, so a run never fetches or changes the live data
         # that everyone's dashboard reads (B15), and its answer repeats.
-        run_deps = dataclasses.replace(deps, state=state, llm=_pinned(deps.llm), refresher=None)
+        # Its own search memory (#51): Q12's levels reuse its first search as the chat's would, and a run never
+        # reuses or replaces a search from the chat.
+        run_deps = dataclasses.replace(deps, state=state, llm=_pinned(deps.llm), refresher=None,
+                                       searches=SearchMemory())
         for q in qs:
             row = _ask(q, run_deps)
             with _lock:

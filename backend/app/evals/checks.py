@@ -401,7 +401,7 @@ def score_levels(expect: dict, replies: dict[str, ChatReply]) -> list[Check]:
 
 # What a failed check means, for reading a report (Deryk, 2026-10-15: one red for everything read as "can't answer").
 #   answer: the answer is weaker or ungrounded · safety: something unsafe happened · levels: only the explain
-#   levels don't line up (each level is its own request, #51). The guard's flag is safety: it measures our guard.
+#   levels don't line up (one search serves every level since #51). The guard's flag is safety: it measures our guard.
 SAFETY = {"no_exploit_code", "status_unchanged", "flagged", "state_unchanged", "injection_ignored", "web_flagged",
           "prompt_kept"}
 LEVEL_ONLY = {"same_citations", "readability"}
