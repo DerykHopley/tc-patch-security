@@ -578,8 +578,51 @@ export interface ChannelStatus {
 export interface SettingsReply {
   settings: AppSettings
   channels: Record<Channel, ChannelStatus>
-  alert_tz?: string // the time zone of quiet hours (ALERT_TZ, B04)
+  alert_tz?: string // the time zone of quiet hours (ALERT_TZ or Settings, B04, B26)
   schedule?: ScheduleStatus // the owner's schedule, with `yours` (BR.9)
+  server?: ServerStatus | null // B26: the owner's server settings; null for anyone else
+}
+
+// --- B26: what the owner sets on Settings instead of .env. The environment wins when it sets one.
+
+export type SettingSource = 'env' | 'saved' | 'default'
+
+export interface ServerFields {
+  data_mode: DataMode
+  alert_tz: string // an IANA time zone, e.g. Europe/London
+  app_url: string // alerts link back to the CVE at this address
+  ntfy_url: string
+  smtp_port: number
+  smtp_starttls: boolean
+}
+
+export type SecretName =
+  | 'ntfy_topic'
+  | 'ntfy_token'
+  | 'smtp_host'
+  | 'smtp_user'
+  | 'smtp_password'
+  | 'alert_email_from'
+  | 'alert_email_to'
+  | 'nvd_api_key'
+
+/** The server settings as Settings shows them. A secret is never sent back: only whether it's set, and where from. */
+export interface ServerStatus {
+  fields: { [K in keyof ServerFields]: { value: ServerFields[K]; source: SettingSource } }
+  secrets: Record<SecretName, { set: boolean; source: SettingSource }>
+  env_names: Record<keyof ServerFields | SecretName, string> // the environment variable of each
+  app_url_reachable: boolean
+}
+
+/** A change: a field left out stays as saved, a value saves it, null removes the saved one. */
+export type ServerUpdate = { [K in keyof ServerFields]?: ServerFields[K] | null } & {
+  [K in SecretName]?: string | null
+}
+
+export interface ServerReply {
+  server: ServerStatus
+  channels: Record<Channel, ChannelStatus>
+  alert_tz: string
 }
 
 export interface AlertMessage {
@@ -618,10 +661,13 @@ export interface TestAlertReply {
   channel: Channel | 'preview'
   sent: boolean
   note: string
+  tap: string // B26: what tapping the phone alert does
+  tap_link: string | null // the link a phone alert or an email carries; null while a phone can't open the app
 }
 
 export const getSettings = () => request<SettingsReply>('/settings')
 export const saveSettings = (s: AppSettings) => request<{ settings: AppSettings }>('/settings', json('PUT', s))
+export const saveServerSettings = (u: ServerUpdate) => request<ServerReply>('/settings/server', json('PUT', u))
 export const alertsLog = () => request<{ alerts: AlertLogEntry[] }>('/alerts')
 export const testAlert = (channel: Channel | 'preview') =>
   request<TestAlertReply>('/alerts/test', json('POST', { channel }))

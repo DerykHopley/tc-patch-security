@@ -1,0 +1,84 @@
+// The owner's server settings on Settings (B26): what the form starts from, what Save sends, the words. `npm test`.
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import type { ServerStatus } from './api.ts'
+import { baselineOf, reachableFromPhone, secretLine, serverChanges, sourceLine, tapLine } from './serverSettings.ts'
+
+const status = (over: Partial<ServerStatus['fields']> = {}): ServerStatus => ({
+  fields: {
+    data_mode: { value: 'snapshot', source: 'default' },
+    alert_tz: { value: 'UTC', source: 'default' },
+    app_url: { value: 'http://localhost:5173', source: 'default' },
+    ntfy_url: { value: 'https://ntfy.sh', source: 'default' },
+    smtp_port: { value: 587, source: 'default' },
+    smtp_starttls: { value: true, source: 'default' },
+    ...over,
+  },
+  secrets: {
+    ntfy_topic: { set: true, source: 'env' },
+    ntfy_token: { set: false, source: 'default' },
+    smtp_host: { set: true, source: 'saved' },
+    smtp_user: { set: false, source: 'default' },
+    smtp_password: { set: false, source: 'default' },
+    alert_email_from: { set: false, source: 'default' },
+    alert_email_to: { set: false, source: 'default' },
+    nvd_api_key: { set: false, source: 'default' },
+  },
+  env_names: {
+    data_mode: 'DATA_MODE', alert_tz: 'ALERT_TZ', app_url: 'APP_URL', ntfy_url: 'NTFY_URL', smtp_port: 'SMTP_PORT',
+    smtp_starttls: 'SMTP_STARTTLS', ntfy_topic: 'NTFY_TOPIC', ntfy_token: 'NTFY_TOKEN', smtp_host: 'SMTP_HOST',
+    smtp_user: 'SMTP_USER', smtp_password: 'SMTP_PASSWORD', alert_email_from: 'ALERT_EMAIL_FROM',
+    alert_email_to: 'ALERT_EMAIL_TO', nvd_api_key: 'NVD_API_KEY',
+  },
+  app_url_reachable: false,
+})
+
+test('B26.8 an address on this machine is unreachable from a phone; a LAN, Tailscale or Cloud Run one is', () => {
+  for (const url of ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://127.4.5.6', 'http://[::1]:5173',
+    'http://0.0.0.0:8000', 'http://app.localhost', '', 'not a url']) {
+    assert.equal(reachableFromPhone(url), false, url)
+  }
+  for (const url of ['https://patch-abc.a.run.app', 'http://192.168.1.20:5173', 'http://desk.tail1234.ts.net']) {
+    assert.equal(reachableFromPhone(url), true, url)
+  }
+})
+
+test('B26.8 the tap line says what tapping an alert does', () => {
+  assert.match(tapLine('http://localhost:5173'), /opens the message in the ntfy app/)
+  assert.match(tapLine('https://patch-abc.a.run.app'), /opens Patch at the CVE/)
+})
+
+test("B26.8 the time zone starts as the browser's while nothing is saved and no quiet hours depend on UTC", () => {
+  assert.equal(baselineOf(status(), 'Europe/Vilnius', false).alert_tz, 'Europe/Vilnius')
+  assert.equal(baselineOf(status(), 'Europe/Vilnius', true).alert_tz, 'UTC') // saved quiet hours keep working
+  const saved = status({ alert_tz: { value: 'Asia/Tokyo', source: 'saved' } })
+  assert.equal(baselineOf(saved, 'Europe/Vilnius', false).alert_tz, 'Asia/Tokyo')
+  const env = status({ alert_tz: { value: 'UTC', source: 'env' } })
+  assert.equal(baselineOf(env, 'Europe/Vilnius', false).alert_tz, 'UTC')
+})
+
+test('B26.8 Save sends only what changed, the secrets typed or removed, and the zone with new quiet hours', () => {
+  const s = status()
+  const base = baselineOf(s, 'Europe/Vilnius', false)
+  assert.deepEqual(serverChanges(s, base, base, {}, false), {})
+  assert.deepEqual(serverChanges(s, base, { ...base, data_mode: 'live' }, {}, false), { data_mode: 'live' })
+  assert.deepEqual(serverChanges(s, base, base, { ntfy_token: 'tk_new', smtp_host: null }, false),
+    { ntfy_token: 'tk_new', smtp_host: null })
+  assert.deepEqual(serverChanges(s, base, base, { ntfy_token: '' }, false), {}) // an empty box changes nothing
+  // the browser's zone is saved with the first quiet hours, so they mean what the owner sees
+  assert.deepEqual(serverChanges(s, base, base, {}, true), { alert_tz: 'Europe/Vilnius' })
+  assert.deepEqual(serverChanges(s, base, { ...base, app_url: 'http://192.168.1.20:5173/' }, {}, false),
+    { app_url: 'http://192.168.1.20:5173' })
+})
+
+test('B26.8 a setting from the environment says so, and a secret says only whether it is set', () => {
+  const s = status()
+  assert.equal(sourceLine(s, 'data_mode'), null)
+  assert.equal(sourceLine(status({ data_mode: { value: 'live', source: 'env' } }), 'data_mode'),
+    "Set in the server's environment (DATA_MODE), which wins.")
+  assert.equal(secretLine(s, 'ntfy_topic', undefined), "Set in the server's environment (NTFY_TOPIC), which wins.")
+  assert.equal(secretLine(s, 'smtp_host', undefined), 'Saved. Type a new one to replace it.')
+  assert.equal(secretLine(s, 'smtp_host', null), 'Removed when you save.')
+  assert.equal(secretLine(s, 'ntfy_token', undefined), 'Not set.')
+  assert.equal(secretLine(s, 'ntfy_token', 'x'), 'Saved when you save.')
+})

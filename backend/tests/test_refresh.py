@@ -240,8 +240,10 @@ def test_b02_6_snapshot_mode_has_nothing_to_check(client):
     assert client.get("/dashboard").json()["data"] == {"mode": "snapshot", "last_checked": None, "last_result": None,
                                                        "schedule": {"hours": 6, "paused": False, "next_due": None,
                                                                     "yours": True}}
-    assert client.post("/refresh/reset", json={"confirm": "reset"}).status_code == 404
-    assert client.post("/refresh/fake-feeds", json={"fail": []}).status_code == 404  # B20: the fake live feeds only
+    # B26: live mode can be switched on from Settings, so the fake feeds' routes exist, and say there's nothing live
+    for path, body in (("/refresh/reset", {"confirm": "reset"}), ("/refresh/fake-feeds", {"fail": []})):
+        r = client.post(path, json=body)
+        assert (r.status_code, r.json()["error"]["code"]) == (400, "snapshot_mode")
 
 
 def test_b02_6_the_cli_runs_the_same_refresh_and_the_server_picks_it_up(live, monkeypatch, capsys):
@@ -258,10 +260,11 @@ def test_b02_6_the_cli_runs_the_same_refresh_and_the_server_picks_it_up(live, mo
     assert live.check_now()["refusal"]["reason"] == "too_soon"  # the CLI's run counts for the 5 minutes
 
 
-def test_b02_6_the_cli_refuses_in_snapshot_mode(monkeypatch, capsys):
+def test_b02_6_the_cli_refuses_in_snapshot_mode(monkeypatch, capsys, tmp_path):
     from app import refresh
 
     monkeypatch.setenv("DATA_MODE", "snapshot")
+    monkeypatch.setenv("STATE_PATH", str(tmp_path / "state.json"))  # B26: the CLI reads the owner's saved settings
     assert refresh.main() == 2 and "DATA_MODE" in capsys.readouterr().err
 
 

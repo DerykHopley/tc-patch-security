@@ -85,6 +85,7 @@ frontend() {
 (cd "$ROOT/backend" && exec uv run python tests/fake_tavily.py --port "$TAVILY_PORT") >"$LOG_DIR/tavily.log" 2>&1 &
 PIDS+=($!)
 (cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/state.json" AS_OF= NOTIFY_DRY_RUN=1 AUTH=off \
+  LIVE_PATH="$STATE_DIR/snapshot-live" \
   EMBEDDER=hash INDEX_PATH="$STATE_DIR/index" SEARCH_MIN_SCORE= \
   CORS_ORIGINS="http://localhost:$UI_PORT,http://127.0.0.1:$UI_PORT" \
   TAVILY_API_KEY=tvly-fake-e2e TAVILY_MCP_URL="http://127.0.0.1:$TAVILY_PORT/mcp/" \

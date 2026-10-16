@@ -3,9 +3,11 @@
 Channels: ntfy (phone push), email (SMTP) and desktop (the OS's own notification on the machine running the
 backend). "preview" builds the alert and records it without sending. Every channel gets the same structured
 message: never the CVE description, which is untrusted text and shows on a lock screen. Secrets (topic, token,
-SMTP password) come from .env and never leave the server.
+SMTP password) come from .env or the owner's Settings (B26) and never leave the server. A phone alert or an email
+carries the link back to the CVE only when a phone can open it (`tap_link`, B26).
 """
 import datetime as dt
+import ipaddress
 import json
 import platform
 import shutil
@@ -16,6 +18,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from email.message import EmailMessage
 from typing import Any, Protocol
+from urllib.parse import urlsplit
 
 from app.errors import AppError
 
@@ -29,6 +32,27 @@ CHANNELS = ("desktop", "email", "ntfy")
 
 class NotifyError(AppError):
     code = "notify_failed"
+
+
+def reachable_from_phone(url: str | None) -> bool:
+    """B26: whether a phone could open `url`. Not when its host is this machine (localhost, 127.0.0.0/8, ::1) or
+    "any address" (0.0.0.0): on a phone that is the phone itself. A LAN, Tailscale or Cloud Run address is."""
+    host = urlsplit(url or "").hostname
+    if not host:
+        return False
+    if host == "localhost" or host.endswith(".localhost"):
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return True  # a host name
+    return not (ip.is_loopback or ip.is_unspecified)
+
+
+def tap_link(click: str | None) -> str | None:
+    """The link a phone alert (ntfy) or an email carries: none while the app's address is unreachable from a phone,
+    so tapping opens the message in the ntfy app instead of a page that can't load (B26)."""
+    return click if click and click.startswith("http") and reachable_from_phone(click) else None
 
 
 def desktop_command() -> str | None:
@@ -92,8 +116,8 @@ class NtfyNotifier:
 
     def send(self, title, body, priority, tags, click) -> None:
         payload = {"topic": self.topic, "title": title, "message": body, "priority": priority, "tags": tags}
-        if click and click.startswith("http"):
-            payload["click"] = click
+        if link := tap_link(click):
+            payload["click"] = link
         req = urllib.request.Request(self.url + "/", data=json.dumps(payload).encode(), method="POST",
                                      headers={"Content-Type": "application/json"})
         if self.token:
@@ -123,7 +147,7 @@ class EmailNotifier:
             msg["X-Priority"] = "1"
         msg.set_content("\n".join([
             body, "",
-            f"Open it in the app: {click}" if click else "",
+            f"Open it in the app: {link}" if (link := tap_link(click)) else "",
             "",
             "You get this because the product is on your watchlist. Change alerts in the app's Settings.",
         ]))
@@ -181,11 +205,14 @@ def channel_status(s, transports: Transports) -> dict:
                     "detail": f"via {cmd.rsplit('/', 1)[-1]} on the machine running the backend" if cmd
                     else "No notify-send (Linux) or osascript (macOS) found on the backend's machine."},
         "email": {"configured": email_ready,
-                  "detail": f"to {mask_email(s.alert_email_to)} via {s.smtp_host}:{s.smtp_port}" if email_ready
-                  else "Set SMTP_HOST, SMTP_USER, SMTP_PASSWORD and ALERT_EMAIL_TO in backend/.env, then restart."},
+                  # B26: the SMTP host is a secret, so it isn't named; the address only masked
+                  "detail": f"to {mask_email(s.alert_email_to)} by SMTP, port {s.smtp_port}" if email_ready
+                  else "The owner sets the SMTP server and the address to send to on Settings, under Email, or "
+                  "SMTP_HOST and ALERT_EMAIL_TO in backend/.env."},
         "ntfy": {"configured": bool(s.ntfy_topic),
                  "detail": f"to a topic on {s.ntfy_url}" if s.ntfy_topic
-                 else "Set NTFY_TOPIC (a long random name) in backend/.env, then restart."},
+                 else "The owner sets a topic (a long random name) on Settings, under Phone push, or NTFY_TOPIC in "
+                 "backend/.env."},
     }
 
 

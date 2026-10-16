@@ -9,7 +9,7 @@ import '../styles/runs.css' // B19: "Schedule paused"
 // The dashboard's "Data freshness" card (DESIGN.md §5.10, B02): Live or Snapshot, when the live data was last
 // checked, Check now (live mode only), and the sources with their licences, attributions and NVD's notice.
 // After a check that ran, the dashboard and any CVE list on screen load again (the "data changed" event), so the
-// new CVEs and the new last-checked time show at once.
+// new CVEs and the new last-checked time show at once; the line ("Done: …") and the button wait for that load.
 // B20: when the last run was partial or failed, a banner says which sources updated, which didn't, and when Retry may
 // run; Retry is Check now again (the server keeps the 5-minute rule, and a refusal shows in the line as usual).
 // B19: when the schedule is paused, "Schedule paused" with Resume (saves the setting); a link to the run history.
@@ -48,10 +48,12 @@ export function FreshnessCard({ data, asOf, sources, onNavigate }: {
     setChecking(true)
     setLine(null)
     checkNow()
-      .then((reply) => {
+      .then(async (reply) => {
+        // ok: a version was written (partial too). The line and the button wait until the dashboard and the alerts
+        // have loaded again, so the cards above the button have their new size before the next click (#67).
+        if (reply.ran && reply.result?.ok) await announceWatchlistChanged()
         setLine(replyLine(reply))
         if (reply.ran) setLatest(reply.result)
-        if (reply.ran && reply.result?.ok) announceWatchlistChanged() // ok: a version was written (partial too)
       })
       .catch((e: unknown) => setLine({ tone: 'error', text: message(e) }))
       .finally(() => setChecking(false))

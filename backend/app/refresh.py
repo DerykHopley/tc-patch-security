@@ -399,6 +399,17 @@ def make_refresher(settings: Settings, feeds: Feeds | None = None, clock=utc_now
     return Refresher(live, feeds or make_feeds(settings), clock, alerter)
 
 
+def with_saved_settings(env: Settings) -> Settings:
+    """B26: the settings the CLI runs on, as the server's: the environment's, with the owner's saved server settings
+    (Settings) wherever the environment set nothing."""
+    from app.app_settings import default_dev_settings, default_settings
+    from app.server_settings import effective
+    from app.users import Users
+
+    users = Users.for_settings(env, None, default_settings(env), default_dev_settings(env))
+    return effective(env, users.state(env.owner).server_settings())
+
+
 def cli_alerter(settings: Settings):
     """The CLI's alerts: the state file and the real channels, as the server's (app.deps)."""
     from app.alerts import Alerter
@@ -487,8 +498,10 @@ def main(argv: Sequence[str] = ()) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     settings = Settings.from_env()
     settings.check()
+    settings = with_saved_settings(settings)  # B26: live mode, the channels and the time zone set on Settings
     if settings.data_mode != "live":
-        print("DATA_MODE is snapshot: the data is frozen. Set DATA_MODE=live to refresh it.", file=sys.stderr)
+        print("The data is the frozen snapshot (DATA_MODE, or Settings' Data card): switch to live data to refresh it.",
+              file=sys.stderr)
         return 2
     refresher = make_refresher(settings, alerter=cli_alerter(settings))
     if args.schedule:
