@@ -186,6 +186,14 @@ _Avoid_: admin, account holder
 The one user while sign-in is off (locally and in the tests). Their state is the state file.
 _Avoid_: local user, guest
 
+**Sign-in**:
+Clerk, invite-only, switched by `AUTH` (off locally and in the tests). On, every API route but `/health` needs a signed-in user; a signed-out visitor sees the sign-in screen.
+_Avoid_: login, auth (except the setting's name)
+
+**Session token**:
+The short-lived (60 s) token Clerk gives the signed-in browser. The frontend sends a fresh one with every API call; the backend checks it with the instance's JWT public key.
+_Avoid_: JWT (it is one, but say what it's for), API key
+
 ### The assistant
 
 **Patch**:

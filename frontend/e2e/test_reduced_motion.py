@@ -31,6 +31,7 @@ from test_priority import open_settings  # noqa: F401 (fixture)
 from test_partial import failed_card, nvd_down, partial_check, search_down  # noqa: F401 (fixtures)
 from test_research_web import ASK as WEB_ASK, details as web_details
 from test_settings import settings_page  # noqa: F401 (fixture)
+from test_sign_in import loading_note, open_signed_out  # noqa: F401 (fixture)
 from test_shell import CURSOR_OPACITIES, WIDTHS_DURING_COLLAPSE, open_app  # noqa: F401 (fixture)
 from test_snapshot_additions import RECENT, table
 from test_watchlist import card, chip_button, open_watchlist, save  # noqa: F401 (fixture)
@@ -375,11 +376,17 @@ def b19_9_runs_and_paused(fx):
     still(page, "Schedule paused")
 
 
+def b10_15_sign_in_screen(fx):
+    page, _ = fx("open_signed_out")(reduced=True)
+    expect(loading_note(page)).to_be_visible()
+    still(page, "the sign-in screen")
+
+
 SCENES = {f.__name__: f for f in (
     a02_10_shell, a04_9_dashboard, a04b_9_cves_page, a05_8_charts_and_banner, a06_8_chat, a06b_7_patch_variants,
     a07_8_chat_layout, a11_7_dev_page, a13_7_settings, a14_12_snapshot_additions, a15_9_verdict, a15b_8_watchlist,
     a16_12_priority, a16b_13_decisions, a18_6_fix_first, a19_6_explain_levels, b02_9_check_now,
-    b08_13_research_web, b19_9_runs_and_paused, b20_14_partial_and_try_again, b21_9_proposal_card,
+    b08_13_research_web, b10_15_sign_in_screen, b19_9_runs_and_paused, b20_14_partial_and_try_again, b21_9_proposal_card,
     b22_9_proposed_decision,
 )}
 

@@ -10,8 +10,8 @@
 #
 # Needs: docker, backend deps (uv), and the browser: uv run --project frontend/e2e playwright install chromium
 #
-# Snapshot mode is set explicitly (DATA_MODE, B02 #35); sign-in off is the app's default today. B10 (#42) adds its
-# setting: set it off here when it lands.
+# Snapshot mode and sign-in off are set explicitly (DATA_MODE, B02 #35; AUTH, B10 #42). The image holds no Clerk
+# key: the publishable key is read at run time from /health, so one image fits any Clerk instance.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -34,7 +34,7 @@ docker build -t "$IMAGE" "$ROOT"
 
 echo "== B12.7: no key or .env in the image"
 found="$(docker run --rm --entrypoint sh "$IMAGE" -c \
-  'find / -xdev \( -name ".env" -o -name "*.env" \) -not -path "/proc/*" 2>/dev/null; env | grep -E "^(OPENROUTER_API_KEY|NTFY_TOPIC|NTFY_TOKEN|SMTP_PASSWORD)=." || true')"
+  'find / -xdev \( -name ".env" -o -name "*.env" \) -not -path "/proc/*" 2>/dev/null; env | grep -E "^(OPENROUTER_API_KEY|NTFY_TOPIC|NTFY_TOKEN|SMTP_PASSWORD|CLERK_[A-Z_]*)=." || true')"
 if [ -n "$found" ]; then echo "Found in the image: $found" >&2; exit 1; fi
 
 echo "== B12.8: another embedder than the index's stops the start-up"
@@ -44,7 +44,7 @@ fi
 grep -q "was built with hash" <<<"$out" || { echo "Not the index-mismatch error:" >&2; echo "$out" >&2; exit 1; }
 
 echo "== Starting the image on port $PORT"
-docker run -d --name "$NAME" -p "127.0.0.1:$PORT:8080" -e LLM_PROVIDER=fake -e DATA_MODE=snapshot "$IMAGE" >/dev/null
+docker run -d --name "$NAME" -p "127.0.0.1:$PORT:8080" -e LLM_PROVIDER=fake -e DATA_MODE=snapshot -e AUTH=off "$IMAGE" >/dev/null
 for _ in $(seq 1 60); do
   if curl -fsS "http://localhost:$PORT/health" >/dev/null 2>&1; then break; fi
   if [ "$(docker inspect -f '{{.State.Running}}' "$NAME")" != true ]; then break; fi
@@ -56,6 +56,7 @@ health="$(curl -fsS "http://localhost:$PORT/health")" || { echo "No /health. Log
 echo "$health"
 grep -q '"llm":"fake"' <<<"$health" || { echo "Not FakeLLM" >&2; exit 1; }
 grep -q '"mode":"snapshot"' <<<"$health" || { echo "Not snapshot mode" >&2; exit 1; }
+grep -q '"auth":{"on":false' <<<"$health" || { echo "Sign-in isn't off" >&2; exit 1; }
 if docker logs "$NAME" 2>&1 | grep -q "Rebuilding the free hash search index"; then
   echo "The image rebuilt its index at start-up: the baked one didn't match." >&2; exit 1
 fi

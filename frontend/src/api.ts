@@ -14,6 +14,14 @@ export interface Health {
   dev_panel: boolean // the Dev page is shown only when this is true
   mode: DataMode // B02: frozen snapshot or live data
   last_checked: string | null // B02: when the live data was last checked (ISO 8601, UTC); null before the first check
+  auth: AuthConfig // B10: whether to sign in
+}
+
+// B10: sign-in. Off locally: no sign-in, one default user. On: the Clerk instance's publishable key (not a secret),
+// read at run time so one built frontend fits any instance.
+export interface AuthConfig {
+  on: boolean
+  publishable_key: string | null
 }
 
 // B02: the data mode. "snapshot": frozen data, as of the snapshot date. "live": refreshed by Check now, as of today.
@@ -26,10 +34,24 @@ export interface DataStatus {
   schedule?: ScheduleStatus // /dashboard only (B19): "Schedule paused", and Resume
 }
 
+// B10: with sign-in on, every call carries a fresh Clerk session token (they live 60 s; Clerk's getToken refreshes
+// one before it expires). Set by the signed-in app (auth/ClerkApp.tsx); null with sign-in off.
+type TokenGetter = () => Promise<string | null>
+let sessionToken: TokenGetter | null = null
+export function setSessionToken(getter: TokenGetter | null): void {
+  sessionToken = getter
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
+  const headers = new Headers(init?.headers)
+  if (sessionToken) {
+    const token = await sessionToken().catch(() => null)
+    if (!token) throw new Error("You're signed out. Reload the page to sign in again.")
+    headers.set('Authorization', `Bearer ${token}`)
+  }
   try {
-    res = await fetch(`${API_URL}${path}`, init)
+    res = await fetch(`${API_URL}${path}`, { ...init, headers })
   } catch {
     throw new Error(`Can't reach the backend at ${API_URL}. Is it running?`)
   }

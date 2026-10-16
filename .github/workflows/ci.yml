@@ -1,6 +1,7 @@
 # Tests: backend tests, type check, lint, the fixed-wait check, the browser check in Firefox and Chromium, and the
 # container image's smoke test (B12).
-# FakeLLM and a throwaway state file: no keys, no secrets, no network calls from the app. proto/ is frozen and not
+# FakeLLM and a throwaway state file: no keys, no network calls from the app (the one exception: the signed-in browser
+# check, B10, calls Clerk only when its secrets are set). proto/ is frozen and not
 # checked here.
 #
 # Once per commit (#56, retro finding 2):
@@ -116,6 +117,13 @@ jobs:
       - run: frontend/e2e/run.sh
         env:
           E2E_LOG_DIR: ${{ runner.temp }}
+          # B10: the signed-in check runs only when these secrets exist (empty otherwise, and it skips). Secrets
+          # aren't given to pull requests from forks, so there it skips too.
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          CLERK_JWT_KEY: ${{ secrets.CLERK_JWT_KEY }}
+          E2E_CLERK_USER_USERNAME: ${{ secrets.E2E_CLERK_USER_USERNAME }}
+          E2E_CLERK_USER_PASSWORD: ${{ secrets.E2E_CLERK_USER_PASSWORD }}
       - if: failure()
         uses: actions/upload-artifact@v7
         with:

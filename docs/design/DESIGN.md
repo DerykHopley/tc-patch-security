@@ -357,7 +357,25 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - Nothing moves: no animation of its own, so reduced motion changes nothing (scene `b19_9_runs_and_paused`).
 - *Checked* by the browser check B19.6–B19.8, B19.10 (light and dark, 400px and 1400px, a run opened by keyboard, Resume by keyboard, chip and paused-line contrast at least 4.5:1, the 3px edge, no sideways scroll); the words by `npm test` (`src/refreshRuns.test.ts`).
 
+### 5.13 Sign-in screen and user menu (B10, 2026-10-16)
+
+Only with sign-in on (`AUTH=on`). Off (locally, the tests) neither exists and nothing of Clerk's loads.
+
+- **Sign-in screen** (`frontend/src/auth/SignInScreen.tsx`, `styles/signin.css`): a signed-out visitor sees only this, never the shell. On the page background and glow (§3.3), one card in the middle: `--surface`, radius `--radius-card`, `--shadow-card`, max 26rem wide, centred text. Inside, top to bottom:
+  1. **Patch**, 110px, idle in a variant picked on page load, his head over the card's top edge (−3rem), as on the welcome banner (§8.2).
+  2. The **brand** as in the sidebar (§4.1), centred, with its dashed line under it.
+  3. **"Sign in to Patch"** (`h1`, 1.5rem Fredoka, `--accent`) and one muted line: "Patch is invite-only. Sign in with the email address your invitation went to."
+  4. **Clerk's form** (`<SignIn>`, hash routing, no sign-up link): its colours, font and input radius come from our tokens, read from the page so they follow the theme switch (`--accent`, `--on-primary`, `--surface`, `--text`, `--muted`, `--border`, `--error`, `--font-body`, `--radius-input`). Its own card shadow, border and heading are off: our card is the frame. Clerk's footer ("Secured by Clerk", and the development-instance banner) stays: the free plan keeps it.
+  5. While Clerk loads, "Loading sign-in…" (a status region). If it can't load (Clerk's loader gives up after 15 s), an error line with a 3px `--error` edge on `--error-soft` (§5.7): "Sign-in didn't load. Check your connection, then reload the page." and **Reload**.
+- The light/dark switch (§9) sits in the top right corner, as in the top bar.
+- Motion: the card fades up once (0.45s, §7.1); Patch idles (§8.3). With reduced motion nothing moves (scene `b10_15_sign_in_screen`).
+- At 400px the card fills the width less 1rem each side; nothing scrolls sideways.
+- **User menu** (`frontend/src/components/UserMenu.tsx`): in the top bar, before the light/dark switch. A 36px round button with the primary gradient, `--on-primary` initials (Fredoka 600, first letters of the first two words of the name), and the purple shadow; named "Your account: <name>". It opens a small card under it, right-aligned: `--surface`, 1px `--border`, radius `--radius-nested`, `--shadow-card`; the name (bold), the email (muted, 0.85rem) when it differs, then **Sign out** (a plain pill; "Signing out…" while it runs). It pops in like the bubble (0.16s). Esc or a click outside closes it; Esc puts the focus back on the button. Long names and emails wrap. After sign out, the sign-in screen.
+- *Checked* by the browser check B10.12–B10.15 (sign-in off: no menu, no Clerk; the screen with Clerk unreachable: Patch over the edge, 400px and 1400px, light and dark, Reload by keyboard, no API call but `/health`). The form with real Clerk, and the user menu, are checked only by B10.16, which needs the Clerk test instance (#65): *unverified* until it runs, including whether Clerk's element names for the card and heading (`cardBox`, `card`, `header`) still match.
+
 ### Checklist: components
+
+- [ ] Sign-in (B10): signed out, only the sign-in screen (Patch over the card's edge, brand, heading, invite line, Clerk's form in our tokens), loading and failed states, the theme switch; at 400px nothing scrolls sideways; signed in, the user menu with name, email and Sign out, Esc and outside click close it; nothing of Clerk's with sign-in off.
 
 - [ ] Refresh runs (B19): schedule and Pause in one fieldset, saved with the bar; the schedule line from the server; the last 20 runs newest first, the result in words with its edge, trigger, UTC time and duration, counts; each opens by keyboard to each feed's step; skips count up; fits at 400px. The dashboard says "Schedule paused" with Resume.
 
@@ -476,6 +494,8 @@ All motion is part of the spec. **It stops with `prefers-reduced-motion: reduce`
 | Page title cursor | an "_" after the title, blinks | 1.1s, `steps(1)` | — | forever |
 | KEV tile | wiggle: rotate −1.2° (91%), +1.2° (94%), −0.6° (97%), still otherwise | 4s, ease-in-out | — | forever |
 | Bubble window | pop: from `opacity 0`, `translateY(8px) scale(0.98)` | 0.16s, ease | — | on open |
+| Sign-in card (§5.13) | the cards' fade up | 0.45s, the cards' curve | 0s | once, on load |
+| User menu card (§5.13) | the bubble's pop | 0.16s, ease | — | on open |
 | Sidebar collapse | width 250 ↔ 78px; chevron rotates 180° | 0.2s, ease | — | on toggle |
 | Pin icon | rotates from 35° to 0° when pinned | 0.15s, ease | — | on toggle |
 | Patch's pill | background and border colour | 0.15s | — | on hover / open |

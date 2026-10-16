@@ -254,15 +254,17 @@ class State:
         return self._update(change)
 
     def set_status(self, cve_id: str, status: str, as_of: str | None = None, via: str = "page",
-                   proposal: str | None = None, sources: list[dict] | None = None, **fields) -> tuple[dict, dict]:
+                   proposal: str | None = None, sources: list[dict] | None = None, by: str = DECIDED_BY,
+                   **fields) -> tuple[dict, dict]:
         """The user's decision (A16b): the status plus its record, appended to the CVE's history. Only the user
         decides: the CVEs page, or a change Patch proposed and the user approved (`via` "chat", with the
-        `proposal` id, B21; with the `sources` a proposed decision cited, B22). Returns the CVE and the record. Fields per status are checked by app.status.decision."""
+        `proposal` id, B21; with the `sources` a proposed decision cited, B22). `by` names who decided (B10: the
+        signed-in user). Returns the CVE and the record. Fields per status are checked by app.status.decision."""
         record = decision(status, fields, as_of or dt.date.today().isoformat())
         cve = self.k.cves.get(cve_id)
         if cve is None:
             raise KeyError(cve_id)
-        record |= {"decided_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), "decided_by": DECIDED_BY,
+        record |= {"decided_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), "decided_by": by,
                    "via": via}
         if proposal:
             record["proposal"] = proposal

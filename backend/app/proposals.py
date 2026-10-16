@@ -24,7 +24,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
 from app.errors import AppError, InputError
-from app.status import DECIDED_BY, JUSTIFICATIONS, decision
+from app.status import JUSTIFICATIONS, decision
 from app.verdict import USAGE_LABELS, USAGES
 
 TTL = dt.timedelta(hours=1)
@@ -247,7 +247,7 @@ def _apply(rec: dict, deps) -> str:
     if rec["action"] == "set_status":
         given = {x: f[x] for x in STATUS_FIELDS if x != "status" and f.get(x) is not None}
         cve, _ = state.set_status(rec["cve_id"], f["status"], deps.as_of, "chat", proposal=rec["id"],
-                                  sources=rec.get("sources") or None, **given)
+                                  sources=rec.get("sources") or None, by=deps.decided_by, **given)
         msg = f"Marked {cve['id']} as {STATUS_WORD[f['status']].lower()}."
         if not state.read().watches(cve["product"]):
             msg += f" {name} isn't on your watchlist, so the dashboard won't show it."
@@ -273,7 +273,7 @@ def approve(deps, pid: str) -> dict:
         if _based_on(rec, deps) != rec["based_on"]:
             raise ProposalError(STALE[rec["action"]], "stale")
         rec["message"] = _apply(rec, deps)
-        rec |= {"state": "approved", "approved_at": _iso(deps.clock()), "approved_by": DECIDED_BY}
+        rec |= {"state": "approved", "approved_at": _iso(deps.clock()), "approved_by": deps.decided_by}
         deps.state.save_proposal(rec)
         return view(rec, deps)
 

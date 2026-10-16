@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from app.alerts import Alerter
 from app.app_settings import DevSettings, default_dev_settings, default_settings
 from app.config import DEFAULT_USER, Settings
+from app.status import DECIDED_BY
 from app.feeds import Feeds
 from app.knowledge import Knowledge, load_knowledge
 from app.live_data import LiveData
@@ -51,6 +52,7 @@ class Deps:
     fail_tools: set[str] = field(default_factory=set)  # B20: chat tools that time out in an answer (FAIL_TOOLS, dev)
     users: Users | None = None  # B09: every user's state; `state` is the one this Deps acts for
     user_id: str = DEFAULT_USER  # whose request this is (B09): `state` is theirs
+    user_name: str | None = None  # the signed-in user's name (B10); None with sign-in off or a test's fake user
     _sync_lock: threading.Lock = field(default_factory=threading.Lock)
     _root: "Deps | None" = field(default=None, repr=False)  # a user's Deps (for_user) points at the shared one
 
@@ -65,12 +67,19 @@ class Deps:
             log.warning("FAIL_TOOLS is on: %s time out in every answer (docs/failure-demo.md).",
                         ", ".join(sorted(self.fail_tools)))
 
-    def for_user(self, user_id: str) -> "Deps":
-        """The same parts, acting for one user: their state, their id for the tools' context. Everything else (the
-        knowledge, the index, the refresh, the model) is shared."""
+    def for_user(self, user_id: str, name: str | None = None) -> "Deps":
+        """The same parts, acting for one user: their state, their id for the tools' context, their name for
+        decision records (B10). Everything else (the knowledge, the index, the refresh, the model) is shared."""
         mine = copy.copy(self)
         mine.state, mine.user_id, mine._root = self.users.state(user_id), user_id, self._root or self
+        mine.user_name = name
         return mine
+
+    @property
+    def decided_by(self) -> str:
+        """Who a decision record names (B10): the signed-in user's name; with sign-in off the one local user is
+        "owner", as before; a user without a name (a test's fake user) by their id."""
+        return self.user_name or (DECIDED_BY if self.user_id == DEFAULT_USER else self.user_id)
 
     @property
     def owner_state(self) -> State:

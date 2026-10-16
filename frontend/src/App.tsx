@@ -9,6 +9,7 @@ import { useChatLayout } from './chat/useChatLayout.ts'
 import { usePatch } from './chat/usePatch.ts'
 import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, ListIcon, MoonIcon, ShieldIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
+import { UserMenu, type Account } from './components/UserMenu.tsx'
 import { CvesPage } from './pages/CvesPage.tsx'
 import { DashboardPage } from './pages/Dashboard.tsx'
 import { DevPage } from './pages/DevPage.tsx'
@@ -36,7 +37,8 @@ const SUGGESTIONS: Record<Page, string[]> = {
   dev: ['What does an "ignore previous instructions" attack look like?'],
 }
 
-export default function App() {
+// `account`: the signed-in user, with sign-in on (B10, auth/ClerkApp.tsx): the top bar shows the user menu.
+export default function App({ account }: { account?: Account } = {}) {
   const [status, setStatus] = useState<Health | null>(null)
   const [offline, setOffline] = useState(false)
   const [theme, toggleTheme] = useTheme()
@@ -188,6 +190,7 @@ export default function App() {
             <span className="crumb-path">Pages / {current.title}</span>
             <h1>{current.title}</h1>
           </div>
+          {account && <UserMenu account={account} />}
           <button
             type="button"
             className="theme-btn"

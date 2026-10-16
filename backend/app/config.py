@@ -68,6 +68,12 @@ def _path(name: str, default: pathlib.Path) -> pathlib.Path:
     return path if path.is_absolute() else ROOT / path
 
 
+def _auth(value: str) -> bool:
+    if value.lower() not in ("on", "off"):
+        raise ConfigError(f"AUTH must be on or off, not {value!r}.")
+    return value.lower() == "on"
+
+
 def _list(value: str) -> list[str]:
     return [v.strip() for v in value.split(",") if v.strip()]
 
@@ -126,6 +132,13 @@ class Settings:
     # B09: the user whose alerts go to the channels (ntfy, email, desktop: the owner's, from this environment). Other
     # users' alerts are recorded and shown in the app only. Locally, the default user.
     owner: str = DEFAULT_USER
+    # Sign-in (B10). Off locally and in the tests: every request is the default user. On, every route but /health
+    # needs a Clerk session token, verified with the instance's JWT public key (no network call), whose `azp` (the
+    # page's origin) is one of AUTH_ALLOWED_ORIGINS. None of these is a secret: the secret key isn't needed here.
+    auth: bool = False
+    clerk_publishable_key: str = ""  # pk_test_...: the frontend reads it from /health, so one image fits any instance
+    clerk_jwt_key: str = ""  # the PEM public key from the Clerk dashboard's API keys page
+    auth_allowed_origins: list[str] = field(default_factory=list)  # e.g. https://patch-xyz.a.run.app
 
     @property
     def users_path(self) -> pathlib.Path:
@@ -177,6 +190,10 @@ class Settings:
             fail_tools=_list(_env("FAIL_TOOLS").lower()),
             nvd_api_key=_env("NVD_API_KEY"),
             owner=_env("OWNER", DEFAULT_USER),
+            auth=_auth(_env("AUTH", "off")),
+            clerk_publishable_key=_env("CLERK_PUBLISHABLE_KEY"),
+            clerk_jwt_key=_env("CLERK_JWT_KEY").replace("\\n", "\n"),  # one line in .env: \n for the line breaks
+            auth_allowed_origins=[o.rstrip("/") for o in _list(_env("AUTH_ALLOWED_ORIGINS"))],
         )
 
     def check(self) -> None:
@@ -204,6 +221,16 @@ class Settings:
             raise ConfigError(f"ALERT_TZ must be a time zone name like UTC or Europe/London, not {self.alert_tz!r}.")
         if not USER_ID.fullmatch(self.owner):
             raise ConfigError(f"OWNER must be a user id (letters, digits, _ and -), not {self.owner!r}.")
+        if self.auth:
+            missing = [name for name, value in (("CLERK_PUBLISHABLE_KEY", self.clerk_publishable_key),
+                                                ("CLERK_JWT_KEY", self.clerk_jwt_key),
+                                                ("AUTH_ALLOWED_ORIGINS", self.auth_allowed_origins)) if not value]
+            if missing:
+                raise ConfigError(f"AUTH=on needs {', '.join(missing)}. Set them in backend/.env (see .env.example), "
+                                  "or use AUTH=off.")
+            if "BEGIN PUBLIC KEY" not in self.clerk_jwt_key:
+                raise ConfigError("CLERK_JWT_KEY must be the PEM public key from the Clerk dashboard (API keys, "
+                                  "\"JWT public key\"), starting -----BEGIN PUBLIC KEY-----.")
         if self.fake_feeds_day not in (1, 2):
             raise ConfigError(f"FAKE_FEEDS_DAY must be 1 or 2, not {self.fake_feeds_day}.")
         from app.tools.registry import TOOLS  # here, not at the top: the tools import the config
