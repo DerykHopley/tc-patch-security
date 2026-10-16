@@ -7,6 +7,7 @@ import {
   type AlertLogEntry,
   type AlertSettings,
   type Channel,
+  type DataMode,
   type PolicySettings,
   type Severity,
   type TestAlertReply,
@@ -16,7 +17,9 @@ import { RefreshRuns } from '../components/RefreshRuns.tsx'
 import { ownersSchedule as ownersScheduleLine } from '../refreshRuns.ts'
 import { followLink, openPath } from '../route.ts'
 import { SaveBar } from '../components/SaveBar.tsx'
+import { DataSourceFields, DeliveryFields, isReady, TimeZoneField } from '../components/ServerFields.tsx'
 import { Card } from '../components/StatusCard.tsx'
+import { useServerSettings } from '../components/useServerSettings.ts'
 import { useSettings } from '../components/useSettings.ts'
 import { useWatchlist } from '../components/useWatchlist.ts'
 import { WatchlistCard } from '../components/WatchlistCard.tsx'
@@ -46,6 +49,9 @@ const POLICY_DAYS: { key: keyof PolicySettings & `${string}_days`; label: string
   { key: 'normal_days', label: 'Normal' },
   { key: 'low_days', label: 'Low' },
 ]
+// B26: the Delivery card's server settings, for its "Not saved" line
+const DELIVERY_KEYS = ['app_url', 'ntfy_url', 'smtp_port', 'smtp_starttls', 'ntfy_topic', 'ntfy_token', 'smtp_host',
+  'smtp_user', 'smtp_password', 'alert_email_from', 'alert_email_to'] as const
 const clampDays = (v: string) => Math.max(1, Math.min(730, Math.round(Number(v)) || 1))
 
 /** B20: a failed save, shown in each card whose edits it didn't save. The edits stay; Save changes tries again. */
@@ -58,9 +64,20 @@ function NotSaved({ error, show }: { error: string | null; show: boolean }) {
   )
 }
 
-export function SettingsPage({ asOf }: { asOf: string | null }) {
+// `onServerSaved`: the owner saved server settings (B26), so the app's status (live or snapshot, the date) loads again.
+export function SettingsPage({ asOf, mode, onServerSaved }: {
+  asOf: string | null
+  mode?: DataMode
+  onServerSaved?: () => void
+}) {
   const s = useSettings()
   const w = useWatchlist() // its own route, the same save bar (A15b)
+  const savedAlerts = s.reply?.settings.alerts
+  // B26: the owner's server settings (null for anyone else), saved by the same bar
+  const srv = useServerSettings(s.reply?.server, !!(savedAlerts?.quiet_start && savedAlerts.quiet_end), (r) => {
+    s.setServer(r)
+    onServerSaved?.()
+  })
   const [log, setLog] = useState<AlertLogEntry[]>([])
   const [preview, setPreview] = useState<TestAlertReply | null>(null)
   const [sending, setSending] = useState<Channel | 'preview' | null>(null)
@@ -97,6 +114,7 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
   const a = s.draft.alerts
   const channels = s.reply.channels
   const quietTz = s.reply.alert_tz ?? 'UTC'
+  const owner = isReady(srv) ? srv : null // B26: the owner sees the server settings; anyone else none of them
   const set = (v: Partial<AlertSettings>) => s.patch('alerts', v)
   // Not the owner (sign-in on): the schedule is the owner's, shown read-only; the select and Pause are the owner's
   const ownersSchedule = s.reply.schedule?.yours === false ? s.reply.schedule : null
@@ -136,14 +154,18 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
 
   // One save bar for the settings and the watchlist. Each saves only if it changed; a rejected watchlist shows its
   // message in its card and stays unsaved, so the bar keeps saying so.
-  const dirty = s.dirty || w.dirty
+  const dirty = s.dirty || w.dirty || srv.dirty
   async function saveAll() {
     if (w.dirty) await w.save()
+    // B26: quiet hours saved for the first time take the zone shown with them
+    const quietSet = !!(a.quiet_start && a.quiet_end) && s.changed('alerts', { only: ['quiet_start', 'quiet_end'] })
+    if (srv.dirty || quietSet) await srv.save(quietSet)
     if (s.dirty) await s.save()
   }
   function discardAll() {
     s.discard()
     w.discard()
+    srv.discard()
   }
 
   return (
@@ -227,11 +249,16 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
                 </button>
               )}
             </div>
-            <p className="meta">
-              Alerts found in quiet hours are held and sent as one digest when they end. Times are in the server's alert
-              time zone ({quietTz}).
-            </p>
+            {owner ? (
+              <TimeZoneField f={owner} />
+            ) : (
+              <p className="meta">
+                Alerts found in quiet hours are held and sent as one digest when they end. Times are in the owner's
+                alert time zone ({quietTz}).
+              </p>
+            )}
           </fieldset>
+          <NotSaved error={srv.error} show={srv.changed(['alert_tz'])} />
           <NotSaved error={s.error} show={s.changed('alerts', { except: ['channels', ...SCHEDULE_KEYS] })} />
         </Card>
 
@@ -277,7 +304,10 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
 
         <Card title="Delivery" kind="live" why="Test alerts are really sent">
           <p className="meta">
-            Pick where alerts go. Connection details and secrets live in <code>backend/.env</code>, never here.
+            {owner
+              ? 'Pick where alerts go, and set each channel up below. A secret you save is never shown again; one set ' +
+                "in the server's environment (backend/.env) wins."
+              : "Pick where alerts go. The channels are the owner's, and so are their connection details."}
           </p>
           <ul className="channels">
             {CHANNELS.map((c) => {
@@ -305,6 +335,8 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
               )
             })}
           </ul>
+          {owner && <DeliveryFields f={owner} />}
+          <NotSaved error={srv.error} show={srv.changed(DELIVERY_KEYS)} />
           <div className="callout">
             <strong>Keep the ntfy topic secret.</strong> ntfy's docs say a topic name is "essentially a password", and your
             alerts show which products you run. No alert ever includes the CVE description.
@@ -328,6 +360,7 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
                 <span>{preview.alert.body}</span>
               </div>
               <p className="meta">{preview.note} Built from fields only, never the CVE description.</p>
+              {preview.channel !== 'desktop' && <p className="meta" data-testid="tap-line">{preview.tap}</p>}
             </div>
           )}
 
@@ -407,10 +440,15 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
           <NotSaved error={s.error} show={s.changed('policy') || s.changed('priority')} />
         </Card>
 
-        <Card title="Data" kind="live" why="The snapshot the app reads">
+        <Card title="Data" kind="live" why="The data the app reads">
           <p>
-            Snapshot of OWASP, MITRE ATLAS, NVD and CISA KEV, as of <strong>{asOf ?? '…'}</strong>.
+            {mode === 'live'
+              ? 'Live data from NVD, CISA KEV, EPSS and OSV, as of '
+              : 'Snapshot of OWASP, MITRE ATLAS, NVD and CISA KEV, as of '}
+            <strong>{asOf ?? '…'}</strong>.
           </p>
+          {owner && <DataSourceFields f={owner} />}
+          <NotSaved error={srv.error} show={srv.changed(['data_mode', 'nvd_api_key'])} />
           <p className="meta" data-testid="check-now-pointer">
             In live mode, <strong>Check now</strong> on the{' '}
             <a href="/" onClick={(e) => followLink(e, openPath)}>dashboard's Data freshness card</a> checks the feeds
@@ -445,7 +483,8 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
         </Card>
       </div>
 
-      <SaveBar dirty={dirty} saving={s.saving || w.saving} saved={s.saved || w.justSaved} error={s.error}
+      <SaveBar dirty={dirty} saving={s.saving || w.saving || srv.saving} saved={s.saved || w.justSaved || srv.justSaved}
+        error={s.error ?? srv.error}
         onSave={saveAll} onDiscard={discardAll} />
     </div>
   )

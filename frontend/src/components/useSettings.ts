@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getSettings, saveSettings, type AppSettings, type SettingsReply } from '../api.ts'
+import { getSettings, saveSettings, type AppSettings, type ServerReply, type SettingsReply } from '../api.ts'
 import { announceSavedLevel } from '../chat/savedLevel.ts'
 
 // The settings that are groups of values (alerts; later policy), as opposed to single values (explain_level).
@@ -85,5 +85,13 @@ export function useSettings() {
     setError(null)
   }
 
-  return { reply, draft, dirty, saving, saved, error, save, discard, patch, setValue, changed, reload: () => load() }
+  /** B26: the owner's server settings were saved: their new state, the channels and the time zone. The draft of the
+   *  other settings stays as it is. */
+  function setServer(r: ServerReply) {
+    setReply((old) => (old ? { ...old, server: r.server, channels: r.channels, alert_tz: r.alert_tz } : old))
+  }
+
+  return {
+    reply, draft, dirty, saving, saved, error, save, discard, patch, setValue, changed, setServer, reload: () => load(),
+  }
 }

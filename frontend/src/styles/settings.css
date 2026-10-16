@@ -359,3 +359,33 @@
 .policy-days .field-row > label:first-child {
   min-width: 4.5rem;
 }
+
+/* ---------- B26: the owner's server settings (DESIGN.md §5.7) ---------- */
+
+/* A box for an address or a secret takes the rest of its row, never under 12rem: on a phone it wraps under its
+   label instead of shrinking. */
+.field-row input[type='url'],
+.field-row input[type='password'] {
+  flex: 1 1 12rem;
+}
+
+.secret-field .field-row {
+  padding-bottom: 0;
+}
+
+.secret-field .meta,
+.env-note {
+  margin: 0 0 0.3rem;
+}
+
+/* Status text on the surface follows §5.7's edge rule: --text, with the status colour as an edge */
+.secret-state.removing,
+.tap-line {
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--warn);
+  color: var(--text);
+}
+
+.tap-line.reachable {
+  border-left-color: var(--ok);
+}
