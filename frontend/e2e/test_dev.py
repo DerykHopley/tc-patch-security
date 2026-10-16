@@ -154,8 +154,13 @@ def test_a11_2_sliders_and_switches_save_and_survive_a_reload(dev_page):
                          ("RRF constant k", "60"), ("Keyword vs vector", "0.5"), ("Max agent steps", "6")):
         expect(page.get_by_label(label)).to_have_value(value)
     page.get_by_label("Sources per search").fill("3")
-    page.get_by_label("RRF constant k").focus()
-    page.keyboard.press("ArrowRight")  # sliders move by keyboard
+    # Sliders move by keyboard. #67: Firefox on CI lost a keypress sent right after focus(): wait until the slider
+    # has the focus, press on the slider itself, and wait for the new value before the next field takes the focus.
+    rrf = page.get_by_label("RRF constant k")
+    rrf.focus()
+    expect(rrf).to_be_focused()
+    rrf.press("ArrowRight")
+    expect(rrf).to_have_value("61")
     page.get_by_label("Keyword vs vector").fill("0.75")
     page.get_by_label("Multi-query rewrites").uncheck()
     page.get_by_label("Self-query filters").uncheck()

@@ -476,6 +476,9 @@ export interface ScheduleStatus {
   hours: number // every N hours (Settings' schedule_hours)
   paused: boolean
   next_due: string | null // ISO 8601, UTC; null when paused, in snapshot mode, or never checked (the next tick runs)
+  // The caller is the owner, so may change it: the schedule is the owner's (B09). /dashboard, /refresh/runs and
+  // /settings say it; check_updates' copy doesn't.
+  yours?: boolean
 }
 
 export type RunTrigger = 'button' | 'chat' | 'schedule' | 'cli'
@@ -576,6 +579,7 @@ export interface SettingsReply {
   settings: AppSettings
   channels: Record<Channel, ChannelStatus>
   alert_tz?: string // the time zone of quiet hours (ALERT_TZ, B04)
+  schedule?: ScheduleStatus // the owner's schedule, with `yours` (BR.9)
 }
 
 export interface AlertMessage {

@@ -246,6 +246,10 @@ class Settings:
             if missing:
                 raise ConfigError(f"AUTH=on needs {', '.join(missing)}. Set them in backend/.env (see .env.example), "
                                   "or use AUTH=off.")
+            if self.owner == DEFAULT_USER:
+                raise ConfigError("AUTH=on needs OWNER: the owner's Clerk user id (user_...), from the Clerk dashboard's "
+                                  "Users page. The owner's alerts go to the channels and the owner's schedule runs; "
+                                  "with sign-in on, nobody signs in as \"default\".")
             if "BEGIN PUBLIC KEY" not in self.clerk_jwt_key:
                 raise ConfigError("CLERK_JWT_KEY must be the PEM public key from the Clerk dashboard (API keys, "
                                   "\"JWT public key\"), starting -----BEGIN PUBLIC KEY-----.")

@@ -57,6 +57,12 @@ export function feedLine(f: FeedResult): string {
 
 const every = (hours: number) => (hours === 1 ? 'Every hour' : `Every ${hours} hours`)
 
+/** The schedule for anyone but the owner (B09: the refresh is shared, so the owner's schedule runs it): read-only,
+ *  in place of the select and Pause on Settings. */
+export function ownersSchedule(s: ScheduleStatus): string {
+  return `The owner's schedule: ${every(s.hours).toLowerCase()}${s.paused ? ', paused' : ''}. Only the owner can change or pause it.`
+}
+
 /** The schedule in one line, on Settings and (paused) on the dashboard's freshness card. */
 export function scheduleLine(s: ScheduleStatus, mode: DataMode): string {
   if (mode === 'snapshot') return `${every(s.hours)}, in live mode. The snapshot never changes.`

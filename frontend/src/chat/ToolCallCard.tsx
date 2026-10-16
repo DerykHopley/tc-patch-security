@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { retryTool, type PageContext, type RefineFilter, type ToolCallRecord, type Verdict } from '../api.ts'
 import { changeButtons, fixFirstHref } from '../cardActions.ts'
 import { contextWords, STATUS_LABEL as CVE_STATUS_LABEL } from '../cveView.ts'
@@ -7,6 +7,7 @@ import { NoFixMark } from '../components/Decision.tsx'
 import { epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { VERDICT_LABEL, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
+import { ExternalLink as External } from '../components/ExternalLink.tsx'
 import type {
   AffectedOne,
   AffectedProduct,
@@ -21,6 +22,7 @@ import type {
   WatchlistResult,
 } from '../toolResults.ts'
 import { utcTime } from '../freshness.ts'
+import { proposalOf } from '../toolCalls.ts'
 import { scheduleLine } from '../refreshRuns.ts'
 import { followLink, openPath } from '../route.ts'
 import { AskButton, ChangeActions, RefineActions } from './CardActions.tsx'
@@ -29,12 +31,6 @@ import { AskButton, ChangeActions, RefineActions } from './CardActions.tsx'
 // Result types come from the tools' declared result models (toolResults.ts, generated from backend/app/tools/).
 
 const STATUS_LABEL = { ...CVE_STATUS_LABEL, not_watched: 'Not watched' }
-
-const External = ({ href, children }: { href: string; children: ReactNode }) => (
-  <a href={href} target="_blank" rel="noreferrer">
-    {children}
-  </a>
-)
 
 function CveCard({ r }: { r: CveResult }) {
   return (
@@ -226,20 +222,22 @@ function FixFirstCard({ r, page }: { r: FixFirstResult; page: PageContext }) {
 }
 
 function WatchlistCard({ r }: { r: WatchlistResult | Proposal }) {
-  if ('proposal_id' in r) {
+  const p = proposalOf({ result: r })
+  if (p) {
     return (
       <div className="result-card watchlist-card">
-        <p className="result-title">Proposed: {r.title}</p>
+        <p className="result-title">Proposed: {p.title}</p>
         <p className="meta">
-          {r.before} → {r.after} · approve, edit or cancel it in the card under the answer
+          {p.before} → {p.after} · approve, edit or cancel it in the card under the answer
         </p>
       </div>
     )
   }
+  const w = r as WatchlistResult
   return (
     <div className="result-card watchlist-card">
-      <p className="result-title">{r.message}</p>
-      <p className="meta">Watching: {r.watchlist.join(', ') || 'nothing'}</p>
+      <p className="result-title">{w.message}</p>
+      <p className="meta">Watching: {w.watchlist.join(', ') || 'nothing'}</p>
     </div>
   )
 }
@@ -416,8 +414,9 @@ function ResultCard({ call, page, applied }: { call: ToolCallRecord; page: PageC
   if (call.name === 'explain_weakness' && call.result) return <WeaknessCard r={call.result} />
   if (call.name === 'check_affected' && call.result) return <AffectedCard r={call.result} />
   if (call.name === 'prioritise' && call.result) return <FixFirstCard r={call.result} page={page} />
-  if (call.name === 'update_watchlist' && call.result) return <WatchlistCard r={call.result} />
-  if (call.name === 'propose_decision' && call.result) return <WatchlistCard r={call.result} />
+  if ((call.name === 'update_watchlist' || call.name === 'propose_decision') && call.result) {
+    return <WatchlistCard r={call.result} /> // a proposal (toolCalls.ts proposalOf), or "nothing to change"
+  }
   if (call.name === 'research_web' && call.result) return <ResearchCard r={call.result} />
   if (call.name === 'check_updates' && call.result) return <UpdatesCard r={call.result} />
   if (call.name === 'search_security' && call.result) {

@@ -1,9 +1,14 @@
 """Chat request and reply shapes. Moved from proto (A06); other routes add their own shapes."""
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.app_settings import ExplainLevel
+
+
+# A CVE id as tools and buttons take it: any case in, upper case out (CVE-2025-3248). One definition, so every tool
+# argument and the card actions accept the same ids.
+CveId = Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, pattern=r"(?i)^CVE-\d{4}-\d{4,}$")]
 
 
 class Turn(BaseModel):

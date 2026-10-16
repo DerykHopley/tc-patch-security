@@ -9,6 +9,7 @@ import {
   type ProposalEdit,
 } from '../api.ts'
 import { DecisionFields, readDecision } from '../components/Decision.tsx'
+import { ExternalLink } from '../components/ExternalLink.tsx'
 import { USAGE_LABEL, USAGES } from '../components/Verdict.tsx'
 import { STATUS_LABEL } from '../cveView.ts'
 import { openPath } from '../route.ts'
@@ -134,9 +135,7 @@ function ProposalSources({ p }: { p: Proposal }) {
         {p.sources.map((s) => (
           <li key={s.n}>
             <span className="source-n">{s.n}</span>{' '}
-            <a href={s.url} target="_blank" rel="noreferrer">
-              {s.title}
-            </a>{' '}
+            <ExternalLink href={s.url}>{s.title}</ExternalLink>{' '}
             {s.kind === 'web' ? (
               <span className="chip web-unverified">Web result, unverified</span>
             ) : (

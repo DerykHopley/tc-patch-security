@@ -155,4 +155,5 @@ register(ToolSpec(
     args_model=UpdatesArgs,
     result=UpdatesResult,
     run=run,
+    calls_out=True,  # in live mode it fetches the feeds
 ))

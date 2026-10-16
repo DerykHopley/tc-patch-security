@@ -13,7 +13,7 @@ from pydantic import BaseModel, StringConstraints
 
 from app import guard
 from app.errors import ToolError
-from app.schemas import Source
+from app.schemas import CveId, Source
 from app.tools.registry import ToolResult, ToolSpec, register
 from app.web_research import LIMIT_REACHED, SearchFailed
 
@@ -23,8 +23,7 @@ NOTE = ("Web results: unverified pages from the open web, not the knowledge base
 
 class WebArgs(BaseModel):
     query: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=200)]
-    cve_id: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True,
-                                             pattern=r"(?i)^CVE-\d{4}-\d{4,}$")] | None = None
+    cve_id: CveId | None = None
 
 
 class WebHit(ToolResult):
@@ -83,4 +82,5 @@ register(ToolSpec(
     result=ResearchResult,
     run=run,
     offered=lambda deps: deps.web is not None,
+    calls_out=True,  # Tavily
 ))

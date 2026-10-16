@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { RunRow } from './api.ts'
-import { feedLine, runCounts, runResult, runWhen, scheduleLine, triggerName } from './refreshRuns.ts'
+import { feedLine, ownersSchedule, runCounts, runResult, runWhen, scheduleLine, triggerName } from './refreshRuns.ts'
 
 const row = (over: Partial<RunRow> = {}): RunRow => ({
   trigger: 'schedule',
@@ -67,4 +67,11 @@ test('B19.5 the schedule line: paused, next due, or in live mode only', () => {
     'Every hour · the next scheduled check runs at the next tick.')
   assert.equal(scheduleLine({ hours: 6, paused: false, next_due: null }, 'snapshot'),
     'Every 6 hours, in live mode. The snapshot never changes.')
+})
+
+test('BR.9 another user sees the owner\'s schedule, read-only', () => {
+  assert.equal(ownersSchedule({ hours: 6, paused: false, next_due: null }),
+    "The owner's schedule: every 6 hours. Only the owner can change or pause it.")
+  assert.equal(ownersSchedule({ hours: 1, paused: true, next_due: null }),
+    "The owner's schedule: every hour, paused. Only the owner can change or pause it.")
 })

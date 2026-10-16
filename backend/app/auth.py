@@ -15,9 +15,12 @@ from dataclasses import dataclass
 
 from clerk_backend_api.security import authenticate_request
 from clerk_backend_api.security.types import AuthenticateRequestOptions
-from fastapi import Request
+from typing import Annotated
+
+from fastapi import Depends, Request
 
 from app.config import DEFAULT_USER, USER_ID, Settings
+from app.errors import NotOwner
 
 log = logging.getLogger(__name__)
 
@@ -78,3 +81,12 @@ def user_name(request: Request) -> str | None:
     """The signed-in user's name, or None (sign-in off, or a test's fake user)."""
     user: SignedIn | None = getattr(request.state, "signed_in", None)
     return user.name if user else None
+
+
+def owner_only(request: Request, user: Annotated[str, Depends(current_user)]) -> str:
+    """A route only the owner may use (OWNER: `app.state.owner`): the shared schedule and the demo's switches, which
+    act for every user. Anyone else gets NotOwner (403). With sign-in off the one local user is the owner, unless
+    OWNER names someone else."""
+    if user != request.app.state.owner:
+        raise NotOwner("Only the app's owner can do this: it changes the app for every user.")
+    return user

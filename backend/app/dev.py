@@ -5,12 +5,13 @@ Mounted only when DEV_PANEL is on (they show internals): off, every /dev route i
 from collections import Counter
 
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from app import openrouter_models
 from app.app_settings import DevSettings
+from app.auth import owner_only
 from app.errors import InputError
 from app.evals import model_check, report, retrieval
 from app.llm.urls import local_url_allowed
@@ -80,7 +81,7 @@ def dev_router(deps) -> APIRouter:
             raise InputError("Choose a local model first: Find models lists the ones the server has.")
         return {"settings": deps.owner_state.save_dev_settings(body).model_dump()}
 
-    @r.post("/fail-tools")
+    @r.post("/fail-tools", dependencies=[Depends(owner_only)])  # it fails every user's answers
     def fail_tools(body: FailTools):
         """The tool-failure switch (B20, docs/failure-demo.md): these chat tools time out in every answer until the
         server restarts or the list is emptied; Try again still runs them. Starts as FAIL_TOOLS."""

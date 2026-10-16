@@ -13,6 +13,8 @@ import {
 } from '../api.ts'
 import { AlertList } from '../components/AlertsLog.tsx'
 import { RefreshRuns } from '../components/RefreshRuns.tsx'
+import { ownersSchedule as ownersScheduleLine } from '../refreshRuns.ts'
+import { followLink, openPath } from '../route.ts'
 import { SaveBar } from '../components/SaveBar.tsx'
 import { Card } from '../components/StatusCard.tsx'
 import { useSettings } from '../components/useSettings.ts'
@@ -96,6 +98,8 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
   const channels = s.reply.channels
   const quietTz = s.reply.alert_tz ?? 'UTC'
   const set = (v: Partial<AlertSettings>) => s.patch('alerts', v)
+  // Not the owner (sign-in on): the schedule is the owner's, shown read-only; the select and Pause are the owner's
+  const ownersSchedule = s.reply.schedule?.yours === false ? s.reply.schedule : null
   const policy = s.draft.policy
   const daysInOrder = policy.urgent_days <= policy.high_days && policy.high_days <= policy.normal_days &&
     policy.normal_days <= policy.low_days
@@ -235,30 +239,38 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
           <p className="meta">
             How often the live data is checked, and the last 20 checks: the schedule's, Check now's and Patch's.
           </p>
-          <fieldset id="schedule">
-            <legend>Schedule</legend>
-            <div className="field-row">
-              <label htmlFor="al-schedule">Check for new CVEs every</label>
-              <select id="al-schedule" value={a.schedule_hours}
-                onChange={(e) => set({ schedule_hours: Number(e.target.value) as AlertSettings['schedule_hours'] })}>
-                {SCHEDULES.map((h) => (
-                  <option key={h} value={h}>
-                    {h === 1 ? 'hour' : `${h} hours`}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="check-row switch-row">
-              <input type="checkbox" id="al-paused" checked={a.schedule_paused}
-                onChange={(e) => set({ schedule_paused: e.target.checked })} aria-describedby="al-paused-why" />
-              <label htmlFor="al-paused">
-                <strong>Pause the schedule</strong>
-              </label>
-              <span id="al-paused-why" className="meta">
-                No scheduled check starts. Check now and Patch's check still work.
-              </span>
-            </div>
-          </fieldset>
+          {ownersSchedule ? (
+            <fieldset id="schedule">
+              <legend>Schedule</legend>
+              {/* B09: the refresh is shared and runs on the owner's schedule, so anyone else only sees it */}
+              <p className="meta" data-testid="owners-schedule">{ownersScheduleLine(ownersSchedule)}</p>
+            </fieldset>
+          ) : (
+            <fieldset id="schedule">
+              <legend>Schedule</legend>
+              <div className="field-row">
+                <label htmlFor="al-schedule">Check for new CVEs every</label>
+                <select id="al-schedule" value={a.schedule_hours}
+                  onChange={(e) => set({ schedule_hours: Number(e.target.value) as AlertSettings['schedule_hours'] })}>
+                  {SCHEDULES.map((h) => (
+                    <option key={h} value={h}>
+                      {h === 1 ? 'hour' : `${h} hours`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="check-row switch-row">
+                <input type="checkbox" id="al-paused" checked={a.schedule_paused}
+                  onChange={(e) => set({ schedule_paused: e.target.checked })} aria-describedby="al-paused-why" />
+                <label htmlFor="al-paused">
+                  <strong>Pause the schedule</strong>
+                </label>
+                <span id="al-paused-why" className="meta">
+                  No scheduled check starts. Check now and Patch's check still work.
+                </span>
+              </div>
+            </fieldset>
+          )}
           <NotSaved error={s.error} show={s.changed('alerts', { only: SCHEDULE_KEYS })} />
           <RefreshRuns reload={JSON.stringify(s.reply.settings.alerts)} />
         </Card>
@@ -399,11 +411,10 @@ export function SettingsPage({ asOf }: { asOf: string | null }) {
           <p>
             Snapshot of OWASP, MITRE ATLAS, NVD and CISA KEV, as of <strong>{asOf ?? '…'}</strong>.
           </p>
-          <button type="button" disabled aria-describedby="check-now-why">
-            Check for new CVEs now
-          </button>
-          <p id="check-now-why" className="meta">
-            Not built yet: needs the refresh worker (spec B).
+          <p className="meta" data-testid="check-now-pointer">
+            In live mode, <strong>Check now</strong> on the{' '}
+            <a href="/" onClick={(e) => followLink(e, openPath)}>dashboard's Data freshness card</a> checks the feeds
+            for new CVEs. Every check is listed under <a href="#schedule">Refresh runs</a>.
           </p>
 
           <div className="danger-zone">

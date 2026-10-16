@@ -17,12 +17,12 @@ from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
 from app import agent, card_actions, chat_turn, dashboard, page_context, proposals, refresh
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
-from app.auth import SIGNED_OUT, SignedOut, Verifier, current_user, user_name
+from app.auth import SIGNED_OUT, SignedOut, Verifier, current_user, owner_only, user_name
 from app.config import Settings
 from app.cve_filters import CveView, InvalidFilter
 from app.deps import Deps, build_deps
 from app.dev import dev_router
-from app.errors import InputError, LLMError, RateLimited
+from app.errors import InputError, LLMError, NotOwner, RateLimited
 from app.notify import NotifyError, channel_status, deliver, format_alert
 from app.one_port import one_port
 from app.rate_limits import ChatLimits, refused
@@ -30,7 +30,7 @@ from app.proposals import ProposalEdit, ProposalError
 from app.refresh import CheckReply
 from app.llm.base import ToolCall
 from app.schemas import ChatReply, ChatRequest, ToolCallRecord
-from app.tools.registry import Context, run_tool
+from app.tools.registry import Context, offered_tool, run_tool
 from app.verdict import USAGES
 from app.watched import WatchedCves
 
@@ -102,7 +102,15 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     # Sign-in (B10): every route on `api` needs a user (its router's dependency); only /health is on `app` itself.
     # B13: the scheduled refresh route (Cloud Scheduler) is on `app` too, with its own secret header instead of a user.
     app.state.verify = Verifier(deps.settings) if deps.settings.auth else None
-    api = APIRouter(dependencies=[Depends(current_user)])
+    app.state.owner = deps.settings.owner  # app.auth.owner_only
+
+    def known(user: Annotated[str, Depends(current_user)]) -> str:
+        """Every request on `api` has a user, and that user counts for the refresh from now on (story 61): their
+        alerts and "new since last check" come even before they save anything, and after a reset."""
+        deps.users.seen(user)
+        return user
+
+    api = APIRouter(dependencies=[Depends(known)])
 
     @app.exception_handler(SignedOut)
     async def signed_out(request: Request, exc: SignedOut):
@@ -131,6 +139,10 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.exception_handler(ProposalError)
     async def proposal_error(request: Request, exc: ProposalError):
         return _error(exc.status, exc.code, exc.message)
+
+    @app.exception_handler(NotOwner)
+    async def not_owner(request: Request, exc: NotOwner):
+        return _error(403, exc.code, exc.message)
 
     @app.exception_handler(NotifyError)
     async def notify_error(request: Request, exc: NotifyError):
@@ -171,8 +183,11 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return {"mode": deps.settings.data_mode,
                 "last_checked": deps.refresher.last_checked() if deps.refresher else None}
 
-    def schedule_status() -> dict:
-        return refresh.schedule_status(deps.refresher, deps.owner_state.settings().alerts)  # B19; the owner's (B09)
+    def schedule_status(user: str) -> dict:
+        """B19: the schedule, which is the owner's (B09); `yours`: the caller is the owner, so may change it. Anyone
+        else sees it read-only, as "the owner's schedule"."""
+        return {**refresh.schedule_status(deps.refresher, deps.owner_state.settings().alerts),
+                "yours": user == deps.settings.owner}
 
     @app.get("/health")
     def health():
@@ -190,9 +205,16 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return chat_turn.turn(req, d)  # guard, explain level, page context, step limit (app.chat_turn)
 
     @api.post("/chat/tool", response_model=ToolCallRecord)
-    def retry_tool(body: ToolRetry, d: You):
+    def retry_tool(body: ToolRetry, d: You, request: Request, user: Annotated[str, Depends(current_user)]):
         """Try again (B20): run one tool step again, as the answer did but without the tool-failure switch. Its
-        result goes on its card only: the model doesn't see it, so the answer's text is never rewritten by it."""
+        result goes on its card only: the model doesn't see it, so the answer's text is never rewritten by it.
+        Only a tool offered to this user now runs (the chat's own list); one that asks the model or the network
+        counts as a chat message (B11), as a refine does."""
+        spec = offered_tool(body.name, d)
+        if spec is None:
+            raise InputError(f"There's no {body.name!r} tool to try again here.", "not_offered")
+        if spec.calls_out:
+            chat_allowed(request, user)
         page, _ = page_context.validate(body.page, d.knowledge.resolve_product)
         return run_tool(ToolCall(id="retry", name=body.name, args=body.args), d, Context(page=page, user_id=d.user_id))
 
@@ -240,7 +262,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         # banner (B20). The next try is the run's start + 5 minutes, the one rule for every trigger.
         last = deps.refresher.last_result() if deps.refresher else None
         return summary | {"data": {**data_status(), "last_result": last.model_dump() if last else None,
-                                    "schedule": schedule_status()}}  # B19: "Schedule paused"
+                                    "schedule": schedule_status(d.user_id)}}  # B19: "Schedule paused"
 
     @api.get("/cves")
     def get_cves(request: Request, d: You, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
@@ -290,11 +312,19 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     @api.get("/settings")
     def get_settings(d: You):
-        return {"settings": d.state.settings().model_dump(),
+        return {"settings": d.state.settings().model_dump(), "schedule": schedule_status(d.user_id),
                 "channels": channel_status(deps.settings, deps.transports), "alert_tz": deps.settings.alert_tz}
 
     @api.put("/settings")
     def put_settings(body: AppSettings, d: You):
+        """The caller's settings. The schedule (hours, paused) runs the shared refresh, so only the owner's count:
+        anyone else's change to them is refused, and the rest of their settings save as usual."""
+        if d.user_id != deps.settings.owner:
+            saved = d.state.settings().alerts
+            if (body.alerts.schedule_hours, body.alerts.schedule_paused) != (saved.schedule_hours,
+                                                                              saved.schedule_paused):
+                raise NotOwner("The schedule is the owner's: it runs the one refresh every user shares. Only the "
+                               "owner can change or pause it.")
         return {"settings": d.state.save_settings(body).model_dump()}
 
     @api.get("/alerts")
@@ -374,11 +404,11 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def refresh_runs(d: You):
         """B19: the "Refresh runs" card: the schedule (paused or not, when next due) and the last 20 runs, with the
         caller's own alert counts (B09)."""
-        return {**data_status(), "schedule": schedule_status(),
+        return {**data_status(), "schedule": schedule_status(d.user_id),
                 "runs": deps.refresher.history(d.user_id) if deps.refresher else []}
 
     if deps.live and deps.settings.feeds == "fake":
-        @api.post("/refresh/reset")
+        @api.post("/refresh/reset", dependencies=[Depends(owner_only)])
         def reset_live_data(body: ResetRequest):
             """The fake feeds only: the live data back to the snapshot, an empty run log and no alerts, so the browser check
             can run Check now again (DECISIONS.md, 2026-10-15). The real feeds have no such route."""
@@ -388,7 +418,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
             deps.sync()
             return {"reset": True}
 
-        @api.post("/refresh/fake-feeds")
+        @api.post("/refresh/fake-feeds", dependencies=[Depends(owner_only)])
         def fail_fake_feeds(body: FakeFeedsRequest):
             """The fake feeds only: which of them fail from now on (B20, the browser check's partial run). Like
             FAKE_FEEDS_FAIL, for this server until it restarts; `[]` makes every feed answer again."""

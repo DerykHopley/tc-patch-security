@@ -21,6 +21,7 @@ from app import guard, proposals
 from app.errors import InputError, ToolError
 from app.proposals import Proposal
 from app.status import JUSTIFICATIONS
+from app.schemas import CveId
 from app.tools.registry import ToolSpec, register
 from app.tools.watchlist import WatchlistResult
 
@@ -30,8 +31,7 @@ WEB_LABEL = "web result, unverified"
 
 
 class DecisionArgs(BaseModel):
-    cve_id: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True,
-                                             pattern=r"(?i)^CVE-\d{4}-\d{4,}$")]
+    cve_id: CveId
     status: Literal["fixed", "not_affected", "accepted"]
     # In the model's own words, citing the sources as [n]: the record's reason (accepted) or note (the others).
     reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=10, max_length=300)]
@@ -88,7 +88,7 @@ def run(args: DecisionArgs, deps, ctx) -> dict:
     try:
         return proposals.propose("set_status", deps, cve_id=args.cve_id, sources=sources,
                                  **{k: v for k, v in fields.items() if v is not None})
-    except proposals.Nothing as e:
+    except proposals.NoChange as e:
         k = deps.knowledge
         return {"message": str(e), "watchlist": [k.products[p] for p in deps.state.read().watchlist]}
     except KeyError:

@@ -11,6 +11,7 @@ Judgement calls a reviewer checks by reading. Anything a tool can check goes int
 
 - **Untrusted text always goes through the guard.** Retrieved knowledge, tool output and (later) web pages are data, never instructions: they reach the model only wrapped by the guard, and user messages are checked by it (flagged, never blocked). New text sources, new tools and new prompt parts included. Why: an instruction hidden in a CVE description must not steer Patch.
 - **Rules decide, the LLM explains.** Verdict, priority, due dates and the order of "what to fix first" come from pure functions with table tests. Patch only explains their output; it never re-ranks, changes a CVE status, or invents a verdict. Why: the same input must give the same answer, and the owner can audit the rules.
+  - The one exception (B22): `propose_decision` may *propose* a status, accepted included, after research. It changes nothing: only the user's Approve on the proposal card applies it, through the same checks as the CVE decision dialog. See DECISIONS.md (B21, B22).
 
 ## Tests
 

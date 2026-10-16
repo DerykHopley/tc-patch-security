@@ -19,6 +19,7 @@ from pathlib import Path
 
 from app.knowledge import load_knowledge
 from app.notify import Transports, format_alert, send_on
+from app.times import iso_utc
 from app.watched import WatchedCves
 
 
@@ -195,7 +196,7 @@ class Alerter:
 
     def _for_user(self, user, state, changes: Diff | None, knowledge, now: dt.datetime,
                   complete: bool = True) -> list[dict]:
-        at = now.astimezone(dt.UTC).isoformat(timespec="seconds")
+        at = iso_utc(now)
         if changes is not None:  # B05: the CVEs page's "new since last check", alerts on or off
             state.note_new_cves(list(changes.new), at, complete)
         s = state.settings().alerts

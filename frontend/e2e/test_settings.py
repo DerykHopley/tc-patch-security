@@ -86,9 +86,11 @@ def test_a13_2_each_panel_says_whether_it_is_live_saved_for_later_or_a_mock(sett
     # Alerts went live with B04: a live check uses them
     for title, chip in (("Alerts", "Live"), ("Delivery", "Live"), ("Watchlist", "Live"), ("Data", "Live")):
         expect(panel(page, title).locator(".status-chip")).to_have_text(chip)
-    check_now = page.get_by_role("button", name="Check for new CVEs now")
-    expect(check_now).to_be_disabled()
-    expect(panel(page, "Data")).to_contain_text("Not built yet")
+    # BR.13: no dead button; the Data card points to the dashboard's Check now and the Refresh runs card
+    expect(page.get_by_role("button", name="Check for new CVEs now")).to_have_count(0)
+    expect(panel(page, "Data")).not_to_contain_text("Not built yet")
+    expect(panel(page, "Data").get_by_role("link", name="dashboard's Data freshness card")).to_have_attribute("href", "/")
+    expect(panel(page, "Data").get_by_role("link", name="Refresh runs")).to_have_attribute("href", "#schedule")
     expect(page.get_by_role("heading", level=1)).to_have_text("Settings")
     expect(page.get_by_role("heading", name="Settings", level=2)).to_have_count(0)  # the top bar names the page
 
@@ -293,7 +295,7 @@ def test_a13_9_buttons_have_accessible_names(settings_page):
     page = settings_page()
     for name in ("Send test alert by desktop notification", "Send test alert by email",
                  "Send test alert by phone push (ntfy)", "Preview an alert (send nothing)",
-                 "Check for new CVEs now", "Reset demo data", "Discard", "Save changes"):
+                 "Reset demo data", "Discard", "Save changes"):
         expect(page.get_by_role("button", name=name, exact=True)).to_have_count(1)
     unnamed = page.evaluate("""[...document.querySelectorAll('main button')].filter(b =>
         !(b.getAttribute('aria-label') || b.textContent).trim()).length""")

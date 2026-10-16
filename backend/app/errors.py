@@ -15,6 +15,11 @@ class InputError(AppError):
     code = "invalid_input"
 
 
+class NotOwner(AppError):
+    """Something only the owner (OWNER) may do (main.py answers 403): the shared schedule, the demo switches."""
+    code = "not_owner"
+
+
 class LLMError(AppError):
     """`public` is safe to show; without it, callers show GENERIC."""
     code = "llm_error"

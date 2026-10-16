@@ -69,6 +69,7 @@ class ToolSpec:
     result: Any  # a ToolResult model, or a union of them (Annotated with a discriminator where there is one)
     run: Callable  # (args, deps, ctx) -> dict, in the shape of `result`
     offered: Callable = lambda deps: True  # (deps) -> bool: an off tool isn't offered to the model, nor run (B08)
+    calls_out: bool = False  # it asks the model or the network: Try again counts it as a chat message (B11)
 
     def __post_init__(self):
         self.results = TypeAdapter(self.result)
@@ -95,6 +96,12 @@ def register(spec: ToolSpec) -> ToolSpec:
 def tool_schemas(deps=None) -> list[dict]:
     """The tools offered to the model. Without deps, every tool."""
     return [t.schema() for t in TOOLS.values() if deps is None or t.offered(deps)]
+
+
+def offered_tool(name: str, deps) -> ToolSpec | None:
+    """The chat tool by that name if it's offered to this user now (research_web needs its key), else None."""
+    spec = TOOLS.get(name)
+    return spec if spec is not None and spec.offered(deps) else None
 
 
 # Errors that may pass on a second try (B20): the tool card offers "Try again" for these only. A bad argument or an

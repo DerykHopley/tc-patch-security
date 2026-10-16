@@ -146,3 +146,46 @@ def test_b19_10_patch_says_the_schedule_is_paused(open_live, live_state):  # noq
     expect(answer.locator(".answer-text")).to_contain_text("The schedule is paused")
     expect(updates_card(answer).locator(".updates-schedule")).to_have_text(
         "Schedule paused: no scheduled check starts. Check now and Patch still check.")
+
+
+# --- BR.9: anyone but the owner sees the owner's schedule, read-only ------------------------------------------------
+
+def as_another_user(context, api_url: str) -> None:
+    """The browser as a signed-in user who isn't the owner: the server says so with `yours: false` on the schedule
+    (backend test BR.9 checks the server side). Only the API's /settings and /dashboard answers are changed."""
+    def not_yours(route):
+        if route.request.method != "GET":
+            route.continue_()
+            return
+        response = route.fetch()
+        body = response.json()
+        for schedule in (body.get("schedule"), (body.get("data") or {}).get("schedule")):
+            if schedule:
+                schedule["yours"] = False
+        route.fulfill(response=response, json=body)
+
+    context.route(f"{api_url}/settings", not_yours)
+    context.route(f"{api_url}/dashboard**", not_yours)
+
+
+def test_br_9_another_user_sees_the_owners_schedule_without_pause_or_resume(browser, live_ui_url,
+                                                                            live_state):  # noqa: F811
+    settings = api(live_state, "/settings")["settings"]
+    settings["alerts"]["schedule_paused"] = True
+    api(live_state, "/settings", "PUT", settings)
+    ctx = browser.new_context(viewport={"width": DESKTOP, "height": 900})
+    try:
+        as_another_user(ctx, live_state)
+        page = ctx.new_page()
+        page.goto(live_ui_url + "/settings")
+        expect(runs_card(page).get_by_test_id("owners-schedule")).to_have_text(
+            "The owner's schedule: every 6 hours, paused. Only the owner can change or pause it.")
+        expect(runs_card(page).get_by_label("Pause the schedule")).to_have_count(0)
+        expect(runs_card(page).get_by_label("Check for new CVEs every")).to_have_count(0)
+
+        page.get_by_role("button", name="Dashboard", exact=True).click()
+        paused = card(page).locator(".schedule-paused")
+        expect(paused).to_have_text("The owner's schedule is paused")
+        expect(paused.get_by_role("button")).to_have_count(0)
+    finally:
+        ctx.close()

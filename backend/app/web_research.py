@@ -3,7 +3,8 @@
 - First through Tavily's hosted remote MCP server, with LangChain's MCP adapter (`langchain-mcp-adapters`), the
   course's "remote MCP server" task. If that fails to connect or answer, Tavily's plain search API.
 - Fixed settings: basic search, at most 5 results, snippets only (no raw content, no extract), and an exclude list of
-  exploit and proof-of-concept sites. A result from one of them is dropped here too, in case Tavily lets one through.
+  exploit and proof-of-concept sites. A result from one of them is dropped here too, in case Tavily lets one through,
+  and so is one whose URL isn't http(s) (`web_link`): the URL becomes a link in the app.
 - Only the query is sent. The key goes in the Authorization header, never in a URL, and no log line carries it: the
   MCP SDK and httpx log URLs, and an error's text can hold them, so failures are logged by type only.
 - The cap counts searches per day, per user and in total, in memory (spec B: one instance). A failed search isn't
@@ -58,6 +59,18 @@ def excluded(url: str) -> bool:
     """On the exclude list: the host is a listed domain or under one."""
     host = (urlsplit(url).hostname or "").lower()
     return any(host == d or host.endswith("." + d) for d in EXCLUDED_DOMAINS)
+
+
+def web_link(url: str) -> bool:
+    """A link the app may show: http or https with a host. Anything else (javascript:, data:, a relative path) is
+    dropped with its result, because the URL becomes a link's href in the chat and the proposal card."""
+    parts = urlsplit(url.strip())
+    return parts.scheme.lower() in ("http", "https") and bool(parts.hostname)
+
+
+def keep(url: str) -> bool:
+    """A result the app keeps: a web link not on the exclude list."""
+    return web_link(url) and not excluded(url)
 
 
 def parse_mcp_text(text: str) -> list[Hit]:
@@ -129,7 +142,7 @@ class WebResearch:
         except Exception as e:  # noqa: BLE001  any failure: connection, protocol, tool error, timeout
             log.warning("Tavily MCP search failed (%s); using the plain search API", type(e).__name__)
             hits, via = self._api(query), "api"
-        kept = [Hit(h.title, h.url, h.snippet[:SNIPPET_CHARS], h.date) for h in hits if not excluded(h.url)]
+        kept = [Hit(h.title, h.url, h.snippet[:SNIPPET_CHARS], h.date) for h in hits if keep(h.url)]
         return kept[:MAX_RESULTS], via
 
     async def _mcp(self, query: str) -> list[Hit]:
@@ -173,5 +186,5 @@ class CannedWeb:
 
     def search(self, query: str) -> tuple[list[Hit], str]:
         hits = [Hit(r["title"], r["url"], r["content"][:SNIPPET_CHARS], r.get("published_date"))
-                for r in self._results if not excluded(r["url"])]
+                for r in self._results if keep(r["url"])]
         return hits[:MAX_RESULTS], "canned"

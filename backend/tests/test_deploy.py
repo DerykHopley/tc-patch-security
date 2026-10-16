@@ -198,7 +198,8 @@ def test_b13_3_it_needs_no_user_with_sign_in_on(tmp_path, index_dir, index):
     """The deliberate exception to "every route needs a user" (B10): Cloud Scheduler has no Clerk session."""
     from test_auth import ORIGIN, PUBLIC
 
-    c, _ = scheduled_app(tmp_path, index_dir, auth=True, clerk_publishable_key="pk_test_x", clerk_jwt_key=PUBLIC,
+    c, _ = scheduled_app(tmp_path, index_dir, auth=True, owner="user_owner", clerk_publishable_key="pk_test_x",
+                         clerk_jwt_key=PUBLIC,
                          auth_allowed_origins=[ORIGIN])
     assert c.get("/refresh").status_code == 401  # the rest of the API still needs a user
     assert tick(c, "wrong").status_code == 401

@@ -43,7 +43,7 @@ def bearer(t: str) -> dict:
 
 @pytest.fixture
 def auth_settings(settings):
-    return dataclasses.replace(settings, auth=True, clerk_publishable_key="pk_test_ZmFrZS5jbGVyay5hY2NvdW50cy5kZXYk",
+    return dataclasses.replace(settings, auth=True, owner="user_owner", clerk_publishable_key="pk_test_ZmFrZS5jbGVyay5hY2NvdW50cy5kZXYk",
                                clerk_jwt_key=PUBLIC, auth_allowed_origins=[ORIGIN])
 
 
@@ -201,7 +201,7 @@ def test_b10_8_cors_allows_the_authorization_header(signed):
 @pytest.mark.parametrize("env, message", [
     ({"AUTH": "maybe"}, "AUTH must be on or off"),
     ({"AUTH": "on"}, "AUTH=on needs CLERK_PUBLISHABLE_KEY, CLERK_JWT_KEY, AUTH_ALLOWED_ORIGINS"),
-    ({"AUTH": "on", "CLERK_PUBLISHABLE_KEY": "pk_test_x", "CLERK_JWT_KEY": "sk_test_oops",
+    ({"AUTH": "on", "CLERK_PUBLISHABLE_KEY": "pk_test_x", "CLERK_JWT_KEY": "sk_test_oops", "OWNER": "user_owner",
       "AUTH_ALLOWED_ORIGINS": ORIGIN}, "CLERK_JWT_KEY must be the PEM public key"),
 ])
 def test_b10_9_sign_in_without_its_settings_stops_the_start_up(monkeypatch, env, message):

@@ -13,6 +13,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { EXPLAIN_LEVELS, type ChatReply, type Example, type ExplainLevel } from '../api.ts'
 import { AnswerDetails, firstTab, sourceId, type DetailTab } from './AnswerDetails.tsx'
+import { proposalOf } from '../toolCalls.ts'
 import { ProposalCard } from './ProposalCard.tsx'
 import { ToolCallCard } from './ToolCallCard.tsx'
 import type { Message, RefinedResult } from './useChat.ts'
@@ -121,12 +122,11 @@ function Answer({ reply }: { reply: ChatReply }) {
           </Markdown>
         </CiteContext>
       </div>
-      {reply.tool_calls.map((c) =>
-        // A change Patch proposes (B21): its card under the answer, not folded in the details
-        (c.name === 'update_watchlist' || c.name === 'propose_decision') && c.result && 'proposal_id' in c.result ? (
-          <ProposalCard key={c.id} proposal={c.result} />
-        ) : null,
-      )}
+      {reply.tool_calls.map((c) => {
+        // A change Patch proposes (B21, B22): its card under the answer, not folded in the details
+        const proposal = proposalOf(c)
+        return proposal ? <ProposalCard key={c.id} proposal={proposal} /> : null
+      })}
       {reply.flags.includes('injection_phrasing') && (
         <p className="flag-note">This message looks like an injection attempt. It was answered, and logged.</p>
       )}

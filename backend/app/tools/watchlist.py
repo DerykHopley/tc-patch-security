@@ -7,6 +7,7 @@ from pydantic import BaseModel, StringConstraints, model_validator
 from app import proposals
 from app.errors import InputError, ToolError
 from app.proposals import Proposal
+from app.schemas import CveId
 from app.tools.registry import ToolResult, ToolSpec, register
 from app.status import JUSTIFICATIONS
 from app.verdict import USAGES
@@ -15,8 +16,7 @@ from app.verdict import USAGES
 class WatchArgs(BaseModel):
     action: Literal["watch", "unwatch", "set_status", "set_details"]
     product: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)] | None = None
-    cve_id: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True,
-                                             pattern=r"(?i)^CVE-\d{4}-\d{4,}$")] | None = None
+    cve_id: CveId | None = None
     # Never "accepted": accepting a risk is the user's alone (A16b). Patch may only suggest it.
     status: Literal["open", "fixed", "not_affected"] | None = None
     justification: Literal[JUSTIFICATIONS] | None = None  # type: ignore[valid-type]  # needed for not_affected
@@ -51,7 +51,7 @@ def run(args: WatchArgs, deps, ctx) -> dict:
         fields = {}
     try:
         return proposals.propose(args.action, deps, product=args.product, cve_id=args.cve_id, why=args.why, **fields)
-    except proposals.Nothing as e:
+    except proposals.NoChange as e:
         k = deps.knowledge
         return {"message": str(e), "watchlist": [k.products[p] for p in deps.state.read().watchlist]}
     except KeyError:

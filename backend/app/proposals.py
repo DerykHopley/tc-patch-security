@@ -19,12 +19,15 @@ change and its record leaves the proposal stale, never applied twice.
 """
 import datetime as dt
 import uuid
-from typing import Annotated, Literal
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
 from app.errors import AppError, InputError
 from app.status import JUSTIFICATIONS, decision
+from app.times import iso_utc
 from app.verdict import USAGE_LABELS, USAGES
 
 TTL = dt.timedelta(hours=1)
@@ -116,9 +119,6 @@ class ProposalEdit(BaseModel):
     internet_facing: StrictBool | None = None
 
 
-def _iso(t: dt.datetime) -> str:
-    return t.astimezone(dt.UTC).isoformat(timespec="seconds")
-
 
 def _details_words(f: dict) -> str:
     return ", ".join([USAGE_LABELS[f["usage"]], f"version {f['version']}" if f["version"] else "no version given",
@@ -133,44 +133,114 @@ def _status_words(fields: dict) -> str:
     return f"{out} ({'; '.join(extra)})" if extra else out
 
 
-class Nothing(Exception):
+class NoChange(Exception):
     """The change is already so: nothing to propose. Carries the message."""
 
 
-def _based_on(rec: dict, deps) -> dict:
-    """What the proposal depends on, read now: approving checks it hasn't changed."""
-    stack = deps.state.read()
-    if rec["action"] == "set_status":
-        return {"status": stack.statuses.get(rec["cve_id"], "open"), "decisions": len(stack.history(rec["cve_id"]))}
-    if rec["action"] == "set_details":
-        return {"fields": stack.fields(rec["product"]).as_dict()}
+# --- Each action's handlers, in one place (the Change map below): what it rests on, its before and after, its title,
+# how approving applies it, and what an edit may change.
+
+def _status_based_on(rec: dict, stack) -> dict:
+    return {"status": stack.statuses.get(rec["cve_id"], "open"), "decisions": len(stack.history(rec["cve_id"]))}
+
+
+def _details_based_on(rec: dict, stack) -> dict:
+    return {"fields": stack.fields(rec["product"]).as_dict()}
+
+
+def _watch_based_on(rec: dict, stack) -> dict:
     return {"watched": stack.watches(rec["product"])}
 
 
-def _preview(rec: dict, deps) -> tuple[str, str, dict]:
-    """Before, after and the checked fields for a proposal record. InputError if a field isn't allowed."""
-    stack = deps.state.read()
+def _status_preview(rec: dict, deps, stack) -> tuple[str, str, dict]:
     f = rec["fields"]
-    if rec["action"] == "set_status":
-        given = {x: f.get(x) for x in STATUS_FIELDS if x != "status"}
-        checked = decision(f.get("status") or "", given, deps.as_of)  # the CVE decision dialog's rules
-        before = STATUS_WORD[stack.statuses.get(rec["cve_id"], "open")]
-        return before, _status_words(checked), {x: checked.get(x) for x in STATUS_FIELDS}
-    if rec["action"] == "set_details":
-        saved = stack.fields(rec["product"]).as_dict()
-        new = deps.state.check_fields(rec["product"], saved | {x: f[x] for x in DETAIL_FIELDS if f.get(x) is not None})
-        return _details_words(saved), _details_words(new), new
+    given = {x: f.get(x) for x in STATUS_FIELDS if x != "status"}
+    checked = decision(f.get("status") or "", given, deps.as_of)  # the CVE decision dialog's rules
+    before = STATUS_WORD[stack.statuses.get(rec["cve_id"], "open")]
+    return before, _status_words(checked), {x: checked.get(x) for x in STATUS_FIELDS}
+
+
+def _details_preview(rec: dict, deps, stack) -> tuple[str, str, dict]:
+    f = rec["fields"]
+    saved = stack.fields(rec["product"]).as_dict()
+    new = deps.state.check_fields(rec["product"], saved | {x: f[x] for x in DETAIL_FIELDS if f.get(x) is not None})
+    return _details_words(saved), _details_words(new), new
+
+
+def _watch_preview(rec: dict, deps, stack) -> tuple[str, str, dict]:
     watched = stack.watches(rec["product"])
     return ("Watched" if watched else "Not watched"), ("Not watched" if watched else "Watched"), {}
 
 
-def _title(rec: dict, deps) -> str:
-    name = deps.knowledge.products.get(rec["product"], rec["product"])
-    if rec["action"] == "set_status":
-        return TITLE[rec["fields"]["status"]].format(cve=rec["cve_id"])
-    if rec["action"] == "set_details":
-        return f"Change how you run {name}"
-    return f"Add {name} to your watchlist" if rec["action"] == "watch" else f"Remove {name} from your watchlist"
+def _status_apply(rec: dict, deps, name: str) -> str:
+    state, f = deps.state, rec["fields"]
+    given = {x: f[x] for x in STATUS_FIELDS if x != "status" and f.get(x) is not None}
+    cve, _ = state.set_status(rec["cve_id"], f["status"], deps.as_of, "chat", proposal=rec["id"],
+                              sources=rec.get("sources") or None, by=deps.decided_by, **given)
+    msg = f"Marked {cve['id']} as {STATUS_WORD[f['status']].lower()}."
+    if not state.read().watches(cve["product"]):
+        msg += f" {name} isn't on your watchlist, so the dashboard won't show it."
+    return msg
+
+
+def _details_apply(rec: dict, deps, name: str) -> str:
+    f = rec["fields"]
+    new = deps.state.set_fields(rec["product"], usage=f["usage"], version=f["version"] or "",
+                                internet_facing=f["internet_facing"])
+    return f"{name}: {_details_words(new)}."
+
+
+def _watch_apply(rec: dict, deps, name: str) -> str:
+    deps.state.watch(rec["product"])
+    return f"Added {name} to your watchlist."
+
+
+def _unwatch_apply(rec: dict, deps, name: str) -> str:
+    deps.state.unwatch(rec["product"])
+    return f"Removed {name} from your watchlist."
+
+
+def _status_edit(rec: dict, given: dict, deps) -> None:
+    _, rec["after"], rec["fields"] = _status_preview(rec | {"fields": given}, deps, deps.state.read())
+
+
+def _details_edit(rec: dict, given: dict, deps) -> None:
+    new = deps.state.check_fields(rec["product"], {**rec["fields"], **given})  # version "" clears it
+    rec["after"], rec["fields"] = _details_words(new), new
+
+
+@dataclass(frozen=True)
+class Change:
+    """One action a proposal can take, with its handlers. `editable`: the fields an edit may change, and `edit`
+    applies them (None: nothing to edit, approve or cancel it)."""
+    based_on: Callable[[dict, Any], dict]  # (rec, stack): what approving checks hasn't changed
+    preview: Callable[[dict, Any, Any], tuple[str, str, dict]]  # (rec, deps, stack): before, after, checked fields
+    title: Callable[[dict, str], str]  # (rec, product name)
+    apply: Callable[[dict, Any, str], str]  # (rec, deps, product name): make the change, say what changed
+    stale: str  # approving refused: what it was based on changed
+    editable: tuple[str, ...] = ()
+    edit: Callable[[dict, dict, Any], None] | None = None  # (rec, given, deps): the new after and fields
+    what: str = ""  # an edit's subject, for "… doesn't take …"
+
+
+_WATCHLIST_CHANGED = "Your watchlist changed since Patch proposed this. Propose it again."
+CHANGES: dict[str, Change] = {
+    "set_status": Change(_status_based_on, _status_preview,
+                         lambda rec, name: TITLE[rec["fields"]["status"]].format(cve=rec["cve_id"]), _status_apply,
+                         "This CVE's status changed since Patch proposed this. Propose it again.",
+                         STATUS_FIELDS, _status_edit, "A status change"),
+    "set_details": Change(_details_based_on, _details_preview, lambda rec, name: f"Change how you run {name}",
+                          _details_apply, "This product's details changed since Patch proposed this. Propose it again.",
+                          DETAIL_FIELDS, _details_edit, "A product's details"),
+    "watch": Change(_watch_based_on, _watch_preview, lambda rec, name: f"Add {name} to your watchlist", _watch_apply,
+                    _WATCHLIST_CHANGED),
+    "unwatch": Change(_watch_based_on, _watch_preview, lambda rec, name: f"Remove {name} from your watchlist",
+                      _unwatch_apply, _WATCHLIST_CHANGED),
+}
+
+
+def _name(rec: dict, deps) -> str:
+    return deps.knowledge.products.get(rec["product"], rec["product"])
 
 
 PENDING = "Nothing has changed yet: approve it in the card, edit it, or cancel it."
@@ -178,9 +248,9 @@ PENDING = "Nothing has changed yet: approve it in the card, edit it, or cancel i
 
 def propose(action: str, deps, *, product: str | None = None, cve_id: str | None = None, why: str | None = None,
             sources: list[dict] | None = None, **fields) -> dict:
-    """A new proposal, saved, as the Proposal view. Nothing raised as Nothing; a bad value as InputError; an
-    unknown CVE as KeyError. `sources`: what a proposed decision cites (B22), as ProposalSource dicts; approving
-    keeps them in the decision record."""
+    """A new proposal, saved, as the Proposal view. Already so: NoChange; a bad value: InputError; an unknown CVE:
+    KeyError. `sources`: what a proposed decision cites (B22), as ProposalSource dicts; approving keeps them in the
+    decision record."""
     k, stack = deps.knowledge, deps.state.read()
     if action == "set_status":
         cve = k.cves.get(cve_id)
@@ -188,33 +258,27 @@ def propose(action: str, deps, *, product: str | None = None, cve_id: str | None
             raise KeyError(cve_id)
         cve_id, product = cve["id"], cve["product"]
         if stack.statuses.get(cve_id, "open") == fields.get("status"):
-            raise Nothing(f"{cve_id} is already {STATUS_WORD[fields['status']].lower()}: nothing to change.")
+            raise NoChange(f"{cve_id} is already {STATUS_WORD[fields['status']].lower()}: nothing to change.")
     else:
         pid = k.resolve_product(product)
         if not pid:
             raise InputError(f"{product!r} isn't a product I track. Choose from: {', '.join(k.products.values())}.")
         product = pid
         if action == "watch" and stack.watches(pid):
-            raise Nothing(f"{k.products[pid]} is already on your watchlist: nothing to change.")
+            raise NoChange(f"{k.products[pid]} is already on your watchlist: nothing to change.")
         if action == "unwatch" and not stack.watches(pid):
-            raise Nothing(f"{k.products[pid]} isn't on your watchlist: nothing to change.")
-    now = deps.clock()
+            raise NoChange(f"{k.products[pid]} isn't on your watchlist: nothing to change.")
+    change, now = CHANGES[action], deps.clock()
     rec = {"id": uuid.uuid4().hex, "action": action, "cve_id": cve_id if action == "set_status" else None,
-           "product": product, "why": why, "fields": dict(fields), "state": "proposed", "created_at": _iso(now),
-           "expires_at": _iso(now + TTL), "approved_at": None, "approved_by": None, "message": PENDING,
+           "product": product, "why": why, "fields": dict(fields), "state": "proposed", "created_at": iso_utc(now),
+           "expires_at": iso_utc(now + TTL), "approved_at": None, "approved_by": None, "message": PENDING,
            "sources": list(sources or [])}
-    rec["before"], rec["after"], rec["fields"] = _preview(rec, deps)
+    rec["before"], rec["after"], rec["fields"] = change.preview(rec, deps, stack)
     if action == "set_details" and rec["before"] == rec["after"]:
-        raise Nothing(f"{k.products[product]} is already {rec['after']}: nothing to change.")
-    rec["based_on"] = _based_on(rec, deps)
+        raise NoChange(f"{k.products[product]} is already {rec['after']}: nothing to change.")
+    rec["based_on"] = change.based_on(rec, deps.state.read())
     deps.state.save_proposal(rec)
     return view(rec, deps)
-
-
-STALE = {"set_status": "This CVE's status changed since Patch proposed this. Propose it again.",
-         "set_details": "This product's details changed since Patch proposed this. Propose it again.",
-         "watch": "Your watchlist changed since Patch proposed this. Propose it again.",
-         "unwatch": "Your watchlist changed since Patch proposed this. Propose it again."}
 
 
 def _record(deps, pid: str) -> dict:
@@ -240,40 +304,19 @@ def get(deps, pid: str) -> dict:
     return view(_record(deps, pid), deps)
 
 
-def _apply(rec: dict, deps) -> str:
-    """Make the change through State's own methods, the ones the pages use. Returns what changed, in words."""
-    k, state, f = deps.knowledge, deps.state, rec["fields"]
-    name = k.products.get(rec["product"], rec["product"])
-    if rec["action"] == "set_status":
-        given = {x: f[x] for x in STATUS_FIELDS if x != "status" and f.get(x) is not None}
-        cve, _ = state.set_status(rec["cve_id"], f["status"], deps.as_of, "chat", proposal=rec["id"],
-                                  sources=rec.get("sources") or None, by=deps.decided_by, **given)
-        msg = f"Marked {cve['id']} as {STATUS_WORD[f['status']].lower()}."
-        if not state.read().watches(cve["product"]):
-            msg += f" {name} isn't on your watchlist, so the dashboard won't show it."
-        return msg
-    if rec["action"] == "set_details":
-        new = state.set_fields(rec["product"], usage=f["usage"], version=f["version"] or "",
-                               internet_facing=f["internet_facing"])
-        return f"{name}: {_details_words(new)}."
-    if rec["action"] == "watch":
-        state.watch(rec["product"])
-        return f"Added {name} to your watchlist."
-    state.unwatch(rec["product"])
-    return f"Removed {name} from your watchlist."
-
-
 def approve(deps, pid: str) -> dict:
-    """Apply a proposal once. Approving it again returns the first result and changes nothing more."""
+    """Apply a proposal once, through State's own methods (the ones the pages use). Approving it again returns the
+    first result and changes nothing more."""
     with deps.state.approvals:
         rec = _record(deps, pid)
         if rec["state"] == "approved":
             return view(rec, deps)
         _check_open(rec, deps)
-        if _based_on(rec, deps) != rec["based_on"]:
-            raise ProposalError(STALE[rec["action"]], "stale")
-        rec["message"] = _apply(rec, deps)
-        rec |= {"state": "approved", "approved_at": _iso(deps.clock()), "approved_by": deps.decided_by}
+        change = CHANGES[rec["action"]]
+        if change.based_on(rec, deps.state.read()) != rec["based_on"]:
+            raise ProposalError(change.stale, "stale")
+        rec["message"] = change.apply(rec, deps, _name(rec, deps))
+        rec |= {"state": "approved", "approved_at": iso_utc(deps.clock()), "approved_by": deps.decided_by}
         deps.state.save_proposal(rec)
         return view(rec, deps)
 
@@ -297,17 +340,12 @@ def edit(deps, pid: str, changes: ProposalEdit) -> dict:
         rec = _record(deps, pid)
         _check_open(rec, deps)
         given = changes.model_dump(exclude_unset=True)
-        if rec["action"] in ("watch", "unwatch"):
+        change = CHANGES[rec["action"]]
+        if change.edit is None:
             raise InputError("A watchlist proposal has nothing to edit: approve it or cancel it.")
-        allowed = STATUS_FIELDS if rec["action"] == "set_status" else DETAIL_FIELDS
-        if wrong := [x for x in given if x not in allowed]:
-            what = "A status change" if rec["action"] == "set_status" else "A product's details"
-            raise InputError(f"{what} doesn't take {', '.join(wrong)}.")
-        if rec["action"] == "set_status":
-            _, rec["after"], rec["fields"] = _preview(rec | {"fields": given}, deps)
-        else:
-            new = deps.state.check_fields(rec["product"], {**rec["fields"], **given})  # version "" clears it
-            rec["after"], rec["fields"] = _details_words(new), new
+        if wrong := [x for x in given if x not in change.editable]:
+            raise InputError(f"{change.what} doesn't take {', '.join(wrong)}.")
+        change.edit(rec, given, deps)
         deps.state.save_proposal(rec)
         return view(rec, deps)
 
@@ -319,7 +357,7 @@ def view(rec: dict, deps) -> dict:
         state = "expired"
     fields = {x: rec["fields"].get(x) for x in (*STATUS_FIELDS, *DETAIL_FIELDS)}
     return Proposal(
-        proposal_id=rec["id"], action=rec["action"], title=_title(rec, deps), why=rec["why"], cve_id=rec["cve_id"],
+        proposal_id=rec["id"], action=rec["action"], title=CHANGES[rec["action"]].title(rec, _name(rec, deps)), why=rec["why"], cve_id=rec["cve_id"],
         product=rec["product"], product_name=deps.knowledge.products.get(rec["product"]), before=rec["before"],
         after=rec["after"], fields=ProposalFields(**fields), state=state, message=rec["message"],
         as_of=deps.as_of, created_at=rec["created_at"], expires_at=rec["expires_at"],

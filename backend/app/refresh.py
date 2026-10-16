@@ -35,6 +35,7 @@ from app.config import FIXTURES, Settings
 from app.feeds import FeedError, Feeds, make_feeds
 from app.live_data import LiveData
 from app.store import LIVE_PREFIX, GcsStore, open_bucket
+from app.times import iso_utc
 
 log = logging.getLogger(__name__)
 
@@ -46,9 +47,6 @@ Trigger = Literal["button", "chat", "schedule", "cli"]
 def utc_now() -> dt.datetime:
     return dt.datetime.now(dt.UTC)
 
-
-def _iso(t: dt.datetime) -> str:
-    return t.astimezone(dt.UTC).isoformat(timespec="seconds")
 
 
 class Counts(BaseModel):
@@ -208,11 +206,11 @@ class Refresher:
         """B19: a refused run, kept apart from `runs` so the 5-minute rule and the banner only ever see real runs.
         The same refusal again (same trigger, same next allowed time) counts up instead of adding a line."""
         skipped = log_data.setdefault("skipped", [])
-        if skipped and (skipped[0]["trigger"], skipped[0]["next_allowed"]) == (trigger, _iso(next_allowed)):
+        if skipped and (skipped[0]["trigger"], skipped[0]["next_allowed"]) == (trigger, iso_utc(next_allowed)):
             skipped[0]["times"] += 1
         else:
-            skipped.insert(0, {"trigger": trigger, "started": _iso(now), "reason": reason,
-                               "next_allowed": _iso(next_allowed), "times": 1})
+            skipped.insert(0, {"trigger": trigger, "started": iso_utc(now), "reason": reason,
+                               "next_allowed": iso_utc(next_allowed), "times": 1})
         log_data["skipped"] = skipped[:RUNS_KEPT]
         self._save_log(log_data)
 
@@ -259,7 +257,7 @@ class Refresher:
         nxt = self.next_allowed()
         last = self.last_result()
         return {"last_checked": self.last_checked(), "running": self.running(),
-                "next_allowed": _iso(nxt) if nxt else None, "last_result": last.model_dump() if last else None}
+                "next_allowed": iso_utc(nxt) if nxt else None, "last_result": last.model_dump() if last else None}
 
     def _refuse(self, trigger: str, reason: str, now: dt.datetime, next_allowed: dt.datetime,
                 log_data: dict | None) -> CheckReply:
@@ -269,7 +267,7 @@ class Refresher:
         if log_data is not None:  # B19: the history shows it; "running" is left out (another run holds the log)
             self._log_skip(log_data, trigger, reason, now, next_allowed)
         return CheckReply(ran=False, result=self.last_result(),
-                          refusal=Refusal(reason=reason, next_allowed=_iso(next_allowed), message=message))
+                          refusal=Refusal(reason=reason, next_allowed=iso_utc(next_allowed), message=message))
 
     def run(self, trigger: Trigger) -> CheckReply:
         with self._lock() as held:
@@ -360,7 +358,7 @@ class Refresher:
                 alerts=None, feeds=()) -> RefreshResult:
         finished = now + dt.timedelta(seconds=time.monotonic() - began)
         status = "failed" if not ok else "partial" if any(not f.ok for f in feeds) else "ok"  # the feeds decide
-        return RefreshResult(trigger=trigger, started=_iso(now), finished=_iso(finished), ok=ok,
+        return RefreshResult(trigger=trigger, started=iso_utc(now), finished=iso_utc(finished), ok=ok,
                              counts=counts or Counts(), new_cves=list(new_cves), version=version, errors=list(errors),
                              alerts=alerts or {}, status=status, feeds=list(feeds))
 
@@ -431,7 +429,7 @@ def schedule_status(refresher: Refresher | None, alerts) -> dict:
     check_updates all say it from here."""
     due = schedule_due(refresher, alerts.schedule_hours) if refresher and not alerts.schedule_paused else None
     return {"hours": alerts.schedule_hours, "paused": alerts.schedule_paused,
-            "next_due": _iso(due) if due else None}
+            "next_due": iso_utc(due) if due else None}
 
 
 def run_scheduled(refresher: Refresher, schedule_hours: int, paused: bool = False) -> CheckReply | None:
@@ -445,7 +443,7 @@ def run_scheduled(refresher: Refresher, schedule_hours: int, paused: bool = Fals
     due = schedule_due(refresher, schedule_hours)
     if due and refresher.clock() < due:
         log.info("Scheduled refresh skipped: last checked %s, next due %s (every %d h).",
-                 refresher.last_checked(), _iso(due), schedule_hours)
+                 refresher.last_checked(), iso_utc(due), schedule_hours)
         refresher.send_held()  # B04: quiet hours may have ended since the last run
         return None
     return refresher.run("schedule")
@@ -473,7 +471,7 @@ def scheduled_tick(refresher: Refresher, alerts) -> dict:
         return {"ran": False, "skipped": "paused", "last_checked": refresher.last_checked(), "schedule_hours": hours}
     due = schedule_due(refresher, hours)
     return {"ran": False, "skipped": "not_due", "last_checked": refresher.last_checked(),
-            "next_due": _iso(due) if due else None, "schedule_hours": hours}
+            "next_due": iso_utc(due) if due else None, "schedule_hours": hours}
 
 
 def main(argv: Sequence[str] = ()) -> int:

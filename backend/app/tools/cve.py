@@ -1,20 +1,21 @@
 """lookup_cve (T2): one CVE from the snapshot, with OWASP, KEV and watchlist context."""
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel
 
 from app.errors import ToolError
 from app.proposals import ProposalSource
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
 from app.status import JUSTIFICATIONS, STATUSES
+from app.schemas import CveId
 from app.tools.registry import (Category, PriorityLevel, Severity, ToolResult, ToolSpec, Verdict, WatchStatus,
                                 WhoActs, register)
 from app.watched import WatchedCves
 
 
 class CveArgs(BaseModel):
-    cve_id: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, pattern=r"(?i)^CVE-\d{4}-\d{4,}$")]
+    cve_id: CveId
 
 
 class Kev(ToolResult):

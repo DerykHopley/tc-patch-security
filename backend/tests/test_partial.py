@@ -84,7 +84,8 @@ def test_b20_4_the_dashboard_has_the_last_run_with_each_feed_for_the_partial_ban
     assert data["last_result"] == r
     assert client.get("/dashboard").json()["data"] == {"mode": "snapshot", "last_checked": None,
                                                       "last_result": None,
-                                                      "schedule": {"hours": 6, "paused": False, "next_due": None}}
+                                                      "schedule": {"hours": 6, "paused": False, "next_due": None,
+                                                                   "yours": True}}
 
 
 def test_b20_5_the_fake_feeds_fail_by_env_switch_or_by_the_fake_only_route(live, monkeypatch):  # noqa: F811
@@ -168,7 +169,7 @@ def test_b20_7_try_again_runs_only_that_step_and_gives_its_result(failing):
     again = r.json()
     assert (again["name"], again["status"], again["error"]) == ("search_security", "ok", None)
     assert again["result"]["sources"]  # Try again isn't failed by the switch: the demo shows the retry working
-    assert failing.post("/chat/tool", json={"name": "nope", "args": {}}).json()["error"]["code"] == "unknown_tool"
+    assert failing.post("/chat/tool", json={"name": "nope", "args": {}}).json()["error"]["code"] == "not_offered"  # BR.1
 
 
 def test_b20_8_the_dev_panel_turns_the_tool_failure_switch_on_and_off(client):

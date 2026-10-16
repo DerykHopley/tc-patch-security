@@ -141,14 +141,14 @@ def schedule(live) -> dict:  # noqa: F811
 
 
 def test_b19_3_pause_and_resume_through_settings(live):  # noqa: F811
-    assert schedule(live) == {"hours": 6, "paused": False, "next_due": None}  # never checked: the next tick runs
+    assert schedule(live) == {"hours": 6, "paused": False, "next_due": None, "yours": True}  # never checked: the next tick runs
     live.check_now()
     assert schedule(live)["next_due"] == f"{DAY1}T14:50:00+00:00"  # 6 hours on, less the 10 minutes' slack
 
     body = live.client.get("/settings").json()["settings"]
     body["alerts"]["schedule_paused"] = True
     assert live.client.put("/settings", json=body).json()["settings"]["alerts"]["schedule_paused"] is True
-    assert schedule(live) == {"hours": 6, "paused": True, "next_due": None}
+    assert schedule(live) == {"hours": 6, "paused": True, "next_due": None, "yours": True}
     assert live.client.get("/dashboard").json()["data"]["schedule"]["paused"] is True
 
     body["alerts"]["schedule_paused"] = False

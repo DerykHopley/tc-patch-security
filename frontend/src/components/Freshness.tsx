@@ -13,6 +13,7 @@ import '../styles/runs.css' // B19: "Schedule paused"
 // B20: when the last run was partial or failed, a banner says which sources updated, which didn't, and when Retry may
 // run; Retry is Check now again (the server keeps the 5-minute rule, and a refusal shows in the line as usual).
 // B19: when the schedule is paused, "Schedule paused" with Resume (saves the setting); a link to the run history.
+// Resume is the owner's only: anyone else sees "The owner's schedule is paused" (BR.9).
 
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
 
@@ -83,11 +84,18 @@ export function FreshnessCard({ data, asOf, sources, onNavigate }: {
       )}
       {paused && (
         <div className="schedule-paused">
-          <p>Schedule paused</p>
-          <button type="button" onClick={resume} disabled={resuming} aria-busy={resuming}>
-            {resuming ? 'Resuming…' : 'Resume'}
-            <span className="visually-hidden"> the schedule</span>
-          </button>
+          {/* Only the owner resumes it: the schedule is the owner's (B09), so anyone else sees it paused, no button */}
+          {data.schedule?.yours === false ? (
+            <p>The owner's schedule is paused</p>
+          ) : (
+            <>
+              <p>Schedule paused</p>
+              <button type="button" onClick={resume} disabled={resuming} aria-busy={resuming}>
+                {resuming ? 'Resuming…' : 'Resume'}
+                <span className="visually-hidden"> the schedule</span>
+              </button>
+            </>
+          )}
         </div>
       )}
       {live && (

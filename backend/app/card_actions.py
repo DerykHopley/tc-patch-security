@@ -16,11 +16,10 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from app import proposals
 from app.errors import InputError
 from app.llm.base import ToolCall
-from app.schemas import ToolCallRecord
+from app.schemas import CveId, ToolCallRecord
 from app.tools.registry import Context, run_tool
 
 Short = Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)]
-CveId = Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, pattern=r"(?i)^CVE-\d{4}-\d{4,}$")]
 
 
 class Propose(BaseModel):
@@ -71,21 +70,23 @@ class Refined(BaseModel):
     call: ToolCallRecord
 
 
+# Each change button: what it needs, and the fields it passes from its form to the proposal (B21's checks).
+DECISION_FIELDS = {"status", "justification", "reason", "review_date", "compensating_control", "note"}
+BUTTONS = {
+    "watch": (("product",), lambda b: {}),
+    "set_details": (("product",), lambda b: {"version": b.version or ""}),  # empty: "I don't know it", as in Settings
+    "set_status": (("cve_id", "status"), lambda b: b.model_dump(include=DECISION_FIELDS)),
+}
+
+
 def propose(body: Propose, deps) -> Proposed:
-    if body.change in ("watch", "set_details") and not body.product:
-        raise InputError(f"'{body.change}' needs a product.")
-    if body.change == "set_status" and not (body.cve_id and body.status):
-        raise InputError("'set_status' needs cve_id and status.")
-    if body.change == "set_status":
-        fields = body.model_dump(include={"status", "justification", "reason", "review_date", "compensating_control",
-                                         "note"})
-    elif body.change == "set_details":
-        fields = {"version": body.version or ""}  # empty: "I don't know it", as in Settings
-    else:
-        fields = {}
+    needs, fields_of = BUTTONS[body.change]
+    if missing := [x for x in needs if not getattr(body, x)]:
+        raise InputError(f"'{body.change}' needs {' and '.join(missing)}.")
+    fields = fields_of(body)
     try:
         p = proposals.propose(body.change, deps, product=body.product, cve_id=body.cve_id, **fields)
-    except proposals.Nothing as e:
+    except proposals.NoChange as e:
         return Proposed(proposal=None, message=str(e))
     except KeyError:
         raise InputError(f"{body.cve_id} isn't in the snapshot.", "not_found") from None

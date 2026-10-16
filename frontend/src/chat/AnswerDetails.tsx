@@ -1,5 +1,6 @@
 import { useId, type KeyboardEvent } from 'react'
 import type { ChatReply, DocType, QueryInfo, Source } from '../api.ts'
+import { ExternalLink } from '../components/ExternalLink.tsx'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
 import { ToolCallCard, WebFacts } from './ToolCallCard.tsx'
 
@@ -30,9 +31,7 @@ function Sources({ sources, prefix }: { sources: Source[]; prefix: string }) {
         <li key={s.chunk_id} id={sourceId(prefix, s.n)} className="source" data-n={s.n}>
           <div className="source-head">
             <span className="source-n">{s.n}</span>
-            <a href={s.url} target="_blank" rel="noreferrer">
-              {s.title}
-            </a>
+            <ExternalLink href={s.url}>{s.title}</ExternalLink>
           </div>
           {s.doc_type === 'web' ? (
             <WebFacts site={s.site} date={s.date} flagged={!!s.flags?.includes('injection_phrasing')} />

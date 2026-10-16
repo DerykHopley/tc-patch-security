@@ -9,7 +9,11 @@ import threading
 
 from app.config import DEFAULT_USER, USER_ID, Settings
 from app.state import State
-from app.store import USERS_PREFIX, GcsStore, LocalStore, Store, open_bucket
+from app.store import USERS_PREFIX, Conflict, GcsStore, LocalStore, Store, open_bucket
+
+# The users who have signed in (story 61): a small list next to the users' state, so a user who never saved anything,
+# or reset, still counts for the refresh. The dot keeps it from being read as a user's state (a user id has none).
+KNOWN = "known.users.json"
 
 
 def local_store(settings: Settings) -> LocalStore:
@@ -22,6 +26,7 @@ class Users:
         self.store, self.k, self.defaults, self.dev_defaults, self.owner = (store, knowledge, defaults, dev_defaults,
                                                                              owner)
         self._states: dict[str, State] = {}
+        self._seen: set[str] = set()  # known users this process has already checked in the KNOWN record
         if default is not None:
             self._states[DEFAULT_USER] = default
         self._lock = threading.Lock()
@@ -51,11 +56,33 @@ class Users:
                                               key=f"{user_id}.json")
             return self._states[user_id]
 
+    def seen(self, user_id: str) -> None:
+        """A user made a signed-in request: add them to the KNOWN record, once. The record is read and written only
+        the first time this process sees them, never per request (it's a small list, not their state). The owner always
+        counts, so locally (sign-in off: everyone is the default user, the owner) nothing is written."""
+        if not USER_ID.fullmatch(user_id):
+            raise ValueError(f"not a user id: {user_id!r}")
+        if user_id in self._seen or user_id == self.owner:  # the owner always counts: no record needed
+            return
+        while True:
+            known, version = self.store.read(KNOWN)
+            known = known or []
+            if user_id in known:
+                break
+            try:
+                self.store.write(KNOWN, sorted([*known, user_id]), if_version=version)
+                break
+            except Conflict:  # another request (or instance) added someone in between: read again
+                continue
+        self._seen.add(user_id)
+
     def ids(self) -> list[str]:
-        """The users the refresh alerts: everyone with saved state, and the owner (whose default state still alerts,
-        as the one local user's did before B09). The owner first."""
+        """The users the refresh alerts: the owner (whose default state still alerts, as the one local user's did
+        before B09), everyone with saved state, and everyone who signed in (KNOWN), with the default watchlist
+        until they save one. The owner first."""
         saved = [k.removesuffix(".json") for k in self.store.keys() if k.endswith(".json")]
-        return list(dict.fromkeys([self.owner, *(u for u in saved if USER_ID.fullmatch(u))]))
+        known = self.store.read(KNOWN)[0] or []
+        return list(dict.fromkeys(u for u in [self.owner, *saved, *known] if USER_ID.fullmatch(u)))
 
     def set_knowledge(self, knowledge) -> None:
         """A new live version (Deps.sync): every State resolves products and checks versions with it."""

@@ -10,7 +10,8 @@
 # Both pairs run with sign-in off (AUTH=off). A third pair with sign-in on (B10) starts only when the Clerk test
 # instance's keys and a test user are exported: CLERK_SECRET_KEY, CLERK_PUBLISHABLE_KEY, CLERK_JWT_KEY,
 # E2E_CLERK_USER_USERNAME, E2E_CLERK_USER_PASSWORD. Then test_sign_in.py signs in with Clerk's testing tokens (that
-# check, and only it, calls Clerk); without them it skips.
+# check, and only it, calls Clerk); without them it skips. Sign-in on needs an OWNER (BR.11): E2E_CLERK_OWNER, the
+# test user's id to make them the owner, else a made-up id, so the test user is an invited user.
 #
 #   frontend/e2e/run.sh                      # both browsers
 #   frontend/e2e/run.sh -k a02               # extra arguments go to pytest; still both browsers
@@ -90,6 +91,7 @@ print(*(s.getsockname()[1] for s in socks))')
   (cd "$ROOT/backend" && env -u CLERK_SECRET_KEY LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/auth-state.json" AS_OF= \
     NOTIFY_DRY_RUN=1 EMBEDDER=hash INDEX_PATH="$STATE_DIR/auth-index" SEARCH_MIN_SCORE= \
     CORS_ORIGINS="http://localhost:$AUTH_UI_PORT" AUTH=on AUTH_ALLOWED_ORIGINS="http://localhost:$AUTH_UI_PORT" \
+    OWNER="${E2E_CLERK_OWNER:-user_e2e_owner}" \
     exec uv run uvicorn app.main:app --port "$AUTH_API_PORT") >"$LOG_DIR/auth-backend.log" 2>&1 &
   PIDS+=($!)
   (cd "$ROOT/frontend" && VITE_API_URL="http://localhost:$AUTH_API_PORT" \

@@ -54,4 +54,5 @@ register(ToolSpec(
     args_model=SearchArgs,
     result=SearchResult,
     run=run,
+    calls_out=True,  # the model translates the query (rewrites, filters)
 ))

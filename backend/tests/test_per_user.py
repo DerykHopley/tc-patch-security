@@ -128,7 +128,9 @@ def test_b09_7_a_new_user_gets_the_default_watchlist_and_settings_and_writes_not
     assert watchlist(carol) == DEFAULT_WATCHLIST
     assert carol.get("/settings").json()["settings"] == users.client.get("/settings").json()["settings"]
     assert carol.get("/alerts").json()["alerts"] == []
-    assert not settings.users_path.exists()  # reading saves nothing
+    # reading saves no state; carol joins the users the refresh alerts (story 61, BR.10), the owner needs no record
+    assert [p.name for p in settings.users_path.iterdir()] == ["known.users.json"]
+    assert json.loads((settings.users_path / "known.users.json").read_text()) == ["carol"]
 
 
 def test_b09_7_a_bad_user_id_never_reaches_the_store(users, settings):
