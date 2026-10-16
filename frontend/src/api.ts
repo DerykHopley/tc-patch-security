@@ -32,7 +32,11 @@ export interface DataStatus {
   last_checked: string | null
   last_result?: RefreshResult | null // /dashboard only (B20): the last run, for the partial or failed banner
   schedule?: ScheduleStatus // /dashboard only (B19): "Schedule paused", and Resume
+  feeds?: Feeds | null // /dashboard only (B28): which feeds live mode reads; null for anyone but the owner
 }
+
+/** B28: where live data comes from (FEEDS, set in backend/.env): the real services, or the made-up test data. */
+export type Feeds = 'real' | 'fake'
 
 // B10: with sign-in on, every call carries a fresh Clerk session token (they live 60 s; Clerk's getToken refreshes
 // one before it expires). Set by the signed-in app (auth/ClerkApp.tsx); null with sign-in off.
@@ -612,6 +616,7 @@ export interface ServerStatus {
   secrets: Record<SecretName, { set: boolean; source: SettingSource }>
   env_names: Record<keyof ServerFields | SecretName, string> // the environment variable of each
   app_url_reachable: boolean
+  feeds: Feeds // B28: the Data card says where live data comes from
 }
 
 /** A change: a field left out stays as saved, a value saves it, null removes the saved one. */

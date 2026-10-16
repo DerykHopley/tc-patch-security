@@ -84,7 +84,7 @@ frontend() {
 
 (cd "$ROOT/backend" && exec uv run python tests/fake_tavily.py --port "$TAVILY_PORT") >"$LOG_DIR/tavily.log" 2>&1 &
 PIDS+=($!)
-(cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/state.json" AS_OF= NOTIFY_DRY_RUN=1 AUTH=off \
+(cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/state.json" AS_OF= NOTIFY_DRY_RUN=1 AUTH=off FEEDS=fake \
   LIVE_PATH="$STATE_DIR/snapshot-live" \
   EMBEDDER=hash INDEX_PATH="$STATE_DIR/index" SEARCH_MIN_SCORE= \
   CORS_ORIGINS="http://localhost:$UI_PORT,http://127.0.0.1:$UI_PORT" \
@@ -119,7 +119,7 @@ print(*(s.getsockname()[1] for s in socks))')
   # Sign-in checks the token's azp against the page's origin: the backend's own with the build
   if [ -n "$BUILT" ]; then AUTH_ORIGIN="http://localhost:$AUTH_API_PORT"; else AUTH_ORIGIN="http://localhost:$AUTH_UI_PORT"; fi
   (cd "$ROOT/backend" && env -u CLERK_SECRET_KEY LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/auth-state.json" AS_OF= \
-    NOTIFY_DRY_RUN=1 EMBEDDER=hash INDEX_PATH="$STATE_DIR/auth-index" SEARCH_MIN_SCORE= \
+    NOTIFY_DRY_RUN=1 FEEDS=fake EMBEDDER=hash INDEX_PATH="$STATE_DIR/auth-index" SEARCH_MIN_SCORE= \
     CORS_ORIGINS="http://localhost:$AUTH_UI_PORT" AUTH=on AUTH_ALLOWED_ORIGINS="$AUTH_ORIGIN" \
     OWNER="${E2E_CLERK_OWNER:-user_e2e_owner}" FRONTEND_DIR="$DIST" \
     exec uv run uvicorn app.main:app --port "$AUTH_API_PORT") >"$LOG_DIR/auth-backend.log" 2>&1 &

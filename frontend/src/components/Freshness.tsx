@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { checkNow, setSchedulePaused, type DataStatus, type RefreshResult, type SnapshotSource } from '../api.ts'
-import { checkedLine, replyLine, runBanner, type Tone } from '../freshness.ts'
+import { checkedLine, freshnessFeedsWarning, replyLine, runBanner, type Tone } from '../freshness.ts'
 import { followLink } from '../route.ts'
 import { announceWatchlistChanged } from '../watchlistEvents.ts'
 import '../styles/settings.css' // the card head and its status chip, shared with the Settings cards (§5.2)
@@ -31,6 +31,7 @@ export function FreshnessCard({ data, asOf, sources, onNavigate }: {
   const live = data.mode === 'live'
   const banner = live ? runBanner(latest !== undefined ? latest : data.last_result) : null
   const paused = live && !!data.schedule?.paused && !resumed
+  const feedsWarning = freshnessFeedsWarning(data) // B28: live mode on the made-up test data (the owner only)
 
   const resume = () => {
     setResuming(true)
@@ -71,6 +72,7 @@ export function FreshnessCard({ data, asOf, sources, onNavigate }: {
         </span>
       </div>
       <p className="meta checked-line">{checkedLine(data, asOf)}</p>
+      {feedsWarning && <p className="feeds-line warn" data-testid="feeds-warning">{feedsWarning}</p>}
       {banner && (
         <div className={`run-banner ${banner.tone}`}>
           <p className="run-banner-text">{banner.text}</p>

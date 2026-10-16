@@ -231,7 +231,8 @@ def test_b02_6_status_says_last_checked_running_and_the_last_result(live):
                                                            "last_result": result,  # B20: for its banner
                                                            "schedule": {"hours": 6, "paused": False,  # B19
                                                                         "next_due": f"{DAY1}T14:50:00+00:00",
-                                                                        "yours": True}}
+                                                                        "yours": True},
+                                                           "feeds": "fake"}  # B28: told to the owner
 
 
 def test_b02_6_snapshot_mode_has_nothing_to_check(client):
@@ -240,7 +241,8 @@ def test_b02_6_snapshot_mode_has_nothing_to_check(client):
     assert client.get("/refresh").json()["mode"] == "snapshot"
     assert client.get("/dashboard").json()["data"] == {"mode": "snapshot", "last_checked": None, "last_result": None,
                                                        "schedule": {"hours": 6, "paused": False, "next_due": None,
-                                                                    "yours": True}}
+                                                                    "yours": True},
+                                                       "feeds": "fake"}
     # B26: live mode can be switched on from Settings, so the fake feeds' routes exist, and say there's nothing live
     for path, body in (("/refresh/reset", {"confirm": "reset"}), ("/refresh/fake-feeds", {"fail": []})):
         r = client.post(path, json=body)

@@ -1,6 +1,6 @@
 // The freshness panel's words (B02, DESIGN.md §5.10): when the data was last checked, and the one line Check now
 // leaves behind. Plain functions, so `npm test` checks the words without a browser.
-import type { CheckReply, DataStatus, RefreshCounts, RefreshResult } from './api.ts'
+import type { CheckReply, DataStatus, Feeds, RefreshCounts, RefreshResult } from './api.ts'
 
 const two = (n: number) => String(n).padStart(2, '0')
 
@@ -78,4 +78,21 @@ export function runBanner(r: RefreshResult | null | undefined): { tone: Tone; te
     text: parts.join(' · '),
     details: failed.map((f) => `${SOURCE_NAME[f.source] ?? f.source}: ${f.message}`),
   }
+}
+
+// B28: where live data comes from. The real feeds by name; the fake ones as a warning, so live mode on made-up CVEs
+// never looks like the real thing (the owner's B07 run got phone alerts about CVE-2026-99101).
+const FEEDS_TEXT: Record<Feeds, string> = {
+  real: 'Live: NVD, CISA KEV, EPSS and OSV.dev',
+  fake: 'Live: the made-up test data (FEEDS=fake)',
+}
+
+/** The Data card's line (the owner's): ok for the real feeds, warn for the fake ones. */
+export function feedsLine(feeds: Feeds): { tone: 'ok' | 'warn'; text: string } {
+  return { tone: feeds === 'real' ? 'ok' : 'warn', text: FEEDS_TEXT[feeds] }
+}
+
+/** The freshness card's warning: only in live mode on the fake feeds, and only for the owner (`feeds` is set). */
+export function freshnessFeedsWarning(data: DataStatus): string | null {
+  return data.mode === 'live' && data.feeds === 'fake' ? FEEDS_TEXT.fake : null
 }

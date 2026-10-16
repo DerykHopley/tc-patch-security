@@ -26,8 +26,9 @@ class App:
         from app.config import Settings
 
         shutil.copytree(index_dir, tmp_path / "index")
-        self.settings = Settings(llm_provider="fake", feeds="fake", state_path=tmp_path / "state.json",
-                                 index_path=tmp_path / "index", live_path=tmp_path / "live", **changes)
+        self.settings = Settings(llm_provider="fake", state_path=tmp_path / "state.json",
+                                 index_path=tmp_path / "index", live_path=tmp_path / "live",
+                                 **{"feeds": "fake", **changes})
         self.feeds, self.clock = FakeFeeds(day=1), Clock(f"{DAY1}T09:00:00+00:00")
         self.ntfy: list[dict] = []
         self.emails: list[str] = []

@@ -4,6 +4,7 @@ import {
   blockOf, browserZone, fieldsNamedIn, reachableFromPhone, secretLine, SETUP_KEYS, setupState, sourceLine, tapLine,
   type SetupBlock, type SetupKey,
 } from '../serverSettings.ts'
+import { feedsLine } from '../freshness.ts'
 import type { ServerSettingsForm } from './useServerSettings.ts'
 
 // B26: the owner's settings that used to need backend/.env and a restart, each in the Settings card it belongs to.
@@ -52,7 +53,13 @@ export function SecretField({ f, k, label, why }: { f: Ready; k: SecretName; lab
   )
 }
 
-/** Data card: live or snapshot, and the optional NVD key. */
+/** B28: where live data comes from (FEEDS, .env only). The fake feeds are a warning: made-up CVEs, made-up alerts. */
+function FeedsLine({ status }: { status: ServerStatus }) {
+  const line = feedsLine(status.feeds)
+  return <p className={`feeds-line ${line.tone}`} data-testid="feeds-line">{line.text}</p>
+}
+
+/** Data card: live or snapshot, where live data comes from, and the optional NVD key. */
 export function DataSourceFields({ f }: { f: Ready }) {
   const env = f.status.fields.data_mode.source === 'env'
   return (
@@ -70,6 +77,7 @@ export function DataSourceFields({ f }: { f: Ready }) {
         <strong>Live</strong>
         <span className="meta inline"> Check now and the schedule refresh it from the feeds; the date is today</span>
       </label>
+      <FeedsLine status={f.status} />
       <p className="meta">Switches when you save, with no restart. Back to the snapshot, the live data stays for next time.</p>
       <EnvNote f={f} k="data_mode" id="srv-data-mode-env" />
       <SecretField f={f} k="nvd_api_key" label="NVD API key (optional)"

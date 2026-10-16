@@ -33,6 +33,7 @@ const status = (over: Partial<ServerStatus['fields']> = {}): ServerStatus => ({
     alert_email_to: 'ALERT_EMAIL_TO', nvd_api_key: 'NVD_API_KEY',
   },
   app_url_reachable: false,
+  feeds: 'real',
 })
 
 test('B26.8 an address on this machine is unreachable from a phone; a LAN, Tailscale or Cloud Run one is', () => {

@@ -49,7 +49,7 @@ fi
 grep -q "was built with hash" <<<"$out" || { echo "Not the index-mismatch error:" >&2; echo "$out" >&2; exit 1; }
 
 echo "== Starting the image on port $PORT"
-docker run -d --name "$NAME" -p "127.0.0.1:$PORT:8080" -e LLM_PROVIDER=fake -e DATA_MODE=snapshot -e AUTH=off "$IMAGE" >/dev/null
+docker run -d --name "$NAME" -p "127.0.0.1:$PORT:8080" -e LLM_PROVIDER=fake -e DATA_MODE=snapshot -e FEEDS=fake -e AUTH=off "$IMAGE" >/dev/null
 for _ in $(seq 1 60); do
   if curl -fsS "http://localhost:$PORT/health" >/dev/null 2>&1; then break; fi
   if [ "$(docker inspect -f '{{.State.Running}}' "$NAME")" != true ]; then break; fi

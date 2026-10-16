@@ -461,3 +461,21 @@
 .tap-line.reachable {
   border-left-color: var(--ok);
 }
+
+/* B28: where live data comes from (the Data card; the freshness card when the feeds are fake). The edge rule: --text
+   with the status colour as a 3px edge; the fake feeds also get the warn fill, so the warning can't be missed. */
+.card .feeds-line { /* beats .card p (muted) */
+  margin: 0.3rem 0 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid var(--ok);
+  border-radius: var(--radius-input);
+  color: var(--text);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.card .feeds-line.warn {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+  font-weight: 600;
+}

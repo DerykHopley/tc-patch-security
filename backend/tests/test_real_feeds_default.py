@@ -5,6 +5,7 @@ the real services), the HTTP API (the owner sees which feeds; a live folder of t
 (the schedule in snapshot mode). No test calls the network: the real feeds are only ever built, never asked.
 """
 import json
+import shutil
 
 import pytest
 
@@ -74,11 +75,14 @@ def written_by(path, kind: str | None) -> None:
 
 
 def start(tmp_path, index_dir, feeds, **changes):
-    """A live app's start-up on `tmp_path / "live"`, as the server does it."""
+    """A live app's start-up on `tmp_path / "live"`, as the server does it, on its own copy of the run's index (a
+    refresh upserts chunks, and the session index is shared by every other test)."""
     from app.deps import build_deps
 
+    if not (tmp_path / "index").exists():
+        shutil.copytree(index_dir, tmp_path / "index")
     kind = "fake" if isinstance(feeds, FakeFeeds) else "real"
-    s = Settings(llm_provider="fake", feeds=kind, state_path=tmp_path / "state.json", index_path=index_dir,
+    s = Settings(llm_provider="fake", feeds=kind, state_path=tmp_path / "state.json", index_path=tmp_path / "index",
                  data_mode="live", live_path=tmp_path / "live", **changes)
     return build_deps(s, feeds=feeds)
 
@@ -156,3 +160,17 @@ def test_b28_3_switching_to_live_on_settings_refuses_a_folder_of_the_other_kind(
     assert str(tmp_path / "live") in r.json()["error"]["message"]
     assert app.owner.get("/health").json()["mode"] == "snapshot"  # not saved: the app still works
     assert app.owner.get("/settings").json()["server"]["fields"]["data_mode"]["value"] == "snapshot"
+
+
+# --- B28.5: the owner sees which feeds live mode reads -----------------------------------------
+
+@pytest.mark.parametrize("kind", ["fake", "real"])
+def test_b28_5_the_owner_sees_which_feeds_live_mode_reads(tmp_path, index_dir, index, kind):
+    from tests.test_settings_over_env import App
+
+    app = App(tmp_path, index_dir, feeds=kind)  # snapshot mode: FEEDS only says what live mode would read
+    assert app.owner.get("/settings").json()["server"]["feeds"] == kind
+    assert app.owner.get("/dashboard").json()["data"]["feeds"] == kind
+    # anyone else: no server settings, and the dashboard doesn't say
+    assert app("someone-else").get("/settings").json()["server"] is None
+    assert app("someone-else").get("/dashboard").json()["data"]["feeds"] is None

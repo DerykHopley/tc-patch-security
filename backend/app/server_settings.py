@@ -86,6 +86,8 @@ def status(env: Settings, saved: ServerSettings) -> dict:
         "secrets": {name: {"set": bool(getattr(now, name)), "source": source(env, saved, name)} for name in SECRETS},
         "env_names": {**MOVABLE, **SECRETS},
         "app_url_reachable": reachable_from_phone(now.app_url),
+        # B28: where live data comes from (FEEDS, .env only): real, or the made-up test data, shown as a warning
+        "feeds": now.feeds,
     }
 
 
