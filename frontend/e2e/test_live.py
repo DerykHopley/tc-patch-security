@@ -8,7 +8,7 @@ Expected looks: docs/design/DESIGN.md §5.10.
 import pathlib
 
 import pytest
-from playwright.sync_api import Browser, Locator, Page, Route, expect
+from playwright.sync_api import Browser, Error, Locator, Page, Route, expect
 
 from test_dashboard import api
 from test_shell import contrast, eventually, no_sideways_scroll
@@ -106,6 +106,28 @@ def test_b02_9_check_now_shows_the_spinner_then_the_result_and_the_new_cves(open
     page.goto(page.url.rstrip("/") + "/cves?status=all&since=2026-10-14")  # the CVEs page, published from day 1
     for cve in NEW:
         expect(page.locator("table, .cves-card").get_by_text(cve, exact=True).first).to_be_visible()
+
+
+def test_b02_11_done_shows_once_the_dashboard_shows_the_new_data(open_live):
+    """After a check that ran, the dashboard and the alerts load again. "Done" and the enabled button wait for both,
+    so nothing above Check now moves after Done: a quick second click lands on the button, not where it was (#67)."""
+    page = open_live()
+    expect(page.locator(".alerts-card")).to_contain_text("No alerts yet")
+
+    def late(route: Route) -> None:  # the loads after the check answer late, as on a slow runner
+        try:
+            page.wait_for_timeout(1500)  # allowed: the delay is the condition under test
+            route.fallback()
+        except Error:  # the test ended while the response was held
+            pass
+    for path in ("**/dashboard*", "**/alerts"):
+        page.route(path, late)
+
+    button(page).click()
+    expect(line(page)).to_have_text(DONE)
+    above = card(page).locator(".checked-line"), page.locator(".alerts-card")
+    assert above[0].inner_text().startswith("Last checked"), above[0].inner_text()  # read the moment Done shows
+    assert "No alerts yet" not in above[1].inner_text()
 
 
 @pytest.mark.parametrize("scheme", ["light", "dark"])

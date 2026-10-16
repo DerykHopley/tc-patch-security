@@ -50,16 +50,20 @@ export function AlertsCard({ data, onNavigate }: { data: DataStatus; onNavigate:
   const [entries, setEntries] = useState<AlertLogEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(() => {
-    alertsLog().then(
-      (r) => {
-        setEntries(r.alerts)
-        setError(null)
-      },
-      (e: unknown) => setError(message(e)),
-    )
-  }, [])
-  useEffect(load, [load])
+  const load = useCallback(
+    () =>
+      alertsLog().then(
+        (r) => {
+          setEntries(r.alerts)
+          setError(null)
+        },
+        (e: unknown) => setError(message(e)),
+      ),
+    [],
+  )
+  useEffect(() => {
+    load()
+  }, [load])
   useWatchlistChanged(load)
 
   return (

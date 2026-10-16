@@ -45,9 +45,14 @@ def pause(page: Page) -> None:
 
 
 def two_checks(page: Page) -> None:
-    """Check now, then again at once: one run and one refused (too soon)."""
+    """Check now, then again at once: one run and one refused (too soon).
+
+    "Done" shows once the dashboard and the alerts have loaded again (B02.11), so the cards above the button keep
+    their size from here and the second click lands on it. Before, they grew a moment later and a click aimed at the
+    button hit the card instead (#67, CI run 38885587497)."""
     button(page).click()
     expect(line(page)).to_contain_text("Done:")
+    expect(card(page).locator(".checked-line")).to_contain_text("Last checked")  # the dashboard has loaded again
     button(page).click()
     expect(line(page)).to_contain_text("Checked less than 5 minutes ago")
 

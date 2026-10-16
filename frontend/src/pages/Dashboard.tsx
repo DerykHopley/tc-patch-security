@@ -78,9 +78,7 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
       (e: unknown) => setError(message(e)),
     )
   }, [load])
-  useWatchlistChanged(() => {
-    load().catch((e: unknown) => setError(message(e)))
-  })
+  useWatchlistChanged(() => load().catch((e: unknown) => setError(message(e))))
 
   const names = data ? filter.flatMap((id) => data.watched.find((w) => w.product === id)?.name ?? []) : []
   const productName = names.join(' + ')
