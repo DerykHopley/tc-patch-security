@@ -24,15 +24,15 @@ cd frontend && npm install && npm run dev                                    # h
 
 ## How to test it
 
-All checked 2026-10-15 on `spec-a` (28cc2e9). No key, no network.
+All checked 2026-10-16 on `b-review-fixes` (spec B and its review fixes). No key, no network.
 
 | Check | Command | Result |
 |---|---|---|
-| Backend | `cd backend && uv run pytest` | 774 passed |
-| Types, lint, unit tests | `cd frontend && npx tsc -b && npm run lint && npm test` | type check clean; 24 unit tests passed |
+| Backend | `cd backend && uv run pytest` | 1193 passed |
+| Types, lint, unit tests | `cd frontend && npx tsc -b && npm run lint && npm test` | type check clean; 54 unit tests passed |
 | Fixed waits | `python3 frontend/e2e/check_waits.py` | clean |
-| Browser check | `frontend/e2e/run.sh` (Firefox and Chromium) | 356 checks per browser; all passed in both, 2 skipped |
-| Slow mode | `E2E_LATENCY_MS=300 frontend/e2e/run.sh` | finds timing races before CI does |
+| Browser check | `frontend/e2e/run.sh` (Firefox and Chromium) | 460 checks per browser; all passed in both, 2 skipped |
+| Slow mode | `E2E_LATENCY_MS=300 frontend/e2e/run.sh` | finds timing races before CI does; the Dev, chat, fix-first, web research, Settings and pause files passed (252) |
 | Container image (B12) | `frontend/e2e/container.sh` (needs Docker) | image builds; /health, embedder check, no `.env` or secret, the Cloud Storage client present, 3 browser checks in Chromium |
 | Report builds | `cd backend && uv run python -m app.evals fake-report --out /tmp/r.html` | FakeLLM and fake embedders; CI uploads it |
 
@@ -69,6 +69,7 @@ Spec A's tickets ([#2](https://github.com/DerykHopley/tc-patch-security/issues/2
 | Partial success and retry: each feed is a step, a partial refresh is written and shown with Retry; a failed tool step is marked, with Try again; a failed send or save keeps your work; failure switches (`FAKE_FEEDS_FAIL`, `FAIL_TOOLS`) | `backend/app/refresh.py`, `tools/registry.py`, `frontend/src/components/Freshness.tsx`, `chat/ToolCallCard.tsx`, `docs/failure-demo.md` | B20 #57 |
 | Rate limits: chat messages per user per minute and per day (`CHAT_PER_MINUTE`, `CHAT_PER_DAY`), one 429 form with a retry time (a refused Check now too), OpenRouter's 402 as a plain 402, both shown as a quiet note in the chat | `backend/app/rate_limits.py`, `main.py`, `frontend/src/chat/useChat.ts` | B11 #43 |
 | Cloud Run deploy setup: users' state and the live data in Cloud Storage (`STORE=gcs`, `GCS_BUCKET`), the scheduled refresh route for Cloud Scheduler (`POST /api/refresh/scheduled`, `SCHEDULER_SECRET` header, no user needed), the cold-start catch-up from the bucket, and the written procedure. Nothing run on Google Cloud yet: the deploy is a human step (#45) | `DEPLOY.md`, `deploy/cloudrun/`, `backend/app/store.py` `open_bucket`, `main.py`, `refresh.py` `scheduled_tick` | B13 #44 |
+| Review fixes on spec B (check ids `BR.n`): Try again counts against the chat limit and runs only offered tools; web links http(s) only; the schedule and the demo switches are the owner's (others see the schedule read-only); a user who signed in gets alerts before saving anything; `AUTH=on` needs `OWNER`; one `CveId`, one proposal action map | `backend/tests/test_review_fixes.py`, `frontend/src/toolCalls.ts`, DECISIONS.md (BR rows) | #31 |
 | Pause the schedule and the run history: Pause on Settings (the dashboard says "Schedule paused", with Resume), the "Refresh runs" card (last 20 runs and skipped runs, each opening to its feeds), `GET /refresh/runs`, `check_updates` says whether the schedule is on | `backend/app/refresh.py` `run_scheduled`, `history`, `schedule_status`; `frontend/src/components/RefreshRuns.tsx` | B19 #59 |
 | Changes Patch proposes: a preview card, approve, edit, cancel; idempotent, 1-hour expiry, stale check | `backend/app/proposals.py`, `frontend/src/chat/ProposalCard.tsx` | B21 #58 |
 | Buttons on tool cards: Open in CVEs page, Ask about this, Mark accepted…, Watch this product, Set my version…, Mark not affected… (each a proposal), Show only CVEs and Only critical on a new search card (a refine, shown as a new message with chips); `POST /chat/action` | `backend/app/card_actions.py`, `frontend/src/chat/CardActions.tsx`, `cardActions.ts` | B24 #63 |

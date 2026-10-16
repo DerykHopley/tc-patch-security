@@ -179,7 +179,7 @@ The record of every alert message: when, why, and what each channel did with it 
 _Avoid_: history (that's a CVE's decisions), notifications
 
 **Owner**:
-The one user whose alerts go to the channels, named by `OWNER` in the server's environment (locally the default user). Every other user's alerts are shown in the app only.
+The one user whose alerts go to the channels, named by `OWNER` in the server's environment (locally the default user; required with sign-in on). Every other user's alerts are shown in the app only. The owner's schedule runs the shared refresh, and only the owner can change it or use the demo switches.
 _Avoid_: admin, account holder
 
 **Default user**:
