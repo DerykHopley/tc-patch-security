@@ -499,6 +499,11 @@ def main(argv: Sequence[str] = ()) -> int:
     settings = Settings.from_env()
     settings.check()
     settings = with_saved_settings(settings)  # B26: live mode, the channels and the time zone set on Settings
+    if settings.data_mode != "live" and args.schedule:
+        # B28: snapshot mode is a chosen state, not a failure, so the hourly timer's unit doesn't go "failed"
+        print("Scheduled refresh skipped: the data is the frozen snapshot.", file=sys.stderr)
+        print(json.dumps({"ran": False, "skipped": "snapshot"}, indent=1))
+        return 0
     if settings.data_mode != "live":
         print("The data is the frozen snapshot (DATA_MODE, or Settings' Data card): switch to live data to refresh it.",
               file=sys.stderr)

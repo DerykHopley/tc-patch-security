@@ -38,3 +38,24 @@ def test_b28_2_the_fake_http_server_is_allowed(fake_http):
 def test_b28_2_even_a_marked_test_cannot_ask_a_real_service():
     with pytest.raises(pytest.fail.Exception, match="network"):
         make_feeds(Settings()).kev()
+
+
+# --- B28.4: a scheduled tick in snapshot mode is a skip, not a failure -------------------------------------------
+
+def test_b28_4_a_scheduled_tick_in_snapshot_mode_skips_and_exits_0(monkeypatch, capsys, tmp_path):
+    from app import refresh
+
+    monkeypatch.setenv("DATA_MODE", "snapshot")
+    monkeypatch.setenv("STATE_PATH", str(tmp_path / "state.json"))
+    assert refresh.main(["--schedule"]) == 0
+    out = capsys.readouterr()
+    assert json.loads(out.out) == {"ran": False, "skipped": "snapshot"}
+    assert "skipped: the data is the frozen snapshot" in out.err
+
+
+def test_b28_4_a_manual_run_in_snapshot_mode_still_exits_2(monkeypatch, capsys, tmp_path):
+    from app import refresh
+
+    monkeypatch.setenv("DATA_MODE", "snapshot")
+    monkeypatch.setenv("STATE_PATH", str(tmp_path / "state.json"))
+    assert refresh.main() == 2 and "frozen snapshot" in capsys.readouterr().err
