@@ -310,9 +310,12 @@ def test_a02_6_theme_is_set_before_the_app_runs(browser: Browser, ui_url: str):
     # Set by an inline script in <head>, so the first frame is already dark: no flash of the light theme.
     ctx = browser.new_context(color_scheme="dark")
     page = ctx.new_page()
-    page.route("**/src/main.tsx", lambda route: route.abort())  # the app never starts
+    # The app never starts: no script file loads (the dev server's src/main.tsx, or the build's bundle; matching
+    # only src/main.tsx let the built app start and set the theme itself, #72), only the inline one in <head>.
+    page.route("**/*", lambda route: route.abort() if route.request.resource_type == "script" else route.continue_())
     page.goto(ui_url)
     assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    assert page.locator("#root").inner_html() == ""  # the app really didn't run
     ctx.close()
 
 

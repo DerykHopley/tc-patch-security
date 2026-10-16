@@ -131,6 +131,9 @@ jobs:
       - run: frontend/e2e/run.sh --browser ${{ matrix.browser }}
         env:
           E2E_LOG_DIR: ${{ runner.temp }}
+          # The built frontend, served by each backend as the container serves it (#72): no dev server, so pages
+          # load as fast as for a real user. Local runs keep the dev server by default, to catch dev-only problems.
+          E2E_BUILT: "1"
           # B10: the signed-in check runs only when these secrets exist (empty otherwise, and it skips). Secrets
           # aren't given to pull requests from forks, so there it skips too.
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
