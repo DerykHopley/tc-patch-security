@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Spec A retro</title>
+<title>Agent environment retro</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
@@ -11,22 +11,197 @@
 </script>
 <style>
   .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
-  .mermaid { display: flex; justify-content: center; }
+  /* A wide diagram scrolls inside its box on a phone; the page itself never scrolls sideways. */
+  .mermaid { display: flex; justify-content: safe center; overflow-x: auto; max-width: 100%; }
+  main { overflow-wrap: anywhere; }
+  .spec-tab[aria-selected="true"] { background: #312e81; color: #fff; border-color: #312e81; }
+  .spec-tab:focus-visible { outline: 3px solid #6366f1; outline-offset: 2px; }
+  /* Without JavaScript both specs show, one after the other. */
+  .js [data-spec][hidden] { display: none; }
 </style>
+<script>document.documentElement.classList.add("js");</script>
 </head>
 <body class="bg-stone-50 text-slate-900 font-sans">
 <main class="max-w-5xl mx-auto px-6 py-12 space-y-10">
 
 <header class="space-y-3">
-  <h1 class="font-serif text-3xl">Retro: the agent environment during spec A</h1>
-  <p class="text-sm"><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">For discussion</span> What made the coding agents slower or less reliable while building spec A (2026-10-14 to 2026-10-15), and what to change in the docs, checks and tools they work with. Made with the <code>retro</code> review on 2026-10-15; evidence checked in the repo, CI and session. Companions: the <a class="underline text-indigo-700" href="./">model-check report</a> and the <a class="underline text-indigo-700" href="architecture-review.html">architecture review</a>.</p>
+  <h1 class="font-serif text-3xl">Retro: the agent environment</h1>
+  <p class="text-sm">What made the coding agents slower or less reliable, and what to change in the docs, checks and tools they work with. One retro per spec, made with the <code>retro</code> review; evidence checked in the repo, CI and the sessions. Companions: the <a class="underline text-indigo-700" href="./">model-check report</a> and the <a class="underline text-indigo-700" href="architecture-review.html">architecture review</a>.</p>
+  <div role="tablist" aria-label="Which spec" class="inline-flex flex-wrap rounded-lg border border-slate-300 bg-white p-1 gap-1 text-sm">
+    <button type="button" role="tab" id="tab-b" class="spec-tab px-3 py-1.5 rounded-md border border-transparent font-semibold" aria-controls="spec-b" aria-selected="true">Spec B · 2026-10-15/16</button>
+    <button type="button" role="tab" id="tab-a" class="spec-tab px-3 py-1.5 rounded-md border border-transparent font-semibold" aria-controls="spec-a" aria-selected="false" tabindex="-1">Spec A · 2026-10-14/15</button>
+  </div>
+</header>
+
+<div id="spec-b" role="tabpanel" aria-labelledby="tab-b" data-spec class="space-y-10">
+
+<div class="space-y-3">
+  <h2 class="font-serif text-2xl">Spec B: live data, alerts, web research, sign-in, deploy (2026-10-15 to 2026-10-16)</h2>
+  <p class="text-sm"><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">For discussion</span> The spec B build in one session: every ticket an agent could build, on the <code>spec-b</code> branch (draft <a class="underline text-indigo-700" href="https://github.com/DerykHopley/tc-patch-security/pull/66">PR #66</a>). Made with the <code>retro</code> review on 2026-10-16; evidence checked in the repo, CI runs and the session.</p>
+  <div class="flex flex-wrap gap-3 text-xs">
+    <span class="px-2 py-0.5 rounded bg-red-100 text-red-800 font-semibold">High</span>
+    <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">Medium</span>
+    <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold">Low</span>
+    <span class="text-slate-500">· seven findings; one half done, one done, five proposed and waiting for the owner's pick</span>
+  </div>
+</div>
+
+<section class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+  <div class="rounded-xl border border-slate-200 bg-white p-4"><div class="text-3xl font-serif">20</div><div class="lbl text-slate-500 mt-1">tickets merged</div><div class="text-xs text-slate-500">13 main, 7 bonus</div></div>
+  <div class="rounded-xl border border-slate-200 bg-white p-4"><div class="text-3xl font-serif">0</div><div class="lbl text-slate-500 mt-1">work lost</div><div class="text-xs text-slate-500">every merge a fast-forward</div></div>
+  <div class="rounded-xl border border-slate-200 bg-white p-4"><div class="text-3xl font-serif">4</div><div class="lbl text-slate-500 mt-1">red CI runs</div><div class="text-xs text-slate-500">each one browser check</div></div>
+  <div class="rounded-xl border border-slate-200 bg-white p-4"><div class="text-3xl font-serif">5</div><div class="lbl text-slate-500 mt-1">bugs found after the tickets</div><div class="text-xs text-slate-500">3 by review, 2 by "flaky" checks</div></div>
+</section>
+
+<section class="rounded-xl border border-slate-200 bg-white p-6">
+  <h2 class="font-serif text-xl mb-3">At a glance</h2>
+  <div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead class="text-left text-slate-500"><tr><th class="py-1 pr-3">#</th><th class="pr-3">Finding</th><th class="pr-3">Severity</th><th class="pr-3">Category</th><th>Status</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      <tr><td class="py-1.5 pr-3">1</td><td class="pr-3"><a class="underline" href="#b1">Conflict markers passed every check</a></td><td class="pr-3 text-red-700">High</td><td class="pr-3">automated checks</td><td><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Half done</span> CI check in</td></tr>
+      <tr><td class="py-1.5 pr-3">2</td><td class="pr-3"><a class="underline" href="#b2">"Flaky" browser checks were real bugs</a></td><td class="pr-3 text-red-700">High</td><td class="pr-3">coding standards</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span> bugs fixed</td></tr>
+      <tr><td class="py-1.5 pr-3">3</td><td class="pr-3"><a class="underline" href="#b3">Docs every ticket edits cause conflicts</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">pruning</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
+      <tr><td class="py-1.5 pr-3">4</td><td class="pr-3"><a class="underline" href="#b4">The merge snippet, typed by hand twenty times</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">tool economy</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
+      <tr><td class="py-1.5 pr-3">5</td><td class="pr-3"><a class="underline" href="#b5">Adding a chat tool touches six places</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">navigation</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
+      <tr><td class="py-1.5 pr-3">6</td><td class="pr-3"><a class="underline" href="#b6">Human tickets written before the code</a></td><td class="pr-3 text-slate-600">Low</td><td class="pr-3">information access</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
+      <tr><td class="py-1.5 pr-3">7</td><td class="pr-3"><a class="underline" href="#b7">Only the owner can start retro and the architecture review</a></td><td class="pr-3 text-slate-600">Low</td><td class="pr-3">information access</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> agent memory</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<article id="b1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+  <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">1 · Conflict markers passed every check</h2><span class="px-2 py-0.5 rounded bg-red-100 text-red-800 text-xs font-semibold">High</span></div>
+  <p class="rounded border bg-amber-100 text-amber-900 border-amber-200 px-3 py-2 text-sm"><b>Status (Half done, 2026-10-16):</b> CI now fails on a committed <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> or <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code> line (734e25b, in the "What changed" job). No local guardrail yet.</p>
+  <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">How far the markers got</div>
+<pre class="mermaid">
+flowchart LR
+  M["B04 merge in its worktree<br/>markers left in .env.example"] --> P[pushed to b04-alerts]
+  P --> F["fast-forward to spec-b<br/>76346cf"]
+  F --> C["CI: all 5 jobs green"]
+  C --> N["found two merges later<br/>by the B20 agent"]
+  classDef bad stroke:#dc2626,stroke-width:2px;
+  class C bad
+</pre></div>
+  <p><b>Evidence.</b> <code>backend/.env.example</code> lines 91–107 at 76346cf held a whole conflict. Nothing reads that file in a test, so every job passed. The B20 agent removed the markers on its branch.</p>
+  <p><b>Why it matters.</b> A <code>.py</code> or <code>.tsx</code> file with markers fails fast, but config, docs and examples fail silently. <code>.env.example</code> is what a reviewer copies first.</p>
+  <p><b>Change.</b> CI is done. Also add a <code>.githooks/pre-commit</code> that runs the same <code>git grep</code> and <code>check_waits.py</code> (both under a second). Turn it on with <code>git config core.hooksPath .githooks</code>, documented in the README setup. It's a fixed pattern, so it belongs in a check, not a rule.</p>
+</article>
+
+<article id="b2" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+  <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">2 · "Flaky" browser checks were real bugs</h2><span class="px-2 py-0.5 rounded bg-red-100 text-red-800 text-xs font-semibold">High</span></div>
+  <p class="rounded border bg-indigo-50 text-indigo-900 border-indigo-200 px-3 py-2 text-sm"><b>Status (Proposed):</b> both bugs are fixed and have regression checks (f66127b, 3bead4a). The rules below that would catch the next one aren't written yet.</p>
+  <div class="grid md:grid-cols-2 gap-4 text-sm">
+    <div class="rounded-lg border border-red-200 bg-red-50 p-3 space-y-1"><div class="lbl text-red-700">What the agents reported</div>
+      <p>B11: <code>test_a18_2</code> failed in Chromium, "passed when I re-ran its file… probably load timing".</p>
+      <p>B24: B08.10 failed once, "looks flaky (not confirmed)".</p>
+      <p>B10: 5 chat page loads timed out "while the machine was busy".</p></div>
+    <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-1"><div class="lbl text-emerald-700">What a diagnosis found</div>
+      <p><b>Ctrl+K lost</b> (#67): the key listener was added in a <code>useEffect</code>, a moment after the page appeared. 9 of 20 presses were lost in Chromium. Real users lost them too.</p>
+      <p><b>An edit wiped</b>: the dev server loads settings twice (StrictMode). A late second answer reset the form, with no guard for a stale answer. Reproduced 3 of 3, on three pages.</p></div>
+  </div>
+  <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">The Ctrl+K race</div>
+<pre class="mermaid">
+sequenceDiagram
+  participant B as Browser
+  participant R as React
+  participant U as User or test
+  R->>B: paint the shell
+  U->>B: Ctrl+K
+  Note over B: no listener yet: key lost
+  R->>B: useEffect adds the listener
+  Note over R,B: fix: useLayoutEffect adds it before the paint
+</pre></div>
+  <p><b>Evidence.</b> Four red CI runs on <code>spec-b</code>, each from one browser check: ddbd0c7 (<code>test_a11_2</code>, Firefox, a lost keypress), 326bdd5 and 227e0d1 (<code>test_a15b_4</code>, Chromium, the chat never opened), and f66127b (<code>test_a12_6</code>, Chromium, an edit reset). All went green once the two causes were fixed.</p>
+  <p><b>Why it matters.</b> "Passed on rerun" sounds like a verdict but is only a guess. Spec A's retro added slow mode for races between the API and the page. These two were races inside React (a listener added after the paint, two loads answering out of order), which slow mode makes no more likely, since it delays every answer alike.</p>
+  <p><b>Change.</b></p>
+  <ul class="list-disc pl-6 text-sm">
+    <li><b>Implementer prompts:</b> a failure that passes on rerun is reported as <i>unexplained</i>, with its test id, never as <i>flaky</i>. The word decides whether anyone looks.</li>
+    <li><b>CODING_STANDARDS.md → UI</b>, for the reviewer, two judgement rules: a first load that fills an editable form ignores an answer that arrives after its effect was cleaned up; a global key listener is added before the shell can take input (<code>useLayoutEffect</code>).</li>
+  </ul>
+</article>
+
+<article id="b3" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+  <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">3 · Docs every ticket edits cause conflicts</h2><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Medium</span></div>
+  <p class="rounded border bg-indigo-50 text-indigo-900 border-indigo-200 px-3 py-2 text-sm"><b>Status (Proposed).</b></p>
+  <div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead class="text-left text-slate-500"><tr><th class="py-1 pr-3">File</th><th class="pr-3">What happened</th><th>Proposal</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      <tr><td class="py-1.5 pr-3"><code>STATUS.md</code> test counts</td><td class="pr-3">Every agent changed the counts, or left them stale on purpose "because parallel branches would conflict".</td><td>Keep the commands and drop the counts. The test run prints them anyway, so the copy only goes stale.</td></tr>
+      <tr><td class="py-1.5 pr-3"><code>DECISIONS.md</code></td><td class="pr-3">Rows are added in one place by every ticket. One merge left the B03 "real feeds" row in twice.</td><td><code>DECISIONS.md merge=union</code> in <code>.gitattributes</code>: added rows from two branches merge cleanly. An edited row can come out twice. <i>Unverified</i> on this table.</td></tr>
+      <tr><td class="py-1.5 pr-3">Reduced-motion scene list</td><td class="pr-3">B20, B21 and B22 each added a scene to the same list; their merges were resolved by hand.</td><td>Let each test file register its own scenes, so nothing edits a shared list.</td></tr>
+    </tbody>
+  </table></div>
+</article>
+
+<article id="b4" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+  <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">4 · The merge snippet, typed by hand twenty times</h2><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Medium</span></div>
+  <p class="rounded border bg-indigo-50 text-indigo-900 border-indigo-200 px-3 py-2 text-sm"><b>Status (Proposed).</b></p>
+  <p><b>What happened.</b> Each merge was the same check-push-check-clean-up, typed again. One version piped <code>git worktree remove</code> through <code>tail</code>, which always succeeds, so the branch was deleted while its worktree stayed. Nothing was lost, because the commits were already on <code>spec-b</code>. This is the same lesson as spec A's ";" chain, in a new shape: a pipe hides the exit code.</p>
+  <p><b>Change.</b> <code>scripts/ff-merge.sh &lt;branch&gt; [integration]</code>:</p>
+  <ol class="list-decimal pl-6 text-sm">
+    <li>Check the integration branch is an ancestor of the branch.</li>
+    <li>Push the branch's commit to the integration branch.</li>
+    <li>Check it landed.</li>
+    <li>Check for conflict markers.</li>
+    <li>Only then remove the worktree and both branches.</li>
+  </ol>
+  <p>One command, no chain to get wrong. It also replaces the snippet in the agent memory.</p>
+</article>
+
+<article id="b5" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+  <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">5 · Adding a chat tool touches six places</h2><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Medium</span></div>
+  <p class="rounded border bg-indigo-50 text-indigo-900 border-indigo-200 px-3 py-2 text-sm"><b>Status (Proposed).</b></p>
+  <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">What one new tool needs (B06, B08, B22; B23 and B24 a subset)</div>
+<pre class="mermaid">
+flowchart LR
+  T[new tool] --> R["registry: spec,<br/>when it's offered"]
+  T --> F[FakeLLM branch]
+  T --> G["generated frontend types<br/>(a test fails if stale)"]
+  T --> C[ToolCallCard]
+  T --> D[DESIGN.md §6.2 entry]
+  T --> M[reduced-motion scene]
+</pre></div>
+  <p><b>Evidence.</b> Five tickets added a tool or a card action, and each found these places again. The code review flagged the spread as Shotgun Surgery (finding 6). Spec B's exploration notes covered it, but they lived in the session scratchpad and went stale as the code moved.</p>
+  <p><b>Change.</b> A short <code>docs/agents/adding-a-tool.md</code> listing the six places and what each needs, behind one CLAUDE.md line: "Adding a chat tool or card action: docs/agents/adding-a-tool.md".</p>
+</article>
+
+<article id="b6" class="rounded-xl border border-slate-200 bg-white p-6 space-y-2">
+  <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">6 · Human tickets written before the code</h2><span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-xs font-semibold">Low</span></div>
+  <p class="rounded border bg-indigo-50 text-indigo-900 border-indigo-200 px-3 py-2 text-sm"><b>Status (Proposed).</b></p>
+  <p>#65 (Clerk keys) was written at the start and guessed <code>VITE_CLERK_PUBLISHABLE_KEY</code> and <code>CLERK_SECRET_KEY</code>. B10 then sent the key through <code>/health</code> and needed no secret key. #65, #40, #45 and #47 were all rewritten at hand-off. <b>Change:</b> a human ticket holds only its Status line until its blocker lands; the steps are written from the merged code.</p>
+</article>
+
+<article id="b7" class="rounded-xl border border-slate-200 bg-white p-6 space-y-2">
+  <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">7 · Only the owner can start retro and the architecture review</h2><span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-xs font-semibold">Low</span></div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-16):</b> agent memory corrected. When the owner asks for them "when appropriate", the agent says when the moment fits and the owner types the command.</p>
+  <p>Spec A's finding 7 said these run "in the main session". They don't: the Skill tool refuses them even there, even when the owner asked in the prompt. Only the owner typing <code>/mattpocock-skills:retro</code> or <code>/mattpocock-skills:improve-codebase-architecture</code> starts them.</p>
+</article>
+
+<section class="rounded-xl bg-slate-900 text-slate-100 p-6 space-y-2">
+  <div class="lbl text-slate-400">Spec B: what worked and should stay</div>
+  <ul class="list-disc pl-6 text-sm space-y-1 text-slate-300">
+    <li>One exploration agent at the start writing shared notes, so the first implementers skipped the code sweep. Agents trusted the code once it moved past the notes.</li>
+    <li>Telling running agents "spec-b moved, here's what changed" kept merges small. Every merge was a fast-forward, and no work was lost.</li>
+    <li>Bonus tickets only in free slots while the main tickets were blocked: seven bonus tickets without delaying the main chain.</li>
+    <li>The two-axis code review (standards, spec) at the end: three real bugs the per-ticket checks missed (Try again skipping the rate limit, Pause doing nothing for non-owners, new users without alerts).</li>
+    <li>Diagnosing a red check instead of re-running it: both "flaky" failures turned into fixes with a regression check.</li>
+    <li>One decisions issue (#68) collecting every choice agents made for the owner, instead of eleven scattered comments.</li>
+  </ul>
+</section>
+
+</div>
+
+<div id="spec-a" role="tabpanel" aria-labelledby="tab-a" data-spec class="space-y-10" hidden>
+<div class="space-y-3">
+  <h2 class="font-serif text-2xl">Spec A: building the real app (2026-10-14 to 2026-10-15)</h2>
+  <p class="text-sm"><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">For discussion</span> What made the coding agents slower or less reliable while building spec A (2026-10-14 to 2026-10-15), and what to change in the docs, checks and tools they work with. Made with the <code>retro</code> review on 2026-10-15; evidence checked in the repo, CI and session.</p>
   <div class="flex flex-wrap gap-3 text-xs">
     <span class="px-2 py-0.5 rounded bg-red-100 text-red-800 font-semibold">High</span>
     <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">Medium</span>
     <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold">Low</span>
     <span class="text-slate-500">· all eight findings decided and done on 2026-10-15; each card shows what was done</span>
   </div>
-</header>
+</div>
 
 <section class="rounded-xl border border-slate-200 bg-white p-6">
   <h2 class="font-serif text-xl mb-3">At a glance</h2>
@@ -131,6 +306,7 @@ flowchart LR
 <article id="f7" class="rounded-xl border border-slate-200 bg-white p-6 space-y-2">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">7 · User-only skills can't run in a subagent</h2><span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-xs font-semibold">Low</span></div>
   <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-15):</b> Done: an agent memory. <code>improve-codebase-architecture</code> and <code>retro</code> run in the main session; their exploration step can still use a sub-agent.</p>
+  <p class="rounded border bg-amber-50 text-amber-900 border-amber-200 px-3 py-2 text-sm"><b>Corrected in spec B:</b> the main session can't start them either. See <a class="underline" href="#b7">spec B, finding 7</a>.</p>
   <p><code>improve-codebase-architecture</code> and <code>retro</code> can only be started by the owner; one subagent was spent finding that out. Decided: an agent memory. They run in the main session; their exploration step can still use a sub-agent.</p>
 </article>
 
@@ -141,7 +317,7 @@ flowchart LR
 </article>
 
 <section class="rounded-xl bg-slate-900 text-slate-100 p-6 space-y-2">
-  <div class="lbl text-slate-400">What worked and should stay</div>
+  <div class="lbl text-slate-400">Spec A: what worked and should stay</div>
   <ul class="list-disc pl-6 text-sm space-y-1 text-slate-300">
     <li>Implementers in their own worktrees, merged by fast-forward or a checked merge.</li>
     <li>Human-gate tickets that hold everything the owner needs, with <code>waiting-for-agent</code> / <code>ready-for-human</code> labels.</li>
@@ -149,7 +325,37 @@ flowchart LR
     <li>Exact checks in the model check instead of an LLM judge: every failure could be traced to a line of output.</li>
   </ul>
 </section>
+</div>
 
 </main>
+<script>
+  // The switch: one spec at a time, chosen by the tab or by a link to a finding (#b3, #f2).
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  function show(id, focus) {
+    for (const t of tabs) {
+      const on = t.getAttribute("aria-controls") === id;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+      if (on && focus) t.focus();
+    }
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => show(t.getAttribute("aria-controls")));
+    t.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+      show(next.getAttribute("aria-controls"), true);
+    });
+  });
+  function fromHash() {
+    const el = location.hash && document.querySelector(location.hash);
+    const panel = el && el.closest("[data-spec]");
+    show(panel ? panel.id : "spec-b");
+    if (el) el.scrollIntoView();
+  }
+  window.addEventListener("hashchange", fromHash);
+  fromHash();
+</script>
 </body>
 </html>
