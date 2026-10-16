@@ -49,8 +49,9 @@ def test_b29_5_another_user_sees_the_owners_choices_read_only(dev_page, browser_
     expect(search.locator("dt").first).to_have_text("Max agent steps")
     expect(search.locator("dd")).to_have_count(8)
 
-    # Nothing to change: no radio, slider, switch, text box or select, and no Save, Find models or runs
-    expect(main.locator("input, select")).to_have_count(0)
+    # Nothing to change: no radio, slider, switch, text box or select, and no Save, Find models or runs. (The saved
+    # checks' "compare" boxes stay: they only pick runs for the report.)
+    expect(main.locator(".settings-grid, .playground").locator("input, select")).to_have_count(0)
     for name in ("Save changes", "Discard", "Reset to the defaults", "Run search", "Run model check",
                  "Run retrieval check", "Find models"):
         expect(main.get_by_role("button", name=name)).to_have_count(0)
