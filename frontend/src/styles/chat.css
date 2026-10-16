@@ -18,6 +18,8 @@
   overflow: visible;
 }
 
+/* Patch is 68px here (58px until 2026-10-16). His top stays 8px above the button, where the 58px Patch's was, so
+   he covers no more of the page: the extra 10px go down, and he stands lower on the pill, his shadow still on it. */
 .patch-fab .robot {
   position: absolute;
   left: 50%;
@@ -286,7 +288,7 @@
   margin: 0;
 }
 
-/* Patch as on the chat button (58px, in front), over the bubble's top-left corner. He floats high enough that
+/* Patch (58px) in front, as on the chat button, over the bubble's top-left corner. He floats high enough that
    only the first line of text sits beside him; the rest runs under him. */
 .greeting .robot-slot {
   float: left;
