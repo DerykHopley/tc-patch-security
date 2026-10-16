@@ -31,7 +31,7 @@ def chip(page: Page) -> Locator:
 
 def open_chat(page: Page) -> Locator:
     # The app mounts once /health has said whether sign-in is on (B10): after a goto, wait for its shell first
-    expect(page.get_by_role("button", name="Ask Patch")).to_be_visible()
+    expect(page.locator(".side-ask")).to_be_attached()
     page.keyboard.press("Control+k")
     expect(window(page)).to_be_visible()
     return window(page)
