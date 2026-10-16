@@ -70,11 +70,12 @@ class LiveData:
         recorded = self.feeds()
         if recorded is None or recorded == kind:
             return
+        example = f" (for example `mv {self.root} {self.root}-{recorded}`)" if self._local else ""
         raise MixedFeeds(
             f"The live data in {self.where()} was written by {FEEDS_NAMES[recorded]}, but this run uses "
-            f"{FEEDS_NAMES[kind]}. Patch won't mix the two kinds of data. To start fresh, move it aside "
-            f"(for example `mv {self.root} {self.root}-{recorded}`) or set LIVE_PATH to a new folder; the next "
-            f"start copies the snapshot in. To keep using it, set FEEDS={recorded}.")
+            f"{FEEDS_NAMES[kind]}. Patch won't mix the two kinds of data. To start fresh, move it aside{example} "
+            f"or set LIVE_PATH to a new folder; the next start copies the snapshot in. To keep using it, set "
+            f"FEEDS={recorded}.")
 
     def folder(self, version: int | None = None) -> Path:
         """The version's folder on this machine (copied from the store first, when the store isn't the folder)."""

@@ -395,9 +395,13 @@ def _took(result: RefreshResult) -> str:
 def make_refresher(settings: Settings, feeds: Feeds | None = None, clock=utc_now, alerter=None,
                    bucket=None) -> Refresher:
     """STORE=gcs (B13): the live data is in the bucket under `live/`; LIVE_PATH is this instance's local copy."""
+    return Refresher(live_data(settings, bucket), feeds or make_feeds(settings), clock, alerter)
+
+
+def live_data(settings: Settings, bucket=None) -> LiveData:
+    """The live data LIVE_PATH (or, STORE=gcs, the bucket's `live/`) names. Nothing is read or written yet."""
     b = open_bucket(settings, bucket)
-    live = LiveData(settings.live_path, GcsStore(b, LIVE_PREFIX) if b is not None else None)
-    return Refresher(live, feeds or make_feeds(settings), clock, alerter)
+    return LiveData(settings.live_path, GcsStore(b, LIVE_PREFIX) if b is not None else None)
 
 
 def with_saved_settings(env: Settings) -> Settings:

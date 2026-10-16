@@ -31,7 +31,7 @@ from app.rag.index import Retriever
 from app.rag.keyword import BM25Index
 from app.rag.pipeline import SearchOptions
 from app.rag.vector import ChromaIndex, IndexMismatch, build_index, open_index, sync_index
-from app.refresh import Refresher, make_refresher, utc_now
+from app.refresh import Refresher, live_data, make_refresher, utc_now
 from app.server_settings import effective
 from app.state import State
 from app.store import MemoryStore, open_bucket
@@ -140,16 +140,18 @@ class Deps:
         in), loaded by `sync`. Off: the snapshot again; the live data stays on disk for the next switch."""
         if settings == self.settings:
             return
-        before, self.settings = self.settings, settings
-        self.users.set_defaults(default_settings(settings))
         if settings.data_mode == "live" and self.refresher is None:
             try:
-                self.refresher = make_refresher(settings, self._feeds, self.clock, bucket=self._bucket)
+                refresher = make_refresher(settings, self._feeds, self.clock, bucket=self._bucket)
             except MixedFeeds as e:  # B28: switched on elsewhere (another instance); Settings refuses it here first
                 if str(e) != self._live_refused:  # once, not on every request
                     log.error("Live data not switched on: %s", e)
-                self._live_refused, self.settings = str(e), before
+                self._live_refused = str(e)
                 return
+        before, self.settings = self.settings, settings
+        self.users.set_defaults(default_settings(settings))
+        if settings.data_mode == "live" and self.refresher is None:
+            self.refresher = refresher
             self.refresher.alerter = Alerter(settings, self.users, lambda: self.transports)
             self.version = None  # `sync` loads the current live version next
             log.info("Live data switched on (Settings)")
@@ -168,7 +170,7 @@ class Deps:
         """B28: raise MixedFeeds when `settings` would switch live mode on over live data the other kind of feeds
         wrote. Nothing is fetched or written."""
         if settings.data_mode == "live" and self.refresher is None:
-            make_refresher(settings, self._feeds, self.clock, bucket=self._bucket)
+            live_data(settings, self._bucket).check_feeds(self._feeds.kind if self._feeds else settings.feeds)
 
     def dev(self) -> DevSettings:
         """The dev panel's saved choices while it's on; the env defaults when it's off (A11)."""

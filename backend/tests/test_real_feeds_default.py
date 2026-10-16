@@ -162,6 +162,21 @@ def test_b28_3_switching_to_live_on_settings_refuses_a_folder_of_the_other_kind(
     assert app.owner.get("/settings").json()["server"]["fields"]["data_mode"]["value"] == "snapshot"
 
 
+def test_b28_3_live_saved_elsewhere_on_a_folder_of_the_other_kind_keeps_the_snapshot(tmp_path, index_dir, index,
+                                                                                     caplog):
+    """Another instance (or the state file) says Live: this one keeps answering on the snapshot, and says why once."""
+    from app.server_settings import ServerSettings
+    from tests.test_settings_over_env import App
+
+    written_by(tmp_path / "live", "real")
+    app = App(tmp_path, index_dir)
+    app.deps.owner_state.save_server_settings(ServerSettings(data_mode="live"))
+    with caplog.at_level("ERROR", logger="app.deps"):
+        for _ in range(3):
+            assert app.owner.get("/health").json()["mode"] == "snapshot"
+    assert caplog.text.count("Live data not switched on") == 1
+
+
 # --- B28.5: the owner sees which feeds live mode reads -----------------------------------------
 
 @pytest.mark.parametrize("kind", ["fake", "real"])
