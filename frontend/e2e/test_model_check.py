@@ -87,7 +87,7 @@ def test_a12_6_fakellm_passes_every_question_in_the_dev_panel(dev_page):
     expect(result.locator(".eval-answer-text")).to_contain_text("Langflow")
 
 
-def test_a12_6_past_runs_listed_and_two_side_by_side(dev_page):
+def test_a12_6_past_runs_listed_and_two_side_by_side(dev_page, api_url):
     page = dev_page()
     run_model_check(page)
     page.reload()
@@ -105,7 +105,8 @@ def test_a12_6_past_runs_listed_and_two_side_by_side(dev_page):
     # The report link carries the ticked runs
     href = page.get_by_role("link", name=re.compile("Open the report")).get_attribute("href")
     query = parse_qs(urlparse(href).query)
-    assert urlparse(href).path == "/dev/report" and len(query["models"][0].split(",")) == 2
+    # On the API: /dev/report, or /api/dev/report when the backend serves the built frontend (#72)
+    assert urlparse(href).path == urlparse(api_url).path + "/dev/report" and len(query["models"][0].split(",")) == 2
 
 
 def test_a12_6_save_first_before_a_model_check(dev_page, api_url):

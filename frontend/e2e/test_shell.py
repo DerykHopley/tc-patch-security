@@ -39,8 +39,25 @@ def open_app(browser: Browser, ui_url: str):
         ctx.close()
 
 
+def canonical_colours(value: str) -> str:
+    """Hex colours in the source's form: #rrggbb, or rgba(r, g, b, a) when not opaque. The build's minifier writes
+    #ffffff as #fff and rgba(108, 76, 245, 0.12) as #6c4cf51f; the dev server serves tokens.css as written (#72)."""
+    def one(m: re.Match) -> str:
+        h = m.group(1).lower()
+        if len(h) in (3, 4):
+            h = "".join(c * 2 for c in h)
+        if len(h) == 6 or h[6:] == "ff":
+            return "#" + h[:6]
+        r, g, b, a = (int(h[i:i + 2], 16) for i in (0, 2, 4, 6))
+        return f"rgba({r}, {g}, {b}, {round(a / 255, 2):g})"
+
+    return re.sub(r"#([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b", one, value)
+
+
 def css_var(page: Page, name: str) -> str:
-    return page.evaluate(f"getComputedStyle(document.documentElement).getPropertyValue('{name}').trim()")
+    """A custom property's value, its colours in the source's form (canonical_colours)."""
+    value = page.evaluate(f"getComputedStyle(document.documentElement).getPropertyValue('{name}').trim()")
+    return canonical_colours(value)
 
 
 def sidebar_width(page: Page) -> float:
@@ -144,6 +161,18 @@ SHAPE = {
     "--shadow-sidebar": "0 16px 40px rgba(108, 76, 245, 0.12)", "--shadow-card": "0 12px 30px rgba(108, 76, 245, 0.09)",
     "--shadow-primary": "0 6px 14px rgba(108, 76, 245, 0.3)",
 }
+
+
+def test_a02_2_tokens_read_the_same_from_the_source_and_the_build():
+    """The build's CSS minifier writes the same colours shorter (#fff, #6c4cf51f); css_var reads them back in the
+    source's form, so one expected table fits the dev server and the build (#72). No browser needed."""
+    assert canonical_colours("#fff") == "#ffffff"
+    assert canonical_colours("#DFE5FD") == "#dfe5fd"
+    assert canonical_colours("0 16px 40px #6c4cf51f") == "0 16px 40px rgba(108, 76, 245, 0.12)"
+    assert canonical_colours("0 6px 14px #6c4cf54d") == "0 6px 14px rgba(108, 76, 245, 0.3)"
+    assert canonical_colours("#6c4cf5ff") == "#6c4cf5"
+    assert canonical_colours("0 12px 30px rgba(108, 76, 245, 0.09)") == "0 12px 30px rgba(108, 76, 245, 0.09)"
+    assert canonical_colours("999px") == "999px"
 
 
 @pytest.mark.parametrize(("scheme", "expected"), [("light", LIGHT), ("dark", DARK)])
