@@ -139,6 +139,10 @@ class Settings:
     clerk_publishable_key: str = ""  # pk_test_...: the frontend reads it from /health, so one image fits any instance
     clerk_jwt_key: str = ""  # the PEM public key from the Clerk dashboard's API keys page
     auth_allowed_origins: list[str] = field(default_factory=list)  # e.g. https://patch-xyz.a.run.app
+    # B11: chat messages per user, per minute and per UTC day (counted in memory: one instance). OpenRouter's spending
+    # cap on the key stays the backstop.
+    chat_per_minute: int = 10
+    chat_per_day: int = 200
 
     @property
     def users_path(self) -> pathlib.Path:
@@ -194,6 +198,8 @@ class Settings:
             clerk_publishable_key=_env("CLERK_PUBLISHABLE_KEY"),
             clerk_jwt_key=_env("CLERK_JWT_KEY").replace("\\n", "\n"),  # one line in .env: \n for the line breaks
             auth_allowed_origins=[o.rstrip("/") for o in _list(_env("AUTH_ALLOWED_ORIGINS"))],
+            chat_per_minute=_int("CHAT_PER_MINUTE", cls.chat_per_minute),
+            chat_per_day=_int("CHAT_PER_DAY", cls.chat_per_day),
         )
 
     def check(self) -> None:

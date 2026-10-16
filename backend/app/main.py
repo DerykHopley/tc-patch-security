@@ -2,6 +2,7 @@
 
 Run: `uv run uvicorn app.main:app --port 8000` (settings from the environment, see .env.example).
 """
+import datetime as dt
 import logging
 
 from fastapi import APIRouter, Depends, FastAPI, Query, Request
@@ -20,9 +21,10 @@ from app.config import Settings
 from app.cve_filters import CveView, InvalidFilter
 from app.deps import Deps, build_deps
 from app.dev import dev_router
-from app.errors import InputError, LLMError
+from app.errors import InputError, LLMError, RateLimited
 from app.notify import NotifyError, channel_status, deliver, format_alert
 from app.one_port import one_port
+from app.rate_limits import ChatLimits, refused
 from app.proposals import ProposalEdit, ProposalError
 from app.refresh import CheckReply
 from app.llm.base import ToolCall
@@ -76,6 +78,14 @@ def _error(status: int, code: str, message: str) -> JSONResponse:
     return JSONResponse(status_code=status, content={"error": {"code": code, "message": message}})
 
 
+def _too_many(exc: RateLimited, user: str, route: str, extra: dict | None = None) -> JSONResponse:
+    """The one 429 form (B11): the error with its retry time, and Retry-After. Logged with the user and route."""
+    log.warning("Rate limit: user=%s route=%s retry_at=%s: %s", user, route, exc.retry_at, exc.message)
+    return JSONResponse(status_code=429, headers={"Retry-After": str(exc.retry_after)}, content={
+        "error": {"code": exc.code, "message": exc.message, "retry_at": exc.retry_at,
+                  "retry_after": exc.retry_after}, **(extra or {})})
+
+
 def create_app(deps: Deps | None = None) -> FastAPI:
     deps = deps or build_deps(Settings.from_env())  # a bad setting fails here, with a plain message
 
@@ -109,7 +119,13 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.exception_handler(LLMError)
     async def llm_error(request: Request, exc: LLMError):
         log.warning("LLM error: %s", exc.message)
+        if exc.code == "spending_cap":  # B11: OpenRouter's 402, passed on as itself with its plain message
+            return _error(402, exc.code, exc.public or LLMError.SPENDING_CAP)
         return _error(502, "llm_error", exc.public or LLMError.GENERIC)
+
+    @app.exception_handler(RateLimited)
+    async def rate_limited(request: Request, exc: RateLimited):
+        return _too_many(exc, request.state.user, request.url.path)
 
     @app.exception_handler(ProposalError)
     async def proposal_error(request: Request, exc: ProposalError):
@@ -142,6 +158,13 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     You = Annotated[Deps, Depends(you)]
 
+    limits = ChatLimits(deps.settings.chat_per_minute, deps.settings.chat_per_day, lambda: deps.clock())
+
+    def chat_allowed(request: Request, user: Annotated[str, Depends(current_user)]) -> None:
+        """B11: one chat message counted for the caller, or a 429 before the model is asked."""
+        request.state.user = user
+        limits.take(user)
+
     def data_status() -> dict:
         """The data mode and when the live data was last checked (None in snapshot mode, or before the first run)."""
         return {"mode": deps.settings.data_mode,
@@ -161,7 +184,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     # --- Chat (A06)
 
-    @api.post("/chat", response_model=ChatReply)
+    @api.post("/chat", response_model=ChatReply, dependencies=[Depends(chat_allowed)])
     def chat(req: ChatRequest, d: You):
         return chat_turn.turn(req, d)  # guard, explain level, page context, step limit (app.chat_turn)
 
@@ -298,12 +321,17 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return deps.refresher
 
     @api.post("/refresh", response_model=CheckReply)
-    def check_now():
-        """Check now: run the refresh (or be refused: one at a time, at most one per 5 minutes)."""
+    def check_now(user: Annotated[str, Depends(current_user)]):
+        """Check now: run the refresh (or be refused: one at a time, at most one per 5 minutes). A refusal is the
+        429 form (B11), still carrying the reply: the refusal and the last run's result, for the freshness card."""
         reply = live_only().run("button")
         if reply.ran:
             deps.sync()  # load the new version now, so the reply comes when the new CVEs can be found
-        return reply
+            return reply
+        assert reply.refusal is not None
+        nxt = dt.datetime.fromisoformat(reply.refusal.next_allowed)
+        return _too_many(refused(reply.refusal.message, deps.clock(), nxt, say_when=False), user, "/refresh",
+                         reply.model_dump())
 
     @api.get("/refresh")
     def refresh_status():

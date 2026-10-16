@@ -245,6 +245,7 @@ def test_a08_3_spending_cap_reached_is_plain():
     with pytest.raises(LLMError) as e:
         local(http).step([{"role": "user", "content": "x"}], TOOLS)
     assert "spending cap" in e.value.public
+    assert e.value.code == "spending_cap"  # B11.5: the chat answers 402 with this message
 
 
 # --- A08.4: cost per response
