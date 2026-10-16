@@ -51,7 +51,7 @@
 
 <div class="space-y-3">
   <h2 class="font-serif text-2xl">Spec B: <code class="text-xl">spec-b</code> at 8db4e5f</h2>
-  <p class="text-sm"><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">For discussion</span> Six candidates: one already done by the spec B review fixes, five proposed. Made with the <code>improve-codebase-architecture</code> review (explore and report only; no interfaces designed yet). Every claim checked against the code on 2026-10-16, with file:line at 8db4e5f; anything not checked says so.</p>
+  <p class="text-sm"><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">For discussion</span> Six candidates: two done (one by the spec B review fixes, one built as #71 after a grilling session with the owner), four proposed. Made with the <code>improve-codebase-architecture</code> review; candidate 2's interface was then designed with the owner and built. Every claim checked against the code on 2026-10-16, with file:line at 8db4e5f; anything not checked says so.</p>
   <p class="text-sm text-slate-500">2026-10-16 · hot spots from <code>git diff --stat origin/main origin/spec-b</code> (since 79362e9): refresh.py, proposals.py, main.py, the chat's cards, state, alerts, api.ts · skips ADR-0001 (thin LangChain; nothing here conflicts with it) and the decisions in DECISIONS.md's spec B rows</p>
 </div>
 
@@ -62,7 +62,7 @@
     <tbody class="divide-y divide-slate-100">
       <tr><td class="py-1.5 pr-3">1</td><td class="pr-3"><a class="underline" href="#b1">One definition each: CVE id, UTC time, proposal actions, card buttons</a></td><td class="pr-3">Strong</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> c16a9b2</td></tr>
       <tr><td class="py-1.5 pr-3">2</td><td class="pr-3"><a class="underline" href="#b2">One way in for a proposal</a></td><td class="pr-3">Strong</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> ccd24d1 (B27, #71)</td></tr>
-      <tr><td class="py-1.5 pr-3">3</td><td class="pr-3"><a class="underline" href="#b3">The owner's share: what's shared, and who may change it</a></td><td class="pr-3">Strong</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span> after #70</td></tr>
+      <tr><td class="py-1.5 pr-3">3</td><td class="pr-3"><a class="underline" href="#b3">The owner's share: what's shared, and who may change it</a></td><td class="pr-3">Strong</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span> top recommendation now (#70 merged)</td></tr>
       <tr><td class="py-1.5 pr-3">4</td><td class="pr-3"><a class="underline" href="#b4">Starting a refresh: run, load, reply</a></td><td class="pr-3">Worth exploring</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
       <tr><td class="py-1.5 pr-3">5</td><td class="pr-3"><a class="underline" href="#b5">Route replies with a declared shape</a></td><td class="pr-3">Worth exploring</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
       <tr><td class="py-1.5 pr-3">6</td><td class="pr-3"><a class="underline" href="#b6">A tool's prompt lines travel with its spec</a></td><td class="pr-3">Speculative</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
@@ -204,7 +204,7 @@ flowchart TB
     <li>Leverage: five readers of the schedule, one call</li>
     <li>Tests: one table, "user × shared setting → may change?", through the module; today it's per route (<code>test_review_fixes.py</code> BR.9, BR.12)</li>
   </ul>
-  <p class="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-sm"><b>Interacts with #70</b> (branch <code>b26-settings-over-env</code>, in progress; not pushed when checked, so its diff is unverified). It moves env settings into Settings, through <code>config.py</code>, <code>notify.py</code> and <code>deps.py</code>, so the channels may move. Build this after #70 lands, so the module wraps the settings' new home, not the old one.</p>
+  <p class="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-sm"><b>#70 has landed</b> (f7cc59b, 2026-10-16). It moved env settings into Settings: the owner's server settings now live in <code>app/server_settings.py</code>, with write-only secrets and an owner-only <code>PUT /settings/server</code> (403 <code>not_owner</code>), and the refresh CLI reads them too. That adds a fifth place the owner rule is checked, so this candidate grew. The file:line pointers on this card are from 8db4e5f, before #70: re-check them before designing (<i>unverified</i> at the current <code>spec-b</code>).</p>
 </article>
 
 <!-- B4 -->
@@ -335,8 +335,9 @@ flowchart TB
 
 <section id="b-top" class="rounded-xl deep p-8 space-y-2">
   <div class="lbl text-slate-400">Top recommendation</div>
-  <h2 class="font-serif text-2xl"><a href="#b2" class="underline decoration-indigo-400">2 · One way in for a proposal</a></h2>
-  <p class="text-slate-300">It finishes what the review fixes started (c16a9b2), behind unchanged HTTP and tool outputs, so the existing proposal tests and browser checks pin the behaviour. It touches no file #70 is changing (config, notify, deps), so it can start now. Every new kind of proposal will pay it back: today each one touches about ten places in two tiers. Candidate 3 is next, once #70 lands.</p>
+  <h2 class="font-serif text-2xl"><a href="#b3" class="underline decoration-indigo-400">3 · The owner's share: what's shared, and who may change it</a></h2>
+  <p class="text-slate-300">Candidate 2 is done (#71, ccd24d1). Next is candidate 3. It waited for #70, which has now landed and added one more place that checks "is this the owner?" (the server settings), so the friction is bigger than when the review was written. One module answering "what's shared, and may this user change it?" would also close the open hole: <code>PUT /dev/settings</code> still has no owner check. Re-check its file:line pointers at the current <code>spec-b</code> first; they're from before #70.</p>
+  <p class="text-slate-400 text-sm">Was: candidate 2, one way in for a proposal. Picked by the owner on 2026-10-16, designed in a grilling session (13 decisions, #71) and built.</p>
 </section>
 </div>
 
