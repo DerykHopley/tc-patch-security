@@ -23,6 +23,7 @@ import { useServerSettings } from '../components/useServerSettings.ts'
 import { useSettings } from '../components/useSettings.ts'
 import { useWatchlist } from '../components/useWatchlist.ts'
 import { WatchlistCard } from '../components/WatchlistCard.tsx'
+import { WelcomeSwitch } from '../components/WelcomeSwitch.tsx'
 import '../styles/settings.css'
 
 // The Settings page (DESIGN.md §5.7): the alert rules a live refresh uses (B04), delivery channels with real test
@@ -390,6 +391,7 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
             ))}
           </fieldset>
           <NotSaved error={s.error} show={s.changed('explain_level')} />
+          <WelcomeSwitch />
         </Card>
 
         <Card title="Priority and due dates" kind="live" why="The CVEs page and the dashboard use it at once">

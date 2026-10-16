@@ -1,17 +1,18 @@
 import { useState } from 'react'
-import { store } from '../storage.ts'
+import { setWelcomeShown, welcomeShown } from '../welcome.ts'
 import { Robot, type Variant } from './Robot.tsx'
 
-// Patch says hello above the dashboard (DESIGN.md §5.8), until it's closed: remembered in this browser (§11).
+// Patch says hello above the dashboard (DESIGN.md §5.8), until it's closed: remembered in this browser (§11),
+// and the switch on Settings brings it back (welcome.ts).
 // "Ask Patch" opens the chat. Patch is idle here, in the variant picked on page load (§8.3).
 const TITLE = "Hi there! I'm Patch, your security sidekick."
 
 export function WelcomeBanner({ onAsk, variant }: { onAsk: () => void; variant: Variant }) {
-  const [hidden, setHidden] = useState(() => store.get('helloHidden') === '1')
+  const [hidden, setHidden] = useState(() => !welcomeShown())
   if (hidden) return null
 
   function close() {
-    store.set('helloHidden', '1')
+    setWelcomeShown(false)
     setHidden(true)
   }
 

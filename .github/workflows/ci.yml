@@ -105,10 +105,16 @@ jobs:
       - run: python3 e2e/check_waits.py
 
   browser:
-    name: Browser check (Firefox and Chromium)
+    # One job per browser, side by side: the check runs one test at a time, so two browsers in one job took twice
+    # as long (32 min at 3bead4a). fail-fast off: one browser failing never cancels the other's verdict.
+    name: Browser check (${{ matrix.browser }})
     needs: changes
     if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [firefox, chromium]
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.0
@@ -121,8 +127,8 @@ jobs:
         working-directory: backend
       - run: npm ci
         working-directory: frontend
-      - run: uv run --locked --project frontend/e2e playwright install --with-deps firefox chromium
-      - run: frontend/e2e/run.sh
+      - run: uv run --locked --project frontend/e2e playwright install --with-deps ${{ matrix.browser }}
+      - run: frontend/e2e/run.sh --browser ${{ matrix.browser }}
         env:
           E2E_LOG_DIR: ${{ runner.temp }}
           # B10: the signed-in check runs only when these secrets exist (empty otherwise, and it skips). Secrets
@@ -135,7 +141,7 @@ jobs:
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: server-logs
+          name: server-logs-${{ matrix.browser }}
           path: ${{ runner.temp }}/*.log
 
   container:
