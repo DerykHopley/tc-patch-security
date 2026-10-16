@@ -30,3 +30,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# Keep a test's temp folder only when it failed, and only from the last run: passing tests' index copies
+# (~36 MB each, ~100 a run) filled /tmp past its quota when several agents tested at once (2026-10-16).
+tmp_path_retention_policy = "failed"
+tmp_path_retention_count = 1
