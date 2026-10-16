@@ -84,6 +84,14 @@ class Users:
         known = self.store.read(KNOWN)[0] or []
         return list(dict.fromkeys(u for u in [self.owner, *saved, *known] if USER_ID.fullmatch(u)))
 
+    def set_defaults(self, defaults) -> None:
+        """The settings' defaults changed (B26: a channel set up on Settings is ticked until the user saves channels),
+        for every State."""
+        with self._lock:
+            self.defaults = defaults
+            for s in self._states.values():
+                s.defaults = defaults
+
     def set_knowledge(self, knowledge) -> None:
         """A new live version (Deps.sync): every State resolves products and checks versions with it."""
         with self._lock:

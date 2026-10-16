@@ -24,10 +24,15 @@ for unit in patch-refresh.service patch-refresh.timer; do
   echo "Wrote $dest/$unit"
 done
 
+# B26: live mode is set on Settings (Data card) or by DATA_MODE in .env, which wins. The run reads both.
 if [[ ! -f "$backend/.env" ]]; then
-  echo "Note: $backend/.env doesn't exist yet. The refresh reads DATA_MODE=live and FEEDS=real from it." >&2
+  echo "Note: $backend/.env doesn't exist yet. The refresh reads FEEDS=real from it." >&2
+elif grep -q '^DATA_MODE=snapshot' "$backend/.env"; then
+  echo "Note: $backend/.env sets DATA_MODE=snapshot, which wins over Settings: each scheduled run will stop with" \
+    "exit code 2. Delete the line to switch live mode on Settings." >&2
 elif ! grep -q '^DATA_MODE=live' "$backend/.env"; then
-  echo "Note: $backend/.env doesn't set DATA_MODE=live, so each scheduled run will stop with exit code 2." >&2
+  echo "Live mode: switch it on in Settings, Data card (or DATA_MODE=live in .env). Until then each scheduled run" \
+    "stops with exit code 2." >&2
 fi
 
 if [[ "${1:-}" != "--no-reload" ]]; then

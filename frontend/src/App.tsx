@@ -233,7 +233,7 @@ export default function App({ account }: { account?: Account } = {}) {
               onView={pageContext.reportView}
             />
           ) : page === 'settings' ? (
-            <SettingsPage asOf={status?.as_of ?? null} />
+            <SettingsPage asOf={status?.as_of ?? null} mode={status?.mode} onServerSaved={refreshHealth} />
           ) : status?.dev_panel ? (
             <DevPage onSaved={refreshHealth} />
           ) : null}

@@ -69,7 +69,7 @@ class AppSettings(BaseModel):
 
 
 def default_settings(env: Settings) -> AppSettings:
-    """The defaults from the environment: desktop, plus every channel set up in .env."""
+    """The defaults from the settings: desktop, plus every channel set up (in .env, or on Settings: B26)."""
     channels: list[Channel] = ["desktop"]
     if env.smtp_host and env.alert_email_to:
         channels.append("email")
