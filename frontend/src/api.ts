@@ -200,6 +200,38 @@ export const chat = (message: string, history: Turn[], explainLevel?: ExplainLev
 export const retryTool = (call: ToolCallRecord, page: PageContext) =>
   request<ToolCallRecord>('/chat/tool', json('POST', { name: call.name, args: call.args, page }))
 
+// Buttons on tool cards (B24): a structured action, never free text. A change only proposes (B21); a refine runs the
+// card's search again with a fixed filter.
+export type RefineFilter = 'only_cves' | 'only_critical'
+export type CardAction =
+  | {
+      action: 'propose'
+      change: 'watch' | 'set_details' | 'set_status'
+      product?: string
+      cve_id?: string
+      status?: 'not_affected' | 'accepted'
+      justification?: Justification
+      reason?: string
+      review_date?: string
+      compensating_control?: string
+      note?: string
+      version?: string
+    }
+  | { action: 'refine'; tool: 'search_security'; query: string; filters: RefineFilter[]; page?: PageContext }
+export interface Proposed {
+  proposal: Proposal | null // null: it's already so, and `message` says it
+  message: string
+}
+export interface Refined {
+  applied: string[] // the chips: "Only CVEs", "Only critical"
+  call: ToolCallRecord
+}
+export function cardAction(body: Extract<CardAction, { action: 'propose' }>): Promise<Proposed>
+export function cardAction(body: Extract<CardAction, { action: 'refine' }>): Promise<Refined>
+export function cardAction(body: CardAction): Promise<Proposed | Refined> {
+  return request<Proposed | Refined>('/chat/action', json('POST', body))
+}
+
 export const examples = () => request<Example[]>('/examples')
 
 // --- Dashboard (A04)

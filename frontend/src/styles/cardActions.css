@@ -1,0 +1,111 @@
+/* Buttons on tool cards (DESIGN.md §6.7, B24): plain pills (§5.3) in a row that wraps; a change's form and its
+   proposal card (proposals.css) under them; a refined result's chips. Tokens only, so dark mode follows. No
+   animation: nothing here moves, with or without reduced motion. */
+
+.card-actions {
+  margin: 0.35rem 0 0.1rem;
+}
+
+.card-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.card-action-row button,
+.fix-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  font-size: 0.82rem;
+}
+
+.card-action-row button:disabled {
+  opacity: 1; /* a busy button stays readable, as Try again */
+  cursor: progress;
+}
+
+.card-action-row .meta {
+  font-size: 0.8rem;
+}
+
+.fix-list .fix-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+/* "It's already so": the §5.10 line, --text on a soft fill with an --accent edge. */
+.card-action-note {
+  display: block;
+  margin: 0.35rem 0 0;
+  padding: 0.3rem 0.55rem;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-input);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.card-action-note:empty {
+  display: none;
+}
+
+.card-action-form {
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-input);
+  background: var(--surface);
+}
+
+/* A refined result: what was applied, above the new card. --text on --accent-soft with an --accent edge, as the
+   picked explain level. */
+.refined-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.2rem;
+}
+
+.refined-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chip.applied {
+  margin: 0;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--text);
+}
+
+/* B11: a chat limit or the spending cap on a refine: a quiet muted line, as in the chat, not an error. */
+.card-action-limit {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+}
+
+.card-action-limit:empty {
+  display: none;
+}
+
+.search-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.2rem 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.search-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}

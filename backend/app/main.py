@@ -14,7 +14,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
-from app import agent, chat_turn, dashboard, page_context, proposals, refresh
+from app import agent, card_actions, chat_turn, dashboard, page_context, proposals, refresh
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.auth import SIGNED_OUT, SignedOut, Verifier, current_user, user_name
 from app.config import Settings
@@ -194,6 +194,17 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         result goes on its card only: the model doesn't see it, so the answer's text is never rewritten by it."""
         page, _ = page_context.validate(body.page, d.knowledge.resolve_product)
         return run_tool(ToolCall(id="retry", name=body.name, args=body.args), d, Context(page=page, user_id=d.user_id))
+
+    @api.post("/chat/action", response_model=card_actions.Proposed | card_actions.Refined)
+    def card_action(body: card_actions.CardAction, d: You, request: Request,
+                    user: Annotated[str, Depends(current_user)]):
+        """A button on a tool card (B24): propose a change to the caller's state (nothing changes until it's
+        approved), or run the card's tool again with a fixed filter. A refine asks the model to translate the query
+        again, so it counts as a chat message (B11); a proposal runs no model and doesn't."""
+        if isinstance(body, card_actions.Propose):
+            return card_actions.propose(body, d)
+        chat_allowed(request, user)
+        return card_actions.refine(body, d, page_context.validate(body.page, d.knowledge.resolve_product)[0])
 
     @api.get("/examples")
     def examples():

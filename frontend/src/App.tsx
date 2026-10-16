@@ -252,6 +252,7 @@ export default function App({ account }: { account?: Account } = {}) {
           suggestions={SUGGESTIONS[page]}
           examples={examples}
           layout={layout}
+          asOf={status?.as_of ?? null}
           onClose={closeChat}
         />
       )}

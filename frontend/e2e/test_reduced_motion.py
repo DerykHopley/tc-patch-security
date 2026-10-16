@@ -11,6 +11,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from test_affected import set_stack
+from test_card_actions import CVE as B24_CVE, tool_cards
 from test_chat import (
     OPTIONS, Q3, ask, has_face, head_bot, hold_chat, pick, release, send, to_alert, to_thinking, window)
 from test_chat import open_chat as open_bubble
@@ -286,7 +287,7 @@ def a18_6_fix_first(fx):
     fix_card(answer)
     still(page, "the prioritise card")
     cve = table_ids(page, 1)[0]
-    page.get_by_role("button", name=f"Ask about this: {cve}").click()
+    page.locator("table.cves").get_by_role("button", name=f"Ask about this: {cve}").click()  # the row's, not the card's (B24)
     expect(chip(page)).to_contain_text(cve)
     still(page, "the selected row")
 
@@ -363,6 +364,17 @@ def b22_9_proposed_decision(fx):
     expect(card.locator("output.proposal-line")).to_contain_text("Cancelled")
 
 
+def b24_11_card_actions(fx):
+    page = fx("open_app")(reduced=True)
+    open_bubble(page)
+    cards = tool_cards(ask(page, "Explain CVE-2024-8309 and how to prevent that kind of bug"))
+    cards.get_by_role("button", name=f"Mark not affected… {B24_CVE}").click()
+    still(page, "a change button's form")
+    cards.get_by_role("button", name="Show only CVEs").click()
+    expect(window(page).locator(".refined-head .chip.applied")).to_have_text("Only CVEs")
+    still(page, "a refined result")
+
+
 def b19_9_runs_and_paused(fx):
     fx("live_state")
     page = fx("open_live")(reduced=True)
@@ -386,8 +398,8 @@ SCENES = {f.__name__: f for f in (
     a02_10_shell, a04_9_dashboard, a04b_9_cves_page, a05_8_charts_and_banner, a06_8_chat, a06b_7_patch_variants,
     a07_8_chat_layout, a11_7_dev_page, a13_7_settings, a14_12_snapshot_additions, a15_9_verdict, a15b_8_watchlist,
     a16_12_priority, a16b_13_decisions, a18_6_fix_first, a19_6_explain_levels, b02_9_check_now,
-    b08_13_research_web, b10_15_sign_in_screen, b19_9_runs_and_paused, b20_14_partial_and_try_again, b21_9_proposal_card,
-    b22_9_proposed_decision,
+    b08_13_research_web, b10_15_sign_in_screen, b19_9_runs_and_paused, b20_14_partial_and_try_again,
+    b21_9_proposal_card, b22_9_proposed_decision, b24_11_card_actions,
 )}
 
 

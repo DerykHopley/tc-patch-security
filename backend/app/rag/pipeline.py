@@ -60,8 +60,10 @@ def _active(retrievers: dict[str, Retriever], keyword_weight: float) -> dict[str
 
 
 def search_security(query: str, llm: LLM, retrievers: dict[str, Retriever], resolve_product,
-                    top_n: int | None = None, start_n: int = 1, opts: SearchOptions | None = None) -> SearchResult:
-    """`retrievers` by name ("vector", "keyword"): every query runs on each, all lists are fused by RRF (A10)."""
+                    top_n: int | None = None, start_n: int = 1, opts: SearchOptions | None = None,
+                    force: dict | None = None) -> SearchResult:
+    """`retrievers` by name ("vector", "keyword"): every query runs on each, all lists are fused by RRF (A10).
+    `force`: filters a refine button set (B24), over the plan's; kept when the plan's are relaxed away (S4)."""
     opts = opts or SearchOptions()
     top_n = top_n or opts.top_n
     plan, reply = llm.translate(query)  # Q-T1, S1
@@ -69,6 +71,8 @@ def search_security(query: str, llm: LLM, retrievers: dict[str, Retriever], reso
     if not opts.use_filters:
         dropped += [f"{k}={v} (filters off)" for k, v in kept.items()]
         kept = {}
+    forced, _ = guard.validate_filters(force or {}, resolve_product)
+    kept |= forced
     filters = Filters(**kept)
     queries = [plan.semantic_query, *(plan.rewrites if opts.use_rewrites else [])]
     weights = _active(retrievers, opts.keyword_weight)
@@ -76,8 +80,8 @@ def search_security(query: str, llm: LLM, retrievers: dict[str, Retriever], reso
 
     lists = _search_all(active, queries, filters, opts.per_query_k)
     relaxed = False
-    if not any(hits for _, _, hits in lists) and not filters.is_empty():  # S4
-        lists = _search_all(active, queries, Filters(), opts.per_query_k)
+    if not any(hits for _, _, hits in lists) and filters != Filters(**forced):  # S4
+        lists = _search_all(active, queries, Filters(**forced), opts.per_query_k)
         relaxed = True
 
     chunks: dict[str, Chunk] = {}

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { retryTool, type PageContext, type ToolCallRecord, type Verdict } from '../api.ts'
+import { retryTool, type PageContext, type RefineFilter, type ToolCallRecord, type Verdict } from '../api.ts'
+import { changeButtons, fixFirstHref } from '../cardActions.ts'
 import { contextWords, STATUS_LABEL as CVE_STATUS_LABEL } from '../cveView.ts'
 import { OverdueMark, PriorityChip } from '../components/Priority.tsx'
 import { NoFixMark } from '../components/Decision.tsx'
@@ -14,6 +15,7 @@ import type {
   FixFirstResult,
   Proposal,
   ResearchResult,
+  SearchResult,
   TechniqueResult,
   UpdatesResult,
   WatchlistResult,
@@ -21,6 +23,7 @@ import type {
 import { utcTime } from '../freshness.ts'
 import { scheduleLine } from '../refreshRuns.ts'
 import { followLink, openPath } from '../route.ts'
+import { AskButton, ChangeActions, RefineActions } from './CardActions.tsx'
 
 // One card per tool call: name, arguments, status, time, and the result drawn for its tool. Errors in red.
 // Result types come from the tools' declared result models (toolResults.ts, generated from backend/app/tools/).
@@ -79,6 +82,7 @@ function CveCard({ r }: { r: CveResult }) {
           </>
         )}
       </p>
+      <ChangeActions owner={r} keyId={r.id} cve={r.id} product={r.product} buttons={changeButtons(r.watch_status)} />
     </div>
   )
 }
@@ -102,6 +106,7 @@ function AffectedCard({ r }: { r: AffectedOne | AffectedProduct }) {
             </li>
           ))}
         </ul>
+        <ChangeActions owner={r} keyId={r.product} product={r.product} buttons={['set_version']} />
       </div>
     )
   }
@@ -119,6 +124,7 @@ function AffectedCard({ r }: { r: AffectedOne | AffectedProduct }) {
       <p className="meta verdict-lines">
         <VerdictFacts reason={r.reason} fixed={r.fixed_version} who={r.who_acts} />
       </p>
+      <ChangeActions owner={r} keyId={r.id} cve={r.id} product={r.product} buttons={changeButtons(r.watch_status)} />
     </div>
   )
 }
@@ -170,7 +176,7 @@ function WeaknessCard({ r }: { r: CweResult | TechniqueResult }) {
   )
 }
 
-function FixFirstCard({ r }: { r: FixFirstResult }) {
+function FixFirstCard({ r, page }: { r: FixFirstResult; page: PageContext }) {
   const view = contextWords(r.filters, r.product ?? undefined).join(', ')
   return (
     <div className="result-card fix-first-card">
@@ -200,10 +206,21 @@ function FixFirstCard({ r }: { r: FixFirstResult }) {
               <span className="meta">
                 {c.product} · {c.reasons.join(' · ')} · {c.no_fix ? 'decide by' : 'due'} {c.due_date} ({c.due_from})
               </span>
+              <span className="fix-actions">
+                <AskButton cve={c.id} page={page} />
+              </span>
+              {c.status === 'open' && (
+                <ChangeActions owner={r} keyId={c.id} cve={c.id} product={c.product} buttons={['accepted']} />
+              )}
             </li>
           ))}
         </ol>
       )}
+      <p className="meta">
+        <a href={fixFirstHref(r.filters)} onClick={(e) => followLink(e, openPath)}>
+          Open in CVEs page
+        </a>
+      </p>
     </div>
   )
 }
@@ -353,24 +370,72 @@ function UpdatesCard({ r }: { r: UpdatesResult }) {
   )
 }
 
-function ResultCard({ call }: { call: ToolCallRecord }) {
+const DOC_WORD: Record<string, string> = {
+  owasp_llm: 'OWASP LLM Top 10',
+  owasp_web: 'OWASP Top 10',
+  atlas_technique: 'ATLAS technique',
+  atlas_mitigation: 'ATLAS mitigation',
+  atlas_case: 'ATLAS case study',
+  cve: 'CVE',
+}
+
+// search_security's card (B24): what was found, and buttons that run the same search again, narrower.
+function SearchCard({ r, query, applied, page }: {
+  r: SearchResult
+  query: string
+  applied: RefineFilter[]
+  page: PageContext
+}) {
+  return (
+    <div className="result-card search-card">
+      <p className="result-title">
+        {r.sources.length} {r.sources.length === 1 ? 'source' : 'sources'} for “{query}”
+      </p>
+      {r.sources.length === 0 ? (
+        <p className="meta">Nothing matches this filter.</p>
+      ) : (
+        <ol className="search-list">
+          {r.sources.map((s) => (
+            <li key={s.n}>
+              <span className="source-n">{s.n}</span> {s.title}{' '}
+              <span className="meta">{DOC_WORD[s.doc_type] ?? s.doc_type}</span>
+              {s.severity && <SeverityBadge severity={s.severity} cvss={null} />}
+              {s.kev && <span className="chip kev">KEV</span>}
+            </li>
+          ))}
+        </ol>
+      )}
+      <RefineActions query={query} applied={applied} page={page} />
+    </div>
+  )
+}
+
+function ResultCard({ call, page, applied }: { call: ToolCallRecord; page: PageContext; applied: RefineFilter[] }) {
   // Checking the name narrows the result to that tool's type.
   if (call.name === 'lookup_cve' && call.result) return <CveCard r={call.result} />
   if (call.name === 'explain_weakness' && call.result) return <WeaknessCard r={call.result} />
   if (call.name === 'check_affected' && call.result) return <AffectedCard r={call.result} />
-  if (call.name === 'prioritise' && call.result) return <FixFirstCard r={call.result} />
+  if (call.name === 'prioritise' && call.result) return <FixFirstCard r={call.result} page={page} />
   if (call.name === 'update_watchlist' && call.result) return <WatchlistCard r={call.result} />
   if (call.name === 'propose_decision' && call.result) return <WatchlistCard r={call.result} />
   if (call.name === 'research_web' && call.result) return <ResearchCard r={call.result} />
   if (call.name === 'check_updates' && call.result) return <UpdatesCard r={call.result} />
+  if (call.name === 'search_security' && call.result) {
+    return <SearchCard r={call.result} query={String(call.args.query ?? '')} applied={applied} page={page} />
+  }
   return null
 }
 
 // B20: a step tried again keeps its new record for the page's lifetime, so switching tabs doesn't lose it.
 const retried = new WeakMap<ToolCallRecord, ToolCallRecord>()
 
-/** `page`: the answer's page context, sent again with Try again (prioritise reads it). */
-export function ToolCallCard({ call: original, page = {} }: { call: ToolCallRecord; page?: PageContext }) {
+/** `page`: the answer's page context, sent again with Try again (prioritise reads it) and with the card's buttons
+ *  (B24). `applied`: the refine filters this search already has (a refined result's card). */
+export function ToolCallCard({ call: original, page = {}, applied = [] }: {
+  call: ToolCallRecord
+  page?: PageContext
+  applied?: RefineFilter[]
+}) {
   const [call, setCall] = useState(() => retried.get(original) ?? original)
   const [trying, setTrying] = useState(false)
   const [retryError, setRetryError] = useState<string | null>(null)
@@ -424,7 +489,7 @@ export function ToolCallCard({ call: original, page = {} }: { call: ToolCallReco
           This step worked on a second try. The answer above was written without it: ask again to have Patch use it.
         </output>
       )}
-      <ResultCard call={call} />
+      <ResultCard call={call} page={page} applied={applied} />
       {r && (
         <details className="raw">
           <summary>Raw result</summary>

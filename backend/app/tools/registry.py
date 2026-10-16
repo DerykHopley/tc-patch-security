@@ -31,6 +31,7 @@ class Context:
     usage: Usage = field(default_factory=Usage)
     page: dict = field(default_factory=dict)
     user_id: str = DEFAULT_USER
+    force_filters: dict = field(default_factory=dict)  # B24: a refine button's search filters, never relaxed away
 
     def add_usage(self, reply: LLMReply) -> None:
         self.usage.input_tokens += reply.input_tokens
