@@ -84,7 +84,8 @@ def test_f51_2_the_reused_tool_output_is_wrapped_by_the_guard_and_no_tool_runs(c
     assert all(t.startswith("<<<TOOL_OUTPUT") and t.rstrip().endswith("<<<END_TOOL_OUTPUT>>>")
                for t in tool_messages(now))
     assert again["usage"]["llm_calls"] == 1 < first["usage"]["llm_calls"]  # the answer only: no search, no plan
-    assert [(t["name"], t["args"]) for t in again["tool_calls"]] == [(t["name"], t["args"]) for t in first["tool_calls"]]
+    calls = [[(t["name"], t["args"]) for t in r["tool_calls"]] for r in (first, again)]
+    assert calls[0] == calls[1]
 
 
 # --- F51.3: how long a search is valid: the same question, page and data, at another level ---------------------------
