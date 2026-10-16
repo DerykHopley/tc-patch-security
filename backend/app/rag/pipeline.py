@@ -1,7 +1,8 @@
 """The search_security pipeline: translate → search each query on each retriever → fuse → cap per document (T1).
 
 Hybrid search (A10): the vector retriever (Chroma) and the keyword retriever (BM25) both run every query; a source's
-score is its fused RRF score, since a cosine and a BM25 score can't be compared.
+score is its fused RRF score, since a cosine and a BM25 score can't be compared. The off-topic gate (#53) drops the
+keyword hits when no vector hit reaches the threshold, unless the question names an exact id or product.
 """
 from dataclasses import dataclass
 
@@ -10,6 +11,7 @@ from app.llm.base import LLM, LLMReply
 from app.rag.chunking import Chunk
 from app.rag.fusion import rrf
 from app.rag.index import Filters, Hit, Retriever
+from app.rag.keyword import BM25Index
 from app.schemas import QueryInfo, Source
 
 PER_DOC_CAP = 2  # R5
@@ -59,6 +61,25 @@ def _active(retrievers: dict[str, Retriever], keyword_weight: float) -> dict[str
     return {name: weights.get(name, 1.0) for name in retrievers if weights.get(name, 1.0) > 0}
 
 
+def is_off_topic(vector_found: bool, keyword: BM25Index, texts: list[str]) -> bool:
+    """The off-topic gate (#53). BM25 has no threshold, so it finds "poem" in an ATLAS case study. A question is
+    off-topic when no vector hit reached the threshold (the configured embedder's, as ChromaIndex applies it) and no
+    text names an id or product the index holds: an id-only question can score low on the vector side, and exact ids
+    are what BM25 is for (A10)."""
+    return not vector_found and not any(keyword.exact_terms(t) for t in texts)
+
+
+def _gate(lists: list[tuple[str, str, list[Hit]]], keyword: BM25Index | None,
+          texts: list[str]) -> tuple[list[tuple[str, str, list[Hit]]], bool]:
+    """Empty the keyword lists of an off-topic question. Only when both sides ran: at keyword weight 1 nothing gates.
+    Returns the lists and whether the gate closed."""
+    if keyword is None or "vector" not in {name for name, _, _ in lists}:
+        return lists, False
+    if not is_off_topic(any(hits for name, _, hits in lists if name == "vector"), keyword, texts):
+        return lists, False
+    return [(name, q, [] if name == "keyword" else hits) for name, q, hits in lists], True
+
+
 def search_security(query: str, llm: LLM, retrievers: dict[str, Retriever], resolve_product,
                     top_n: int | None = None, start_n: int = 1, opts: SearchOptions | None = None,
                     force: dict | None = None) -> SearchResult:
@@ -78,10 +99,12 @@ def search_security(query: str, llm: LLM, retrievers: dict[str, Retriever], reso
     weights = _active(retrievers, opts.keyword_weight)
     active = {name: retrievers[name] for name in weights}
 
-    lists = _search_all(active, queries, filters, opts.per_query_k)
+    texts = [query, *queries]
+    lists, off_topic = _gate(_search_all(active, queries, filters, opts.per_query_k), active.get("keyword"), texts)
     relaxed = False
     if not any(hits for _, _, hits in lists) and filters != Filters(**forced):  # S4
-        lists = _search_all(active, queries, Filters(**forced), opts.per_query_k)
+        lists, off_topic = _gate(_search_all(active, queries, Filters(**forced), opts.per_query_k),
+                                 active.get("keyword"), texts)
         relaxed = True
 
     chunks: dict[str, Chunk] = {}
@@ -109,7 +132,7 @@ def search_security(query: str, llm: LLM, retrievers: dict[str, Retriever], reso
         original=query, semantic_query=plan.semantic_query,
         rewrites=plan.rewrites if opts.use_rewrites else [],
         filters={k: str(v).lower() if isinstance(v, bool) else v for k, v in kept.items()},
-        dropped_filters=dropped, relaxed=relaxed,
+        dropped_filters=dropped, relaxed=relaxed, off_topic=off_topic,
         found_by={s.n: sorted(found_by[s.chunk_id]) for s in sources},
     )
     return SearchResult(query=info, sources=sources, texts={s.n: c.text for s, (c, _) in zip(sources, picked)},

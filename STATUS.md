@@ -123,13 +123,14 @@ Follow-ups from spec A, not scheduled yet (`needs-triage`):
 - From the model check: [#50](https://github.com/DerykHopley/tc-patch-security/issues/50) `explain_weakness` gives numbered sources; [#51](https://github.com/DerykHopley/tc-patch-security/issues/51) one search for all three explain levels; [#52](https://github.com/DerykHopley/tc-patch-security/issues/52) cite `prioritise`'s sources by rule; [#53](https://github.com/DerykHopley/tc-patch-security/issues/53) drop keyword hits when the vector search finds nothing on-topic; [#54](https://github.com/DerykHopley/tc-patch-security/issues/54) relax three checks that fail good answers; [#55](https://github.com/DerykHopley/tc-patch-security/issues/55) models and embedders to try later.
 - Dashboard: [#25](https://github.com/DerykHopley/tc-patch-security/issues/25) the OWASP chart says it's the web list and counts every category; [#28](https://github.com/DerykHopley/tc-patch-security/issues/28) warn when a product leaves CVEs unfixed.
 - Ideas: [#49](https://github.com/DerykHopley/tc-patch-security/issues/49) find installed LLM software and offer to add it.
-- Known limits: 14 questions can't reliably separate the top models (*unverified*: more questions would); BM25 has no score threshold, so a keyword hit can bring sources for an off-topic question (#53); the snapshot doesn't move, so "overdue" counts against 2026-10-13.
+- Known limits: 14 questions can't reliably separate the top models (*unverified*: more questions would); the off-topic gate (#53) is checked on the hash embedder only until the real-embedder re-run below; the snapshot doesn't move, so "overdue" counts against 2026-10-13.
 
 ## Waiting on the owner
 
 1. Review and merge [PR #24](https://github.com/DerykHopley/tc-patch-security/pull/24) (spec A into `main`). The PR closes the spec A tickets.
 2. Triage the follow-ups above and B25 ([#64](https://github.com/DerykHopley/tc-patch-security/issues/64)).
-3. Create the Clerk instance ([#65](https://github.com/DerykHopley/tc-patch-security/issues/65)), then deploy to Cloud Run by [DEPLOY.md](./DEPLOY.md) ([#45](https://github.com/DerykHopley/tc-patch-security/issues/45)).
+3. Re-run the retrieval check on the real embedders for the off-topic gate (#53; needs OpenRouter and Ollama). In `backend/`, per embedder whose index you have: `EMBEDDER=openrouter INDEX_PATH=data/index-openrouter uv run --env-file .env python -m app.evals retrieval`, and `EMBEDDER=ollama EMBED_MODEL=<model> INDEX_PATH=<its index folder> uv run --env-file .env python -m app.evals retrieval`. Hit rate and MRR should match the A20 runs; the "Off-topic gate" line should say 0 on-topic questions gated and, ideally, 15 of 15 off-topic.
+4. Create the Clerk instance ([#65](https://github.com/DerykHopley/tc-patch-security/issues/65)), then deploy to Cloud Run by [DEPLOY.md](./DEPLOY.md) ([#45](https://github.com/DerykHopley/tc-patch-security/issues/45)).
 
 ## What spec B adds
 

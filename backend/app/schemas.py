@@ -52,6 +52,7 @@ class QueryInfo(BaseModel):
     filters: dict[str, str]
     dropped_filters: list[str]
     relaxed: bool
+    off_topic: bool = False  # #53: no vector hit reached the threshold, so keyword hits were dropped too
     found_by: dict[int, list[str]] = Field(default_factory=dict)  # source n → ["keyword", "vector"] (A10)
 
 

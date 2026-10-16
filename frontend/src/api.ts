@@ -126,6 +126,7 @@ export interface QueryInfo {
   filters: Record<string, string>
   dropped_filters: string[]
   relaxed: boolean
+  off_topic?: boolean // #53: no vector hit reached the threshold, so keyword (BM25) hits were dropped too
   found_by: Record<string, string[]> // source n → the retrievers that found it: "keyword" (BM25), "vector"
 }
 
