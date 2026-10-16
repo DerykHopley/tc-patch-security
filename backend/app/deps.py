@@ -3,6 +3,7 @@
 Live mode (B02): `sync()` swaps in a new live version (knowledge, Chroma, BM25 and State's reference together)
 before a request, and `as_of` is today by `clock`.
 """
+import copy
 import datetime as dt
 import logging
 import threading
@@ -11,7 +12,7 @@ from dataclasses import dataclass, field
 
 from app.alerts import Alerter
 from app.app_settings import DevSettings, default_dev_settings, default_settings
-from app.config import Settings
+from app.config import DEFAULT_USER, Settings
 from app.feeds import Feeds
 from app.knowledge import Knowledge, load_knowledge
 from app.live_data import LiveData
@@ -26,6 +27,8 @@ from app.rag.pipeline import SearchOptions
 from app.rag.vector import ChromaIndex, IndexMismatch, build_index, open_index, sync_index
 from app.refresh import Refresher, make_refresher, utc_now
 from app.state import State
+from app.store import MemoryStore
+from app.users import Users
 from app.web_research import WebResearch
 
 log = logging.getLogger(__name__)
@@ -46,15 +49,33 @@ class Deps:
     refresher: Refresher | None = None  # live mode only (B02): fetch, build, write a new live version
     version: int | None = None  # the live version loaded; None in snapshot mode
     fail_tools: set[str] = field(default_factory=set)  # B20: chat tools that time out in an answer (FAIL_TOOLS, dev)
+    users: Users | None = None  # B09: every user's state; `state` is the one this Deps acts for
+    user_id: str = DEFAULT_USER  # whose request this is (B09): `state` is theirs
     _sync_lock: threading.Lock = field(default_factory=threading.Lock)
+    _root: "Deps | None" = field(default=None, repr=False)  # a user's Deps (for_user) points at the shared one
 
     def __post_init__(self):
         if self.keyword is None:
             self.keyword = BM25Index(self.index.chunks)  # the same chunks as Chroma: both search one corpus
         self.fail_tools = self.fail_tools or set(self.settings.fail_tools)
+        if self.users is None:  # one user only: the given state (other users' states in memory)
+            self.users = Users(MemoryStore(), self.knowledge, self.state.defaults, self.state.dev_defaults,
+                               self.settings.owner, default=self.state)
         if self.fail_tools:
             log.warning("FAIL_TOOLS is on: %s time out in every answer (docs/failure-demo.md).",
                         ", ".join(sorted(self.fail_tools)))
+
+    def for_user(self, user_id: str) -> "Deps":
+        """The same parts, acting for one user: their state, their id for the tools' context. Everything else (the
+        knowledge, the index, the refresh, the model) is shared."""
+        mine = copy.copy(self)
+        mine.state, mine.user_id, mine._root = self.users.state(user_id), user_id, self._root or self
+        return mine
+
+    @property
+    def owner_state(self) -> State:
+        """The owner's state (OWNER; locally the default user): where the dev panel's server-wide choices live."""
+        return self.users.state(self.settings.owner)
 
     @property
     def live(self) -> bool:
@@ -68,6 +89,11 @@ class Deps:
     def sync(self) -> None:
         """Live mode: when a refresh (this process or the CLI) wrote a new version, load it before the request.
         The new CVE data, the index with the changed chunks upserted, and a new BM25 are swapped in together."""
+        if self._root is not None:  # a user's Deps: the shared one loads it, then this copy takes the new parts
+            self._root.sync()
+            self.knowledge, self.index, self.keyword, self.version = (self._root.knowledge, self._root.index,
+                                                                      self._root.keyword, self._root.version)
+            return
         if self.refresher is None:
             return
         with self._sync_lock:
@@ -77,13 +103,14 @@ class Deps:
             knowledge = load_knowledge(self.refresher.live.folder(version))
             index, embedded = sync_index(self.index, build_chunks(knowledge))
             self.knowledge, self.index, self.keyword = knowledge, index, BM25Index(index.chunks)
-            self.state.k = knowledge  # State resolves products and checks versions with it
+            self.users.set_knowledge(knowledge)  # every user's State resolves products and checks versions with it
+            self.state.k = knowledge
             self.version = version
             log.info("Loaded live version %d: %d chunks embedded", version, embedded)
 
     def dev(self) -> DevSettings:
         """The dev panel's saved choices while it's on; the env defaults when it's off (A11)."""
-        return self.state.dev_settings() if self.settings.dev_panel else self.state.dev_defaults
+        return self.owner_state.dev_settings() if self.settings.dev_panel else self.state.dev_defaults
 
     def search_options(self) -> SearchOptions:
         d = self.dev()
@@ -149,7 +176,8 @@ def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge 
         version = refresher.live.version()
         knowledge = load_knowledge(refresher.live.folder(version))
     knowledge = knowledge or load_knowledge()
-    state = State(settings.state_path, knowledge, default_settings(settings), default_dev_settings(settings))
+    users = Users.local(settings, knowledge, default_settings(settings), default_dev_settings(settings))
+    state = users.state(DEFAULT_USER)
     deps = Deps(
         settings=settings,
         llm=llm,  # type: ignore[arg-type]  # set just below when not given: the router needs deps.dev
@@ -161,9 +189,10 @@ def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge 
         clock=clock,
         refresher=refresher,
         version=version,
+        users=users,
     )
     if llm is None:
         deps.llm = LLMRouter(settings, deps.dev, http_client)
     if refresher is not None:  # step 4 of the refresh (B04): read deps.transports at send time, so tests' fakes apply
-        refresher.alerter = Alerter(settings, state, lambda: deps.transports)
+        refresher.alerter = Alerter(settings, users, lambda: deps.transports)
     return deps

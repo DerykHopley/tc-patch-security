@@ -13,8 +13,6 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.alerts import DEFAULT_USER as ALERTS_USER
-from app.config import DEFAULT_USER
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
 from app.refresh import RefreshResult, schedule_status
@@ -90,11 +88,9 @@ class UpdatesResult(ToolResult):
 
 
 def _alerts_of(result: RefreshResult, user_id: str) -> list[dict]:
-    """The user's alerts in the run, one per (CVE, reason), digests unpacked. The refresh keys the one local user as
-    app.alerts' "default" until per-user state (B09) makes the ids one."""
-    key = ALERTS_USER if user_id == DEFAULT_USER else user_id
+    """The user's alerts in the run, one per (CVE, reason), digests unpacked. The refresh keys them by user id."""
     out: dict[tuple[str, str], dict] = {}
-    for entry in result.alerts.get(key, []):
+    for entry in result.alerts.get(user_id, []):
         for a in entry["alerts"]:
             out.setdefault((a["cve"], a["reason"]), {**a, "held": entry["kind"] == "held"})
     return list(out.values())
@@ -104,7 +100,7 @@ def run(args: UpdatesArgs, deps, ctx) -> dict:
     empty = {"last_checked": None, "trigger": None, "ok": None, "status": None, "problems": [],
              "counts": UpdateCounts(new=0, updated=0, kev_added=0, rescored=0).model_dump(), "new_cves": [],
              "alerts": [], "alerts_total": 0}
-    empty["schedule"] = schedule_status(deps.refresher, deps.state.settings().alerts)  # B19
+    empty["schedule"] = schedule_status(deps.refresher, deps.owner_state.settings().alerts)  # B19
     if deps.refresher is None:
         return {"mode": "snapshot", "as_of": deps.as_of, "ran": False, **empty, "note": SNAPSHOT_NOTE,
                 "refusal": {"reason": "snapshot", "next_allowed": None,
@@ -145,7 +141,7 @@ def run(args: UpdatesArgs, deps, ctx) -> dict:
             "problems": [f"{e.source}: {e.message}" for e in result.errors],
             "counts": result.counts.model_dump(), "new_cves": new_cves,
             "alerts": [{**a, "n": source(a["cve"])} for a in alerts[:LISTED]], "alerts_total": len(alerts),
-            "schedule": schedule_status(deps.refresher, deps.state.settings().alerts)}  # after the run: its next due
+            "schedule": schedule_status(deps.refresher, deps.owner_state.settings().alerts)}  # after the run: its next due
 
 
 register(ToolSpec(

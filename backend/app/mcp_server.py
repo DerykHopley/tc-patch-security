@@ -41,14 +41,14 @@ class NoStack(State):
     `product`, `fields`: check_affected's call, as a one-product watchlist that lives for that call only."""
 
     def __init__(self, state: State, product: str | None = None, fields: dict | None = None):
-        super().__init__(state.path, state.k, state.defaults, state.dev_defaults)
+        super().__init__(state.path, state.k, state.defaults, state.dev_defaults, store=state.store, key=state.key)
         self._call = {"watchlist": [product] if product else [], "statuses": {}, "history": {},
                       "product_settings": {product: fields} if product else {}}
 
-    def _load(self) -> dict:
-        return self._call
+    def _read(self) -> tuple[dict, None]:
+        return self._call, None
 
-    def _save(self, data: dict) -> None:
+    def _write(self, data: dict, version) -> None:
         raise PermissionError("The MCP server is read-only.")
 
 

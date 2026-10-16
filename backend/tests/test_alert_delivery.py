@@ -53,13 +53,13 @@ class Channels:
 
 
 class LiveAlerts:
-    def __init__(self, tmp_path, index_dir):
+    def __init__(self, tmp_path, index_dir, **settings):
         from app.config import Settings
 
         shutil.copytree(index_dir, tmp_path / "index")
         self.settings = Settings(llm_provider="fake", state_path=tmp_path / "state.json",
                                  index_path=tmp_path / "index", data_mode="live", live_path=tmp_path / "live",
-                                 ntfy_topic="t0p1c", app_url="http://app.test", alert_tz="UTC")
+                                 ntfy_topic="t0p1c", app_url="http://app.test", alert_tz="UTC", **settings)
         self.feeds, self.clock, self.channels = FakeFeeds(day=1), Clock(f"{DAY1}T09:00:00+00:00"), Channels()
         self.start()
 

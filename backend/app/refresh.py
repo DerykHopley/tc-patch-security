@@ -30,10 +30,10 @@ from typing import Literal
 from pydantic import BaseModel, model_validator
 
 from app import cve_build
-from app.alerts import DEFAULT_USER  # the alerts map's key for the one local user (B04)
+from app.config import DEFAULT_USER  # the alerts map is keyed by user id (B09)
 from app.config import FIXTURES, Settings
 from app.feeds import FeedError, Feeds, make_feeds
-from app.live_data import LiveData, write_json
+from app.live_data import LiveData
 
 log = logging.getLogger(__name__)
 
@@ -195,13 +195,13 @@ class Refresher:
         self.live, self.feeds, self.clock = live, feeds, clock
         self.alerter = alerter  # step 4 (app.alerts.Alerter); None: no alerts
 
-    # The run log: last checked and the newest runs first, in refresh.json next to the versions.
+    # The run log: last checked and the newest runs first, in refresh.json next to the versions. Shared by every user
+    # (B09), so it lives in the live data's store.
     def _log(self) -> dict:
-        path = self.live.root / "refresh.json"
-        return json.loads(path.read_text()) if path.exists() else {"last_checked": None, "runs": []}
+        return self.live.store.read("refresh.json")[0] or {"last_checked": None, "runs": []}
 
     def _save_log(self, data: dict) -> None:
-        write_json(self.live.root / "refresh.json", data)
+        self.live.store.write("refresh.json", data)
 
     def _log_skip(self, log_data: dict, trigger: str, reason: str, now: dt.datetime, next_allowed: dt.datetime):
         """B19: a refused run, kept apart from `runs` so the 5-minute rule and the banner only ever see real runs.
@@ -401,10 +401,10 @@ def cli_alerter(settings: Settings):
     from app.alerts import Alerter
     from app.app_settings import default_dev_settings, default_settings
     from app.notify import Transports
-    from app.state import State
+    from app.users import Users
 
-    state = State(settings.state_path, None, default_settings(settings), default_dev_settings(settings))
-    return Alerter(settings, state, Transports)
+    users = Users.local(settings, None, default_settings(settings), default_dev_settings(settings))
+    return Alerter(settings, users, Transports)
 
 
 # --- The schedule (B03): an hourly timer calls this; Settings' schedule_hours decides whether it runs ---------------
@@ -420,10 +420,10 @@ def schedule_due(refresher: Refresher, schedule_hours: int) -> dt.datetime | Non
 
 
 def schedule_status(refresher: Refresher | None, alerts) -> dict:
-    """B19: the schedule as the user set it (`alerts`: their AlertSettings): every N hours, paused or not, and when
-    the next scheduled run is due (None: paused, snapshot mode, or never checked, so the next tick runs). The
-    dashboard, Settings' "Refresh runs" card and check_updates all say it from here. In the user's settings, so it
-    moves per user with B09."""
+    """B19: the schedule as the owner set it (`alerts`: the owner's AlertSettings, B09: the refresh is shared, so
+    the owner's Settings decide it): every N hours, paused or not, and when the next scheduled run is due (None:
+    paused, snapshot mode, or never checked, so the next tick runs). The dashboard, Settings' "Refresh runs" card and
+    check_updates all say it from here."""
     due = schedule_due(refresher, alerts.schedule_hours) if refresher and not alerts.schedule_paused else None
     return {"hours": alerts.schedule_hours, "paused": alerts.schedule_paused,
             "next_due": _iso(due) if due else None}
@@ -447,11 +447,13 @@ def run_scheduled(refresher: Refresher, schedule_hours: int, paused: bool = Fals
 
 
 def _schedule(settings: Settings):
-    """Settings' alert part: schedule_hours and schedule_paused (B19)."""
-    from app.app_settings import default_settings
-    from app.state import State
+    """The owner's alert settings: schedule_hours and schedule_paused (B19). The refresh is shared, so the owner's
+    Settings decide it (B09)."""
+    from app.app_settings import default_dev_settings, default_settings
+    from app.users import Users
 
-    return State(settings.state_path, None, default_settings(settings)).read().settings.alerts
+    users = Users.local(settings, None, default_settings(settings), default_dev_settings(settings))
+    return users.state(settings.owner).read().settings.alerts
 
 
 def main(argv: Sequence[str] = ()) -> int:

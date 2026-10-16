@@ -89,7 +89,7 @@ def answer(message: str, history: list[dict], deps, level: ExplainLevel = "norma
     The step limit is the dev panel's (A11). `fail_tools`: tools that time out instead of running (B20's switch)."""
     page = page or {}
     max_steps = deps.dev().max_steps
-    ctx = Context(page=page)
+    ctx = Context(page=page, user_id=deps.user_id)
     records = []
     # One system message: some local models' chat templates accept only one, and only first.
     tools = tool_schemas(deps)  # only the tools that are on (research_web needs its key, B08)

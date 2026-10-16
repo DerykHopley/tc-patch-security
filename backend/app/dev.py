@@ -66,7 +66,7 @@ def dev_router(deps) -> APIRouter:
 
     @r.get("/settings")
     def get_dev_settings():
-        return {"settings": deps.state.dev_settings().model_dump(),
+        return {"settings": deps.owner_state.dev_settings().model_dump(),
                 "defaults": deps.state.dev_defaults.model_dump(),
                 "openrouter_key": bool(deps.settings.openrouter_api_key)}
 
@@ -78,7 +78,7 @@ def dev_router(deps) -> APIRouter:
             raise InputError(NOT_LOCAL)
         if body.provider == "local" and not body.local_model:
             raise InputError("Choose a local model first: Find models lists the ones the server has.")
-        return {"settings": deps.state.save_dev_settings(body).model_dump()}
+        return {"settings": deps.owner_state.save_dev_settings(body).model_dump()}
 
     @r.post("/fail-tools")
     def fail_tools(body: FailTools):

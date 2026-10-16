@@ -33,3 +33,11 @@ export function channelResult(c: ChannelResult): { tone: ResultTone; text: strin
 
 /** When an entry has no channel results: no channel was picked in Settings. */
 export const NO_CHANNELS = 'No channel picked: recorded only'
+
+/** Why an entry has no channel results: held for quiet hours, another user's (B09: only the owner's alerts go to
+ * the channels, which are the owner's), or no channel picked. */
+export function noChannels(e: AlertLogEntry): string {
+  if (e.kind === 'held') return 'Held: sent when quiet hours end'
+  if (e.in_app_only) return 'In the app only: alerts go to the owner’s channels'
+  return NO_CHANNELS
+}
