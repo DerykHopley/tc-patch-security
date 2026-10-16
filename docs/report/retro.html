@@ -13,7 +13,7 @@
   .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
   /* A wide diagram scrolls inside its box on a phone; the page itself never scrolls sideways. */
   .mermaid { display: flex; justify-content: safe center; overflow-x: auto; max-width: 100%; }
-  main { overflow-wrap: anywhere; }
+  main { overflow-wrap: break-word; }
   .spec-tab[aria-selected="true"] { background: #312e81; color: #fff; border-color: #312e81; }
   .spec-tab:focus-visible { outline: 3px solid #6366f1; outline-offset: 2px; }
   /* Without JavaScript both specs show, one after the other. */
