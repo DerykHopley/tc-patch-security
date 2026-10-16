@@ -130,6 +130,7 @@ export interface QueryInfo {
   filters: Record<string, string>
   dropped_filters: string[]
   relaxed: boolean
+  off_topic?: boolean // #53: no vector hit reached the threshold, so keyword (BM25) hits were dropped too
   found_by: Record<string, string[]> // source n → the retrievers that found it: "keyword" (BM25), "vector"
 }
 
@@ -705,6 +706,7 @@ export interface DevSettingsReply {
   settings: DevSettings
   defaults: DevSettings // from the backend's .env
   openrouter_key: boolean // whether OPENROUTER_API_KEY is set; the key itself never leaves the server
+  yours?: boolean // false: the caller isn't the owner, so sees the owner's choices read-only (B29)
 }
 
 export interface DevInfo {

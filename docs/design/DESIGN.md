@@ -278,6 +278,12 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - **Loading**: the select is disabled, `aria-busy`, with one option "Loading the models this key may use…". **No list** (no key, OpenRouter unreachable or refusing): the plain text field as before, with a `role="note"` line giving the reason.
 - The select takes the row's width (`flex: 1 1 12rem`, `min-width: 0`): long options never widen the card. Nothing animates. *Checked* by the browser check A11.10 in both themes at 400px and 1400px, by keyboard; the option words by `npm test`.
 
+#### 5.6.2 The Dev page for anyone but the owner (B29, 2026-10-16)
+
+- The choices are the owner's and apply to everyone (B09), so anyone else reads them. The page intro becomes one line, `role="note"`: "These are the owner's choices: the chat and search use them for everyone. Only the owner can change them."
+- **Model** and **Agent and search** cards: a `<dl>` instead of the form, one row per choice with the form's labels (`dev/ownersChoices.ts`): label in `--muted` on the left, value in `--text`, weight 600, on the right, a 1px `--border` line under each row; on a phone a long value wraps under its label. Not a disabled form: a disabled fieldset is drawn at 55% and its text drops under 4.5:1.
+- No save bar, no Reset, no Find models. The playground, the model check and the retrieval check each say in one `.meta` line that only the owner can run them, and why; the saved runs, the index, the map and the report stay. Nothing animates. *Checked* by the browser check B29.5 (both themes, 400px and 1400px, Firefox and Chromium) and the words by `npm test` B29.4.
+
 ### 5.7 Settings parts
 
 ![Settings](img/settings-light.png)
@@ -419,6 +425,7 @@ What everyone sees until `/health` answers: it says whether sign-in is on, so ne
 - [ ] Tiles link to the CVEs page with their filter; the count there matches the tile.
 - [ ] Dashboard product filter (A15b): toggle pills with `aria-pressed`, a tick as well as colour, in the URL only, carried by the tile links and "See all CVEs"; the watchlist is edited on Settings, in a card that shares the save bar.
 - [ ] CVEs page: full width; filters in the URL survive a reload; stacked cards when narrow; row actions always in view.
+- [ ] Dev page for anyone but the owner (B29): the owner's choices as a read-only list with the note line; no save bar, Reset, Find models or Run buttons, each run's card says why; text 4.5:1; fits at 400px.
 - [ ] Dev page OpenRouter model (A11.10): a native select with price, score and "(default)" per option; the picked model in full under it; "Other…" opens a focused text field; a saved id not listed shows as Other, unchanged; a loading state; no list = the text field and the reason; never wider than its card at 400px.
 - [ ] Data freshness (B02): Live or Snapshot chip; the last-checked line in UTC; Check now only in live mode, "Checking…" with the spinner while it runs (readable, `aria-busy`); one result line in a status region with its edge colour; the NVD notice and attributions in both modes.
 - [ ] Partial or failed banner (B20): what updated, what didn't, the next try in UTC; each failed feed's reason; Retry by mouse and keyboard; edge colour by tone; fits at 400px; survives a reload.

@@ -546,7 +546,8 @@ def build(model_runs: list[dict], retrieval_runs: list[dict], as_of: str, findin
         ("threshold", "Threshold", "Off-topic threshold", _threshold(retrieval_runs),
          "Each embedder's best (top-1) vector score for the retrieval questions above and for 15 off-topic "
          "questions, with the threshold in use. Off-topic questions also show how many chunks BM25 keyword search "
-         "matches: it has no threshold, so hybrid search can still bring those back."),
+         "matches: it has no threshold of its own, so the off-topic gate drops its hits when no vector hit reaches the "
+         "threshold (#53)."),
         ("explain-levels", "Explain levels", "Explain levels: readability", _explain_levels(model_runs, placeholder.format(
             what="A19 asks one question at simple, normal and deep dive: the same key fact and citations, "
                  "readability easiest for simple and hardest for deep dive.")),

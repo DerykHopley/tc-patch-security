@@ -11,6 +11,7 @@ How to put Patch on a public URL, invite-only, at no cost at this use. Written f
 - **Secret Manager**: the OpenRouter key, the scheduler secret, and the optional Tavily key and ntfy topic. Cloud Run passes them in as environment variables. They are never in the image, the repo or `env.yaml`.
 - **Cloud Scheduler**: one job calls `POST /api/refresh/scheduled` every hour with the scheduler secret in the `X-Scheduler-Secret` header. The route runs the refresh only when your Settings schedule (every 1 to 24 hours) is due and not paused, exactly like the local systemd timer.
 - **A cold start catches up:** the image's index is the snapshot's. On start, the server reads the live version from the bucket and embeds only the CVEs that differ (log line `Search index caught up with the live data: N chunks embedded in T s`).
+- **The Dev page** is off (`DEV_PANEL: "false"` in `env.yaml`). Not for safety: only the owner can change its choices, run its checks or use the playground (B29), and anyone else sees them read-only. Off, it hides the internals (the index, the embedding map, the saved checks) and the env's model settings apply. Turn it on to change the model without a redeploy.
 - **Clerk** (development instance, [#65](https://github.com/DerykHopley/tc-patch-security/issues/65)) signs users in. Every route except `/health` and the scheduled route needs a signed-in user.
 
 ## What it costs
