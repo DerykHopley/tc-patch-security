@@ -42,7 +42,7 @@
     <span class="px-2 py-0.5 rounded bg-red-100 text-red-800 font-semibold">High</span>
     <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">Medium</span>
     <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold">Low</span>
-    <span class="text-slate-500">· seven findings; one half done, one done, five proposed and waiting for the owner's pick</span>
+    <span class="text-slate-500">· seven findings; six done, one proposed and waiting for the owner's pick</span>
   </div>
 </div>
 
@@ -58,11 +58,11 @@
   <div class="overflow-x-auto"><table class="w-full text-sm">
     <thead class="text-left text-slate-500"><tr><th class="py-1 pr-3">#</th><th class="pr-3">Finding</th><th class="pr-3">Severity</th><th class="pr-3">Category</th><th>Status</th></tr></thead>
     <tbody class="divide-y divide-slate-100">
-      <tr><td class="py-1.5 pr-3">1</td><td class="pr-3"><a class="underline" href="#b1">Conflict markers passed every check</a></td><td class="pr-3 text-red-700">High</td><td class="pr-3">automated checks</td><td><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Half done</span> CI check in</td></tr>
-      <tr><td class="py-1.5 pr-3">2</td><td class="pr-3"><a class="underline" href="#b2">"Flaky" browser checks were real bugs</a></td><td class="pr-3 text-red-700">High</td><td class="pr-3">coding standards</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span> bugs fixed</td></tr>
-      <tr><td class="py-1.5 pr-3">3</td><td class="pr-3"><a class="underline" href="#b3">Docs every ticket edits cause conflicts</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">pruning</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
-      <tr><td class="py-1.5 pr-3">4</td><td class="pr-3"><a class="underline" href="#b4">The merge snippet, typed by hand twenty times</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">tool economy</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
-      <tr><td class="py-1.5 pr-3">5</td><td class="pr-3"><a class="underline" href="#b5">Adding a chat tool touches six places</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">navigation</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
+      <tr><td class="py-1.5 pr-3">1</td><td class="pr-3"><a class="underline" href="#b1">Conflict markers passed every check</a></td><td class="pr-3 text-red-700">High</td><td class="pr-3">automated checks</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> CI check, pre-commit hook (af6c750)</td></tr>
+      <tr><td class="py-1.5 pr-3">2</td><td class="pr-3"><a class="underline" href="#b2">"Flaky" browser checks were real bugs</a></td><td class="pr-3 text-red-700">High</td><td class="pr-3">coding standards</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> two UI rules (e57ab90), prompt line</td></tr>
+      <tr><td class="py-1.5 pr-3">3</td><td class="pr-3"><a class="underline" href="#b3">Docs every ticket edits cause conflicts</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">pruning</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> union merge, no counts, scenes per file (af6c750)</td></tr>
+      <tr><td class="py-1.5 pr-3">4</td><td class="pr-3"><a class="underline" href="#b4">The merge snippet, typed by hand twenty times</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">tool economy</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> <code>scripts/ff-merge.sh</code> (af6c750)</td></tr>
+      <tr><td class="py-1.5 pr-3">5</td><td class="pr-3"><a class="underline" href="#b5">Adding a chat tool touches six places</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">navigation</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> <code>adding-a-tool.md</code> (e57ab90)</td></tr>
       <tr><td class="py-1.5 pr-3">6</td><td class="pr-3"><a class="underline" href="#b6">Human tickets written before the code</a></td><td class="pr-3 text-slate-600">Low</td><td class="pr-3">information access</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
       <tr><td class="py-1.5 pr-3">7</td><td class="pr-3"><a class="underline" href="#b7">Only the owner can start retro and the architecture review</a></td><td class="pr-3 text-slate-600">Low</td><td class="pr-3">information access</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> agent memory</td></tr>
     </tbody>
@@ -71,7 +71,7 @@
 
 <article id="b1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">1 · Conflict markers passed every check</h2><span class="px-2 py-0.5 rounded bg-red-100 text-red-800 text-xs font-semibold">High</span></div>
-  <p class="rounded border bg-amber-100 text-amber-900 border-amber-200 px-3 py-2 text-sm"><b>Status (Half done, 2026-10-16):</b> CI now fails on a committed <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> or <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code> line (734e25b, in the "What changed" job). No local guardrail yet.</p>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-16):</b> CI fails on a committed <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> or <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code> line (734e25b). Now also a local guardrail (af6c750): <code>.githooks/pre-commit</code> refuses a commit whose <em>staged</em> content has a marker line, or when <code>check_waits.py</code> fails; under a second. On with <code>git config core.hooksPath .githooks</code> (README, Run it). Tested on a throwaway repo (R.1, <code>test_pre_commit.py</code>, run by <code>run.sh</code> in CI).</p>
   <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">How far the markers got</div>
 <pre class="mermaid">
 flowchart LR
@@ -89,7 +89,7 @@ flowchart LR
 
 <article id="b2" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">2 · "Flaky" browser checks were real bugs</h2><span class="px-2 py-0.5 rounded bg-red-100 text-red-800 text-xs font-semibold">High</span></div>
-  <p class="rounded border bg-indigo-50 text-indigo-900 border-indigo-200 px-3 py-2 text-sm"><b>Status (Proposed):</b> both bugs are fixed and have regression checks (f66127b, 3bead4a). The rules below that would catch the next one aren't written yet.</p>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-16):</b> both bugs are fixed and have regression checks (f66127b, 3bead4a). The two judgement rules are in <code>CODING_STANDARDS.md</code> → UI (e57ab90), and the implementer prompt template now says "unexplained, never flaky" (agent memory).</p>
   <div class="grid md:grid-cols-2 gap-4 text-sm">
     <div class="rounded-lg border border-red-200 bg-red-50 p-3 space-y-1"><div class="lbl text-red-700">What the agents reported</div>
       <p>B11: <code>test_a18_2</code> failed in Chromium, "passed when I re-ran its file… probably load timing".</p>
@@ -122,12 +122,12 @@ sequenceDiagram
 
 <article id="b3" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">3 · Docs every ticket edits cause conflicts</h2><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Medium</span></div>
-  <p class="rounded border bg-indigo-50 text-indigo-900 border-indigo-200 px-3 py-2 text-sm"><b>Status (Proposed).</b></p>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-16, af6c750):</b> STATUS.md's test table keeps the commands and what each proves; the commands print their own counts. <code>DECISIONS.md merge=union</code> in <code>.gitattributes</code>, after checking every row is one line and proving it on this file in a throwaway repo: two added rows merge cleanly; an edited row comes out twice (the trade-off, a DECISIONS.md row). Reduced-motion scenes now live in their ticket's test file, marked <code>@scene</code> (<code>frontend/e2e/reduced_motion.py</code>); all 24 moved, R.3 checks none was lost.</p>
   <div class="overflow-x-auto"><table class="w-full text-sm">
     <thead class="text-left text-slate-500"><tr><th class="py-1 pr-3">File</th><th class="pr-3">What happened</th><th>Proposal</th></tr></thead>
     <tbody class="divide-y divide-slate-100">
       <tr><td class="py-1.5 pr-3"><code>STATUS.md</code> test counts</td><td class="pr-3">Every agent changed the counts, or left them stale on purpose "because parallel branches would conflict".</td><td>Keep the commands and drop the counts. The test run prints them anyway, so the copy only goes stale.</td></tr>
-      <tr><td class="py-1.5 pr-3"><code>DECISIONS.md</code></td><td class="pr-3">Rows are added in one place by every ticket. One merge left the B03 "real feeds" row in twice.</td><td><code>DECISIONS.md merge=union</code> in <code>.gitattributes</code>: added rows from two branches merge cleanly. An edited row can come out twice. <i>Unverified</i> on this table.</td></tr>
+      <tr><td class="py-1.5 pr-3"><code>DECISIONS.md</code></td><td class="pr-3">Rows are added in one place by every ticket. One merge left the B03 "real feeds" row in twice.</td><td><code>DECISIONS.md merge=union</code> in <code>.gitattributes</code>: added rows from two branches merge cleanly. An edited row can come out twice. <i>Checked</i> on this table (see the status).</td></tr>
       <tr><td class="py-1.5 pr-3">Reduced-motion scene list</td><td class="pr-3">B20, B21 and B22 each added a scene to the same list; their merges were resolved by hand.</td><td>Let each test file register its own scenes, so nothing edits a shared list.</td></tr>
     </tbody>
   </table></div>
@@ -135,7 +135,7 @@ sequenceDiagram
 
 <article id="b4" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">4 · The merge snippet, typed by hand twenty times</h2><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Medium</span></div>
-  <p class="rounded border bg-indigo-50 text-indigo-900 border-indigo-200 px-3 py-2 text-sm"><b>Status (Proposed).</b></p>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-16, af6c750):</b> <code>scripts/ff-merge.sh &lt;branch&gt; [integration=spec-b]</code>, with <code>--dry-run</code>. Every check runs before anything changes (fast-forward only, no markers in the branch's tree, no unpushed local commits); then push, fetch, check it landed, and only then remove the worktree (<code>-f -f</code> only when locked) and the local branch. Remote branches are never deleted. Tested on a throwaway bare repo (R.2, <code>test_ff_merge.py</code>); one line in <code>docs/agents/issue-tracker.md</code>.</p>
   <p><b>What happened.</b> Each merge was the same check-push-check-clean-up, typed again. One version piped <code>git worktree remove</code> through <code>tail</code>, which always succeeds, so the branch was deleted while its worktree stayed. Nothing was lost, because the commits were already on <code>spec-b</code>. This is the same lesson as spec A's ";" chain, in a new shape: a pipe hides the exit code.</p>
   <p><b>Change.</b> <code>scripts/ff-merge.sh &lt;branch&gt; [integration]</code>:</p>
   <ol class="list-decimal pl-6 text-sm">
@@ -150,7 +150,7 @@ sequenceDiagram
 
 <article id="b5" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">5 · Adding a chat tool touches six places</h2><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Medium</span></div>
-  <p class="rounded border bg-indigo-50 text-indigo-900 border-indigo-200 px-3 py-2 text-sm"><b>Status (Proposed).</b></p>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-16, e57ab90):</b> <code>docs/agents/adding-a-tool.md</code> lists every place a new tool touches, behind one pointer line in CLAUDE.md.</p>
   <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">What one new tool needs (B06, B08, B22; B23 and B24 a subset)</div>
 <pre class="mermaid">
 flowchart LR
