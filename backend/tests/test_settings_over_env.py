@@ -314,3 +314,55 @@ def test_b26_7_the_cli_follows_live_mode_and_the_channels_saved_on_settings(app,
     out = json.loads(capsys.readouterr().out)
     sent = [c for e in out["result"]["alerts"]["default"] for c in e["channels"]]
     assert sent and all(c["channel"] == "ntfy" and c["error"] is None for c in sent)  # the saved topic: set up
+
+
+def cli_env(app, monkeypatch, **more: str) -> None:
+    """The systemd timer's environment: `.env` with no DATA_MODE line (and none of the other moved settings)."""
+    for name, value in {"LIVE_PATH": str(app.settings.live_path), "STATE_PATH": str(app.settings.state_path),
+                        "FAKE_FEEDS_DAY": "1", **more}.items():
+        monkeypatch.setenv(name, value)
+    for name in ("DATA_MODE", "ALERT_TZ", "APP_URL", "NTFY_URL", "NTFY_TOPIC"):
+        if name not in more:
+            monkeypatch.delenv(name, raising=False)
+
+
+def test_b26_7_the_scheduled_run_uses_the_saved_mode_zone_link_and_ntfy_server(app, monkeypatch, capsys):
+    import datetime as dt
+    import zoneinfo
+
+    from app import refresh
+
+    cli_env(app, monkeypatch)
+    assert refresh.main(["--schedule"]) == 2  # nothing saved: the snapshot, as before
+    capsys.readouterr()
+
+    # quiet hours around the real time now in Tokyo, so the run holds its alerts only if it reads the saved zone
+    hour = dt.datetime.now(zoneinfo.ZoneInfo("Asia/Tokyo")).hour
+    body = app.owner.get("/settings").json()["settings"]
+    body["alerts"] |= {"channels": ["ntfy"], "quiet_start": f"{hour:02d}:00", "quiet_end": f"{(hour + 2) % 24:02d}:00"}
+    app.owner.put("/settings", json=body)
+    app.owner.put("/settings/server", json={"data_mode": "live", "alert_tz": "Asia/Tokyo",
+                                            "app_url": "https://patch.example.ts.net",
+                                            "ntfy_url": "https://ntfy.example.test", "ntfy_topic": "t0p1c"})
+    assert refresh.main(["--schedule"]) == 0  # live mode from Settings: the scheduled run runs (never checked: due)
+    out = json.loads(capsys.readouterr().out)
+    entries = out["result"]["alerts"]["default"]
+    assert entries and {e["kind"] for e in entries} == {"held"}  # quiet hours in the saved zone
+    assert all(e["click"].startswith("https://patch.example.ts.net/") for e in entries)  # the saved link address
+
+    from app.refresh import with_saved_settings
+    from app.config import Settings
+    s = with_saved_settings(Settings.from_env())
+    assert (s.data_mode, s.alert_tz, s.ntfy_url, s.ntfy_topic) == ("live", "Asia/Tokyo", "https://ntfy.example.test",
+                                                                   "t0p1c")
+
+
+def test_b26_7_the_environment_still_wins_for_the_cli(app, monkeypatch, capsys):
+    from app import refresh
+
+    app.owner.put("/settings/server", json={"data_mode": "live"})
+    cli_env(app, monkeypatch, DATA_MODE="snapshot")
+    assert refresh.main(["--schedule"]) == 2 and "snapshot" in capsys.readouterr().err
+    cli_env(app, monkeypatch, DATA_MODE="live", ALERT_TZ="UTC")
+    app.owner.put("/settings/server", json={"data_mode": None})
+    assert refresh.main([]) == 0  # DATA_MODE=live in .env, nothing saved: live

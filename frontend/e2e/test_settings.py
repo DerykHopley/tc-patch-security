@@ -290,7 +290,7 @@ def test_a13_9_every_control_reachable_by_keyboard_with_visible_focus(settings_p
     page.keyboard.press("Shift+Tab")
     page.keyboard.press("Tab")  # focus by keyboard, so :focus-visible applies
     seen = []
-    for _ in range(40):
+    for _ in range(70):  # B26: the owner's server settings add about 20 stops
         seen.append(page.evaluate("""(() => { const a = document.activeElement;
             const label = a.labels && a.labels[0] ? a.labels[0].textContent : '';
             return (a.getAttribute('aria-label') || label || a.textContent || '').trim() })()"""))

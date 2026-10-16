@@ -147,6 +147,9 @@ def test_b26_11_the_time_zone_starts_as_the_browsers_and_is_saved_with_the_quiet
     body = api(api_url, "/settings")
     assert body["alert_tz"] == "Asia/Tokyo" and body["server"]["fields"]["alert_tz"]["source"] == "saved"
     expect(alerts.get_by_text("Alerts found in quiet hours are held")).to_be_visible()
+    # the page shows what was saved: the settings' save after the server's keeps the server's new state
+    expect(alerts.get_by_label("Quiet hours are in")).to_have_value("Asia/Tokyo")
+    expect(page.get_by_text("✓ Changes saved")).to_be_visible()
 
     alerts.get_by_label("Quiet hours are in").select_option("Europe/London")
     save(page)

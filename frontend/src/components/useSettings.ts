@@ -44,7 +44,7 @@ export function useSettings() {
     setError(null)
     try {
       const r = await saveSettings(draft)
-      setReply({ ...reply, settings: r.settings })
+      setReply((old) => (old ? { ...old, settings: r.settings } : old)) // keeps a server save made just before (B26)
       setDraft(r.settings)
       setSaved(true)
       announceSavedLevel(r.settings.explain_level) // the chat header's switch follows (A19)
