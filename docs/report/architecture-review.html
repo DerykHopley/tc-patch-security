@@ -61,7 +61,7 @@
     <thead class="text-left text-slate-500"><tr><th class="py-1 pr-3">#</th><th class="pr-3">Candidate</th><th class="pr-3">Strength</th><th>Status</th></tr></thead>
     <tbody class="divide-y divide-slate-100">
       <tr><td class="py-1.5 pr-3">1</td><td class="pr-3"><a class="underline" href="#b1">One definition each: CVE id, UTC time, proposal actions, card buttons</a></td><td class="pr-3">Strong</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> c16a9b2</td></tr>
-      <tr><td class="py-1.5 pr-3">2</td><td class="pr-3"><a class="underline" href="#b2">One way in for a proposal</a></td><td class="pr-3">Strong</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span> top recommendation</td></tr>
+      <tr><td class="py-1.5 pr-3">2</td><td class="pr-3"><a class="underline" href="#b2">One way in for a proposal</a></td><td class="pr-3">Strong</td><td><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Exploring</span> top recommendation, picked 2026-10-16</td></tr>
       <tr><td class="py-1.5 pr-3">3</td><td class="pr-3"><a class="underline" href="#b3">The owner's share: what's shared, and who may change it</a></td><td class="pr-3">Strong</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span> after #70</td></tr>
       <tr><td class="py-1.5 pr-3">4</td><td class="pr-3"><a class="underline" href="#b4">Starting a refresh: run, load, reply</a></td><td class="pr-3">Worth exploring</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
       <tr><td class="py-1.5 pr-3">5</td><td class="pr-3"><a class="underline" href="#b5">Route replies with a declared shape</a></td><td class="pr-3">Worth exploring</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
@@ -119,6 +119,7 @@ flowchart LR
     <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
     <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
   </div>
+  <p class="rounded border bg-amber-100 text-amber-900 border-amber-200 px-3 py-2 text-sm"><b>Status (Exploring, 2026-10-16):</b> Picked by the owner. Its design is being worked out in a grilling session: what the proposals module takes, what a proposal tells the card, and which tests survive. Nothing built yet.</p>
   <p class="font-mono text-sm text-slate-600">backend/app/proposals.py:249-281 · tools/watchlist.py:31-36, 45-61 · tools/decision.py:80-97 · card_actions.py:75-93 · evals/checks.py:133-150 · llm/fake.py:338-344 · frontend/src/chat/ProposalCard.tsx:33, 61, 75, 190 · chat/CardActions.tsx:39-44, 160-170 · cardActions.ts:19-27 · chat/ToolCallCard.tsx:417</p>
   <div class="grid md:grid-cols-2 gap-4">
     <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">Before: every caller does part of the job</div>
