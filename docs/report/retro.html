@@ -7,7 +7,11 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+  mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose" });
+  // Draw only the panel on screen: a diagram drawn in a hidden panel comes out blank. The switch draws the other
+  // panel's diagrams the first time it shows that panel (as on the architecture review).
+  window.drawDiagrams = (panel) => mermaid.run({ nodes: [...panel.querySelectorAll(".mermaid:not([data-processed])")] });
+  for (const panel of document.querySelectorAll("[data-spec]")) if (!panel.hidden) window.drawDiagrams(panel);
 </script>
 <style>
   .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
@@ -336,7 +340,9 @@ flowchart LR
       const on = t.getAttribute("aria-controls") === id;
       t.setAttribute("aria-selected", String(on));
       t.tabIndex = on ? 0 : -1;
-      document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+      const panel = document.getElementById(t.getAttribute("aria-controls"));
+      panel.hidden = !on;
+      if (on && window.drawDiagrams) window.drawDiagrams(panel);  // set by the Mermaid module once it has loaded
       if (on && focus) t.focus();
     }
   }
