@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { ServerStatus } from './api.ts'
-import { baselineOf, reachableFromPhone, secretLine, serverChanges, sourceLine, tapLine } from './serverSettings.ts'
+import {
+  baselineOf, blockOf, fieldsNamedIn, reachableFromPhone, secretLine, serverChanges, setupState, sourceLine, tapLine,
+} from './serverSettings.ts'
 
 const status = (over: Partial<ServerStatus['fields']> = {}): ServerStatus => ({
   fields: {
@@ -81,4 +83,26 @@ test('B26.8 a setting from the environment says so, and a secret says only wheth
   assert.equal(secretLine(s, 'smtp_host', null), 'Removed when you save.')
   assert.equal(secretLine(s, 'ntfy_token', undefined), 'Not set.')
   assert.equal(secretLine(s, 'ntfy_token', 'x'), 'Saved when you save.')
+})
+
+test("SL.4 a folded setup block's summary says its state: set up, not set up, or the environment's", () => {
+  const s = status() // ntfy_topic from the environment, smtp_host saved
+  assert.equal(setupState(s, 'ntfy', true), "set in the server's environment")
+  assert.equal(setupState(s, 'email', true), 'set up')
+  assert.equal(setupState(s, 'email', false), 'not set up')
+  assert.equal(setupState(s, 'links', false), 'this computer only')
+  assert.equal(setupState({ ...s, app_url_reachable: true }, 'links', false), 'phones can open it')
+  assert.equal(setupState(status({ app_url: { value: 'https://x.run.app', source: 'env' } }), 'links', false),
+    "set in the server's environment")
+})
+
+test('SL.6 a failed save names the fields it refused; each belongs to its setup block', () => {
+  const msg = "The request isn't in the expected shape. ntfy_topic: String should match pattern '^[-_A-Za-z0-9]{1,64}$'"
+  assert.deepEqual(fieldsNamedIn(msg), ['ntfy_topic'])
+  assert.deepEqual(fieldsNamedIn('… smtp_port: too big; alert_email_to: not an email'), ['smtp_port', 'alert_email_to'])
+  assert.deepEqual(fieldsNamedIn("Can't reach the backend at /api. Is it running?"), [])
+  assert.deepEqual(fieldsNamedIn('data_mode: wrong'), []) // not in a setup block
+  assert.equal(blockOf('ntfy_token'), 'ntfy')
+  assert.equal(blockOf('smtp_starttls'), 'email')
+  assert.equal(blockOf('app_url'), 'links')
 })

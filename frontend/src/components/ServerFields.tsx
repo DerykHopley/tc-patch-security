@@ -1,5 +1,9 @@
+import type { ReactNode } from 'react'
 import type { SecretName, ServerFields, ServerStatus } from '../api.ts'
-import { browserZone, reachableFromPhone, secretLine, sourceLine, tapLine } from '../serverSettings.ts'
+import {
+  blockOf, browserZone, fieldsNamedIn, reachableFromPhone, secretLine, SETUP_KEYS, setupState, sourceLine, tapLine,
+  type SetupBlock, type SetupKey,
+} from '../serverSettings.ts'
 import type { ServerSettingsForm } from './useServerSettings.ts'
 
 // B26: the owner's settings that used to need backend/.env and a restart, each in the Settings card it belongs to.
@@ -107,14 +111,62 @@ export function TimeZoneField({ f }: { f: Ready }) {
   )
 }
 
-/** Delivery card: where alert links point, and each channel's connection details. */
-export function DeliveryFields({ f }: { f: Ready }) {
+const SETUP_TITLE: Record<SetupBlock, string> = {
+  links: 'Alert links', ntfy: 'Phone push (ntfy)', email: 'Email (SMTP)',
+}
+const blockElement = (b: SetupBlock) => document.getElementById(`setup-${b}`) as HTMLDetailsElement | null
+
+/** Unfolds a setup block. Native <details>: React never sets `open`, so the owner's folding is theirs. */
+export function openSetup(b: SetupBlock) {
+  const el = blockElement(b)
+  if (el) el.open = true
+}
+
+/** A failed save: unfold the blocks it is about and focus the first field. The ones the error names; else (a network
+ *  error names none) the ones with unsaved edits. Returns nothing: the error itself shows in the card (B20). */
+export function revealError(f: Ready, error: string) {
+  const named = fieldsNamedIn(error)
+  const keys = named.length ? named : Object.values(SETUP_KEYS).flat().filter((k) => f.changed([k]))
+  for (const k of keys) {
+    const b = blockOf(k)
+    if (b) openSetup(b)
+  }
+  const first = keys.map((k) => document.getElementById(fieldId(k)) as HTMLInputElement | null)
+    .find((el) => el && !el.disabled)
+  first?.focus()
+}
+
+// A field's box: `srv-<name>` for a secret (SecretField), dashes for the plain fields
+const PLAIN: readonly SetupKey[] = ['app_url', 'ntfy_url', 'smtp_port', 'smtp_starttls']
+const fieldId = (k: SetupKey) => `srv-${PLAIN.includes(k) ? k.replaceAll('_', '-') : k}`
+
+/** One folded setup block (DESIGN.md §5.7): a summary naming it and its state, the fieldset under it. Folded, its
+ *  fields stay in the page, so what the owner typed survives folding. */
+function Setup({ b, state, unsaved, children }: { b: SetupBlock; state: string; unsaved: boolean; children: ReactNode }) {
+  return (
+    <details className="setup-block" id={`setup-${b}`}>
+      <summary>
+        <strong>{SETUP_TITLE[b]}</strong> · {state}
+        {unsaved && <span className="setup-unsaved"> · unsaved changes</span>}
+      </summary>
+      <fieldset aria-label={SETUP_TITLE[b]}>{/* the summary shows its name: no legend */}
+        {children}
+      </fieldset>
+    </details>
+  )
+}
+
+/** Delivery card: where alert links point, and each channel's connection details, each block folded.
+ *  `ready`: whether ntfy and email can send (the server's channel status). */
+export function DeliveryFields({ f, ready }: { f: Ready; ready: Record<'ntfy' | 'email', boolean> }) {
   const appUrl = f.draft.app_url
   const here = window.location.origin
+  const setup = (b: SetupBlock) => ({
+    b, state: setupState(f.status, b, b !== 'links' && ready[b]), unsaved: f.changed(SETUP_KEYS[b]),
+  })
   return (
     <>
-      <fieldset>
-        <legend>Alert links</legend>
+      <Setup {...setup('links')}>
         <div className="field-row">
           <label htmlFor="srv-app-url">App address for alert links</label>
           <input id="srv-app-url" type="url" inputMode="url" spellCheck={false} value={appUrl}
@@ -130,10 +182,9 @@ export function DeliveryFields({ f }: { f: Ready }) {
           {tapLine(appUrl)}
         </p>
         <EnvNote f={f} k="app_url" id="srv-app-url-env" />
-      </fieldset>
+      </Setup>
 
-      <fieldset>
-        <legend>Phone push (ntfy)</legend>
+      <Setup {...setup('ntfy')}>
         <div className="field-row">
           <label htmlFor="srv-ntfy-url">Server</label>
           <input id="srv-ntfy-url" type="url" inputMode="url" spellCheck={false} value={f.draft.ntfy_url}
@@ -143,10 +194,9 @@ export function DeliveryFields({ f }: { f: Ready }) {
         <EnvNote f={f} k="ntfy_url" id="srv-ntfy-url-env" />
         <SecretField f={f} k="ntfy_topic" label="Topic" why="Letters, digits, - and _. Long and random: it works like a password." />
         <SecretField f={f} k="ntfy_token" label="Access token (optional)" />
-      </fieldset>
+      </Setup>
 
-      <fieldset>
-        <legend>Email (SMTP)</legend>
+      <Setup {...setup('email')}>
         <SecretField f={f} k="smtp_host" label="SMTP server" />
         <div className="field-row">
           <label htmlFor="srv-smtp-port">Port</label>
@@ -157,7 +207,7 @@ export function DeliveryFields({ f }: { f: Ready }) {
         </div>
         <EnvNote f={f} k="smtp_port" id="srv-smtp-port-env" />
         <label className="check-row">
-          <input type="checkbox" checked={f.draft.smtp_starttls} disabled={f.status.fields.smtp_starttls.source === 'env'}
+          <input type="checkbox" id="srv-smtp-starttls" checked={f.draft.smtp_starttls} disabled={f.status.fields.smtp_starttls.source === 'env'}
             onChange={(e) => f.set({ smtp_starttls: e.target.checked })} />
           <span>Use STARTTLS</span>
         </label>
@@ -166,7 +216,7 @@ export function DeliveryFields({ f }: { f: Ready }) {
         <SecretField f={f} k="smtp_password" label="Password" />
         <SecretField f={f} k="alert_email_from" label="From (empty: the user name)" />
         <SecretField f={f} k="alert_email_to" label="Send to" />
-      </fieldset>
+      </Setup>
     </>
   )
 }

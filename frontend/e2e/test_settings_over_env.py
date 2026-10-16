@@ -59,7 +59,13 @@ def save(page: Page) -> None:
 
 
 def delivery(page: Page):
-    return panel(page, "Delivery")
+    """The Delivery card with its setup blocks unfolded (they start folded: SL.3, test_settings_layout.py)."""
+    card = panel(page, "Delivery")
+    for block in card.locator("details.setup-block").all():
+        if block.get_attribute("open") is None:
+            block.locator("summary").click()
+    expect(card.locator("details.setup-block:not([open])")).to_have_count(0)
+    return card
 
 
 # --- B26.9: live or snapshot, switched on the Data card ---------------------------------------------------------
@@ -101,7 +107,7 @@ def test_b26_10_a_secret_is_saved_never_shown_and_can_be_removed(open_settings, 
     expect(topic).to_have_attribute("type", "password")
     expect(d.get_by_text("Not set.").first).to_be_visible()
     topic.fill(TOPIC)
-    expect(page.get_by_text("Unsaved changes")).to_be_visible()
+    expect(page.get_by_text("Unsaved changes", exact=True)).to_be_visible()
     save(page)
     expect(topic).to_have_value("")  # never shown back
     expect(d.locator("#srv-ntfy_topic-state")).to_have_text("Saved. Type a new one to replace it.")
