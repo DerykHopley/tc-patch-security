@@ -1,5 +1,5 @@
-# Tests: backend tests, type check, lint, the fixed-wait check, the browser check in Firefox and Chromium, and the
-# container image's smoke test (B12).
+# Tests: no committed conflict markers, backend tests, type check, lint, the fixed-wait check, the browser check in
+# Firefox and Chromium, and the container image's smoke test (B12).
 # FakeLLM and a throwaway state file: no keys, no network calls from the app (the one exception: the signed-in browser
 # check, B10, calls Clerk only when its secrets are set). proto/ is frozen and not
 # checked here.
@@ -55,6 +55,14 @@ jobs:
           fi
           echo "Changed in $RANGE:"
           echo "${files:-(could not compare: running everything)}"
+      # A merge once committed its conflict markers (backend/.env.example, spec B) and every job still passed.
+      # `=======` alone isn't checked: Markdown uses it to underline headings.
+      - name: No merge conflict markers
+        run: |
+          if git grep -nE '^(<<<<<<<|>>>>>>>)( |$)'; then
+            echo "::error::Merge conflict markers are committed (lines above)."
+            exit 1
+          fi
 
   backend:
     name: Backend tests
