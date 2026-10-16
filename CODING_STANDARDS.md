@@ -6,6 +6,8 @@ Judgement calls a reviewer checks by reading. Anything a tool can check goes int
 
 - **The DESIGN.md checklist applies to every UI change.** Each area of [docs/design/DESIGN.md](./docs/design/DESIGN.md) ends with a checklist (tokens, layout, components, chat, motion, Patch, theme). A UI change is done when its checklists pass, animations included, in light and dark, on a phone, with reduced motion, by keyboard. The browser check grows with each UI ticket. Reduced motion has one shared check (`frontend/e2e/reduced_motion.py`): add a scene to it, not a test of your own. Write the scene in your ticket's test file and mark it `@scene`; no shared list to edit.
 - **Tokens, never hard-coded colours.** Components use the CSS custom properties from DESIGN.md §3. The only literal colours allowed are the fixed ones DESIGN.md lists: the primary gradient and the purple shadow (§3.1), the stat-tile gradients and shadows (§5.1), and Patch's drawing (§8.1). Why: one place to change a colour, and dark mode can't miss a component.
+- **A first load never overwrites what the user typed.** An effect that loads data into an editable form ignores a reply that arrives after the effect was cleaned up (a stale reply), as `useDevSettings`, `useSettings` and `useWatchlist` do. Why: React's dev mode loads twice, a slow reply can land after the user's edit, and the edit silently disappears (spec B retro, finding 2).
+- **Global key listeners are in place before the page takes input.** Add them in `useLayoutEffect`, not `useEffect`, so no key pressed as the page appears is lost (Ctrl+K, #67).
 
 ## Safety
 
