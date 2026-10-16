@@ -39,6 +39,7 @@ class FeedError(RuntimeError):
 
 
 class Feeds(Protocol):
+    kind: str  # "real" or "fake" (B28): recorded with the live data each one writes
     def nvd_modified(self, start: dt.datetime, end: dt.datetime) -> list[dict]: ...
     def kev(self) -> dict: ...
     def epss(self, cve_ids: list[str]) -> dict: ...
@@ -56,6 +57,8 @@ class FakeFeeds:
     other three answer in full, as the real services do. `calls` records each call, for tests. `fail`: the
     sources (comma-separated) that raise FeedError, to test a failed fetch.
     """
+
+    kind = "fake"
 
     def __init__(self, day: int = 2, fail: str | None = None):
         self.day = day
@@ -168,6 +171,8 @@ class HttpFeeds:
     `nvd_api_key` (optional) raises NVD's pace from 5 to 50 requests per 30 s. `clock` and `sleep` pace NVD; tests
     pass fakes.
     """
+
+    kind = "real"
 
     def __init__(self, nvd_api_key: str = "", timeout: float = 30.0, urls: FeedUrls = FeedUrls(),
                  clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep):

@@ -24,7 +24,9 @@ from app.deps import Deps, build_deps
 from app.dev import dev_router
 from app.errors import InputError, LLMError, NotOwner, RateLimited
 from app.notify import NotifyError, channel_status, deliver, format_alert, tap_link
-from app.server_settings import ServerUpdate, status as server_status, updated as server_updated
+from app.live_data import MixedFeeds
+from app.server_settings import ServerUpdate, effective as server_effective, status as server_status
+from app.server_settings import updated as server_updated
 from app.one_port import one_port
 from app.rate_limits import ChatLimits, refused
 from app.proposals import ProposalEdit, ProposalError
@@ -331,7 +333,12 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         restart: live or snapshot data, the time zone, the alert link, the channels. The reply never holds a
         secret."""
         owner = deps.owner_state
-        owner.save_server_settings(server_updated(deps.env, owner.server_settings(), body))
+        saved = server_updated(deps.env, owner.server_settings(), body)
+        try:  # B28: live mode on a folder the other kind of feeds wrote is refused before anything is saved
+            deps.check_live_folder(server_effective(deps.env, saved))
+        except MixedFeeds as e:
+            raise InputError(str(e), "mixed_feeds") from None
+        owner.save_server_settings(saved)
         deps.sync()
         log.info("Server settings changed on Settings: %s", ", ".join(sorted(body.model_fields_set)) or "nothing")
         return {"server": server_part(deps.settings.owner),

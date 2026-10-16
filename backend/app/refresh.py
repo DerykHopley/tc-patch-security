@@ -33,7 +33,7 @@ from app import cve_build
 from app.config import DEFAULT_USER  # the alerts map is keyed by user id (B09)
 from app.config import FIXTURES, Settings
 from app.feeds import FeedError, Feeds, make_feeds
-from app.live_data import LiveData
+from app.live_data import LiveData, MixedFeeds
 from app.store import LIVE_PREFIX, GcsStore, open_bucket
 from app.times import iso_utc
 
@@ -191,6 +191,7 @@ class Refresher:
 
     def __init__(self, live: LiveData, feeds: Feeds, clock: Callable[[], dt.datetime] = utc_now,
                  alerter: Callable[..., dict[str, list[dict]]] | None = None):
+        live.check_feeds(feeds.kind)  # B28: never refresh (or serve) live data the other kind of feeds wrote
         self.live, self.feeds, self.clock = live, feeds, clock
         self.alerter = alerter  # step 4 (app.alerts.Alerter); None: no alerts
 
@@ -329,7 +330,7 @@ class Refresher:
                                 feeds=steps)
         cwe_to_web = json.loads((FIXTURES / "owasp.json").read_text())["cwe_to_web"]
         files, counts, new = build_version(previous, nvd_rows, kev, osv_raw, epss_raw, cwe_to_web, now)  # step 2
-        version = self.live.write(files)  # step 3
+        version = self.live.write(files, feeds=self.feeds.kind)  # step 3, recording which feeds wrote it (B28)
         alerts, problems = self._alerts(previous, files, self.live.folder(version), now,  # step 4, partial runs too
                                         complete=not failed)
         return self._result(trigger, now, began, ok=True, counts=counts, new_cves=new, version=version,
@@ -508,7 +509,11 @@ def main(argv: Sequence[str] = ()) -> int:
         print("The data is the frozen snapshot (DATA_MODE, or Settings' Data card): switch to live data to refresh it.",
               file=sys.stderr)
         return 2
-    refresher = make_refresher(settings, alerter=cli_alerter(settings))
+    try:
+        refresher = make_refresher(settings, alerter=cli_alerter(settings))
+    except MixedFeeds as e:  # B28: a mistake to fix, not a tick to skip, so the timer's unit shows it as failed
+        print(e, file=sys.stderr)
+        return 2
     if args.schedule:
         body = scheduled_tick(refresher, _schedule(settings))
         print(json.dumps(body, indent=1))

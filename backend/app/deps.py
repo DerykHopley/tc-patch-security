@@ -21,7 +21,7 @@ from app.config import DEFAULT_USER, Settings
 from app.status import DECIDED_BY
 from app.feeds import Feeds, make_feeds
 from app.knowledge import Knowledge, load_knowledge
-from app.live_data import LiveData
+from app.live_data import LiveData, MixedFeeds
 from app.llm.base import LLM
 from app.llm.providers import LLMRouter
 from app.notify import Transports
@@ -61,6 +61,7 @@ class Deps:
     user_name: str | None = None  # the signed-in user's name (B10); None with sign-in off or a test's fake user
     env: Settings | None = None  # B26: the settings from the environment; `settings` adds the owner's saved ones
     _feeds: Feeds | None = None  # the feeds a test passed; None: the settings' (made again when the NVD key changes)
+    _live_refused: str | None = None  # B28: why live mode couldn't be switched on (logged once)
     _bucket: object = None  # STORE=gcs: the bucket, for a refresher made when live mode is switched on (B26)
     _snapshot: Knowledge | None = None  # the snapshot's knowledge, for switching back from live mode (B26)
     _sync_lock: threading.Lock = field(default_factory=threading.Lock)
@@ -142,7 +143,13 @@ class Deps:
         before, self.settings = self.settings, settings
         self.users.set_defaults(default_settings(settings))
         if settings.data_mode == "live" and self.refresher is None:
-            self.refresher = make_refresher(settings, self._feeds, self.clock, bucket=self._bucket)
+            try:
+                self.refresher = make_refresher(settings, self._feeds, self.clock, bucket=self._bucket)
+            except MixedFeeds as e:  # B28: switched on elsewhere (another instance); Settings refuses it here first
+                if str(e) != self._live_refused:  # once, not on every request
+                    log.error("Live data not switched on: %s", e)
+                self._live_refused, self.settings = str(e), before
+                return
             self.refresher.alerter = Alerter(settings, self.users, lambda: self.transports)
             self.version = None  # `sync` loads the current live version next
             log.info("Live data switched on (Settings)")
@@ -156,6 +163,12 @@ class Deps:
                 self.refresher.alerter.settings = settings
             if self._feeds is None and settings.nvd_api_key != before.nvd_api_key:
                 self.refresher.feeds = make_feeds(settings)
+
+    def check_live_folder(self, settings: Settings) -> None:
+        """B28: raise MixedFeeds when `settings` would switch live mode on over live data the other kind of feeds
+        wrote. Nothing is fetched or written."""
+        if settings.data_mode == "live" and self.refresher is None:
+            make_refresher(settings, self._feeds, self.clock, bucket=self._bucket)
 
     def dev(self) -> DevSettings:
         """The dev panel's saved choices while it's on; the env defaults when it's off (A11)."""

@@ -333,8 +333,8 @@ def test_b26_7_the_scheduled_run_uses_the_saved_mode_zone_link_and_ntfy_server(a
     from app import refresh
 
     cli_env(app, monkeypatch)
-    assert refresh.main(["--schedule"]) == 2  # nothing saved: the snapshot, as before
-    capsys.readouterr()
+    assert refresh.main(["--schedule"]) == 0  # nothing saved: the snapshot, a skip (B28.4)
+    assert json.loads(capsys.readouterr().out) == {"ran": False, "skipped": "snapshot"}
 
     # quiet hours around the real time now in Tokyo, so the run holds its alerts only if it reads the saved zone
     hour = dt.datetime.now(zoneinfo.ZoneInfo("Asia/Tokyo")).hour
@@ -362,7 +362,7 @@ def test_b26_7_the_environment_still_wins_for_the_cli(app, monkeypatch, capsys):
 
     app.owner.put("/settings/server", json={"data_mode": "live"})
     cli_env(app, monkeypatch, DATA_MODE="snapshot")
-    assert refresh.main(["--schedule"]) == 2 and "snapshot" in capsys.readouterr().err
+    assert refresh.main(["--schedule"]) == 0 and "snapshot" in capsys.readouterr().err  # a skip since B28.4
     cli_env(app, monkeypatch, DATA_MODE="live", ALERT_TZ="UTC")
     app.owner.put("/settings/server", json={"data_mode": None})
     assert refresh.main([]) == 0  # DATA_MODE=live in .env, nothing saved: live
