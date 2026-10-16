@@ -23,7 +23,8 @@ from app.cve_filters import CveView, InvalidFilter
 from app.deps import Deps, build_deps
 from app.dev import dev_router
 from app.errors import InputError, LLMError, NotOwner, RateLimited
-from app.notify import NotifyError, channel_status, deliver, format_alert
+from app.notify import NotifyError, channel_status, deliver, format_alert, tap_link
+from app.server_settings import ServerUpdate, status as server_status, updated as server_updated
 from app.one_port import one_port
 from app.rate_limits import ChatLimits, refused
 from app.proposals import ProposalEdit, ProposalError
@@ -153,15 +154,15 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         log.exception("unhandled error")  # stack trace in the server log only
         return _error(500, "internal_error", "Something went wrong on the server.")
 
-    if deps.live:
-        @app.middleware("http")
-        async def fresh_data(request: Request, call_next):
-            """Live mode (B02): a new live version, from Check now or the CLI, is loaded before the next request."""
-            try:
-                await run_in_threadpool(deps.sync)
-            except Exception:  # keep serving the data already loaded; the next request tries again
-                log.exception("Loading the new live version failed")
-            return await call_next(request)
+    @app.middleware("http")
+    async def fresh_data(request: Request, call_next):
+        """Before each request: the owner's saved server settings (B26: live mode switched on Settings, by this
+        server or another instance), and in live mode a new live version from Check now or the CLI (B02)."""
+        try:
+            await run_in_threadpool(deps.sync)
+        except Exception:  # keep serving the data already loaded; the next request tries again
+            log.exception("Loading the new settings or live version failed")
+        return await call_next(request)
 
     def you(request: Request, user: Annotated[str, Depends(current_user)]) -> Deps:
         """The parts acting for the calling user (B09): their state, their id, their name for decision records
@@ -310,9 +311,30 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     # --- Settings page (A13): alert rules, channels, test alerts, reset
 
+    def server_part(user: str) -> dict | None:
+        """B26: the owner's server settings, as Settings shows them (secrets only as set or not); None for anyone
+        else, who never sees these fields."""
+        if user != deps.settings.owner:
+            return None
+        return server_status(deps.env, deps.owner_state.server_settings())
+
     @api.get("/settings")
     def get_settings(d: You):
         return {"settings": d.state.settings().model_dump(), "schedule": schedule_status(d.user_id),
+                "channels": channel_status(deps.settings, deps.transports), "alert_tz": deps.settings.alert_tz,
+                "server": server_part(d.user_id)}
+
+    @api.put("/settings/server", dependencies=[Depends(owner_only)])
+    def put_server_settings(body: ServerUpdate):
+        """B26: what the owner sets instead of .env. A field left out stays, a value saves it, null removes the saved
+        one. One the environment sets is refused (400 set_in_env): the environment wins. Applied at once, with no
+        restart: live or snapshot data, the time zone, the alert link, the channels. The reply never holds a
+        secret."""
+        owner = deps.owner_state
+        owner.save_server_settings(server_updated(deps.env, owner.server_settings(), body))
+        deps.sync()
+        log.info("Server settings changed on Settings: %s", ", ".join(sorted(body.model_fields_set)) or "nothing")
+        return {"server": server_part(deps.settings.owner),
                 "channels": channel_status(deps.settings, deps.transports), "alert_tz": deps.settings.alert_tz}
 
     @api.put("/settings")
@@ -347,7 +369,13 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         entry = deliver(body.channel, msg, deps.settings, deps.transports, d.state)
         note = ("Recorded only: nothing was sent." if body.channel == "preview"
                 else f"Sent by {body.channel}. Check that it arrived.")
-        return {"alert": msg, "channel": body.channel, "sent": entry["sent"], "note": note}
+        # B26: what tapping the phone alert does (ntfy; email has the same link or none)
+        link = tap_link(msg["click"])
+        tap = (f"Tapping it opens Patch at {cve['id']}." if link else
+               "Tapping it opens the message in the ntfy app: the app address for alert links can't be reached "
+               "from a phone.")
+        return {"alert": msg, "channel": body.channel, "sent": entry["sent"], "note": note, "tap_link": link,
+                "tap": tap}
 
     @api.post("/state/reset")
     def reset_state(body: ResetRequest, d: You):
@@ -358,8 +386,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     def live_only():
         if deps.refresher is None:
-            raise InputError("The data is a frozen snapshot, so there is nothing to check. Set DATA_MODE=live to "
-                             "refresh it from the feeds.", "snapshot_mode")
+            raise InputError("The data is a frozen snapshot, so there is nothing to check. Switch to live data on "
+                             "Settings (the owner) to refresh it from the feeds.", "snapshot_mode")
         return deps.refresher
 
     @api.post("/refresh", response_model=CheckReply)
@@ -407,7 +435,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return {**data_status(), "schedule": schedule_status(d.user_id),
                 "runs": deps.refresher.history(d.user_id) if deps.refresher else []}
 
-    if deps.live and deps.settings.feeds == "fake":
+    if deps.settings.feeds == "fake":  # B26: live mode can be switched on later, so the routes exist in both modes
         @api.post("/refresh/reset", dependencies=[Depends(owner_only)])
         def reset_live_data(body: ResetRequest):
             """The fake feeds only: the live data back to the snapshot, an empty run log and no alerts, so the browser check

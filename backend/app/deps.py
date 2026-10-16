@@ -2,6 +2,10 @@
 
 Live mode (B02): `sync()` swaps in a new live version (knowledge, Chroma, BM25 and State's reference together)
 before a request, and `as_of` is today by `clock`.
+
+B26: `settings` are the effective ones: the environment's (`env`) with the owner's saved server settings where the
+environment set nothing (app.server_settings). `sync()` applies a change before the request, so switching between
+live and snapshot data on Settings needs no restart.
 """
 import copy
 import datetime as dt
@@ -15,7 +19,7 @@ from app.alerts import Alerter
 from app.app_settings import DevSettings, default_dev_settings, default_settings
 from app.config import DEFAULT_USER, Settings
 from app.status import DECIDED_BY
-from app.feeds import Feeds
+from app.feeds import Feeds, make_feeds
 from app.knowledge import Knowledge, load_knowledge
 from app.live_data import LiveData
 from app.llm.base import LLM
@@ -28,6 +32,7 @@ from app.rag.keyword import BM25Index
 from app.rag.pipeline import SearchOptions
 from app.rag.vector import ChromaIndex, IndexMismatch, build_index, open_index, sync_index
 from app.refresh import Refresher, make_refresher, utc_now
+from app.server_settings import effective
 from app.state import State
 from app.store import MemoryStore, open_bucket
 from app.users import Users
@@ -54,10 +59,15 @@ class Deps:
     users: Users | None = None  # B09: every user's state; `state` is the one this Deps acts for
     user_id: str = DEFAULT_USER  # whose request this is (B09): `state` is theirs
     user_name: str | None = None  # the signed-in user's name (B10); None with sign-in off or a test's fake user
+    env: Settings | None = None  # B26: the settings from the environment; `settings` adds the owner's saved ones
+    _feeds: Feeds | None = None  # the feeds a test passed; None: the settings' (made again when the NVD key changes)
+    _bucket: object = None  # STORE=gcs: the bucket, for a refresher made when live mode is switched on (B26)
+    _snapshot: Knowledge | None = None  # the snapshot's knowledge, for switching back from live mode (B26)
     _sync_lock: threading.Lock = field(default_factory=threading.Lock)
     _root: "Deps | None" = field(default=None, repr=False)  # a user's Deps (for_user) points at the shared one
 
     def __post_init__(self):
+        self.env = self.env or self.settings
         if self.keyword is None:
             self.keyword = BM25Index(self.index.chunks)  # the same chunks as Chroma: both search one corpus
         self.fail_tools = self.fail_tools or set(self.settings.fail_tools)
@@ -97,26 +107,55 @@ class Deps:
         return self.clock().astimezone(dt.UTC).date().isoformat() if self.live else self.settings.as_of
 
     def sync(self) -> None:
-        """Live mode: when a refresh (this process or the CLI) wrote a new version, load it before the request.
+        """Before each request. B26: the owner's saved server settings, applied (live or snapshot, the alerts' time
+        zone, link and channels). Live mode: when a refresh (this process or the CLI) wrote a new version, load it.
         The new CVE data, the index with the changed chunks upserted, and a new BM25 are swapped in together."""
         if self._root is not None:  # a user's Deps: the shared one loads it, then this copy takes the new parts
             self._root.sync()
-            self.knowledge, self.index, self.keyword, self.version = (self._root.knowledge, self._root.index,
-                                                                      self._root.keyword, self._root.version)
-            return
-        if self.refresher is None:
+            r = self._root
+            self.settings, self.refresher = r.settings, r.refresher
+            self.knowledge, self.index, self.keyword, self.version = r.knowledge, r.index, r.keyword, r.version
             return
         with self._sync_lock:
+            self._apply(effective(self.env, self.owner_state.server_settings()))
+            if self.refresher is None:
+                return
             version = self.refresher.live.version()
             if version == self.version:
                 return
-            knowledge = load_knowledge(self.refresher.live.folder(version))
-            index, embedded = sync_index(self.index, build_chunks(knowledge))
-            self.knowledge, self.index, self.keyword = knowledge, index, BM25Index(index.chunks)
-            self.users.set_knowledge(knowledge)  # every user's State resolves products and checks versions with it
-            self.state.k = knowledge
-            self.version = version
-            log.info("Loaded live version %d: %d chunks embedded", version, embedded)
+            self._load(load_knowledge(self.refresher.live.folder(version)), version)
+            log.info("Loaded live version %d", version)
+
+    def _load(self, knowledge: Knowledge, version: int | None) -> None:
+        index, embedded = sync_index(self.index, build_chunks(knowledge))
+        self.knowledge, self.index, self.keyword = knowledge, index, BM25Index(index.chunks)
+        self.users.set_knowledge(knowledge)  # every user's State resolves products and checks versions with it
+        self.state.k = knowledge
+        self.version = version
+        log.info("Search index brought up to the data: %d chunks embedded", embedded)
+
+    def _apply(self, settings: Settings) -> None:
+        """B26: new effective settings. Live mode on: a refresher over LIVE_PATH (the first start copies the snapshot
+        in), loaded by `sync`. Off: the snapshot again; the live data stays on disk for the next switch."""
+        if settings == self.settings:
+            return
+        before, self.settings = self.settings, settings
+        self.users.set_defaults(default_settings(settings))
+        if settings.data_mode == "live" and self.refresher is None:
+            self.refresher = make_refresher(settings, self._feeds, self.clock, bucket=self._bucket)
+            self.refresher.alerter = Alerter(settings, self.users, lambda: self.transports)
+            self.version = None  # `sync` loads the current live version next
+            log.info("Live data switched on (Settings)")
+        elif settings.data_mode != "live" and self.refresher is not None:
+            self.refresher = None
+            self._snapshot = self._snapshot or load_knowledge()
+            self._load(self._snapshot, None)
+            log.info("Back to the snapshot (Settings); the live data stays in %s", settings.live_path)
+        if self.refresher is not None:
+            if self.refresher.alerter is not None:
+                self.refresher.alerter.settings = settings
+            if self._feeds is None and settings.nvd_api_key != before.nvd_api_key:
+                self.refresher.feeds = make_feeds(settings)
 
     def dev(self) -> DevSettings:
         """The dev panel's saved choices while it's on; the env defaults when it's off (A11)."""
@@ -186,17 +225,26 @@ def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge 
     Live mode loads the current live version (a copy of the snapshot at first); `knowledge` is ignored there.
     STORE=gcs (B13): users' state and the live data are in the Cloud Storage bucket; tests pass a fake `bucket`."""
     settings.check()
-    bucket = open_bucket(settings, bucket)
+    env = settings
+    bucket = open_bucket(env, bucket)
+    users = Users.for_settings(env, knowledge, default_settings(env), default_dev_settings(env), bucket)
+    settings = effective(env, users.state(env.owner).server_settings())  # B26: the owner's saved server settings
+    snapshot = knowledge
     refresher = version = None
     if settings.data_mode == "live":
         refresher = make_refresher(settings, feeds, clock, bucket=bucket)
         version = refresher.live.version()
         knowledge = load_knowledge(refresher.live.folder(version))
     knowledge = knowledge or load_knowledge()
-    users = Users.for_settings(settings, knowledge, default_settings(settings), default_dev_settings(settings), bucket)
+    users.set_knowledge(knowledge)
+    users.set_defaults(default_settings(settings))
     state = users.state(DEFAULT_USER)
     deps = Deps(
         settings=settings,
+        env=env,
+        _feeds=feeds,
+        _bucket=bucket,
+        _snapshot=snapshot if settings.data_mode == "live" else knowledge,
         llm=llm,  # type: ignore[arg-type]  # set just below when not given: the router needs deps.dev
         knowledge=knowledge,
         state=state,

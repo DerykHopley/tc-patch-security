@@ -29,6 +29,16 @@ FEED_SOURCES = ("nvd", "kev", "osv", "epss")  # the four feeds, in the order a r
 STORES = ("local", "gcs")  # B13: where users' state and the live data live: files here, a Cloud Storage bucket deployed
 SCHEDULER_SECRET_MIN = 32  # B13: the scheduled route's secret, at least this long (the deploy makes 64 hex characters)
 FEED_KINDS = ("fake", "real")  # fake: the made-up day data sets (B02, no network); real: NVD, KEV, EPSS, OSV (B03)
+# B26: what the owner can set on Settings instead of .env (field -> its environment variable). The environment wins
+# when it sets one; else the owner's saved value; else the default. Deployment settings (sign-in, the store, paths,
+# CORS, the scheduler's secret) stay in .env only: the app needs them before it can read Settings, or they could lock
+# you out. app.server_settings applies the rule.
+MOVABLE = {"data_mode": "DATA_MODE", "alert_tz": "ALERT_TZ", "app_url": "APP_URL", "ntfy_url": "NTFY_URL",
+           "smtp_port": "SMTP_PORT", "smtp_starttls": "SMTP_STARTTLS"}
+# B26: the secrets among them: write-only on Settings, never sent back (the API says only whether one is set).
+SECRETS = {"ntfy_topic": "NTFY_TOPIC", "ntfy_token": "NTFY_TOKEN", "smtp_host": "SMTP_HOST", "smtp_user": "SMTP_USER",
+           "smtp_password": "SMTP_PASSWORD", "alert_email_from": "ALERT_EMAIL_FROM",
+           "alert_email_to": "ALERT_EMAIL_TO", "nvd_api_key": "NVD_API_KEY"}
 
 
 def snapshot_date() -> str:
@@ -152,6 +162,9 @@ class Settings:
     # B13: the secret Cloud Scheduler sends in the X-Scheduler-Secret header to POST /refresh/scheduled. Empty = the
     # route doesn't exist (locally the systemd timer runs the CLI instead). A secret: Secret Manager or .env only.
     scheduler_secret: str = ""
+    # B26: the MOVABLE and SECRETS fields the environment set (not empty). These win over the owner's saved values.
+    # Built directly (the tests), nothing counts as set by the environment: the given values are the defaults.
+    env_set: frozenset[str] = frozenset()
 
     @property
     def users_path(self) -> pathlib.Path:
@@ -212,6 +225,7 @@ class Settings:
             store=_env("STORE", cls.store).lower(),
             gcs_bucket=_env("GCS_BUCKET"),
             scheduler_secret=_env("SCHEDULER_SECRET"),
+            env_set=frozenset(f for f, name in {**MOVABLE, **SECRETS}.items() if os.environ.get(name, "").strip()),
         )
 
     def check(self) -> None:

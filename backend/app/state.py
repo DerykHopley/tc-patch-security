@@ -15,6 +15,7 @@ from types import MappingProxyType
 from app.config import DEFAULT_WATCHLIST, LIBRARY_PRODUCTS
 from app.app_settings import AppSettings, DevSettings
 from app.errors import InputError
+from app.server_settings import ServerSettings
 from app.status import DECIDED_BY, LEGACY_NOTE, decision
 from app.store import ANY, Conflict, LocalStore, Store
 from app.verdict import USAGES, check_version
@@ -314,6 +315,16 @@ class State:
         self._update(lambda data: data.update(dev=new.model_dump()))
         return new
 
+    # --- The owner's server settings (B26): what Settings sets instead of .env, secrets included. Their own part, so
+    # a reset of the demo data keeps them
+
+    def server_settings(self) -> ServerSettings:
+        return ServerSettings.model_validate(self._load().get("server", {}))
+
+    def save_server_settings(self, new: ServerSettings) -> ServerSettings:
+        self._update(lambda data: data.update(server=new.model_dump(exclude_none=True)))
+        return new
+
     def log_alert(self, entry: dict) -> None:
         self.log_alerts([entry])
 
@@ -393,5 +404,9 @@ class State:
 
     def reset(self) -> None:
         """Back to the default watchlist, no statuses, default settings (dev choices too) and an empty alerts log.
-        This user's state only: the key is deleted, so the next read gives the defaults."""
+        This user's state only: the key is deleted, so the next read gives the defaults. The owner's server settings
+        (B26: live mode, the channels' secrets) stay: they set up the app, they aren't demo data."""
+        server = self._load().get("server")
         self.store.delete(self.key)
+        if server:
+            self._update(lambda data: data.update(server=server))
