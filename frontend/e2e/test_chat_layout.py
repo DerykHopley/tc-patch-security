@@ -218,6 +218,22 @@ def test_a07_3_ctrl_or_cmd_k_opens_the_chat_on_any_page(open_app, page_name, key
     expect(message_box(page)).to_be_focused()
 
 
+# Presses Ctrl+K the moment the shell is in the page: a MutationObserver runs right after React puts the shell in the
+# DOM, before React's ordinary (passive) effects run. A listener bound in one of those lost this press (#67).
+CTRL_K_ON_MOUNT = """
+new MutationObserver((_, obs) => {
+  if (!document.querySelector('.side-ask')) return
+  obs.disconnect()
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }))
+}).observe(document, { childList: true, subtree: true })
+"""
+
+
+def test_a07_3_ctrl_k_works_the_moment_the_shell_appears(open_app):
+    page = open_app(init_script=CTRL_K_ON_MOUNT)
+    expect(window(page)).to_be_visible()
+
+
 def test_a07_3_esc_closes_the_bubble_and_returns_focus_to_patch(open_app):
     page = open_app()
     open_chat(page)

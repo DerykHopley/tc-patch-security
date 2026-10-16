@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { examples as fetchExamples, health, type Example, type Health } from './api.ts'
 import { AlertBanner, useAlertLink } from './chat/AlertBanner.tsx'
 import { ChatDivider } from './chat/ChatDivider.tsx'
@@ -91,8 +91,9 @@ export default function App({ account }: { account?: Account } = {}) {
   }
 
   // Ctrl/Cmd+K opens the chat on any page; Esc closes the bubble, never a pinned chat (DESIGN.md §6.4).
-  // Bound on every render, so it always sees the current layout.
-  useEffect(() => {
+  // Bound on every render, so it always sees the current layout. A layout effect, so it's bound in the same task that
+  // puts the shell on screen: a plain effect runs a moment later, and a Ctrl+K in that moment was lost (#67).
+  useLayoutEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
         e.preventDefault() // Firefox and Chrome would focus their own search box
