@@ -63,7 +63,7 @@ class Live:
 
     def check_now(self) -> dict:
         r = self.client.post("/refresh")
-        assert r.status_code == 200, r.text
+        assert r.status_code == (429 if r.json().get("refusal") else 200), r.text  # B11: a refusal is a 429
         return r.json()
 
 
@@ -181,6 +181,18 @@ def test_b02_5_a_second_check_within_5_minutes_is_refused_with_the_next_allowed_
     assert reply["result"] == first  # the last run's result comes with the refusal
     live.clock.advance(1)
     assert live.check_now()["ran"]  # 5 minutes on, it runs
+
+
+def test_b11_4_a_refused_check_is_a_429_in_the_same_form_as_the_chat_s(live, caplog):
+    first = live.check_now()["result"]
+    live.clock.advance(4)
+    r = live.client.post("/refresh")
+    assert r.status_code == 429 and r.headers["retry-after"] == "60"
+    body = r.json()
+    assert body["error"] == {"code": "rate_limited", "retry_at": f"{DAY1}T09:05:00+00:00", "retry_after": 60,
+                             "message": "Checked less than 5 minutes ago. The next check is allowed at 09:05 UTC."}
+    assert body["refusal"]["reason"] == "too_soon" and body["result"] == first and not body["ran"]  # as before
+    assert any("user=default route=/refresh" in rec.getMessage() for rec in caplog.records)
 
 
 def test_b02_5_two_concurrent_checks_give_one_run(live):

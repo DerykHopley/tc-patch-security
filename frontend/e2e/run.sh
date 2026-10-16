@@ -5,7 +5,8 @@
 # never shares a backend with the snapshot checks (DECISIONS.md, 2026-10-15).
 # Web research (B08) is on, against a fake Tavily (backend/tests/fake_tavily.py) on its own free port: no network.
 # Never touches the user's app on 8000/5173. Used locally and in CI. NOTIFY_DRY_RUN=1: alerts (a refresh's, B04)
-# are recorded, never sent, so no desktop notification pops up on the machine running the check.
+# are recorded, never sent, so no desktop notification pops up on the machine running the check. The chat limits
+# (B11) are raised: the check sends hundreds of messages as one user; test_rate_limits.py routes its own 429.
 #
 #   frontend/e2e/run.sh                      # both browsers
 #   frontend/e2e/run.sh -k a02               # extra arguments go to pytest; still both browsers
@@ -54,6 +55,7 @@ PIDS+=($!)
   CORS_ORIGINS="http://localhost:$UI_PORT,http://127.0.0.1:$UI_PORT" \
   TAVILY_API_KEY=tvly-fake-e2e TAVILY_MCP_URL="http://127.0.0.1:$TAVILY_PORT/mcp/" \
   TAVILY_API_URL="http://127.0.0.1:$TAVILY_PORT" WEB_RESEARCH_DAILY_CAP=1000 WEB_RESEARCH_USER_DAILY_CAP=1000 \
+  CHAT_PER_MINUTE=10000 CHAT_PER_DAY=100000 \
   exec uv run uvicorn app.main:app --port "$API_PORT") >"$LOG_DIR/backend.log" 2>&1 &
 PIDS+=($!)
 (cd "$ROOT/frontend" && VITE_API_URL="http://localhost:$API_PORT" \
@@ -61,7 +63,7 @@ PIDS+=($!)
 PIDS+=($!)
 # The live pair (B02): live mode, the fake feeds on day 2, its own state, live folder and index.
 (cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/live-state.json" AS_OF= NOTIFY_DRY_RUN=1 \
-  DATA_MODE=live FEEDS=fake FAKE_FEEDS_DAY=2 LIVE_PATH="$STATE_DIR/live" \
+  DATA_MODE=live FEEDS=fake FAKE_FEEDS_DAY=2 LIVE_PATH="$STATE_DIR/live" CHAT_PER_MINUTE=10000 CHAT_PER_DAY=100000 \
   EMBEDDER=hash INDEX_PATH="$STATE_DIR/live-index" SEARCH_MIN_SCORE= \
   CORS_ORIGINS="http://localhost:$LIVE_UI_PORT,http://127.0.0.1:$LIVE_UI_PORT" \
   exec uv run uvicorn app.main:app --port "$LIVE_API_PORT") >"$LOG_DIR/live-backend.log" 2>&1 &
