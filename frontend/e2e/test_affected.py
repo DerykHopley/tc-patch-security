@@ -17,6 +17,8 @@ from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cv
 from test_dashboard import (  # noqa: F401 (fixtures)
     DEFAULT_WATCHLIST, DESKTOP, PHONE, SHOTS, api, clean_state, confirm, contrast, expect_rows, open_dash, rgb_list, rows,
 )
+from reduced_motion import scene, still
+from test_watchlist import card, open_watchlist, save  # noqa: F401 (fixture)
 
 LANGFLOW_KEV = "CVE-2025-3248"  # Langflow, critical, in KEV; fixed in 1.3.0
 
@@ -118,7 +120,7 @@ def test_a15_7_am_i_affected_shows_the_verdict_card_and_changes_nothing(open_cve
 
 # --- A15.9: reduced motion -----------------------------------------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a15_9).
+# Reduced motion: scene a15_9 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A15.10: light and dark, phone and desktop -------------------------------------------------------------------
@@ -182,3 +184,29 @@ def test_a15_11_keyboard_reaches_the_verdict_filter_and_the_suggestion(open_cves
 
 
 # The watchlist fields by keyboard (A15.11) moved to the Settings card: test_watchlist.py (A15b.5).
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a15_9_verdict(fx):
+    open_page, open_stack = fx("open_cves"), fx("open_watchlist")  # first: their set-up resets the watchlist
+    set_stack(fx("api_url"), langflow={"version": "99.0.0"})
+    page = open_page("?product=langflow", reduced=True)
+    page.get_by_role("combobox", name="Verdict").select_option("not_affected")
+    # The filter reloads the table: a row read before that may be an unfiltered one with no suggestion (CI race, run #62).
+    expect(page).to_have_url(re.compile(r"verdict=not_affected"))
+    first_suggestion = page.locator("table.cves tbody tr").first.get_by_role(
+        "button", name=re.compile(r"Suggested by the version check$"))
+    expect(first_suggestion).to_be_visible()
+    first_suggestion.click()
+    expect(page.get_by_role("dialog")).to_be_visible()
+    still(page, "the decision dialog (A16b)")
+    confirm(page)
+    expect(page.locator("table.cves tbody tr").first).to_be_visible()
+    still(page, "after the decision")
+    settings = open_stack(reduced=True)  # the watchlist's fields, on Settings since A15b
+    card(settings).get_by_label("Dify", exact=True).check()
+    card(settings).get_by_role("group", name="Langflow").get_by_label("Internet-facing").check()
+    save(settings)
+    still(settings, "the watchlist card")

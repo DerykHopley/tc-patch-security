@@ -526,7 +526,7 @@ See section 8.3.
 - [ ] Every row of 7.1 and 8.3 is implemented with these timings.
 - [ ] Charts animate on first load of the page, not on hover or resize.
 - [ ] Stacked bars grow as one piece (no gaps opening between segments).
-- [ ] With reduced motion: nothing moves (tiles, cards, bars, cursor, KEV wiggle, bubble pop, Patch, sidebar width, pin icon). Fixed in the real build (12.1). Checked in one place, `frontend/e2e/test_reduced_motion.py`: a ticket that adds motion adds a scene there (review, 2026-10-15).
+- [ ] With reduced motion: nothing moves (tiles, cards, bars, cursor, KEV wiggle, bubble pop, Patch, sidebar width, pin icon). Fixed in the real build (12.1). Checked by one shared check, `frontend/e2e/reduced_motion.py`: a ticket that adds motion adds a `@scene` in its own test file (review, 2026-10-15; scenes per file since the spec B retro, 2026-10-16).
 
 ---
 

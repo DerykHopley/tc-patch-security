@@ -16,6 +16,7 @@ from test_live import SHOTS, button, card, line, live_reset, open_live  # noqa: 
 from test_partial import text_contrast
 from test_settings import panel
 from test_shell import DESKTOP, PHONE, no_sideways_scroll, settled
+from reduced_motion import scene, still
 
 
 @pytest.fixture
@@ -189,3 +190,19 @@ def test_br_9_another_user_sees_the_owners_schedule_without_pause_or_resume(brow
         expect(paused.get_by_role("button")).to_have_count(0)
     finally:
         ctx.close()
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def b19_9_runs_and_paused(fx):
+    fx("live_state")
+    page = fx("open_live")(reduced=True)
+    two_checks(page)
+    page = open_settings(fx("open_live"), reduced=True)
+    pause(page)
+    runs_card(page).locator(".run-list summary").nth(1).click()
+    still(page, "the run history, a run opened")
+    page = fx("open_live")(reduced=True)
+    expect(page.locator(".schedule-paused")).to_be_visible()
+    still(page, "Schedule paused")

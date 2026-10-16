@@ -13,6 +13,7 @@ from playwright.sync_api import Page, Route, expect
 from test_chat import Q2, ask, open_chat
 from test_cves_page import open_cves  # noqa: F401 (fixture)
 from test_dashboard import DESKTOP, PHONE, SHOTS, api, clean_state, contrast, open_dash, rgb_list  # noqa: F401 (fixtures)
+from reduced_motion import scene, still
 
 
 def epss_text(e: dict) -> tuple[str, str]:
@@ -110,7 +111,7 @@ def test_a14_11_freshness_lists_every_licence_attribution_and_the_nvd_notice(ope
 
 # --- Motion, themes, widths, keyboard ----------------------------------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a14_12).
+# Reduced motion: scene a14_12 at the end of this file, in the shared check (reduced_motion.py).
 
 
 @pytest.mark.parametrize("width", [PHONE, DESKTOP])
@@ -155,3 +156,23 @@ def test_a14_14_keyboard_reaches_the_epss_credit_and_the_source_links(open_cves,
         if seen[-1].startswith("EPSS"):
             break
     assert seen[-1].startswith("EPSS"), seen
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a14_12_snapshot_additions(fx):
+    page = fx("open_cves")(RECENT, reduced=True)
+    page.get_by_role("combobox", name="Product").select_option(label="Langflow")
+    # Wait for Langflow's rows: the page opens on every product's recent CVEs, which have possible matches too, and
+    # styles read from rows React is replacing come back empty.
+    expected = api(fx("api_url"), "/cves?product=langflow&published_since=2026-09-14&limit=25")["rows"]
+    expect(table(page).locator("tbody tr td:first-child a")).to_have_text([r["id"] for r in expected])
+    expect(table(page).locator(".chip.possible").first).to_be_visible()
+    expect(page.locator(".epss-credit")).to_be_visible()
+    still(page, "possible match, EPSS")
+    moving = page.locator(".chip.possible, td.epss, .epss-credit, .freshness-notice").evaluate_all(
+        "els => els.filter(el => { const s = getComputedStyle(el);"
+        " return s.animationName !== 'none' || (s.transitionDuration.split(',').some(d => parseFloat(d) > 0)"
+        " && s.transitionProperty !== 'none') })")
+    assert moving == []

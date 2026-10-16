@@ -6,7 +6,9 @@ Slow mode: E2E_LATENCY_MS=<ms> delays every API response by that much, in every 
 shows timing races on a fast laptop before CI's slower runner does (#56). A route here, so the app is untouched.
 Requests a test routes itself (page.route, e.g. holding /chat) go by the test's route instead.
 """
+import json
 import os
+import urllib.request
 
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Error, Route
@@ -38,6 +40,26 @@ def live_api_url() -> str:
 def api_url() -> str:
     """The throwaway backend, for reading expected values and putting state back after a test."""
     return API_URL
+
+
+def _api(path: str, method: str = "GET", body: dict | None = None) -> dict:
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(API_URL + path, data=data, method=method, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req) as r:
+        return json.load(r)
+
+
+@pytest.fixture
+def reduced_motion_defaults():
+    """Each reduced-motion scene (reduced_motion.py) starts from the defaults and leaves them: state, settings,
+    decision history, dev settings."""
+    def reset():
+        _api("/state/reset", "POST", {"confirm": "reset"})
+        _api("/dev/settings", "PUT", _api("/dev/settings")["defaults"])
+
+    reset()
+    yield
+    reset()
 
 
 def _slow(route: Route) -> None:

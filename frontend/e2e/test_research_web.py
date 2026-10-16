@@ -10,6 +10,8 @@ from playwright.sync_api import Locator, Page, expect
 from test_chat import ask, open_chat, window
 from test_dashboard import DESKTOP, PHONE, clean_state, open_dash  # noqa: F401 (fixtures)
 from test_shell import contrast, no_sideways_scroll
+from reduced_motion import scene, still
+from test_shell import open_app  # noqa: F401 (fixture)
 
 ASK = "Who's talking about CVE-2025-3248 on the web?"
 SITES = ["github.com", "news.example.com", "blog.example.net"]  # exploit-db.com is dropped
@@ -111,3 +113,18 @@ def test_b08_12_web_links_are_reachable_by_keyboard(open_dash):
         if link.evaluate("el => el === document.activeElement"):
             break
     expect(link).to_be_focused()
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def b08_13_research_web(fx):
+    page = fx("open_app")(reduced=True)
+    open_chat(page)
+    answer = ask(page, ASK)
+    details(answer, "Tool calls")
+    expect(answer.locator(".research-card")).to_be_visible()
+    still(page, "the research_web card")
+    answer.get_by_role("tab", name="Sources", exact=False).click()
+    expect(answer.locator(".source .chip.web-unverified")).to_have_count(3)
+    still(page, "the web sources")

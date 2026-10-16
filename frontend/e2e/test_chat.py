@@ -10,6 +10,7 @@ from playwright.sync_api import Locator, Page, Route, expect
 
 from test_shell import (  # noqa: F401 (fixture)
     DESKTOP, PHONE, SHOTS, contrast, css_var, eventually, no_sideways_scroll, open_app, settled)
+from reduced_motion import scene, still
 
 Q2 = "Explain CVE-2024-8309 and how to prevent that kind of bug"
 Q3 = "Which OWASP category is CWE-918?"
@@ -389,7 +390,7 @@ def test_a06_8_normal_motion_patch_moves(open_app):
     assert running > 0
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scenes a06_8 and a06b_7).
+# Reduced motion: scenes a06_8 and a06b_7 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A06b: the squircle robot, four animations per mood, one picked at random (ticket #29) -----------------------
@@ -735,3 +736,54 @@ def test_a06_10_keyboard_open_ask_and_reach_every_chat_control(open_app):
     outline = page.evaluate("(() => { const s = getComputedStyle(document.activeElement); "
                             "return [s.outlineStyle, s.outlineWidth] })()")
     assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a06_8_chat(fx):
+    page = fx("open_app")(reduced=True)
+    still(page, "Patch on the button")
+    chat = open_chat(page)
+    held = hold_chat(page)
+    send(page, Q3)
+    expect(head_bot(page)).to_have_class(re.compile("mood-thinking"))
+    still(page, "no pop, no thinking motion")
+    release(page, held)
+    expect(head_bot(page)).to_have_class(re.compile("mood-happy"))
+    still(page, "no waving")
+    page.route("**/chat", lambda route: route.fulfill(
+        status=502, headers={"Access-Control-Allow-Origin": "*"}, json={"error": {"code": "x", "message": "Down."}}))
+    send(page, Q3)
+    expect(head_bot(page)).to_have_class(re.compile("mood-alert"))
+    still(page, "no shake")
+    assert chat.evaluate("el => getComputedStyle(el).animationName") == "none"
+
+
+@scene
+def a06b_7_patch_variants(fx):
+    """All 16 of Patch's animations stand still, each in a pose that keeps its face (arc eyes, wide eyes, ...)."""
+    for option in range(4):
+        page = fx("open_app")(reduced=True, init_script=pick(option))
+        places = [page.locator(".patch-fab svg.robot"), page.locator(".hello svg.robot"),
+                  page.locator(".side-card svg.robot")]
+        for robot in places:
+            expect(robot).to_have_attribute("data-variant", OPTIONS["idle"][option])
+        still(page, f"idle {OPTIONS['idle'][option]}: the button, the banner, the snapshot card")
+        has_face(places[0], OPTIONS["idle"][option])
+        open_chat(page)
+        held = to_thinking(page)
+        still(page, f"thinking {OPTIONS['thinking'][option]}")
+        has_face(head_bot(page), OPTIONS["thinking"][option])
+        release(page, held)
+        expect(head_bot(page)).to_have_attribute("data-mood", "happy")
+        still(page, f"happy {OPTIONS['happy'][option]}")
+        has_face(head_bot(page), OPTIONS["happy"][option])
+        to_alert(page)
+        still(page, f"alert {OPTIONS['alert'][option]}")
+        has_face(head_bot(page), OPTIONS["alert"][option])
+        # The still pose shows every part: nothing is left at a keyframe's scale(0) or opacity 0.
+        hidden = head_bot(page).evaluate("""el => [...el.querySelectorAll('*')].filter(c => {
+            const s = getComputedStyle(c); return s.transform.startsWith('matrix(0, 0, 0, 0') || s.opacity === '0' })
+            .length""")
+        assert hidden == 0

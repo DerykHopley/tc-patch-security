@@ -19,6 +19,7 @@ from test_dashboard import (  # noqa: F401 (fixtures)
     DEFAULT_WATCHLIST, DESKTOP, PHONE, SHOTS, TILES, api, clean_state, contrast, open_dash, rgb_list, tile, tile_value,
 )
 from test_fix_first import chat_bodies, chip, open_chat
+from reduced_motion import scene, still
 
 LANGFLOW_KEV = "CVE-2025-3248"  # Langflow, critical, in KEV; fixed in 1.3.0
 
@@ -383,3 +384,23 @@ def test_a15b_8_settings_card_and_dashboard_filter_at_both_widths_in_both_themes
     assert contrast(rgb_list(picked[0])[0], rgb_list(picked[1])[0]) >= 4.5, picked
     card(dash).screenshot(path=SHOTS / f"a15b-{browser_name}-{width}-{scheme}-filter.png")
     dash.screenshot(path=SHOTS / f"a15b-{browser_name}-{width}-{scheme}-dashboard.png", full_page=True)
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a15b_8_watchlist(fx):
+    open_board, open_stack = fx("open_dash"), fx("open_watchlist")
+    dash = open_board(reduced=True)
+    for name in ("Langflow", "Ollama", "All"):
+        chip_button(dash, name).click()
+        expect(chip_button(dash, name)).to_have_attribute("aria-pressed", "true")
+        still(dash, f"the product filter at {name}")
+    settings = open_stack(reduced=True)
+    card(settings).get_by_label("vLLM", exact=True).check()
+    expect(card(settings).get_by_role("group", name="vLLM")).to_be_visible()
+    still(settings, "a new product's fields")
+    card(settings).get_by_role("group", name="Ollama").get_by_label("Version").fill("latest")
+    settings.get_by_role("button", name="Save changes").click()
+    expect(card(settings).get_by_role("alert")).to_be_visible()
+    still(settings, "the card's error")

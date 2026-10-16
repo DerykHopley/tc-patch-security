@@ -11,6 +11,7 @@ from playwright.sync_api import Locator, Page, expect
 
 from test_chat import ask, open_chat, window
 from test_shell import DESKTOP, PHONE, SHOTS, contrast, no_sideways_scroll, open_app  # noqa: F401 (fixture)
+from reduced_motion import scene, still
 
 Q12 = "What is prompt injection and how do I prevent it?"
 ALERT_CVE = "CVE-2025-3248"
@@ -132,7 +133,7 @@ def test_a19_4_explain_it_ignores_a_level_picked_for_the_next_question(open_app,
 
 # --- A19.6: reduced motion: nothing in this ticket moves ---------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a19_6).
+# Reduced motion: scene a19_6 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A19.7: light and dark, phone and desktop ---------------------------------------------------------------------
@@ -187,3 +188,17 @@ def test_a19_8_switch_by_keyboard_with_visible_focus_and_names(open_app):
     expect(switch(page).get_by_role("radio", name="Deep dive")).to_be_focused()
     for name in LABEL.values():
         expect(switch(page).get_by_role("radio", name=name, exact=True)).to_have_count(1)
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a19_6_explain_levels(fx):
+    page = fx("open_app")(reduced=True)
+    open_chat(page)
+    for name in ("Simple", "Deep dive", "Normal"):
+        switch(page).get_by_role("radio", name=name).check()
+        still(page, f"the switch at {name}")
+    page.get_by_role("button", name="Settings", exact=True).click()
+    settings_group(page).get_by_role("radio", name="Simple").check()
+    still(page, "the saved level on Settings")

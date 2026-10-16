@@ -12,6 +12,7 @@ import pytest
 from playwright.sync_api import Browser, Page, expect
 
 from test_shell import LateLoads
+from reduced_motion import scene, still
 
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
@@ -263,7 +264,7 @@ def test_a13_6_save_bar_floats_at_the_bottom_clear_of_patch(settings_page, width
 
 # --- A13.7: reduced motion --------------------------------------------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a13_7).
+# Reduced motion: scene a13_7 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A13.8: light and dark, phone and desktop -------------------------------------------------------------------------
@@ -315,3 +316,15 @@ def test_a13_9_buttons_have_accessible_names(settings_page):
     unnamed = page.evaluate("""[...document.querySelectorAll('main button')].filter(b =>
         !(b.getAttribute('aria-label') || b.textContent).trim()).length""")
     assert unnamed == 0
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a13_7_settings(fx):
+    page = fx("settings_page")(reduced=True)
+    page.get_by_label("Minimum severity").select_option("LOW")
+    page.get_by_role("button", name="Preview an alert (send nothing)").click()
+    expect(page.locator(".push-preview")).to_be_visible()
+    page.get_by_role("button", name="Discard").hover()
+    still(page, "the settings page")

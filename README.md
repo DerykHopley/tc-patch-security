@@ -68,6 +68,8 @@ The core of the brief is covered too: RAG over a domain knowledge base, query tr
 
 Needs Python 3.12+ with [uv](https://docs.astral.sh/uv/), and Node.js with npm. All commands start in the repo root.
 
+To work on the code, turn on the pre-commit hook once per clone: `git config core.hooksPath .githooks`. It refuses a commit with staged conflict markers or a browser-check wait without a reason, in under a second. CI runs the same checks, so the hook only finds them sooner.
+
 ### With no key (FakeLLM)
 
 FakeLLM is a scripted stand-in model, and the hash embedder matches words. No key, no network, no GPU.
@@ -222,7 +224,7 @@ How the published report is rebuilt: [docs/report-src/README.md](./docs/report-s
 The same checks CI runs ([.github/workflows/ci.yml](./.github/workflows/ci.yml)). No key, no network.
 
 ```bash
-cd backend && uv run pytest                            # 774 tests (2026-10-15)
+cd backend && uv run pytest                            # backend tests (prints its own count)
 cd frontend && npx tsc -b && npm run lint && npm test  # types, lint (oxlint), unit tests (node --test)
 python3 frontend/e2e/check_waits.py                    # no fixed wait in the browser check without a reason
 frontend/e2e/run.sh                                    # browser check (Playwright), Firefox and Chromium

@@ -12,6 +12,7 @@ from playwright.sync_api import Browser, Locator, Page, Route, expect
 
 from test_dashboard import api
 from test_shell import contrast, eventually, no_sideways_scroll
+from reduced_motion import scene, still
 
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
@@ -131,3 +132,15 @@ def test_b02_10_snapshot_mode_has_no_check_now(browser: Browser, ui_url: str):
     expect(fresh).to_contain_text("A frozen snapshot, as of")
     expect(fresh.get_by_role("button")).to_have_count(0)
     ctx.close()
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def b02_9_check_now(fx):
+    page = fx("open_live")(reduced=True)
+    held = check_now_running(page)  # the spinner is on screen, and must stand still
+    still(page, "Check now running")
+    release(page, held)
+    expect(line(page)).to_have_text(DONE)
+    still(page, "the result line")

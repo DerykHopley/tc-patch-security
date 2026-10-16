@@ -14,6 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 from playwright.sync_api import Browser, Page, expect
+from reduced_motion import scene, still
 
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
@@ -325,7 +326,7 @@ def test_a11_6_sliders_buttons_and_cards_on_brand(dev_page, scheme):
 
 # --- A11.7: reduced motion ------------------------------------------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a11_7).
+# Reduced motion: scene a11_7 at the end of this file, in the shared check (reduced_motion.py).
 
 
 def test_a11_7_nothing_on_the_dev_page_animates_even_with_normal_motion(dev_page):
@@ -542,3 +543,16 @@ def test_a11_10_the_dropdown_in_both_themes_at_both_widths(dev_page, api_url, br
     box = select.bounding_box()
     assert box and box["x"] + box["width"] <= card["x"] + card["width"]
     page.locator("section.card", has=select).screenshot(path=f"{shot}-listed.png")
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a11_7_dev_page(fx):
+    page = fx("dev_page")(reduced=True)
+    page.get_by_label("Sources per search").fill("4")
+    run_search(page)
+    page.get_by_role("button", name="Show all").click()
+    page.locator(".emap .hit").first.hover(force=True)
+    page.get_by_role("button", name="Discard").hover()
+    still(page, "the dev page")

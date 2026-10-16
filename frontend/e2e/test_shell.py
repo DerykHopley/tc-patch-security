@@ -8,6 +8,7 @@ from collections.abc import Callable
 
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Error, Locator, Page, Request, Route, expect
+from reduced_motion import scene, still
 
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
@@ -404,7 +405,7 @@ def test_a02_9_normal_motion_cursor_blinks_and_sidebar_width_animates(open_app):
     assert chevron == "0.2s"
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a02_10).
+# Reduced motion: scene a02_10 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- Keyboard and names (DESIGN.md §10) ---------------------------------------------------------------------------
@@ -450,3 +451,14 @@ def test_a02_12_screenshots(open_app, browser_name, scheme):
     phone = open_app(width=PHONE, scheme=scheme, reduced=True)
     phone.screenshot(path=SHOTS / f"a02-{browser_name}-400-{scheme}-tabbar.png", full_page=False)
     assert len(list(SHOTS.glob(f"a02-{browser_name}-*-{scheme}-*.png"))) == 3
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a02_10_shell(fx):
+    page = fx("open_app")(reduced=True)
+    assert page.evaluate(CURSOR_OPACITIES)["seen"] == ["1"]  # the cursor stays put
+    widths = page.evaluate(WIDTHS_DURING_COLLAPSE)
+    assert all(w == 78 for w in widths), widths  # jumps straight to the rail
+    still(page, "Patch, the sidebar")

@@ -15,6 +15,7 @@ from test_chat import Q2, ask, open_chat, window
 from test_dashboard import api
 from test_fix_first import FIX_FIRST
 from test_shell import DESKTOP, PHONE, SHOTS, contrast, no_sideways_scroll, open_app  # noqa: F401 (fixture)
+from reduced_motion import scene, still
 
 CVE = "CVE-2024-8309"  # LangChain: watched and open in the default state
 VLLM_CVE = "CVE-2026-109311"  # vLLM: not on the default watchlist
@@ -188,3 +189,17 @@ def test_b24_10_the_buttons_read_well_in_light_and_dark_and_on_a_phone(open_app,
         assert box["x"] >= win["x"] and box["x"] + box["width"] <= win["x"] + win["width"] + 0.5
     SHOTS.mkdir(exist_ok=True)
     page.screenshot(path=SHOTS / f"b24-{browser_name}-{width}-{scheme}-card-actions.png")
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def b24_11_card_actions(fx):
+    page = fx("open_app")(reduced=True)
+    open_chat(page)
+    cards = tool_cards(ask(page, "Explain CVE-2024-8309 and how to prevent that kind of bug"))
+    cards.get_by_role("button", name=f"Mark not affected… {CVE}").click()
+    still(page, "a change button's form")
+    cards.get_by_role("button", name="Show only CVEs").click()
+    expect(window(page).locator(".refined-head .chip.applied")).to_have_text("Only CVEs")
+    still(page, "a refined result")

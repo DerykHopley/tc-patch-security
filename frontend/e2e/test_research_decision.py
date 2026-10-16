@@ -11,6 +11,7 @@ from playwright.sync_api import Locator, expect
 from test_chat import ask, open_chat, window
 from test_dashboard import api
 from test_shell import DESKTOP, PHONE, contrast, no_sideways_scroll, open_app  # noqa: F401 (fixture)
+from reduced_motion import scene, still
 
 CVE = "CVE-2025-3248"
 ASK = f"Is {CVE} a problem for my Langflow behind a VPN? Research it and propose a decision."
@@ -85,3 +86,17 @@ def test_b22_9_the_source_links_and_buttons_by_keyboard(open_app):
         if approve.evaluate("el => el === document.activeElement"):
             break
     expect(approve).to_be_focused()  # the sources come before the buttons, in reading order
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def b22_9_proposed_decision(fx):
+    page = fx("open_app")(reduced=True)
+    open_chat(page)
+    card = ask(page, "Is CVE-2025-3248 a problem for my Langflow behind a VPN? Research it and propose a decision."
+               ).locator(".proposal-card")
+    expect(card.locator(".proposal-sources li")).to_have_count(2)
+    still(page, "the proposed decision with its sources")
+    card.get_by_role("button", name="Cancel", exact=True).click()  # leaves the shared state as it was
+    expect(card.locator("output.proposal-line")).to_contain_text("Cancelled")

@@ -19,6 +19,7 @@ import pytest
 from playwright.sync_api import Browser, BrowserContext, Page, Route, expect
 
 from test_shell import DESKTOP, PHONE, no_sideways_scroll, open_app, settled  # noqa: F401 (fixture)
+from reduced_motion import scene, still
 
 FAKE_KEY = "pk_test_" + base64.b64encode(b"patch-e2e.clerk.accounts.dev$").decode()
 LOCAL = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?/")
@@ -185,3 +186,12 @@ def test_b10_16_sign_in_use_the_app_and_sign_out(browser: Browser):
         expect(page.get_by_role("heading", level=1, name="Sign in to Patch")).to_be_visible(timeout=20000)
     finally:
         ctx.close()
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def b10_15_sign_in_screen(fx):
+    page, _ = fx("open_signed_out")(reduced=True)
+    expect(loading_note(page)).to_be_visible()
+    still(page, "the sign-in screen")

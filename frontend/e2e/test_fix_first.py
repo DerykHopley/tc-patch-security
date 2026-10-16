@@ -13,6 +13,7 @@ from test_chat import ask
 from test_cves_page import focused, no_sideways_scroll, open_cves, pin, visible_focus, window  # noqa: F401
 from test_dashboard import DESKTOP, PHONE, SHOTS, api, clean_state, open_dash  # noqa: F401 (fixtures)
 from test_shell import contrast
+from reduced_motion import scene, still
 
 FIX_FIRST = "What should I fix first?"
 VIEW = "?product=langflow&severity=HIGH"
@@ -208,7 +209,7 @@ def test_a18_3_the_dashboard_asks_for_the_whole_watchlist(open_dash, api_url):
 
 # --- A18.6: reduced motion: nothing in this ticket moves -----------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a18_6).
+# Reduced motion: scene a18_6 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A18.7: light and dark, phone and desktop ---------------------------------------------------------------------
@@ -264,3 +265,19 @@ def test_a18_8_fix_first_and_ask_about_this_by_keyboard_with_visible_focus(open_
     assert visible_focus(page)
     page.keyboard.press("Enter")
     expect(chip(page)).to_contain_text(cve)
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a18_6_fix_first(fx):
+    page = fx("open_cves")(VIEW, reduced=True)
+    open_chat(page)
+    still(page, "the chat with the page context")
+    answer = ask(page, FIX_FIRST)
+    fix_card(answer)
+    still(page, "the prioritise card")
+    cve = table_ids(page, 1)[0]
+    page.locator("table.cves").get_by_role("button", name=f"Ask about this: {cve}").click()  # the row's, not the card's (B24)
+    expect(chip(page)).to_contain_text(cve)
+    still(page, "the selected row")

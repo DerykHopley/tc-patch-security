@@ -12,6 +12,7 @@ from playwright.sync_api import Locator, Page, expect
 from test_chat import ask, open_chat, window
 from test_dashboard import api
 from test_shell import DESKTOP, PHONE, SHOTS, contrast, no_sideways_scroll, open_app  # noqa: F401 (fixture)
+from reduced_motion import scene, still
 
 CVE = "CVE-2024-8309"
 Q10 = f"Mark {CVE} as fixed"
@@ -127,3 +128,20 @@ def test_b21_9_the_card_reads_well_in_light_and_dark_and_on_a_phone(open_app, br
     line = card.locator("output.proposal-line")
     expect(line).to_contain_text("Done:")
     assert contrast(colour(line), colour(line, "backgroundColor")) >= 4.5
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def b21_9_proposal_card(fx):
+    page = fx("open_app")(reduced=True)
+    open_chat(page)
+    card = ask(page, "Mark CVE-2024-8309 as fixed").locator(".proposal-card")
+    expect(card).to_be_visible()
+    still(page, "the proposal card")
+    card.get_by_role("button", name="Edit", exact=True).click()
+    still(page, "the edit form")
+    card.get_by_role("button", name="Back", exact=True).click()
+    card.get_by_role("button", name="Approve", exact=True).click()
+    expect(card.locator("output.proposal-line")).to_contain_text("Done:")
+    still(page, "the done line")

@@ -7,6 +7,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from test_dashboard import DESKTOP, PHONE, SHOTS, api, clean_state, open_dash  # noqa: F401 (fixtures)
+from reduced_motion import scene, still
 
 SEV_LIGHT = {"CRITICAL": "rgb(46, 26, 128)", "HIGH": "rgb(82, 53, 214)", "MEDIUM": "rgb(123, 92, 255)",
              "LOW": "rgb(164, 139, 255)"}
@@ -293,7 +294,7 @@ def test_a05_5_bars_do_not_grow_again_on_hover_resize_or_reload(open_dash, api_u
     assert dash.evaluate(GROWING) == []
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a05_8).
+# Reduced motion: scene a05_8 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- Light and dark, phone and desktop, keyboard (DESIGN.md §9, §4.2, §10) -----------------------------------------
@@ -388,3 +389,20 @@ def test_a05_10_keyboard_reaches_banner_bars_tables_and_panels(open_dash):
     link = page.get_by_role("region", name="Data freshness").get_by_role("link").first
     link.focus()
     expect(link).to_be_focused()
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a05_8_charts_and_banner(fx):
+    page = fx("open_dash")(reduced=True)
+    expect(banner(page).locator("svg.robot")).to_be_visible()
+    expect(chart(page, BY_PRODUCT).locator(".fill").first).to_be_visible()
+    still(page, "charts and banner")
+    names = page.locator(".chart .fill, .hello .robot *").evaluate_all(
+        "els => [...new Set(els.map(el => getComputedStyle(el).animationName))]")
+    assert names == ["none"]
+    # Bars are drawn at full length straight away (Patch in the banner: scene a06b_7).
+    full = chart(page, BY_PRODUCT).locator(".fill").first.evaluate(
+        "el => Math.abs(el.getBoundingClientRect().width - el.getBBox().width) < 0.6")
+    assert full

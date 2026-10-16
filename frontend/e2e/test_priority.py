@@ -15,6 +15,7 @@ from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cv
 from test_dashboard import (  # noqa: F401 (fixtures)
     DESKTOP, PHONE, SHOTS, api, clean_state, contrast, expect_rows, open_dash, rgb_list, rows, tile,
 )
+from reduced_motion import scene, still
 
 LANGFLOW_KEV = "CVE-2025-3248"  # Langflow, critical, in KEV since 2025-05-05; KEV deadline 2025-05-26
 EPSS_HIGH = "CVE-2026-21445"  # Langflow, high severity, EPSS 98th percentile, fixed in 1.7.1; not in KEV
@@ -184,7 +185,7 @@ def test_a16_11_lookup_cve_card_shows_priority_and_due_date(open_cves):
 
 # --- A16.12: reduced motion ---------------------------------------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a16_12).
+# Reduced motion: scene a16_12 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A16.13: light and dark, phone and desktop --------------------------------------------------------------------
@@ -257,3 +258,22 @@ def test_a16_14_keyboard_reaches_every_policy_field_with_visible_focus(open_sett
     page.keyboard.press("Space")  # the KEV-deadline checkbox, by keyboard
     expect(page.get_by_label(re.compile("^Use CISA's KEV deadline"))).not_to_be_checked()
     expect(page.locator(".save-bar").get_by_role("status")).to_contain_text("Unsaved changes")
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a16_12_priority(fx):
+    open_page, open_board, open_policy = fx("open_cves"), fx("open_dash"), fx("open_settings")  # before set_stack
+    set_stack(fx("api_url"), langflow={"internet_facing": True, "version": "99.0.0"})
+    page = open_page(reduced=True)
+    expect(page.locator("table.cves .chip.priority").first).to_be_visible()
+    expect(page.locator("table.cves .overdue").first).to_be_visible()
+    still(page, "priority chips, overdue")
+    dash = open_board(reduced=True)
+    expect(dash.locator(".top-cves .chip.priority").first).to_be_visible()
+    still(dash, "the Top 5")
+    settings = open_policy(reduced=True)
+    settings.get_by_label("Urgent", exact=True).fill("60")
+    expect(settings.get_by_role("alert").filter(has_text="urgent ≤ high")).to_be_visible()
+    still(settings, "the policy card's error")

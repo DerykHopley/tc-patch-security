@@ -14,6 +14,7 @@ from test_dashboard import api
 from test_live import SHOTS, card, line, live_reset, open_live  # noqa: F401 (fixtures)
 from test_settings import panel, settings_page  # noqa: F401 (fixture)
 from test_shell import DESKTOP, PHONE, contrast, no_sideways_scroll, open_app  # noqa: F401 (fixture)
+from reduced_motion import scene, still
 
 PARTIAL_Q = "Is CVE-2025-3248 in CISA KEV, and how do I defend against code injection?"
 BANNER = re.compile(r"^3 of 4 sources updated at \d\d:\d\d UTC · NVD didn't answer · next try \d\d:\d\d UTC$")
@@ -175,3 +176,21 @@ def test_b20_13_a_failed_save_keeps_the_edits_and_shows_the_error_in_the_card(se
     page.get_by_role("button", name="Save changes").click()
     expect(answers.get_by_role("alert")).to_have_count(0)
     expect(page.locator(".save-message")).to_have_text("✓ Changes saved")
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def b20_14_partial_and_try_again(fx):
+    fx("nvd_down")
+    page = fx("open_live")(reduced=True)
+    partial_check(page)
+    still(page, "the partial banner")
+    fx("search_down")
+    page = fx("open_app")(reduced=True)
+    open_chat(page)
+    tool = failed_card(page)
+    still(page, "the failed tool card")
+    tool.get_by_role("button", name="Try again").click()
+    expect(tool.locator(".retry-note")).to_be_visible()
+    still(page, "the step done on retry")
