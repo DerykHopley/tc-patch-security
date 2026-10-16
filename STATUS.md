@@ -24,14 +24,14 @@ cd frontend && npm install && npm run dev                                    # h
 
 ## How to test it
 
-All checked 2026-10-16 on `fix-67-flaky-chat-open` (spec B, its review fixes and the #67 Ctrl+K fix). No key, no network.
+All checked 2026-10-16 on `fix-dev-load-race` (spec B, its review fixes, the #67 Ctrl+K fix and the Dev page load race). No key, no network.
 
 | Check | Command | Result |
 |---|---|---|
 | Backend | `cd backend && uv run pytest` | 1193 passed |
 | Types, lint, unit tests | `cd frontend && npx tsc -b && npm run lint && npm test` | type check clean; 54 unit tests passed |
 | Fixed waits | `python3 frontend/e2e/check_waits.py` | clean |
-| Browser check | `frontend/e2e/run.sh` (Firefox and Chromium) | 461 checks per browser; all passed in both, 2 skipped |
+| Browser check | `frontend/e2e/run.sh` (Firefox and Chromium) | 463 checks per browser; all passed in both, 2 skipped |
 | Slow mode | `E2E_LATENCY_MS=300 frontend/e2e/run.sh` | finds timing races before CI does; the whole check passed in both browsers (924, 2 skipped), run at the same time as the normal one |
 | Container image (B12) | `frontend/e2e/container.sh` (needs Docker) | image builds; /health, embedder check, no `.env` or secret, the Cloud Storage client present, 3 browser checks in Chromium |
 | Report builds | `cd backend && uv run python -m app.evals fake-report --out /tmp/r.html` | FakeLLM and fake embedders; CI uploads it |
