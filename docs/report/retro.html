@@ -46,7 +46,7 @@
     <span class="px-2 py-0.5 rounded bg-red-100 text-red-800 font-semibold">High</span>
     <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">Medium</span>
     <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold">Low</span>
-    <span class="text-slate-500">· seven findings; six done, one proposed and waiting for the owner's pick</span>
+    <span class="text-slate-500">· eight findings; seven done, one proposed and waiting for the owner's pick</span>
   </div>
 </div>
 
@@ -69,6 +69,7 @@
       <tr><td class="py-1.5 pr-3">5</td><td class="pr-3"><a class="underline" href="#b5">Adding a chat tool touches six places</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">navigation</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> <code>adding-a-tool.md</code> (e57ab90)</td></tr>
       <tr><td class="py-1.5 pr-3">6</td><td class="pr-3"><a class="underline" href="#b6">Human tickets written before the code</a></td><td class="pr-3 text-slate-600">Low</td><td class="pr-3">information access</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
       <tr><td class="py-1.5 pr-3">7</td><td class="pr-3"><a class="underline" href="#b7">Only the owner can start retro and the architecture review</a></td><td class="pr-3 text-slate-600">Low</td><td class="pr-3">information access</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> agent memory</td></tr>
+      <tr><td class="py-1.5 pr-3">8</td><td class="pr-3"><a class="underline" href="#b8">Test runs filled /tmp until commands failed</a></td><td class="pr-3 text-amber-700">Medium</td><td class="pr-3">tool economy</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> pytest keeps only failures (1eae8d2)</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -177,8 +178,23 @@ flowchart LR
 
 <article id="b7" class="rounded-xl border border-slate-200 bg-white p-6 space-y-2">
   <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">7 · Only the owner can start retro and the architecture review</h2><span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-xs font-semibold">Low</span></div>
-  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-16):</b> agent memory corrected. When the owner asks for them "when appropriate", the agent says when the moment fits and the owner types the command.</p>
-  <p>Spec A's finding 7 said these run "in the main session". They don't: the Skill tool refuses them even there, even when the owner asked in the prompt. Only the owner typing <code>/mattpocock-skills:retro</code> or <code>/mattpocock-skills:improve-codebase-architecture</code> starts them.</p>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-16):</b> agent memory corrected (twice). They run when the owner names them in the current message; asked earlier "for when it's appropriate", the agent says when the moment fits and asks the owner to name them.</p>
+  <p>Spec A's finding 7 said these run "in the main session". That was half right. The Skill tool refused <code>retro</code> when the owner had only asked at the start of the session to run it "when appropriate". It started <code>improve-codebase-architecture</code> at once when the owner's own message named it ("Run the /mattpocock-skills:improve-codebase-architecture in a subagent"). So what counts is the owner naming the skill in the message at hand, not which session runs it. Its exploration still goes to a subagent.</p>
+</article>
+
+<article id="b8" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+  <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl mr-2">8 · Test runs filled /tmp until commands failed</h2><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Medium</span></div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-16):</b> pytest now keeps a test's temp folder only when the test failed, and only from the last run (<code>tmp_path_retention_policy = "failed"</code>, <code>tmp_path_retention_count = 1</code> in <code>backend/</code> and <code>frontend/e2e/</code> <code>pyproject.toml</code>, 1eae8d2).</p>
+  <p><b>What happened.</b> Twice on 2026-10-16, <code>/tmp</code> (a 16 GB tmpfs, held in RAM, with a user quota) went over its quota. The shell's own output then failed ("Disk quota exceeded"), the architecture review's browser crashed, and #70's first browser run probably got its 500s that way (<i>unverified</i>: its logs were gone). Agents worked around it by putting their test temp files in their worktrees.</p>
+  <p><b>Cause.</b> Every test that changes data (refresh, alerts, per-user state, Settings, deploy) copies the 36 MB test index into its own temp folder, because a refresh rewrites it. Spec B added many such tests: about 100 copies, 3.8 GB, per full backend run. pytest keeps the last 3 runs per user by default, not per agent. With three or four agents testing at once, three kept runs alone were about 11 GB.</p>
+  <div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead class="text-left text-slate-500"><tr><th class="py-1 pr-3">Left behind by <code>test_refresh.py</code> (17 tests)</th><th>Size</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      <tr><td class="py-1.5 pr-3">Before: pytest's default, every test's folder kept</td><td class="text-red-700 font-semibold">565 MB</td></tr>
+      <tr><td class="py-1.5 pr-3">After: only failures kept (here: the shared index)</td><td class="text-emerald-700 font-semibold">36 MB</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Why this fix.</b> It changes no check, only what's kept afterwards, and a failed test keeps its folder as evidence. Copying the index only for tests that really write to it would save the copies too, but not worth it while they're deleted straight away.</p>
 </article>
 
 <section class="rounded-xl bg-slate-900 text-slate-100 p-6 space-y-2">

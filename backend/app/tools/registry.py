@@ -13,7 +13,7 @@ from typing import Any, Callable, Literal
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 from app.config import DEFAULT_USER
-from app.errors import LLMError, ToolError
+from app.errors import InputError, LLMError, ToolError
 from app.llm.base import LLMReply, ToolCall
 from app.schemas import QueryInfo, Source, ToolCallRecord, Usage
 
@@ -143,7 +143,7 @@ def run_tool(call: ToolCall, deps, ctx: Context, tools: dict[str, ToolSpec] | No
         return record("error", error={"code": "bad_arguments", "message": _plain(e)})
     try:
         result = spec.run(args, deps, ctx)
-    except ToolError as e:
+    except (ToolError, InputError) as e:  # B27: an InputError from any tool is its error, with its code
         return record("error", error={"code": e.code, "message": e.message})
     except LLMError:
         raise  # search_security calls the LLM; its failure is an HTTP 502, not a tool error (V6)

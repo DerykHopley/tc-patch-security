@@ -2,10 +2,9 @@
 proposes the change (B21): nothing changes until the user approves it in the chat's card (app.proposals)."""
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, StringConstraints, model_validator
+from pydantic import BaseModel, StringConstraints
 
 from app import proposals
-from app.errors import InputError, ToolError
 from app.proposals import Proposal
 from app.schemas import CveId
 from app.tools.registry import ToolResult, ToolSpec, register
@@ -27,14 +26,6 @@ class WatchArgs(BaseModel):
     internet_facing: bool | None = None
     why: Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)] | None = None  # on the card (B21)
 
-    @model_validator(mode="after")
-    def needs(self):
-        if self.action in ("watch", "unwatch", "set_details") and not self.product:
-            raise ValueError(f"'{self.action}' needs a product")
-        if self.action == "set_status" and not (self.cve_id and self.status):
-            raise ValueError("'set_status' needs cve_id and status")
-        return self
-
 
 class WatchlistResult(ToolResult):
     """update_watchlist when there's nothing to change (B21): why not, and the watchlist as it is."""
@@ -42,22 +33,17 @@ class WatchlistResult(ToolResult):
     watchlist: list[str]  # the products' names
 
 
+FIELDS = {"status", "justification", "note", "usage", "version", "internet_facing"}
+
+
 def run(args: WatchArgs, deps, ctx) -> dict:
-    if args.action == "set_status":
-        fields = {"status": args.status, "justification": args.justification, "note": args.note}
-    elif args.action == "set_details":
-        fields = {"usage": args.usage, "version": args.version, "internet_facing": args.internet_facing}
-    else:
-        fields = {}
-    try:
-        return proposals.propose(args.action, deps, product=args.product, cve_id=args.cve_id, why=args.why, **fields)
-    except proposals.NoChange as e:
+    """What the action needs and takes, and every error, are the proposal's own (app.proposals.propose, B27)."""
+    p = proposals.propose(args.action, deps, cve_id=args.cve_id, product=args.product,
+                          fields=args.model_dump(include=FIELDS), why=args.why)
+    if isinstance(p, proposals.NoChange):
         k = deps.knowledge
-        return {"message": str(e), "watchlist": [k.products[p] for p in deps.state.read().watchlist]}
-    except KeyError:
-        raise ToolError(f"{args.cve_id} isn't in my snapshot, so I can't track it.", "cve_not_in_snapshot")
-    except InputError as e:
-        raise ToolError(e.message, "bad_value")
+        return {"message": p.message, "watchlist": [k.products[x] for x in deps.state.read().watchlist]}
+    return p
 
 
 register(ToolSpec(

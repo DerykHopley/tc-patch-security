@@ -14,7 +14,6 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app import proposals
-from app.errors import InputError
 from app.llm.base import ToolCall
 from app.schemas import CveId, ToolCallRecord
 from app.tools.registry import Context, run_tool
@@ -70,26 +69,14 @@ class Refined(BaseModel):
     call: ToolCallRecord
 
 
-# Each change button: what it needs, and the fields it passes from its form to the proposal (B21's checks).
-DECISION_FIELDS = {"status", "justification", "reason", "review_date", "compensating_control", "note"}
-BUTTONS = {
-    "watch": (("product",), lambda b: {}),
-    "set_details": (("product",), lambda b: {"version": b.version or ""}),  # empty: "I don't know it", as in Settings
-    "set_status": (("cve_id", "status"), lambda b: b.model_dump(include=DECISION_FIELDS)),
-}
-
-
 def propose(body: Propose, deps) -> Proposed:
-    needs, fields_of = BUTTONS[body.change]
-    if missing := [x for x in needs if not getattr(body, x)]:
-        raise InputError(f"'{body.change}' needs {' and '.join(missing)}.")
-    fields = fields_of(body)
-    try:
-        p = proposals.propose(body.change, deps, product=body.product, cve_id=body.cve_id, **fields)
-    except proposals.NoChange as e:
-        return Proposed(proposal=None, message=str(e))
-    except KeyError:
-        raise InputError(f"{body.cve_id} isn't in the snapshot.", "not_found") from None
+    """What the change needs and takes, and every error (an InputError: a 400), are the proposal's own (B27)."""
+    fields = body.model_dump(exclude={"action", "change", "product", "cve_id"})
+    if body.change == "set_details":
+        fields["version"] = body.version or ""  # empty: "I don't know it", as in Settings
+    p = proposals.propose(body.change, deps, cve_id=body.cve_id, product=body.product, fields=fields)
+    if isinstance(p, proposals.NoChange):
+        return Proposed(proposal=None, message=p.message)
     return Proposed(proposal=p, message=p["message"])
 
 

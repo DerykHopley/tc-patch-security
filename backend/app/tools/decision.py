@@ -18,12 +18,11 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field, StringConstraints
 
 from app import guard, proposals
-from app.errors import InputError, ToolError
+from app.errors import ToolError
 from app.proposals import Proposal
 from app.status import JUSTIFICATIONS
 from app.schemas import CveId
-from app.tools.registry import ToolSpec, register
-from app.tools.watchlist import WatchlistResult
+from app.tools.registry import ToolResult, ToolSpec, register
 
 CITED = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
 COPY_WORDS = 8  # this many words in a row from a web result is copying, not the model's own words
@@ -38,6 +37,11 @@ class DecisionArgs(BaseModel):
     review_in_days: int | None = Field(default=None, ge=1, le=365)  # accepted: when to look again
     compensating_control: Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)] | None = None
     vex_justification: Literal[JUSTIFICATIONS] | None = None  # type: ignore[valid-type]  # not_affected
+
+
+class DecisionAlreadySo(ToolResult):
+    """propose_decision when the CVE already has that status: nothing to propose, and why (B27)."""
+    message: str
 
 
 def _words(text: str) -> list[str]:
@@ -85,16 +89,8 @@ def run(args: DecisionArgs, deps, ctx) -> dict:
     text = "reason" if args.status == "accepted" else "note"
     fields = {"status": args.status, text: args.reason, "review_date": review,
               "compensating_control": args.compensating_control, "justification": args.vex_justification}
-    try:
-        return proposals.propose("set_status", deps, cve_id=args.cve_id, sources=sources,
-                                 **{k: v for k, v in fields.items() if v is not None})
-    except proposals.NoChange as e:
-        k = deps.knowledge
-        return {"message": str(e), "watchlist": [k.products[p] for p in deps.state.read().watchlist]}
-    except KeyError:
-        raise ToolError(f"{args.cve_id} isn't in my snapshot.", "cve_not_in_snapshot") from None
-    except InputError as e:
-        raise ToolError(e.message, "bad_value") from None
+    p = proposals.propose("set_status", deps, cve_id=args.cve_id, fields=fields, sources=sources)
+    return {"message": p.message} if isinstance(p, proposals.NoChange) else p
 
 
 register(ToolSpec(
@@ -107,7 +103,7 @@ register(ToolSpec(
                 "never cite a flagged web result or copy web text. It changes nothing: the user sees a card with "
                 "the sources, and approves, edits or cancels it.",
     args_model=DecisionArgs,
-    result=Proposal | WatchlistResult,
+    result=Proposal | DecisionAlreadySo,
     run=run,
     offered=lambda deps: deps.web is not None,  # the end of the web research workflow: on with research_web
 ))

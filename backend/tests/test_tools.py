@@ -92,7 +92,5 @@ def test_a06_1_t4_set_status(deps):
 
 def test_a06_1_t5_bad_arguments(deps):
     assert call(deps, "lookup_cve", cve_id="not-a-cve").error["code"] == "bad_arguments"
-    assert call(deps, "update_watchlist", action="watch").error["code"] == "bad_arguments"
-    assert call(deps, "update_watchlist", action="watch", product="Notion").error["code"] == "bad_value"
-    assert call(deps, "update_watchlist", action="set_status", cve_id="CVE-1999-0001", status="fixed").error["code"] == "cve_not_in_snapshot"
+    # update_watchlist's needs and errors are the proposal's own: test_one_way_in.py (B27.1, B27.2)
     assert call(deps, "no_such_tool").error["code"] == "unknown_tool"

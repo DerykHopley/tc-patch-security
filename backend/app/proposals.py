@@ -5,7 +5,7 @@ A proposal's life:
 
 | From      | Action  | To        | Notes                                                                        |
 |-----------|---------|-----------|------------------------------------------------------------------------------|
-| (none)    | propose | proposed  | update_watchlist or propose_decision (B22); checked like the forms            |
+| (none)    | propose | proposed  | update_watchlist, propose_decision (B22), a card button (B24); checked here    |
 | proposed  | edit    | proposed  | the same checks as the CVE decision dialog and the Settings watchlist         |
 | proposed  | approve | approved  | through State's own methods, as the pages; who and when are recorded          |
 | approved  | approve | approved  | the first result again, nothing more changes (a retry, a double click)        |
@@ -102,6 +102,8 @@ class Proposal(_Shape):
     approved_at: str | None
     approved_by: str | None
     sources: list[ProposalSource]  # what a proposed decision cites (B22); empty for the other proposals
+    editable: list[Literal[STATUS_FIELDS + DETAIL_FIELDS]]  # type: ignore[valid-type]  # what the card's Edit shows
+    link_to: Literal["cve", "watchlist"]  # where the card's Done links: a kind; the frontend knows the page (B27)
 
 
 class ProposalEdit(BaseModel):
@@ -133,8 +135,10 @@ def _status_words(fields: dict) -> str:
     return f"{out} ({'; '.join(extra)})" if extra else out
 
 
-class NoChange(Exception):
-    """The change is already so: nothing to propose. Carries the message."""
+@dataclass(frozen=True)
+class NoChange:
+    """propose's answer when the change is already so: nothing to propose, and why. An answer, not an error (B27)."""
+    message: str
 
 
 # --- Each action's handlers, in one place (the Change map below): what it rests on, its before and after, its title,
@@ -211,13 +215,16 @@ def _details_edit(rec: dict, given: dict, deps) -> None:
 
 @dataclass(frozen=True)
 class Change:
-    """One action a proposal can take, with its handlers. `editable`: the fields an edit may change, and `edit`
-    applies them (None: nothing to edit, approve or cancel it)."""
+    """One action a proposal can take, with its handlers. `needs`: what propose must be given (cve_id, product or a
+    field). `editable`: the fields it takes, when proposed and when edited; propose refuses any other. `edit` applies
+    an edit (None: nothing to edit, approve or cancel it). `link_to`: where the card's Done links."""
     based_on: Callable[[dict, Any], dict]  # (rec, stack): what approving checks hasn't changed
     preview: Callable[[dict, Any, Any], tuple[str, str, dict]]  # (rec, deps, stack): before, after, checked fields
     title: Callable[[dict, str], str]  # (rec, product name)
     apply: Callable[[dict, Any, str], str]  # (rec, deps, product name): make the change, say what changed
     stale: str  # approving refused: what it was based on changed
+    needs: tuple[str, ...]
+    link_to: Literal["cve", "watchlist"]
     editable: tuple[str, ...] = ()
     edit: Callable[[dict, dict, Any], None] | None = None  # (rec, given, deps): the new after and fields
     what: str = ""  # an edit's subject, for "… doesn't take …"
@@ -228,14 +235,14 @@ CHANGES: dict[str, Change] = {
     "set_status": Change(_status_based_on, _status_preview,
                          lambda rec, name: TITLE[rec["fields"]["status"]].format(cve=rec["cve_id"]), _status_apply,
                          "This CVE's status changed since Patch proposed this. Propose it again.",
-                         STATUS_FIELDS, _status_edit, "A status change"),
+                         ("cve_id", "status"), "cve", STATUS_FIELDS, _status_edit, "A status change"),
     "set_details": Change(_details_based_on, _details_preview, lambda rec, name: f"Change how you run {name}",
                           _details_apply, "This product's details changed since Patch proposed this. Propose it again.",
-                          DETAIL_FIELDS, _details_edit, "A product's details"),
+                          ("product",), "watchlist", DETAIL_FIELDS, _details_edit, "A product's details"),
     "watch": Change(_watch_based_on, _watch_preview, lambda rec, name: f"Add {name} to your watchlist", _watch_apply,
-                    _WATCHLIST_CHANGED),
+                    _WATCHLIST_CHANGED, ("product",), "watchlist"),
     "unwatch": Change(_watch_based_on, _watch_preview, lambda rec, name: f"Remove {name} from your watchlist",
-                      _unwatch_apply, _WATCHLIST_CHANGED),
+                      _unwatch_apply, _WATCHLIST_CHANGED, ("product",), "watchlist"),
 }
 
 
@@ -246,36 +253,51 @@ def _name(rec: dict, deps) -> str:
 PENDING = "Nothing has changed yet: approve it in the card, edit it, or cancel it."
 
 
-def propose(action: str, deps, *, product: str | None = None, cve_id: str | None = None, why: str | None = None,
-            sources: list[dict] | None = None, **fields) -> dict:
-    """A new proposal, saved, as the Proposal view. Already so: NoChange; a bad value: InputError; an unknown CVE:
-    KeyError. `sources`: what a proposed decision cites (B22), as ProposalSource dicts; approving keeps them in the
-    decision record."""
+def propose(action: str, deps, *, cve_id: str | None = None, product: str | None = None, fields: dict | None = None,
+            why: str | None = None, sources: list[dict] | None = None) -> dict | NoChange:
+    """The one way in for a proposal (B27): a new one, saved, as the Proposal view; or NoChange when it's already
+    so. `fields`: what it would set; None values are dropped, and a field the action doesn't take is refused.
+    Raises InputError: `cve_not_in_snapshot` for an unknown CVE, `bad_value` for anything else wrong (something the
+    action needs, a field it doesn't take, a value the forms' checks refuse). `sources`: what a proposed decision
+    cites (B22), as ProposalSource dicts; approving keeps them in the decision record."""
+    change = CHANGES.get(action)
+    if change is None:
+        raise InputError(f"There's no change {action!r} to propose.", "bad_value")
+    fields = {x: v for x, v in (fields or {}).items() if v is not None}
+    given = {"cve_id": cve_id, "product": product, **fields}
+    if missing := [x for x in change.needs if not given.get(x)]:
+        raise InputError(f"'{action}' needs {' and '.join(missing)}.", "bad_value")
+    if wrong := [x for x in fields if x not in change.editable]:
+        raise InputError(f"'{action}' doesn't take {', '.join(wrong)}.", "bad_value")
     k, stack = deps.knowledge, deps.state.read()
     if action == "set_status":
         cve = k.cves.get(cve_id)
         if cve is None:
-            raise KeyError(cve_id)
+            raise InputError(f"{cve_id} isn't in my snapshot.", "cve_not_in_snapshot")
         cve_id, product = cve["id"], cve["product"]
-        if stack.statuses.get(cve_id, "open") == fields.get("status"):
-            raise NoChange(f"{cve_id} is already {STATUS_WORD[fields['status']].lower()}: nothing to change.")
+        if stack.statuses.get(cve_id, "open") == fields["status"]:
+            return NoChange(f"{cve_id} is already {STATUS_WORD.get(fields['status'], '?').lower()}: "
+                            "nothing to change.")
     else:
         pid = k.resolve_product(product)
         if not pid:
-            raise InputError(f"{product!r} isn't a product I track. Choose from: {', '.join(k.products.values())}.")
-        product = pid
+            raise InputError(f"{product!r} isn't a product I track. Choose from: {', '.join(k.products.values())}.",
+                             "bad_value")
+        product, cve_id = pid, None
         if action == "watch" and stack.watches(pid):
-            raise NoChange(f"{k.products[pid]} is already on your watchlist: nothing to change.")
+            return NoChange(f"{k.products[pid]} is already on your watchlist: nothing to change.")
         if action == "unwatch" and not stack.watches(pid):
-            raise NoChange(f"{k.products[pid]} isn't on your watchlist: nothing to change.")
-    change, now = CHANGES[action], deps.clock()
-    rec = {"id": uuid.uuid4().hex, "action": action, "cve_id": cve_id if action == "set_status" else None,
-           "product": product, "why": why, "fields": dict(fields), "state": "proposed", "created_at": iso_utc(now),
-           "expires_at": iso_utc(now + TTL), "approved_at": None, "approved_by": None, "message": PENDING,
-           "sources": list(sources or [])}
-    rec["before"], rec["after"], rec["fields"] = change.preview(rec, deps, stack)
+            return NoChange(f"{k.products[pid]} isn't on your watchlist: nothing to change.")
+    now = deps.clock()
+    rec = {"id": uuid.uuid4().hex, "action": action, "cve_id": cve_id, "product": product, "why": why,
+           "fields": fields, "state": "proposed", "created_at": iso_utc(now), "expires_at": iso_utc(now + TTL),
+           "approved_at": None, "approved_by": None, "message": PENDING, "sources": list(sources or [])}
+    try:
+        rec["before"], rec["after"], rec["fields"] = change.preview(rec, deps, stack)
+    except InputError as e:  # the CVE decision dialog's or the Settings watchlist's own checks
+        raise InputError(e.message, "bad_value") from None
     if action == "set_details" and rec["before"] == rec["after"]:
-        raise NoChange(f"{k.products[product]} is already {rec['after']}: nothing to change.")
+        return NoChange(f"{k.products[product]} is already {rec['after']}: nothing to change.")
     rec["based_on"] = change.based_on(rec, deps.state.read())
     deps.state.save_proposal(rec)
     return view(rec, deps)
@@ -356,10 +378,13 @@ def view(rec: dict, deps) -> dict:
     if state == "proposed" and deps.clock() >= dt.datetime.fromisoformat(rec["expires_at"]):
         state = "expired"
     fields = {x: rec["fields"].get(x) for x in (*STATUS_FIELDS, *DETAIL_FIELDS)}
+    change = CHANGES[rec["action"]]
     return Proposal(
-        proposal_id=rec["id"], action=rec["action"], title=CHANGES[rec["action"]].title(rec, _name(rec, deps)), why=rec["why"], cve_id=rec["cve_id"],
+        proposal_id=rec["id"], action=rec["action"], title=change.title(rec, _name(rec, deps)), why=rec["why"],
+        cve_id=rec["cve_id"],
         product=rec["product"], product_name=deps.knowledge.products.get(rec["product"]), before=rec["before"],
         after=rec["after"], fields=ProposalFields(**fields), state=state, message=rec["message"],
         as_of=deps.as_of, created_at=rec["created_at"], expires_at=rec["expires_at"],
         approved_at=rec["approved_at"], approved_by=rec["approved_by"],
-        sources=rec.get("sources", [])).model_dump()  # a proposal saved before B22 has none
+        sources=rec.get("sources", []),  # a proposal saved before B22 has none
+        editable=list(change.editable), link_to=change.link_to).model_dump()

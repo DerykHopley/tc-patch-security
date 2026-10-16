@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type MouseEvent } from 'react'
+import { Fragment, useEffect, useId, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 import {
   approveProposal,
   cancelProposal,
@@ -28,12 +28,94 @@ const latest = new Map<string, Proposal>()
 const STATUSES: CveStatus[] = ['fixed', 'not_affected', 'open', 'accepted']
 const utcTime = (iso: string) => `${iso.slice(11, 16)} UTC`
 
-/** Where "Done" links to: the CVE in the CVEs page (its product, any status), or the watchlist in Settings. */
+/** Where "Done" links to, by the proposal's `link_to` (B27): the CVE in the CVEs page (its product, any status), or
+ *  the watchlist in Settings. The backend names the kind; the page addresses live here. */
 function doneLink(p: Proposal): { href: string; label: string } {
-  if (p.action === 'set_status' && p.cve_id && p.product) {
+  if (p.link_to === 'cve' && p.cve_id && p.product) {
     return { href: `/cves?product=${encodeURIComponent(p.product)}&status=all`, label: `See ${p.cve_id} on the CVEs page` }
   }
   return { href: '/settings', label: 'See your watchlist in Settings' }
+}
+
+/** A CVE's status and its decision record's fields, as the CVE decision dialog asks them. */
+function StatusInput({ p }: { p: Proposal }) {
+  const [status, setStatus] = useState<CveStatus>(p.fields.status ?? 'fixed')
+  return (
+    <>
+      <label>
+        Status
+        <select name="status" value={status} onChange={(e) => setStatus(e.target.value as CveStatus)}>
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {STATUS_LABEL[s]}
+            </option>
+          ))}
+        </select>
+      </label>
+      {/* key: a new status starts its own fields */}
+      <DecisionFields key={status} status={status} asOf={p.as_of} values={status === p.fields.status ? p.fields : null} />
+    </>
+  )
+}
+
+type Field = Proposal['editable'][number]
+interface Input {
+  draw: (p: Proposal, id: string) => ReactNode
+  read: (form: HTMLFormElement) => ProposalEdit
+}
+
+// Each field the card can edit (the proposal's `editable`, B27), as its input and how to read it back. A new kind of
+// proposal needs only its fields here. null: the decision record's fields, drawn with the status (DecisionFields).
+const WITH_STATUS = null
+const INPUTS: Record<Field, Input | null> = {
+  status: {
+    draw: (p) => <StatusInput key="status" p={p} />,
+    read: (form) => readDecision(form, new FormData(form).get('status') as CveStatus),
+  },
+  justification: WITH_STATUS,
+  note: WITH_STATUS,
+  reason: WITH_STATUS,
+  review_date: WITH_STATUS,
+  compensating_control: WITH_STATUS,
+  usage: {
+    draw: (p) => (
+      <label key="usage">
+        Usage
+        <select name="usage" defaultValue={p.fields.usage ?? 'self_hosted'}>
+          {USAGES.map((u) => (
+            <option key={u} value={u}>
+              {USAGE_LABEL[u]}
+            </option>
+          ))}
+        </select>
+      </label>
+    ),
+    read: (form) => ({ usage: new FormData(form).get('usage') as ProductUsage }),
+  },
+  version: {
+    draw: (p, id) => (
+      <Fragment key="version">
+        <label>
+          Version
+          <input name="version" maxLength={40} defaultValue={p.fields.version ?? ''} aria-describedby={`${id}-v`} />
+        </label>
+        <span id={`${id}-v`} className="meta">
+          Leave it empty if you don't know it.
+        </span>
+      </Fragment>
+    ),
+    // empty clears it, as in Settings
+    read: (form) => ({ version: String(new FormData(form).get('version') ?? '').trim() }),
+  },
+  internet_facing: {
+    draw: (p) => (
+      <label key="internet_facing" className="check">
+        <input type="checkbox" name="internet_facing" defaultChecked={!!p.fields.internet_facing} />
+        Internet-facing
+      </label>
+    ),
+    read: (form) => ({ internet_facing: new FormData(form).get('internet_facing') === 'on' }),
+  },
 }
 
 function inApp(e: MouseEvent<HTMLAnchorElement>) {
@@ -50,7 +132,7 @@ function EditForm({ p, onSave, onBack, busy }: {
 }) {
   const id = useId()
   const ref = useRef<HTMLFormElement>(null)
-  const [status, setStatus] = useState<CveStatus>(p.fields.status ?? 'fixed')
+  const inputs = p.editable.flatMap((f) => INPUTS[f] ?? [])
 
   useEffect(() => {
     ref.current?.querySelector<HTMLElement>('select, input, textarea')?.focus()
@@ -58,60 +140,13 @@ function EditForm({ p, onSave, onBack, busy }: {
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (p.action === 'set_status') {
-      onSave(readDecision(e.currentTarget, status))
-      return
-    }
-    const form = new FormData(e.currentTarget)
-    onSave({
-      usage: form.get('usage') as ProductUsage,
-      version: String(form.get('version') ?? '').trim(), // empty clears it, as in Settings
-      internet_facing: form.get('internet_facing') === 'on',
-    })
+    const form = e.currentTarget
+    onSave(Object.assign({}, ...inputs.map((i) => i.read(form))) as ProposalEdit)
   }
 
   return (
     <form ref={ref} className="proposal-edit" onSubmit={submit} aria-label={`Edit: ${p.title}`}>
-      {p.action === 'set_status' ? (
-        <>
-          <label>
-            Status
-            <select value={status} onChange={(e) => setStatus(e.target.value as CveStatus)}>
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_LABEL[s]}
-                </option>
-              ))}
-            </select>
-          </label>
-          {/* key: a new status starts its own fields */}
-          <DecisionFields key={status} status={status} asOf={p.as_of} values={status === p.fields.status ? p.fields : null} />
-        </>
-      ) : (
-        <>
-          <label>
-            Usage
-            <select name="usage" defaultValue={p.fields.usage ?? 'self_hosted'}>
-              {USAGES.map((u) => (
-                <option key={u} value={u}>
-                  {USAGE_LABEL[u]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Version
-            <input name="version" maxLength={40} defaultValue={p.fields.version ?? ''} aria-describedby={`${id}-v`} />
-          </label>
-          <span id={`${id}-v`} className="meta">
-            Leave it empty if you don't know it.
-          </span>
-          <label className="check">
-            <input type="checkbox" name="internet_facing" defaultChecked={!!p.fields.internet_facing} />
-            Internet-facing
-          </label>
-        </>
-      )}
+      {inputs.map((i) => i.draw(p, id))}
       <div className="proposal-buttons">
         <button type="submit" disabled={busy}>
           Save changes
@@ -187,7 +222,7 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
   }, [editing])
 
   const open = p.state === 'proposed'
-  const editable = p.action === 'set_status' || p.action === 'set_details'
+  const editable = p.editable.length > 0
   const link = doneLink(p)
   return (
     <section className={`proposal-card ${p.state}`} aria-labelledby={titleId}>
