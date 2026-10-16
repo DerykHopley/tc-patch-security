@@ -15,7 +15,9 @@ data's). Callers (app.state) read, change and write, and on a Conflict read agai
 - MemoryStore: the same in a dict, for tests.
 - GcsStore: one Cloud Storage object per key, the object's generation as the version and as the write's
   precondition (`if_generation_match`, 0 for "doesn't exist yet"). It takes a google-cloud-storage Bucket, or
-  anything with its few calls (tests/fake_gcs.py); the deploy (#44) builds the real one.
+  anything with its few calls (tests/fake_gcs.py). `open_bucket` makes the real one when STORE=gcs (B13, #44).
+
+Deployed (STORE=gcs), one bucket holds both stores: the users' state under `users/`, the live data under `live/`.
 """
 import hashlib
 import json
@@ -194,3 +196,18 @@ class GcsStore:
 
     def keys(self, prefix: str = "") -> list[str]:
         return sorted(b.name[len(self.prefix):] for b in self.bucket.list_blobs(prefix=self.prefix + prefix))
+
+
+USERS_PREFIX, LIVE_PREFIX = "users/", "live/"  # the two stores' places in the bucket (B13)
+
+
+def open_bucket(settings, bucket=None):
+    """STORE=gcs (B13): the Cloud Storage bucket GCS_BUCKET, or `bucket` (tests pass tests/fake_gcs.py's). None with
+    STORE=local. The client finds its credentials itself: on Cloud Run, the service's own account; no key file."""
+    if settings.store != "gcs":
+        return None
+    if bucket is not None:
+        return bucket
+    from google.cloud import storage  # here, not at the top: only a deployed server needs it
+
+    return storage.Client().bucket(settings.gcs_bucket)

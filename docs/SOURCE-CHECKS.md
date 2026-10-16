@@ -126,6 +126,12 @@ Coverage of our 12 products (unique CVEs after de-duplication, against the snaps
 - Free (`:free`) models with tools exist; 20 requests/min, 50 a day (1,000 a day after $10 of credits).
 - Low-cost models listing `tools` and `structured_outputs` (USD per million tokens, in / out; tool-calling quality unchecked): `openai/gpt-oss-120b` 0.037 / 0.17; `anthropic/claude-haiku-5.5` 0.10 / 0.50; `qwen/qwen3.8-flash` 0.15 / 0.47; `deepseek/deepseek-v4.1-flash` 0.025 / 0.89; `google/gemini-3.1-flash-lite` 0.25 / 1.50.
 
+### Cloud Run deploy (B13, 2026-10-16)
+
+- `google-cloud-storage` **3.17.1** (PyPI, installed by `uv add`): `Bucket.get_blob`, `Bucket.list_blobs(prefix=)`, `Bucket.blob`, `Blob.upload_from_string(data, content_type, if_generation_match=)`, `Blob.download_as_bytes(if_generation_match=)` and `Blob.delete` exist with those arguments; `google.api_core.exceptions.PreconditionFailed.code` is 412 and `NotFound.code` 404; an upload sets the blob's `generation` from the reply (`_prep_and_do_upload` calls `_set_properties`). *Checked* by reading the installed library, offline. `GcsStore` relies on exactly these. Never run against a real bucket.
+- The image with it: 1.7 GB uncompressed (`frontend/e2e/container.sh`, 2026-10-16). *Checked.*
+- *Unverified* (no account; written from memory of Google's docs, to confirm in #45): the `gcloud` commands and flags in DEPLOY.md; the address form `https://<service>-<project number>.<region>.run.app`; that `roles/storage.objectUser` includes listing; Secret Manager's free 6 secret versions and 10,000 accesses; Cloud Storage's free 5,000 class A and 50,000 class B operations; Artifact Registry's free 0.5 GB; that a secret mounted as `:latest` is read when an instance starts; that 1 GiB of memory is enough; Clerk's `PATCH /v1/instance` `allowed_origins`.
+
 ## Clerk (checked 2026-10-14)
 
 - Free (Hobby) plan: 50,000 monthly retained users per app, email/password, up to 3 social providers, "Require invitations" (invite-only), no credit card. Clerk branding stays. https://clerk.com/pricing

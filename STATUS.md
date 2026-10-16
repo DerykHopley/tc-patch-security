@@ -33,7 +33,7 @@ All checked 2026-10-15 on `spec-a` (28cc2e9). No key, no network.
 | Fixed waits | `python3 frontend/e2e/check_waits.py` | clean |
 | Browser check | `frontend/e2e/run.sh` (Firefox and Chromium) | 356 checks per browser; all passed in both, 2 skipped |
 | Slow mode | `E2E_LATENCY_MS=300 frontend/e2e/run.sh` | finds timing races before CI does |
-| Container image (B12) | `frontend/e2e/container.sh` (needs Docker) | image builds; /health, embedder check, no `.env`, 3 browser checks in Chromium |
+| Container image (B12) | `frontend/e2e/container.sh` (needs Docker) | image builds; /health, embedder check, no `.env` or secret, the Cloud Storage client present, 3 browser checks in Chromium |
 | Report builds | `cd backend && uv run python -m app.evals fake-report --out /tmp/r.html` | FakeLLM and fake embedders; CI uploads it |
 
 - CI ([.github/workflows/ci.yml](./.github/workflows/ci.yml)) runs all of these once per push to `main` or `spec-*`, and on pull requests from other branches. A docs-only push skips the browser check.
@@ -68,6 +68,7 @@ Spec A's tickets ([#2](https://github.com/DerykHopley/tc-patch-security/issues/2
 | Clerk sign-in, built against faked tokens (no Clerk account yet): `AUTH=on` makes every route but `/health` need a session token checked with the JWT key (no network) and `azp`; the sign-in screen and user menu; decision records name the user. Creating the instance and keys is a human step (#65); the signed-in browser check runs only with its keys | `backend/app/auth.py`, `frontend/src/auth/`, `components/UserMenu.tsx`, `frontend/e2e/test_sign_in.py` | B10 #42 |
 | Partial success and retry: each feed is a step, a partial refresh is written and shown with Retry; a failed tool step is marked, with Try again; a failed send or save keeps your work; failure switches (`FAKE_FEEDS_FAIL`, `FAIL_TOOLS`) | `backend/app/refresh.py`, `tools/registry.py`, `frontend/src/components/Freshness.tsx`, `chat/ToolCallCard.tsx`, `docs/failure-demo.md` | B20 #57 |
 | Rate limits: chat messages per user per minute and per day (`CHAT_PER_MINUTE`, `CHAT_PER_DAY`), one 429 form with a retry time (a refused Check now too), OpenRouter's 402 as a plain 402, both shown as a quiet note in the chat | `backend/app/rate_limits.py`, `main.py`, `frontend/src/chat/useChat.ts` | B11 #43 |
+| Cloud Run deploy setup: users' state and the live data in Cloud Storage (`STORE=gcs`, `GCS_BUCKET`), the scheduled refresh route for Cloud Scheduler (`POST /api/refresh/scheduled`, `SCHEDULER_SECRET` header, no user needed), the cold-start catch-up from the bucket, and the written procedure. Nothing run on Google Cloud yet: the deploy is a human step (#45) | `DEPLOY.md`, `deploy/cloudrun/`, `backend/app/store.py` `open_bucket`, `main.py`, `refresh.py` `scheduled_tick` | B13 #44 |
 | Pause the schedule and the run history: Pause on Settings (the dashboard says "Schedule paused", with Resume), the "Refresh runs" card (last 20 runs and skipped runs, each opening to its feeds), `GET /refresh/runs`, `check_updates` says whether the schedule is on | `backend/app/refresh.py` `run_scheduled`, `history`, `schedule_status`; `frontend/src/components/RefreshRuns.tsx` | B19 #59 |
 | Changes Patch proposes: a preview card, approve, edit, cancel; idempotent, 1-hour expiry, stale check | `backend/app/proposals.py`, `frontend/src/chat/ProposalCard.tsx` | B21 #58 |
 | Buttons on tool cards: Open in CVEs page, Ask about this, Mark accepted…, Watch this product, Set my version…, Mark not affected… (each a proposal), Show only CVEs and Only critical on a new search card (a refine, shown as a new message with chips); `POST /chat/action` | `backend/app/card_actions.py`, `frontend/src/chat/CardActions.tsx`, `cardActions.ts` | B24 #63 |
@@ -104,6 +105,7 @@ Follow-ups from spec A, not scheduled yet (`needs-triage`):
 
 1. Review and merge [PR #24](https://github.com/DerykHopley/tc-patch-security/pull/24) (spec A into `main`). The PR closes the spec A tickets.
 2. Triage the follow-ups above and B25 ([#64](https://github.com/DerykHopley/tc-patch-security/issues/64)).
+3. Create the Clerk instance ([#65](https://github.com/DerykHopley/tc-patch-security/issues/65)), then deploy to Cloud Run by [DEPLOY.md](./DEPLOY.md) ([#45](https://github.com/DerykHopley/tc-patch-security/issues/45)).
 
 ## What spec B adds
 

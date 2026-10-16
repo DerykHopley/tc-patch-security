@@ -31,11 +31,16 @@ trap cleanup EXIT
 echo "== Building the hash index (the existing script) and the image"
 (cd "$ROOT/backend" && EMBEDDER=hash EMBED_MODEL= INDEX_PATH=data/index-image uv run python -m app.rag.build_index)
 docker build -t "$IMAGE" "$ROOT"
+echo "Image size: $(( $(docker image inspect -f '{{.Size}}' "$IMAGE") / 1000000 )) MB (uncompressed; DEPLOY.md's storage cost)"
 
 echo "== B12.7: no key or .env in the image"
 found="$(docker run --rm --entrypoint sh "$IMAGE" -c \
-  'find / -xdev \( -name ".env" -o -name "*.env" \) -not -path "/proc/*" 2>/dev/null; env | grep -E "^(OPENROUTER_API_KEY|NTFY_TOPIC|NTFY_TOKEN|SMTP_PASSWORD|CLERK_[A-Z_]*)=." || true')"
+  'find / -xdev \( -name ".env" -o -name "*.env" \) -not -path "/proc/*" 2>/dev/null; env | grep -E "^(OPENROUTER_API_KEY|NTFY_TOPIC|NTFY_TOKEN|SMTP_PASSWORD|CLERK_[A-Z_]*|SCHEDULER_SECRET|TAVILY_API_KEY)=." || true')"
 if [ -n "$found" ]; then echo "Found in the image: $found" >&2; exit 1; fi
+
+echo "== B13: the Cloud Storage client is in the image (STORE=gcs on Cloud Run); nothing is called"
+docker run --rm --entrypoint python "$IMAGE" -c "import google.cloud.storage" \
+  || { echo "google-cloud-storage is missing from the image" >&2; exit 1; }
 
 echo "== B12.8: another embedder than the index's stops the start-up"
 if out="$(docker run --rm -e EMBEDDER=ollama "$IMAGE" 2>&1)"; then

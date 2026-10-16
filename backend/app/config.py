@@ -26,6 +26,8 @@ DEFAULT_USER = "default"
 USER_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")  # a user id as the state store keys it (Clerk's ids: user_2abc...)
 DATA_MODES = ("snapshot", "live")  # snapshot: frozen data, as of its date (the default and the tests); live: refreshed
 FEED_SOURCES = ("nvd", "kev", "osv", "epss")  # the four feeds, in the order a refresh asks them
+STORES = ("local", "gcs")  # B13: where users' state and the live data live: files here, a Cloud Storage bucket deployed
+SCHEDULER_SECRET_MIN = 32  # B13: the scheduled route's secret, at least this long (the deploy makes 64 hex characters)
 FEED_KINDS = ("fake", "real")  # fake: the made-up day data sets (B02, no network); real: NVD, KEV, EPSS, OSV (B03)
 
 
@@ -143,6 +145,13 @@ class Settings:
     # cap on the key stays the backstop.
     chat_per_minute: int = 10
     chat_per_day: int = 200
+    # B13, the deploy: local = users' state and the live data are files (STATE_PATH, LIVE_PATH); gcs = objects in the
+    # Cloud Storage bucket GCS_BUCKET (users/<id>.json, live/...), so they survive restarts and scale-to-zero.
+    store: str = "local"
+    gcs_bucket: str = ""
+    # B13: the secret Cloud Scheduler sends in the X-Scheduler-Secret header to POST /refresh/scheduled. Empty = the
+    # route doesn't exist (locally the systemd timer runs the CLI instead). A secret: Secret Manager or .env only.
+    scheduler_secret: str = ""
 
     @property
     def users_path(self) -> pathlib.Path:
@@ -200,6 +209,9 @@ class Settings:
             auth_allowed_origins=[o.rstrip("/") for o in _list(_env("AUTH_ALLOWED_ORIGINS"))],
             chat_per_minute=_int("CHAT_PER_MINUTE", cls.chat_per_minute),
             chat_per_day=_int("CHAT_PER_DAY", cls.chat_per_day),
+            store=_env("STORE", cls.store).lower(),
+            gcs_bucket=_env("GCS_BUCKET"),
+            scheduler_secret=_env("SCHEDULER_SECRET"),
         )
 
     def check(self) -> None:
@@ -237,6 +249,13 @@ class Settings:
             if "BEGIN PUBLIC KEY" not in self.clerk_jwt_key:
                 raise ConfigError("CLERK_JWT_KEY must be the PEM public key from the Clerk dashboard (API keys, "
                                   "\"JWT public key\"), starting -----BEGIN PUBLIC KEY-----.")
+        if self.store not in STORES:
+            raise ConfigError(f"STORE must be local or gcs, not {self.store!r}.")
+        if self.store == "gcs" and not self.gcs_bucket:
+            raise ConfigError("STORE=gcs needs GCS_BUCKET, the Cloud Storage bucket's name (DEPLOY.md).")
+        if self.scheduler_secret and len(self.scheduler_secret) < SCHEDULER_SECRET_MIN:
+            raise ConfigError(f"SCHEDULER_SECRET must be at least {SCHEDULER_SECRET_MIN} characters (make one with "
+                              "`openssl rand -hex 32`), or empty for no scheduled route.")
         if self.fake_feeds_day not in (1, 2):
             raise ConfigError(f"FAKE_FEEDS_DAY must be 1 or 2, not {self.fake_feeds_day}.")
         from app.tools.registry import TOOLS  # here, not at the top: the tools import the config

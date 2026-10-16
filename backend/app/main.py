@@ -3,9 +3,10 @@
 Run: `uv run uvicorn app.main:app --port 8000` (settings from the environment, see .env.example).
 """
 import datetime as dt
+import hmac
 import logging
 
-from fastapi import APIRouter, Depends, FastAPI, Query, Request
+from fastapi import APIRouter, Depends, FastAPI, Header, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -99,7 +100,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         allow_headers=["Content-Type", "Authorization"],  # Authorization: the Clerk session token (B10)
     )
     # Sign-in (B10): every route on `api` needs a user (its router's dependency); only /health is on `app` itself.
-    # B13's scheduled refresh route goes on `app` too, with its own secret header instead of a user.
+    # B13: the scheduled refresh route (Cloud Scheduler) is on `app` too, with its own secret header instead of a user.
     app.state.verify = Verifier(deps.settings) if deps.settings.auth else None
     api = APIRouter(dependencies=[Depends(current_user)])
 
@@ -343,6 +344,26 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         nxt = dt.datetime.fromisoformat(reply.refusal.next_allowed)
         return _too_many(refused(reply.refusal.message, deps.clock(), nxt, say_when=False), user, "/refresh",
                          reply.model_dump())
+
+    if deps.settings.scheduler_secret:
+        secret = deps.settings.scheduler_secret.encode()
+
+        @app.post("/refresh/scheduled")
+        def scheduled_refresh(x_scheduler_secret: Annotated[str, Header()] = ""):
+            """B13: Cloud Scheduler's hourly tick. On `app`, not `api`: the deliberate exception to "every route needs
+            a user" (B10), since the scheduler has no Clerk session. It needs its own secret instead, compared in
+            constant time so the answer's timing says nothing about how much of a guess was right. It runs the
+            schedule exactly as the systemd timer's CLI does (app.refresh.scheduled_tick): the refresh only when the
+            owner's Settings schedule is due and not paused. A run where no feed answered is a 502, so Cloud
+            Scheduler's log shows the failed attempt; everything else is a 200."""
+            if not hmac.compare_digest(x_scheduler_secret.encode(), secret):
+                log.warning("Scheduled refresh refused: missing or wrong X-Scheduler-Secret")
+                return _error(401, "not_scheduler", "This route is for the scheduler only.")
+            body = refresh.scheduled_tick(live_only(), deps.owner_state.settings().alerts)
+            if body["ran"]:
+                deps.sync()
+            failed = body["ran"] and body["result"] and body["result"]["status"] == "failed"
+            return JSONResponse(status_code=502 if failed else 200, content=body)
 
     @api.get("/refresh")
     def refresh_status():

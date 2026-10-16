@@ -17,6 +17,7 @@ dependencies = [
     "mcp>=1.30.0,<2",
     "clerk-backend-api>=7.0.0,<8",
     "pyjwt>=2.9",
+    "google-cloud-storage>=3",
 ]
 
 [dependency-groups]

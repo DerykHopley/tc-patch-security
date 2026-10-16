@@ -113,12 +113,13 @@ def test_b10_5_health_is_open_and_names_the_publishable_key(signed, client):
 # --- B10.6: every route but /health needs a user ----------------------------------------------------------------------
 
 def test_b10_6_every_route_except_health_is_401_without_a_user(auth_settings, knowledge, index, tmp_path):
-    """Live mode on the fake feeds with the dev panel: the most routes there are. A route added later is covered."""
+    """Live mode on the fake feeds with the dev panel and the scheduled route: the most routes there are. A route added
+    later is covered. The scheduled route (B13) answers 401 too: without its secret header (test_deploy.py, B13.3)."""
     from app.deps import build_deps
     from app.main import create_app
 
     live = dataclasses.replace(auth_settings, data_mode="live", feeds="fake", live_path=tmp_path / "live",
-                               dev_panel=True)
+                               dev_panel=True, scheduler_secret="s" * 40)
     app = create_app(build_deps(live, knowledge=knowledge, index=index))
     c = TestClient(app, raise_server_exceptions=False)
     routes = [(m.upper(), path) for path, ops in app.openapi()["paths"].items() for m in ops]

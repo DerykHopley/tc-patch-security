@@ -9,7 +9,7 @@ import threading
 
 from app.config import DEFAULT_USER, USER_ID, Settings
 from app.state import State
-from app.store import LocalStore, Store
+from app.store import USERS_PREFIX, GcsStore, LocalStore, Store, open_bucket
 
 
 def local_store(settings: Settings) -> LocalStore:
@@ -32,6 +32,15 @@ class Users:
         # the default user's State is a plain file State, as before B09 (State.path is its file)
         default = State(settings.state_path, knowledge, defaults, dev_defaults)
         return cls(store, knowledge, defaults, dev_defaults, settings.owner, default)
+
+    @classmethod
+    def for_settings(cls, settings: Settings, knowledge, defaults, dev_defaults, bucket=None) -> "Users":
+        """STORE=local: `local`. STORE=gcs (B13): every user, the default one too, is an object `users/<id>.json`
+        in the bucket (`open_bucket`)."""
+        if settings.store != "gcs":
+            return cls.local(settings, knowledge, defaults, dev_defaults)
+        store = GcsStore(open_bucket(settings, bucket), USERS_PREFIX)
+        return cls(store, knowledge, defaults, dev_defaults, settings.owner)
 
     def state(self, user_id: str) -> State:
         if not USER_ID.fullmatch(user_id):

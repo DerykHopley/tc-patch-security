@@ -34,6 +34,7 @@ from app.config import DEFAULT_USER  # the alerts map is keyed by user id (B09)
 from app.config import FIXTURES, Settings
 from app.feeds import FeedError, Feeds, make_feeds
 from app.live_data import LiveData
+from app.store import LIVE_PREFIX, GcsStore, open_bucket
 
 log = logging.getLogger(__name__)
 
@@ -392,8 +393,12 @@ def _took(result: RefreshResult) -> str:
     return f"{seconds:.1f} s"
 
 
-def make_refresher(settings: Settings, feeds: Feeds | None = None, clock=utc_now, alerter=None) -> Refresher:
-    return Refresher(LiveData(settings.live_path), feeds or make_feeds(settings), clock, alerter)
+def make_refresher(settings: Settings, feeds: Feeds | None = None, clock=utc_now, alerter=None,
+                   bucket=None) -> Refresher:
+    """STORE=gcs (B13): the live data is in the bucket under `live/`; LIVE_PATH is this instance's local copy."""
+    b = open_bucket(settings, bucket)
+    live = LiveData(settings.live_path, GcsStore(b, LIVE_PREFIX) if b is not None else None)
+    return Refresher(live, feeds or make_feeds(settings), clock, alerter)
 
 
 def cli_alerter(settings: Settings):
@@ -403,7 +408,7 @@ def cli_alerter(settings: Settings):
     from app.notify import Transports
     from app.users import Users
 
-    users = Users.local(settings, None, default_settings(settings), default_dev_settings(settings))
+    users = Users.for_settings(settings, None, default_settings(settings), default_dev_settings(settings))
     return Alerter(settings, users, Transports)
 
 
@@ -452,8 +457,23 @@ def _schedule(settings: Settings):
     from app.app_settings import default_dev_settings, default_settings
     from app.users import Users
 
-    users = Users.local(settings, None, default_settings(settings), default_dev_settings(settings))
+    users = Users.for_settings(settings, None, default_settings(settings), default_dev_settings(settings))
     return users.state(settings.owner).read().settings.alerts
+
+
+def scheduled_tick(refresher: Refresher, alerts) -> dict:
+    """One tick of the schedule, as the systemd timer's CLI (`--schedule`) and Cloud Scheduler's route (B13) both
+    answer it. `alerts`: the owner's alert settings (schedule_hours, schedule_paused). The run's reply, or the skip:
+    `{"ran": false, "skipped": "paused" | "not_due", ...}`."""
+    hours = alerts.schedule_hours
+    reply = run_scheduled(refresher, hours, alerts.schedule_paused)
+    if reply is not None:
+        return reply.model_dump()
+    if alerts.schedule_paused:
+        return {"ran": False, "skipped": "paused", "last_checked": refresher.last_checked(), "schedule_hours": hours}
+    due = schedule_due(refresher, hours)
+    return {"ran": False, "skipped": "not_due", "last_checked": refresher.last_checked(),
+            "next_due": _iso(due) if due else None, "schedule_hours": hours}
 
 
 def main(argv: Sequence[str] = ()) -> int:
@@ -474,21 +494,14 @@ def main(argv: Sequence[str] = ()) -> int:
         return 2
     refresher = make_refresher(settings, alerter=cli_alerter(settings))
     if args.schedule:
-        schedule = _schedule(settings)
-        hours = schedule.schedule_hours
-        reply = run_scheduled(refresher, hours, schedule.schedule_paused)
-        if reply is None and schedule.schedule_paused:
-            print(json.dumps({"ran": False, "skipped": "paused", "last_checked": refresher.last_checked(),
-                              "schedule_hours": hours}, indent=1))
+        body = scheduled_tick(refresher, _schedule(settings))
+        print(json.dumps(body, indent=1))
+        if "skipped" in body:
             return 0
-        if reply is None:
-            due = schedule_due(refresher, hours)
-            print(json.dumps({"ran": False, "skipped": "not_due", "last_checked": refresher.last_checked(),
-                              "next_due": _iso(due) if due else None, "schedule_hours": hours}, indent=1))
-            return 0
+        reply = CheckReply.model_validate(body)
     else:
         reply = refresher.run("cli")
-    print(reply.model_dump_json(indent=1))
+        print(reply.model_dump_json(indent=1))
     return 0 if reply.ran and reply.result and reply.result.status == "ok" else 1  # partial is 1 too: a feed failed
 
 

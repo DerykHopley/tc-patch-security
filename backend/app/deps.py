@@ -7,6 +7,7 @@ import copy
 import datetime as dt
 import logging
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -28,7 +29,7 @@ from app.rag.pipeline import SearchOptions
 from app.rag.vector import ChromaIndex, IndexMismatch, build_index, open_index, sync_index
 from app.refresh import Refresher, make_refresher, utc_now
 from app.state import State
-from app.store import MemoryStore
+from app.store import MemoryStore, open_bucket
 from app.users import Users
 from app.web_research import WebResearch
 
@@ -149,7 +150,12 @@ def load_index(settings: Settings, knowledge: Knowledge) -> ChromaIndex:
                            settings.search_min_score)
     except IndexMismatch:
         return load_snapshot_index(settings, knowledge)
-    return sync_index(index, chunks)[0]
+    began = time.monotonic()
+    index, embedded = sync_index(index, chunks)
+    # A cold start on Cloud Run (B13): the image's index is the snapshot's, the live data comes from the bucket
+    log.info("Search index caught up with the live data: %d chunks embedded in %.1f s", embedded,
+             time.monotonic() - began)
+    return index
 
 
 def load_snapshot_index(settings: Settings, knowledge: Knowledge) -> ChromaIndex:
@@ -175,17 +181,19 @@ def load_snapshot_index(settings: Settings, knowledge: Knowledge) -> ChromaIndex
 
 def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge | None = None,
                index: ChromaIndex | None = None, http_client=None, feeds: Feeds | None = None,
-               clock: Callable[[], dt.datetime] = utc_now) -> Deps:
+               clock: Callable[[], dt.datetime] = utc_now, bucket=None) -> Deps:
     """Without `llm`, a router answers: it reads the dev panel's model choice on every call (A11).
-    Live mode loads the current live version (a copy of the snapshot at first); `knowledge` is ignored there."""
+    Live mode loads the current live version (a copy of the snapshot at first); `knowledge` is ignored there.
+    STORE=gcs (B13): users' state and the live data are in the Cloud Storage bucket; tests pass a fake `bucket`."""
     settings.check()
+    bucket = open_bucket(settings, bucket)
     refresher = version = None
     if settings.data_mode == "live":
-        refresher = make_refresher(settings, feeds, clock)
+        refresher = make_refresher(settings, feeds, clock, bucket=bucket)
         version = refresher.live.version()
         knowledge = load_knowledge(refresher.live.folder(version))
     knowledge = knowledge or load_knowledge()
-    users = Users.local(settings, knowledge, default_settings(settings), default_dev_settings(settings))
+    users = Users.for_settings(settings, knowledge, default_settings(settings), default_dev_settings(settings), bucket)
     state = users.state(DEFAULT_USER)
     deps = Deps(
         settings=settings,

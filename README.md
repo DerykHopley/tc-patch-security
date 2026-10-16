@@ -165,6 +165,10 @@ docker run --rm -p 8080:8080 --env-file backend/.env patch   # with your setting
 - Your state lives inside the container and goes when it's removed. Keep it with a volume: `-v patch-data:/app/backend/data`.
 - In `--env-file backend/.env`, leave out `INDEX_PATH`, `STATE_PATH` and `FRONTEND_DIR`: the image sets them. A local URL such as Ollama's `localhost` means the container itself, not your machine.
 
+### On Google Cloud Run
+
+One container on Cloud Run, users' state and the live data in Cloud Storage, keys in Secret Manager, an hourly Cloud Scheduler job, Clerk sign-in, at no cost at this use (B13, [#44](https://github.com/DerykHopley/tc-patch-security/issues/44)). Every step, copy-pasteable, with the costs against the free tiers: [DEPLOY.md](./DEPLOY.md). *Unverified:* written without a Google Cloud account, so none of its `gcloud` commands has run yet; the first deploy ([#45](https://github.com/DerykHopley/tc-patch-security/issues/45)) checks them.
+
 ### As an MCP server for other assistants
 
 Patch's knowledge can be used from another assistant, such as Claude Desktop or Claude Code, over MCP (B23, [#61](https://github.com/DerykHopley/tc-patch-security/issues/61)). The client starts the server itself, over stdio:
@@ -287,6 +291,7 @@ Read in this order:
 More:
 
 - [CODING_STANDARDS.md](./CODING_STANDARDS.md): the judgement rules for review.
+- [DEPLOY.md](./DEPLOY.md): deploy to Google Cloud Run, step by step, with the costs.
 - [docs/adr/](./docs/adr/): architecture decision records.
 - [docs/SOURCE-CHECKS.md](./docs/SOURCE-CHECKS.md): facts about outside services, checked against their official docs.
 - [docs/mcp-demo.md](./docs/mcp-demo.md): Patch as an MCP server, used from another assistant: the demo steps and transcripts.
