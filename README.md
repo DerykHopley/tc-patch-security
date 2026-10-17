@@ -125,6 +125,26 @@ Since B26 ([#70](https://github.com/DerykHopley/tc-patch-security/issues/70)), w
 - **Stays in `.env` only:** what the app needs before it can read Settings, or what could lock you out if set wrong from a page: `AUTH`, the Clerk keys, `AUTH_ALLOWED_ORIGINS`, `OWNER`, `STORE`/`GCS_BUCKET`, `CORS_ORIGINS`, the paths (`LIVE_PATH`, `INDEX_PATH`, `STATE_PATH`), `SCHEDULER_SECRET`, the model and embedder settings, and the test switches (`FEEDS=fake`, `NOTIFY_DRY_RUN`).
 - **Tapping a phone alert:** while the app address is `localhost` (or `127.*`, `::1`, `0.0.0.0`), a phone can't open it, so alerts carry no link and a tap opens the message in the ntfy app. Set a LAN, Tailscale or Cloud Run address and a tap opens Patch at the CVE. A test alert from Settings says which happens.
 
+### Sign-in (Clerk)
+
+Off locally and in the tests (`AUTH=off`): one default user, no sign-in. On (`AUTH=on`, the Clerk keys in `backend/.env`: [#65](https://github.com/DerykHopley/tc-patch-security/issues/65)), Patch is **invite-only**, with email and password or an SSO provider such as Google or Discord (B31, [#78](https://github.com/DerykHopley/tc-patch-security/issues/78)). Every sign-in and sign-up step stays on Patch's page, never Clerk's hosted pages. Why, and what's checked: [DECISIONS.md](./DECISIONS.md) (B31), [docs/SOURCE-CHECKS.md](./docs/SOURCE-CHECKS.md) (Clerk, B31).
+
+- **Your state comes along.** On the first start with sign-in on, the owner (`OWNER`) gets a copy of what you set up with sign-in off (live mode, Settings, the watchlist, alerts), if the owner has nothing saved yet. The log says "the owner (…) adopted the default user's state, once". It never runs again and never overwrites; the default user's state stays as it was.
+- **Someone not invited** sees "This account isn't invited to Patch. Ask the owner for an invitation." on Patch's sign-in screen.
+
+**The owner's Clerk dashboard steps** (https://dashboard.clerk.com, the Patch application):
+
+1. **SSO connections** (under User & authentication; menu names *unverified*): add the providers you want (the free plan allows 3), e.g. Google and Discord. On a development instance Clerk offers its own shared credentials for them (*unverified* for each provider).
+2. **Restrictions → Sign-up mode: Restricted.** Leave the allowlist off: it only works in Open mode and is paid in production.
+3. **Invite with Patch's address as the redirect**, so the invitation opens Patch, not Clerk's page. The dashboard can't set a redirect, so use the Backend API once per person, with the secret key from **API keys** in your shell (never in `.env` or the repo):
+   ```bash
+   curl https://api.clerk.com/v1/invitations -X POST \
+     -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
+     -d '{"email_address": "friend@example.com", "redirect_url": "http://localhost:5173/"}'
+   ```
+   Use the address people open Patch at (your Cloud Run URL once deployed). The link opens "Join Patch", where they choose a password or an SSO provider.
+4. **Your own account and SSO:** signing in with Google or Discord links to your existing Clerk account only when that provider's *verified* email is the one on your account. If it differs, sign in with your password and add the other email under your profile first.
+
 ### Optional: local models through Ollama
 
 Free, and nothing leaves the machine. Needs a GPU for useful speed. The report's local runs used Ollama 0.40.4 on an RX 7900 XTX (24 GB).
