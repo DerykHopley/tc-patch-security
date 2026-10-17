@@ -34,11 +34,12 @@ def _signed_in_health(route: Route) -> None:
 
 @pytest.fixture
 def open_signed_out(browser: Browser, ui_url: str, api_url: str):
-    """The app as a signed-out visitor sees it with sign-in on, Clerk unreachable. Returns the page and the API paths
-    the page asked for."""
+    """The app as a signed-out visitor sees it with sign-in on, Clerk unreachable, at `path` (B31: an address Clerk
+    sends to). Returns the page and the API paths the page asked for."""
     contexts: list[BrowserContext] = []
 
-    def _open(width=DESKTOP, scheme="light", reduced=False) -> tuple[Page, list[str]]:
+    def _open(width=DESKTOP, scheme="light", reduced=False, path="",
+              heading="Sign in to Patch") -> tuple[Page, list[str]]:
         ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme,
                                   reduced_motion="reduce" if reduced else "no-preference")
         contexts.append(ctx)
@@ -47,8 +48,8 @@ def open_signed_out(browser: Browser, ui_url: str, api_url: str):
         page = ctx.new_page()
         asked: list[str] = []
         page.on("request", lambda r: asked.append(r.url.removeprefix(api_url)) if r.url.startswith(api_url) else None)
-        page.goto(ui_url)
-        expect(page.get_by_role("heading", level=1, name="Sign in to Patch")).to_be_visible()
+        page.goto(ui_url + path)
+        expect(page.get_by_role("heading", level=1, name=heading)).to_be_visible()
         return page, asked
 
     yield _open
