@@ -16,6 +16,7 @@ from test_dashboard import (  # noqa: F401 (fixtures)
     DESKTOP, PHONE, SHOTS, TILES, api, clean_state, confirm, expect_rows, open_dash, rows, tile, tile_value,
 )
 from test_shell import settled
+from reduced_motion import scene, still
 
 HEIGHT = 900
 PIN = "Pin: dock the chat beside the page"
@@ -268,7 +269,7 @@ def test_a04b_5_dashboard_keeps_its_other_parts(open_dash):
     assert titles == ["Open CVEs by product and severity", "CVEs per month", "Open CVEs by OWASP category",
                       "Top 5 open CVEs"]
     side = page.locator(".dash-side > .card h2").all_inner_texts()
-    assert side == ["Watchlist", "Latest AI incidents (MITRE ATLAS)", "Data freshness"]
+    assert side == ["Watchlist", "Latest AI incidents (MITRE ATLAS)", "Recent alerts", "Data freshness"]  # B04
 
 
 # --- A04b.6: "Ask about this" over the CVEs page; the alert link still works ------------------------------------------
@@ -278,7 +279,7 @@ def test_a04b_5_dashboard_keeps_its_other_parts(open_dash):
 
 def test_a04b_6_alert_link_works_on_the_cves_page(open_cves):
     page = open_cves("#cve=CVE-2024-8309")
-    banner = page.get_by_role("region", name="Alert")
+    banner = page.get_by_role("region", name="Alert", exact=True)
     expect(banner).to_contain_text("You opened an alert for CVE-2024-8309.")
     banner.get_by_role("button", name="Explain it").click()
     expect(window(page).locator(".message.user")).to_have_text("Explain CVE-2024-8309 and how to defend against it.")
@@ -340,7 +341,7 @@ def test_a04b_9_cves_card_and_top_5_card_fade_up(open_cves, open_dash):
     assert top == ["fade-up", "0.24s"]
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a04b_9).
+# Reduced motion: scene a04b_9 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A04b.10: light and dark, phone and desktop, pinned -------------------------------------------------------------
@@ -420,3 +421,19 @@ def test_a04b_11_keyboard_reaches_the_tile_links_and_the_top_5_card(open_dash):
     assert visible_focus(page)
     page.keyboard.press("Enter")
     expect(page.get_by_role("heading", level=1)).to_have_text("CVEs")
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a04b_9_cves_page(fx):
+    open_page = fx("open_cves")
+    page = open_page(reduced=True)
+    still(page, "the page")
+    page.get_by_role("combobox", name="Severity").select_option("HIGH")
+    expect(page).to_have_url(re.compile("severity=HIGH"))
+    page.get_by_role("button", name=f"Mark {rows(page)[0]} fixed").click()
+    confirm(page)
+    expect(page.locator("table.cves tbody tr").first).to_be_visible()
+    still(page, "after Mark fixed")
+    still(open_page(width=400, reduced=True), "at phone width")

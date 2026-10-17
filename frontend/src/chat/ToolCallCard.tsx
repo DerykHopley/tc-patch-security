@@ -1,31 +1,37 @@
-import type { ReactNode } from 'react'
-import type { ToolCallRecord, Verdict } from '../api.ts'
+import { useState } from 'react'
+import { retryTool, type PageContext, type RefineFilter, type ToolCallRecord, type Verdict } from '../api.ts'
+import { changeButtons, fixFirstHref } from '../cardActions.ts'
 import { contextWords, STATUS_LABEL as CVE_STATUS_LABEL } from '../cveView.ts'
 import { OverdueMark, PriorityChip } from '../components/Priority.tsx'
 import { NoFixMark } from '../components/Decision.tsx'
 import { epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { VERDICT_LABEL, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
+import { ExternalLink as External } from '../components/ExternalLink.tsx'
 import type {
   AffectedOne,
   AffectedProduct,
   CveResult,
   CweResult,
+  DecisionAlreadySo,
   FixFirstResult,
+  Proposal,
+  ResearchResult,
+  SearchResult,
   TechniqueResult,
+  UpdatesResult,
   WatchlistResult,
 } from '../toolResults.ts'
+import { utcTime } from '../freshness.ts'
+import { proposalOf } from '../toolCalls.ts'
+import { scheduleLine } from '../refreshRuns.ts'
+import { followLink, openPath } from '../route.ts'
+import { AskButton, ChangeActions, RefineActions } from './CardActions.tsx'
 
 // One card per tool call: name, arguments, status, time, and the result drawn for its tool. Errors in red.
 // Result types come from the tools' declared result models (toolResults.ts, generated from backend/app/tools/).
 
 const STATUS_LABEL = { ...CVE_STATUS_LABEL, not_watched: 'Not watched' }
-
-const External = ({ href, children }: { href: string; children: ReactNode }) => (
-  <a href={href} target="_blank" rel="noreferrer">
-    {children}
-  </a>
-)
 
 function CveCard({ r }: { r: CveResult }) {
   return (
@@ -73,6 +79,7 @@ function CveCard({ r }: { r: CveResult }) {
           </>
         )}
       </p>
+      <ChangeActions owner={r} keyId={r.id} cve={r.id} product={r.product} buttons={changeButtons(r.watch_status)} />
     </div>
   )
 }
@@ -96,6 +103,7 @@ function AffectedCard({ r }: { r: AffectedOne | AffectedProduct }) {
             </li>
           ))}
         </ul>
+        <ChangeActions owner={r} keyId={r.product} product={r.product} buttons={['set_version']} />
       </div>
     )
   }
@@ -113,6 +121,7 @@ function AffectedCard({ r }: { r: AffectedOne | AffectedProduct }) {
       <p className="meta verdict-lines">
         <VerdictFacts reason={r.reason} fixed={r.fixed_version} who={r.who_acts} />
       </p>
+      <ChangeActions owner={r} keyId={r.id} cve={r.id} product={r.product} buttons={changeButtons(r.watch_status)} />
     </div>
   )
 }
@@ -164,7 +173,7 @@ function WeaknessCard({ r }: { r: CweResult | TechniqueResult }) {
   )
 }
 
-function FixFirstCard({ r }: { r: FixFirstResult }) {
+function FixFirstCard({ r, page }: { r: FixFirstResult; page: PageContext }) {
   const view = contextWords(r.filters, r.product ?? undefined).join(', ')
   return (
     <div className="result-card fix-first-card">
@@ -194,6 +203,88 @@ function FixFirstCard({ r }: { r: FixFirstResult }) {
               <span className="meta">
                 {c.product} · {c.reasons.join(' · ')} · {c.no_fix ? 'decide by' : 'due'} {c.due_date} ({c.due_from})
               </span>
+              <span className="fix-actions">
+                <AskButton cve={c.id} page={page} />
+              </span>
+              {c.status === 'open' && (
+                <ChangeActions owner={r} keyId={c.id} cve={c.id} product={c.product} buttons={['accepted']} />
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      <p className="meta">
+        <a href={fixFirstHref(r.filters)} onClick={(e) => followLink(e, openPath)}>
+          Open in CVEs page
+        </a>
+      </p>
+    </div>
+  )
+}
+
+/** A proposal, from whichever tool made it (known by its shape, B27): the card under the answer acts on it. */
+function ProposedCard({ p }: { p: Proposal }) {
+  return (
+    <div className="result-card watchlist-card">
+      <p className="result-title">Proposed: {p.title}</p>
+      <p className="meta">
+        {p.before} → {p.after} · approve, edit or cancel it in the card under the answer
+      </p>
+    </div>
+  )
+}
+
+/** Nothing to propose: it's already so. update_watchlist adds the watchlist as it is. */
+function AlreadySoCard({ r }: { r: Proposal | WatchlistResult | DecisionAlreadySo }) {
+  if ('proposal_id' in r) return null // a proposal: ProposedCard draws it
+  return (
+    <div className="result-card watchlist-card">
+      <p className="result-title">{r.message}</p>
+      {'watchlist' in r && <p className="meta">Watching: {r.watchlist.join(', ') || 'nothing'}</p>}
+    </div>
+  )
+}
+
+/** A web result's facts (B08), on its source and in research_web's card: always "Web result, unverified", the site,
+ *  the date when Tavily gives one, and "Flagged" when the page tries to give instructions. */
+export function WebFacts({ site, date, flagged }: { site?: string | null; date: string | null; flagged: boolean }) {
+  return (
+    <div className="chips web-facts">
+      <span className="chip web-unverified">Web result, unverified</span>
+      {flagged && (
+        <span className="chip web-flagged" title="This page's text tries to give instructions. Patch ignores them.">
+          Flagged: instructions ignored
+        </span>
+      )}
+      <span className="meta">
+        {site}
+        {date ? ` · ${date}` : ' · no date given'}
+      </span>
+    </div>
+  )
+}
+
+const VIA = {
+  mcp: "Tavily's MCP server",
+  api: "Tavily's search API (the MCP server didn't answer)",
+  canned: "the model check's saved web results",
+}
+
+function ResearchCard({ r }: { r: ResearchResult }) {
+  return (
+    <div className="result-card research-card">
+      <p className="result-title">Web search: “{r.query}”</p>
+      <p className="meta">
+        {r.results.length} {r.results.length === 1 ? 'result' : 'results'} · via {VIA[r.via]}
+        {r.flagged > 0 && ` · ${r.flagged} flagged`} · {r.searches_left} searches left today
+      </p>
+      {r.results.length > 0 && (
+        <ol className="web-list">
+          {r.results.map((w) => (
+            <li key={w.n}>
+              <span className="source-n">{w.n}</span>{' '}
+              <External href={w.url}>{w.title}</External>
+              <WebFacts site={w.site} date={w.date} flagged={w.flagged} />
             </li>
           ))}
         </ol>
@@ -202,41 +293,207 @@ function FixFirstCard({ r }: { r: FixFirstResult }) {
   )
 }
 
-function WatchlistCard({ r }: { r: WatchlistResult }) {
+// check_updates' card (B06, DESIGN.md §6.2): when it checked (or why it didn't), the counts, the new CVEs and the
+// user's alerts, each with its source number, and a link to the CVEs page filtered to new (B05's `new=1`).
+const REASON_LABEL: Record<string, string> = {
+  kev: 'Added to CISA KEV',
+  kev_recheck: 'In KEV while marked fixed: recheck',
+  new: 'New',
+  new_unscored: 'New, not scored yet',
+  now_critical: 'Now critical',
+  due_soon: 'Due soon',
+  overdue: 'Overdue',
+}
+
+function updatesTitle(r: UpdatesResult): string {
+  if (r.mode === 'snapshot') return `A frozen snapshot, as of ${r.as_of}: nothing to check`
+  if (!r.last_checked) return 'Not checked yet'
+  return `${r.ran ? 'Checked the feeds' : 'Last check'} · ${utcTime(r.last_checked)}`
+}
+
+function UpdatesCard({ r }: { r: UpdatesResult }) {
+  const c = r.counts
   return (
-    <div className="result-card watchlist-card">
-      <p className="result-title">{r.message}</p>
-      <p className="meta">Watching: {r.watchlist.join(', ') || 'nothing'}</p>
+    <div className="result-card updates-card">
+      <p className="result-title">{updatesTitle(r)}</p>
+      {r.refusal && r.refusal.reason !== 'snapshot' && <p className="meta">{r.refusal.message}</p>}
+      {r.mode === 'live' && <p className="meta updates-schedule">{scheduleLine(r.schedule, r.mode)}</p>}
+      {r.ok === false && <p className="tool-error">The check failed, nothing changed: {r.problems.join('; ')}</p>}
+      {r.status === 'partial' && <p className="meta">Partial: {r.problems.join('; ')}. The rest was written.</p>}
+      {r.ok && (
+        <p className="meta">
+          {c.new} new · {c.updated} updated · {c.kev_added} added to KEV · {c.rescored} rescored · {r.alerts_total}{' '}
+          {r.alerts_total === 1 ? 'alert' : 'alerts'} for you
+        </p>
+      )}
+      {r.new_cves.length > 0 && (
+        <>
+          <p className="updates-head">New CVEs</p>
+          <ul className="updates-list">
+            {r.new_cves.map((v) => (
+              <li key={v.id}>
+                {v.n && <span className="source-n">{v.n}</span>}
+                <strong>{v.id}</strong>
+                <span className="meta">{v.product}</span>
+                <SeverityBadge severity={v.severity} cvss={null} />
+                {v.kev && <span className="chip kev">KEV</span>}
+                {v.priority ? <PriorityChip level={v.priority} /> : <span className="chip">Not watched</span>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {r.alerts.length > 0 && (
+        <>
+          <p className="updates-head">
+            Alerts for you{r.alerts_total > r.alerts.length ? ` (first ${r.alerts.length} of ${r.alerts_total})` : ''}
+          </p>
+          <ul className="updates-list">
+            {r.alerts.map((a) => (
+              <li key={`${a.cve} ${a.reason}`}>
+                {a.n && <span className="source-n">{a.n}</span>}
+                <strong>{a.cve}</strong>
+                <span className="chip">{REASON_LABEL[a.reason] ?? a.reason}</span>
+                {a.held && <span className="meta">held for quiet hours</span>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {c.new > 0 && r.ok && (
+        <p className="meta">
+          <a href="/cves?new=1" onClick={(e) => followLink(e, openPath)}>
+            See the new CVEs on the CVEs page
+          </a>
+        </p>
+      )}
     </div>
   )
 }
 
-function ResultCard({ call }: { call: ToolCallRecord }) {
+const DOC_WORD: Record<string, string> = {
+  owasp_llm: 'OWASP LLM Top 10',
+  owasp_web: 'OWASP Top 10',
+  atlas_technique: 'ATLAS technique',
+  atlas_mitigation: 'ATLAS mitigation',
+  atlas_case: 'ATLAS case study',
+  cve: 'CVE',
+}
+
+// search_security's card (B24): what was found, and buttons that run the same search again, narrower.
+function SearchCard({ r, query, applied, page }: {
+  r: SearchResult
+  query: string
+  applied: RefineFilter[]
+  page: PageContext
+}) {
+  return (
+    <div className="result-card search-card">
+      <p className="result-title">
+        {r.sources.length} {r.sources.length === 1 ? 'source' : 'sources'} for “{query}”
+      </p>
+      {r.sources.length === 0 ? (
+        <p className="meta">Nothing matches this filter.</p>
+      ) : (
+        <ol className="search-list">
+          {r.sources.map((s) => (
+            <li key={s.n}>
+              <span className="source-n">{s.n}</span> {s.title}{' '}
+              <span className="meta">{DOC_WORD[s.doc_type] ?? s.doc_type}</span>
+              {s.severity && <SeverityBadge severity={s.severity} cvss={null} />}
+              {s.kev && <span className="chip kev">KEV</span>}
+            </li>
+          ))}
+        </ol>
+      )}
+      <RefineActions query={query} applied={applied} page={page} />
+    </div>
+  )
+}
+
+function ResultCard({ call, page, applied }: { call: ToolCallRecord; page: PageContext; applied: RefineFilter[] }) {
+  const proposal = proposalOf(call) // by its shape, whichever tool proposed it (B27)
+  if (proposal) return <ProposedCard p={proposal} />
   // Checking the name narrows the result to that tool's type.
   if (call.name === 'lookup_cve' && call.result) return <CveCard r={call.result} />
   if (call.name === 'explain_weakness' && call.result) return <WeaknessCard r={call.result} />
   if (call.name === 'check_affected' && call.result) return <AffectedCard r={call.result} />
-  if (call.name === 'prioritise' && call.result) return <FixFirstCard r={call.result} />
-  if (call.name === 'update_watchlist' && call.result) return <WatchlistCard r={call.result} />
+  if (call.name === 'prioritise' && call.result) return <FixFirstCard r={call.result} page={page} />
+  if ((call.name === 'update_watchlist' || call.name === 'propose_decision') && call.result) {
+    return <AlreadySoCard r={call.result} /> // "nothing to change"
+  }
+  if (call.name === 'research_web' && call.result) return <ResearchCard r={call.result} />
+  if (call.name === 'check_updates' && call.result) return <UpdatesCard r={call.result} />
+  if (call.name === 'search_security' && call.result) {
+    return <SearchCard r={call.result} query={String(call.args.query ?? '')} applied={applied} page={page} />
+  }
   return null
 }
 
-export function ToolCallCard({ call }: { call: ToolCallRecord }) {
+// B20: a step tried again keeps its new record for the page's lifetime, so switching tabs doesn't lose it.
+const retried = new WeakMap<ToolCallRecord, ToolCallRecord>()
+
+/** `page`: the answer's page context, sent again with Try again (prioritise reads it) and with the card's buttons
+ *  (B24). `applied`: the refine filters this search already has (a refined result's card). */
+export function ToolCallCard({ call: original, page = {}, applied = [] }: {
+  call: ToolCallRecord
+  page?: PageContext
+  applied?: RefineFilter[]
+}) {
+  const [call, setCall] = useState(() => retried.get(original) ?? original)
+  const [trying, setTrying] = useState(false)
+  const [retryError, setRetryError] = useState<string | null>(null)
   const r = call.result
+  const again = call !== original // this card shows a step that was tried again
+
+  const tryAgain = () => {
+    setTrying(true)
+    setRetryError(null)
+    retryTool(original, page)
+      .then((rec) => {
+        retried.set(original, rec)
+        setCall(rec)
+      })
+      .catch((e: unknown) => setRetryError(e instanceof Error ? e.message : 'Something went wrong. Try again.'))
+      .finally(() => setTrying(false))
+  }
+
   return (
     <article className={`tool-card ${call.status}`}>
       <header>
         <code>{call.name}</code>
-        <span className={`status ${call.status}`}>{call.status === 'ok' ? 'OK' : 'Error'}</span>
+        <span className={`status ${call.status}`}>
+          {call.status === 'ok' ? (again ? 'OK on retry' : 'OK') : call.retryable ? "Didn't finish" : 'Error'}
+        </span>
         <span className="meta">{call.duration_ms.toFixed(1)} ms</span>
       </header>
       <pre className="args">{JSON.stringify(call.args, null, 2)}</pre>
       {call.error && (
         <p className="tool-error">
-          <strong>{call.error.code}</strong>: {call.error.message}
+          {call.retryable ? "didn't finish: " : <><strong>{call.error.code}</strong>: </>}
+          {call.error.message}
         </p>
       )}
-      <ResultCard call={call} />
+      {call.retryable && (
+        <div className="try-again-row">
+          <button type="button" className="try-again" onClick={tryAgain} disabled={trying} aria-busy={trying}>
+            {trying && <span className="spinner" aria-hidden="true" />}
+            {trying ? 'Trying again…' : 'Try again'}
+          </button>
+          <span className="meta">Runs this step only.</span>
+        </div>
+      )}
+      {retryError && (
+        <p className="tool-error" role="alert">
+          {retryError}
+        </p>
+      )}
+      {again && call.status === 'ok' && (
+        <output className="retry-note">
+          This step worked on a second try. The answer above was written without it: ask again to have Patch use it.
+        </output>
+      )}
+      <ResultCard call={call} page={page} applied={applied} />
       {r && (
         <details className="raw">
           <summary>Raw result</summary>

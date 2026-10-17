@@ -1,0 +1,163 @@
+/* Sign-in (B10, docs/design/DESIGN.md §5.13): the sign-in screen and the user menu. Tokens only. */
+
+/* ---------- The sign-in screen: one card in the middle of the page ---------- */
+
+.signin-page {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 4.5rem 1rem 2rem; /* room for Patch's head and the theme switch */
+  box-sizing: border-box;
+}
+
+.signin-theme {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+}
+
+.signin-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 26rem;
+  box-sizing: border-box;
+  padding: 0 1.6rem 1.6rem;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+  animation: signin-up 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; /* the cards' fade up (§7.1) */
+}
+
+.signin-card > .robot {
+  margin: -3rem 0 0.2rem; /* his head rises over the card's top edge (§8.2) */
+}
+
+.signin-brand {
+  justify-content: center;
+  padding-bottom: 0.8rem;
+  margin-bottom: 0.8rem;
+  align-self: stretch;
+}
+
+.signin-card h1 {
+  margin: 0 0 0.3rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.signin-lead {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+.signin-form {
+  width: 100%;
+  min-width: 0;
+}
+
+.signin-note {
+  display: block;
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+}
+
+/* Clerk didn't load: an error line with its edge, as the other status lines (§5.7) */
+.signin-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border-left: 3px solid var(--error);
+  border-radius: var(--radius-input);
+  background: var(--error-soft);
+  color: var(--text);
+}
+
+.signin-failed p {
+  margin: 0;
+}
+
+@keyframes signin-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ---------- The user menu: a round button in the top bar, a small card under it ---------- */
+
+.user-menu {
+  position: relative;
+}
+
+.user-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: var(--on-primary);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-primary);
+}
+
+.user-btn:hover:not(:disabled) {
+  border-color: transparent;
+}
+
+.user-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.user-card {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: max-content;
+  min-width: 12rem;
+  max-width: min(18rem, calc(100vw - 2rem));
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-nested);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  animation: user-pop 0.16s ease both; /* the bubble's pop (§7.1) */
+}
+
+.user-name,
+.user-email {
+  overflow-wrap: anywhere;
+}
+
+.user-email {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.user-signout {
+  margin-top: 0.5rem;
+  align-self: flex-start;
+}
+
+@keyframes user-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}

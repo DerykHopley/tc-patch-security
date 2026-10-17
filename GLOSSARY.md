@@ -18,8 +18,32 @@ _Avoid_: package, vendor, tool
 The knowledge base frozen on one date, so answers and tests repeat exactly.
 _Avoid_: fixtures (that's the folder), cache
 
+**Live data**:
+The CVE data in live mode (`DATA_MODE=live`): the snapshot's files, refreshed from the feeds, kept as whole versions. Starts as a copy of the snapshot. OWASP and ATLAS stay snapshot data.
+_Avoid_: real-time data, cache
+
+**Refresh**:
+One run that fetches the feeds (NVD, KEV, EPSS, OSV), builds a new version of the live data and moves *last checked*. Check now, the CLI and later the chat and the schedule all start the same refresh.
+_Avoid_: sync, update, poll
+
+**Partial run**:
+A refresh where some feeds answered and some didn't (B20). What answered is written; a failed feed keeps its data; *last checked* stays. A **failed run** is one where no feed answered: nothing is written.
+_Avoid_: half refresh, degraded run
+
+**Skipped run**:
+A refresh that was asked for but refused by the 5-minute rule (or because one was running): nothing was fetched. Shown in the run history as "Skipped: too soon"; the same refusal again counts up instead of adding a line (B19).
+_Avoid_: failed run (a failed run did ask the feeds)
+
+**Paused schedule**:
+The scheduled refresh switched off on Settings (B19). No scheduled run starts; Check now, the CLI and `check_updates` still run one, and alerts held through quiet hours still go out.
+_Avoid_: disabled refresh, alerts off (that's a different switch)
+
+**Didn't finish** (a step):
+A tool call that stopped short in an answer and may pass on a second try: a timeout, a rate limit, a service that's down. Its card says "Didn't finish" and offers **Try again**, which runs that step only. The answer says the step is missing, never that it worked.
+_Avoid_: partial answer, skipped
+
 **As-of date**:
-The date "today" means for the data: the snapshot date in snapshot mode.
+The date "today" means for the data: the snapshot date in snapshot mode, today (UTC) in live mode.
 _Avoid_: now, current date
 
 **KEV**:
@@ -37,6 +61,10 @@ _Avoid_: exploit score, risk score
 **Source**:
 A numbered piece of the knowledge base that an answer cites as `[n]`.
 _Avoid_: reference, document, chunk (a chunk is how it's stored)
+
+**Web source**:
+A numbered web page from `research_web` (B08), cited as `[n]` like a source but always marked "Web result, unverified". It's untrusted text.
+_Avoid_: search result, link
 
 ### Your stack
 
@@ -120,6 +148,10 @@ _Avoid_: external content
 To mark a message as looking like an injection attempt, log it, and still answer it.
 _Avoid_: block, reject (a flagged message is never blocked)
 
+**Proposal** (proposed change):
+A change Patch suggests to your watchlist, a CVE's status or a product's details. It has four kinds: **watch** a product, **unwatch** a product, **set status** (a CVE's status and its decision record), **set details** (how you run a product: usage, version, internet-facing). Nothing changes until you approve it; you can edit a set status or set details proposal, or cancel any of them. It expires after an hour. A **proposed decision** (B22) is a proposal of a CVE's decision record at the end of web research: it lists the sources it rests on.
+_Avoid_: action, pending change, request
+
 ### Alerts
 
 **Alert**:
@@ -133,6 +165,34 @@ _Avoid_: trigger, type
 **Channel**:
 Where alerts are delivered: desktop, email or ntfy.
 _Avoid_: notifier (that's the code), sink
+
+**Digest**:
+One message for many alerts: more than the digest limit in one check (default 5), or what quiet hours held. It gives counts by alert reason, never the CVE ids.
+_Avoid_: summary, batch
+
+**Quiet hours**:
+A daily time window in which alerts are held, then sent as one digest when it ends.
+_Avoid_: do not disturb, mute
+
+**Alerts log**:
+The record of every alert message: when, why, and what each channel did with it (sent, recorded only, not set up, failed). The dashboard's "Recent alerts" card shows the last 20.
+_Avoid_: history (that's a CVE's decisions), notifications
+
+**Owner**:
+The one user whose alerts go to the channels, named by `OWNER` in the server's environment (locally the default user; required with sign-in on). Every other user's alerts are shown in the app only. The owner's schedule runs the shared refresh, and only the owner can change it or use the demo switches.
+_Avoid_: admin, account holder
+
+**Default user**:
+The one user while sign-in is off (locally and in the tests). Their state is the state file.
+_Avoid_: local user, guest
+
+**Sign-in**:
+Clerk, invite-only, switched by `AUTH` (off locally and in the tests). On, every API route but `/health` needs a signed-in user; a signed-out visitor sees the sign-in screen.
+_Avoid_: login, auth (except the setting's name)
+
+**Session token**:
+The short-lived (60 s) token Clerk gives the signed-in browser. The frontend sends a fresh one with every API call; the backend checks it with the instance's JWT public key.
+_Avoid_: JWT (it is one, but say what it's for), API key
 
 ### The assistant
 

@@ -21,3 +21,4 @@ Turing College sprint 2 project. The real build is `backend/` (FastAPI) and `fro
 - Issue tracker: GitHub issues on DerykHopley/tc-patch-security. See `docs/agents/issue-tracker.md`.
 - Triage labels: the five defaults. See `docs/agents/triage-labels.md`.
 - Domain docs: single context, `GLOSSARY.md`, `docs/adr/`, `DECISIONS.md`. See `docs/agents/domain.md`.
+- Adding a chat tool or a card action: `docs/agents/adding-a-tool.md` lists every place to wire.

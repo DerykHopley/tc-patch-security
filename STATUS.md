@@ -24,18 +24,22 @@ cd frontend && npm install && npm run dev                                    # h
 
 ## How to test it
 
-All checked 2026-10-15 on `spec-a` (28cc2e9). No key, no network.
+No key, no network. Each command prints its own counts (passed, skipped), so this table keeps only what each check proves: a copied count goes stale with the next test, and every branch that edits it conflicts with the others (spec B retro, finding 3).
 
-| Check | Command | Result |
+| Check | Command | What it proves |
 |---|---|---|
-| Backend | `cd backend && uv run pytest` | 774 passed |
-| Types, lint, unit tests | `cd frontend && npx tsc -b && npm run lint && npm test` | type check clean; 24 unit tests passed |
-| Fixed waits | `python3 frontend/e2e/check_waits.py` | clean |
-| Browser check | `frontend/e2e/run.sh` (Firefox and Chromium) | 356 checks per browser; all passed in both, 2 skipped |
-| Slow mode | `E2E_LATENCY_MS=300 frontend/e2e/run.sh` | finds timing races before CI does |
+| Backend | `cd backend && uv run pytest` | the API, the rules, the tools, the state store, the model check's scoring |
+| Types, lint, unit tests | `cd frontend && npx tsc -b && npm run lint && npm test` | type check, oxlint, the frontend unit tests |
+| Fixed waits | `python3 frontend/e2e/check_waits.py` | no fixed wait in the browser check without `# allowed: <reason>` |
+| Browser check | `frontend/e2e/run.sh` (Firefox and Chromium) | the pages in light and dark, phone and desktop, by keyboard, with reduced motion; also the tooling tests (the fixed-wait check, the pre-commit hook, `scripts/ff-merge.sh`) |
+| Slow mode | `E2E_LATENCY_MS=300 frontend/e2e/run.sh` | the same check with every API answer late: finds timing races before CI does |
+| Built frontend | `E2E_BUILT=1 frontend/e2e/run.sh` | the same check against `vite build`, served by each backend as the container serves it (what CI runs) |
+| Container image (B12) | `frontend/e2e/container.sh` (needs Docker) | image builds; /health, embedder check, no `.env` or secret, the Cloud Storage client present, a short browser check in Chromium |
 | Report builds | `cd backend && uv run python -m app.evals fake-report --out /tmp/r.html` | FakeLLM and fake embedders; CI uploads it |
 
-- CI ([.github/workflows/ci.yml](./.github/workflows/ci.yml)) runs all of these once per push to `main` or `spec-*`, and on pull requests from other branches. A docs-only push skips the browser check.
+- CI ([.github/workflows/ci.yml](./.github/workflows/ci.yml)) runs all of these once per push to `main` or `spec-*`, and on pull requests from other branches. A docs-only push skips the browser check. The browser check runs as two jobs side by side, one per browser, so it takes half as long, against the built frontend (`E2E_BUILT=1`, #72): per job, Chromium 12:27 → about 8:40, Firefox 20:11 → about 16:50 (CI runs before and after; DECISIONS.md, 2026-10-16).
+- The pre-commit hook (`.githooks/pre-commit`, on with `git config core.hooksPath .githooks`) runs two of CI's checks before each commit: no staged conflict markers, and the fixed-wait check.
+- Merging a ticket branch into `spec-b`: `scripts/ff-merge.sh <branch>` (`--dry-run` first shows the plan). See [docs/agents/issue-tracker.md](./docs/agents/issue-tracker.md).
 - Review rules that lint can't check: [CODING_STANDARDS.md](./CODING_STANDARDS.md). Each test names its check id (`A<ticket>.<n>`).
 
 ## What's built
@@ -57,6 +61,28 @@ Spec A's tickets ([#2](https://github.com/DerykHopley/tc-patch-security/issues/2
 | Model check, retrieval check, HTML report | `backend/app/evals/`, `frontend/src/dev/` | A12 #14 |
 | Settings: watchlist, alert rules, channels, policy, explain level | `frontend/src/pages/SettingsPage.tsx`, `backend/app/app_settings.py`, `notify.py` | A13 #15, A15b #30 |
 | Snapshot additions: OSV versions, EPSS, product-match check, licences | `backend/scripts/snapshot_additions.py` | A14 #16 |
+| Shared build code for the snapshot and the live refresh | `backend/app/cve_build.py` | B01 #32 |
+| Live mode and Check now on the fake feeds; the refresh CLI (`uv run python -m app.refresh`) | `backend/app/refresh.py`, `live_data.py`, `feeds.py`, `frontend/src/components/Freshness.tsx` | B02 #35 |
+| Real feeds (NVD, KEV, EPSS, OSV over HTTP, `FEEDS=real`) and the hourly schedule (`--schedule`, systemd user timer); the real run is a human step (#40) | `backend/app/feeds.py` `HttpFeeds`, `refresh.py` `run_scheduled`, `deploy/systemd/` | B03 #36 |
+| Alerts after a live refresh: diff, rules, once per CVE and reason, digest, quiet hours, per-channel log, the dashboard's Recent alerts | `backend/app/alerts.py`, `frontend/src/components/AlertsLog.tsx` | B04 #37 |
+| New since last check on the CVEs page: the "New" chip and `new=1` filter, `/cves?new=1`, kept per user | `backend/app/alerts.py`, `state.py`, `frontend/src/pages/CvesPage.tsx` | B05 #38 |
+| Patch as an MCP server (stdio, four read-only tools); the real-client demo is a human step | `backend/app/mcp_server.py`, `docs/mcp-demo.md` | B23 #61 |
+| Per-user state: a state store (local JSON files, in memory, Cloud Storage against a fake), the user from an auth dependency, alerts per user and only the owner's (`OWNER`) on the channels | `backend/app/store.py`, `users.py`, `auth.py` | B09 #41 |
+| Clerk sign-in, built against faked tokens (no Clerk account yet): `AUTH=on` makes every route but `/health` need a session token checked with the JWT key (no network) and `azp`; the sign-in screen and user menu; decision records name the user. Creating the instance and keys is a human step (#65); the signed-in browser check runs only with its keys | `backend/app/auth.py`, `frontend/src/auth/`, `components/UserMenu.tsx`, `frontend/e2e/test_sign_in.py` | B10 #42 |
+| Sign-in setup: SSO providers next to email and password, still invite-only; every Clerk step on Patch's page (never Clerk's hosted page), an invitation link opens "Join Patch", a sign-up without an invitation gets Patch's own "not invited" message; with `AUTH=on` the owner adopts the default user's state once. The real SSO round trip is the owner's check on #78 | `frontend/src/auth/signInView.ts`, `ClerkApp.tsx`, `backend/app/users.py` `adopt_default` | B31 #78 |
+| The loading screen until `/health` answers (Patch, "Waking Patch up…"); after 15 s without an answer "Backend offline — retrying", with Retry and retries backing off from 2 s to every 30 s; an outright failure still shows the app saying "Backend offline" | `frontend/src/healthWait.ts`, `components/LoadingScreen.tsx`, `frontend/e2e/test_loading_screen.py` | #69 |
+| Partial success and retry: each feed is a step, a partial refresh is written and shown with Retry; a failed tool step is marked, with Try again; a failed send or save keeps your work; failure switches (`FAKE_FEEDS_FAIL`, `FAIL_TOOLS`) | `backend/app/refresh.py`, `tools/registry.py`, `frontend/src/components/Freshness.tsx`, `chat/ToolCallCard.tsx`, `docs/failure-demo.md` | B20 #57 |
+| Rate limits: chat messages per user per minute and per day (`CHAT_PER_MINUTE`, `CHAT_PER_DAY`), one 429 form with a retry time (a refused Check now too), OpenRouter's 402 as a plain 402, both shown as a quiet note in the chat | `backend/app/rate_limits.py`, `main.py`, `frontend/src/chat/useChat.ts` | B11 #43 |
+| Cloud Run deploy setup: users' state and the live data in Cloud Storage (`STORE=gcs`, `GCS_BUCKET`), the scheduled refresh route for Cloud Scheduler (`POST /api/refresh/scheduled`, `SCHEDULER_SECRET` header, no user needed), the cold-start catch-up from the bucket, and the written procedure. Nothing run on Google Cloud yet: the deploy is a human step (#45) | `DEPLOY.md`, `deploy/cloudrun/`, `backend/app/store.py` `open_bucket`, `main.py`, `refresh.py` `scheduled_tick` | B13 #44 |
+| Review fixes on spec B (check ids `BR.n`): Try again counts against the chat limit and runs only offered tools; web links http(s) only; the schedule and the demo switches are the owner's (others see the schedule read-only); a user who signed in gets alerts before saving anything; `AUTH=on` needs `OWNER`; one `CveId`, one proposal action map | `backend/tests/test_review_fixes.py`, `frontend/src/toolCalls.ts`, DECISIONS.md (BR rows) | #31 |
+| The Dev page is the owner's: only the owner saves its choices, runs the playground and the checks, or finds local models (403 `not_owner`); anyone else sees the choices read-only, the reads stay open. `DEV_PANEL=false` is no longer needed for safety | `backend/app/dev.py`, `frontend/src/pages/DevPage.tsx` | B29 #76 |
+| Pause the schedule and the run history: Pause on Settings (the dashboard says "Schedule paused", with Resume), the "Refresh runs" card (last 20 runs and skipped runs, each opening to its feeds), `GET /refresh/runs`, `check_updates` says whether the schedule is on | `backend/app/refresh.py` `run_scheduled`, `history`, `schedule_status`; `frontend/src/components/RefreshRuns.tsx` | B19 #59 |
+| Settings instead of `.env` where safe: live or snapshot (switched with no restart), the NVD key, the quiet hours' time zone, the alert link address and the channels' details, owner only; secrets write-only; the environment wins. A phone alert or email links back only when a phone can open the address | `backend/app/server_settings.py`, `deps.py` `_apply`, `notify.py` `tap_link`, `frontend/src/components/ServerFields.tsx`, `serverSettings.ts` | B26 #70 |
+| Live mode reads the real feeds by default (`FEEDS=real`; tests, `run.sh` and `container.sh` say `fake`, a conftest guard fails any test that would reach the real services); the owner's Data card says which feeds ("Live: NVD, CISA KEV, EPSS and OSV.dev", or a warning for the made-up test data, also on the freshness card); a live folder written by the other kind is refused (one with no record is accepted); a scheduled tick in snapshot mode is a skip (exit 0) | `backend/app/config.py`, `live_data.py` `check_feeds`, `refresh.py` `main`, `backend/tests/conftest.py` `no_real_feeds`, `frontend/src/freshness.ts` `feedsLine` | B28 #74 |
+| Changes Patch proposes: a preview card, approve, edit, cancel; idempotent, 1-hour expiry, stale check | `backend/app/proposals.py`, `frontend/src/chat/ProposalCard.tsx` | B21 #58 |
+| Buttons on tool cards: Open in CVEs page, Ask about this, Mark accepted…, Watch this product, Set my version…, Mark not affected… (each a proposal), Show only CVEs and Only critical on a new search card (a refine, shown as a new message with chips); `POST /chat/action` | `backend/app/card_actions.py`, `frontend/src/chat/CardActions.tsx`, `cardActions.ts` | B24 #63 |
+| Web research that ends in a proposed decision: `propose_decision` cites its sources (web ones unverified), FakeLLM workflows (`steps`), model-check question Q-research on saved web results; the real-run demo is a human step | `backend/app/tools/decision.py`, `docs/mcp-demo.md` | B22 #62 |
+| Model-check questions for the new tools: `Q-updates` (`check_updates`), `Q-web` (`research_web`, cites a web result), the injection page checked in `Q-web` and `Q-research` (flagged, warned, not followed, prompt kept); a run never refreshes; the real-model run is a human step (#47, [steps](./docs/report-src/README.md#the-new-questions-on-a-real-model-b16-47)) | `backend/app/evals/checks.py`, `fixtures/fake_script.json` | B15 #46 |
 | Am I affected? Usage, version, verdict, `check_affected` | `backend/app/verdict.py`, `tools/affected.py` | A15 #17 |
 | Priority by rules, policy, due dates | `backend/app/priority.py` | A16 #18, gate A17 #19 |
 | Accepted status, decision records, "no fix yet" | `backend/app/status.py`, `frontend/src/components/Decision.tsx` | A16b #27 |
@@ -64,6 +90,7 @@ Spec A's tickets ([#2](https://github.com/DerykHopley/tc-patch-security/issues/2
 | Explain levels: simple, normal, deep dive | `backend/app/chat_turn.py`, `evals/readability.py`, `frontend/src/chat/LevelSwitch.tsx` | A19 #21 |
 | Real model runs, report on GitHub Pages | `docs/report/`, `docs/report-src/` | A20 #22 |
 | Guardrails: CI once per commit, slow mode, fixed-wait check, `report --runs`, `run.sh` on free ports | `.github/workflows/ci.yml`, `frontend/e2e/` | #56 |
+| Spec B retro fixes (check ids `R.n`): the pre-commit hook, `DECISIONS.md merge=union`, reduced-motion scenes per test file (`@scene`), the merge script | `.githooks/pre-commit`, `.gitattributes`, `frontend/e2e/reduced_motion.py`, `scripts/ff-merge.sh` | [retro](https://derykhopley.github.io/tc-patch-security/retro.html) |
 | Six architecture deepenings (watched-CVE assessment, page context, chat turn, state read model, CVE view, tool result shapes) | see the [architecture review](https://derykhopley.github.io/tc-patch-security/architecture-review.html) | DECISIONS.md, 2026-10-15 rows |
 | README, STATUS, CLAUDE.md cut to pointers | this file, README.md, CLAUDE.md | A21 #23 |
 
@@ -75,6 +102,22 @@ Spec A's tickets ([#2](https://github.com/DerykHopley/tc-patch-security/issues/2
 - Not run: `openai/gpt-oss-120b` (not on the OpenRouter workspace's allow-list), `mistralai/mistral-small-2603` (same).
 - Three bugs on our side were found by the first runs and fixed (citation rule for every tool, Unicode hyphens in CVE ids, curly apostrophes). The rest of the shared failures are follow-ups below.
 
+## Real live run (B07, 2026-10-16)
+
+The owner's app on `spec-b`, live mode with the real feeds (`FEEDS=real`), no NVD key, the systemd user timer installed. Checked in the timer's journal and the run's JSON.
+
+| | |
+|---|---|
+| Run | scheduled tick, 14:02:15 to 14:05:31 UTC: **3 min 16 s**, 3.2 s CPU, 198 MB peak |
+| Feeds | NVD, CISA KEV, OSV.dev and EPSS all answered (`status: ok`), NVD from the snapshot date (2026-10-13) |
+| Found | 2 new CVEs (CVE-2026-110719 on Ollama, Medium; CVE-2025-63390, not watched), 1 updated, 0 added to KEV, 0 rescored |
+| Alerts | none: the new watched CVE is below the minimum severity (High), and this week's overdue digest had already been sent |
+| Next tick | 14:10 UTC skipped as not due (every 6 h), exit 0 |
+
+- NVD accepted the `...000Z` dates without a key (B03's open point). The `apiKey` header is still unverified.
+- Found on the way: live mode defaulted to the **fake** feeds, so the first "live" run alerted made-up CVEs (#74 makes the real feeds the default). Snapshot-mode ticks showed as failed services (also #74).
+- Still open, not blocking: a real alert from a real run on the owner's phone, with its delay and screenshots (#75). The next weekly overdue digest (week 2026-W43) or a new watched CVE will send one.
+
 ## What's open
 
 Follow-ups from spec A, not scheduled yet (`needs-triage`):
@@ -82,12 +125,14 @@ Follow-ups from spec A, not scheduled yet (`needs-triage`):
 - From the model check: [#50](https://github.com/DerykHopley/tc-patch-security/issues/50) `explain_weakness` gives numbered sources; [#51](https://github.com/DerykHopley/tc-patch-security/issues/51) one search for all three explain levels; [#52](https://github.com/DerykHopley/tc-patch-security/issues/52) cite `prioritise`'s sources by rule; [#53](https://github.com/DerykHopley/tc-patch-security/issues/53) drop keyword hits when the vector search finds nothing on-topic; [#54](https://github.com/DerykHopley/tc-patch-security/issues/54) relax three checks that fail good answers; [#55](https://github.com/DerykHopley/tc-patch-security/issues/55) models and embedders to try later.
 - Dashboard: [#25](https://github.com/DerykHopley/tc-patch-security/issues/25) the OWASP chart says it's the web list and counts every category; [#28](https://github.com/DerykHopley/tc-patch-security/issues/28) warn when a product leaves CVEs unfixed.
 - Ideas: [#49](https://github.com/DerykHopley/tc-patch-security/issues/49) find installed LLM software and offer to add it.
-- Known limits: 14 questions can't reliably separate the top models (*unverified*: more questions would); BM25 has no score threshold, so a keyword hit can bring sources for an off-topic question (#53); the snapshot doesn't move, so "overdue" counts against 2026-10-13.
+- Known limits: 14 questions can't reliably separate the top models (*unverified*: more questions would); the off-topic gate (#53) is checked on the hash embedder only until the real-embedder re-run below; the snapshot doesn't move, so "overdue" counts against 2026-10-13.
 
 ## Waiting on the owner
 
 1. Review and merge [PR #24](https://github.com/DerykHopley/tc-patch-security/pull/24) (spec A into `main`). The PR closes the spec A tickets.
 2. Triage the follow-ups above and B25 ([#64](https://github.com/DerykHopley/tc-patch-security/issues/64)).
+3. Re-run the retrieval check on the real embedders for the off-topic gate (#53; needs OpenRouter and Ollama). In `backend/`, per embedder whose index you have: `EMBEDDER=openrouter INDEX_PATH=data/index-openrouter uv run --env-file .env python -m app.evals retrieval`, and `EMBEDDER=ollama EMBED_MODEL=<model> INDEX_PATH=<its index folder> uv run --env-file .env python -m app.evals retrieval`. Hit rate and MRR should match the A20 runs; the "Off-topic gate" line should say 0 on-topic questions gated and, ideally, 15 of 15 off-topic.
+4. Create the Clerk instance ([#65](https://github.com/DerykHopley/tc-patch-security/issues/65)), then deploy to Cloud Run by [DEPLOY.md](./DEPLOY.md) ([#45](https://github.com/DerykHopley/tc-patch-security/issues/45)).
 
 ## What spec B adds
 

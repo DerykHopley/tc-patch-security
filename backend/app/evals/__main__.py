@@ -52,6 +52,11 @@ def _print_retrieval_run(run: dict) -> None:
     for mode, m in run["modes"].items():
         print(f"{run['embedder']} {mode}: hit rate at 5 {m['hit_rate_at_5']}, MRR {m['mrr']}, "
               f"{len(m['misses'])} misses of {m['questions']}.")
+    t = run["threshold"]
+    on = [x["id"] for x in t["on_topic"] if x["gated"]]
+    print(f"Off-topic gate (threshold {t['min_score']}): {len(on)} of {len(t['on_topic'])} on-topic questions gated "
+          f"(should be 0{': ' + ', '.join(on) if on else ''}), {sum(x['gated'] for x in t['off_topic'])} of "
+          f"{len(t['off_topic'])} off-topic.")
     print(f"Run {run['id']}.")
 
 

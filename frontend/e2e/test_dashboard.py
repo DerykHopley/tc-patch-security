@@ -13,6 +13,7 @@ import urllib.request
 
 import pytest
 from playwright.sync_api import Browser, Page, expect
+from reduced_motion import scene, still
 
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
@@ -185,7 +186,7 @@ def test_a04_9_tiles_and_cards_fade_up_with_the_listed_delays(open_dash):
     assert card == ["fade-up", "0.45s", "0.12s", "cubic-bezier(0.2, 0.8, 0.2, 1)"]
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a04_9).
+# Reduced motion: scene a04_9 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- Light and dark, phone and desktop, keyboard ------------------------------------------------------------------
@@ -219,3 +220,18 @@ def test_a04_11_keyboard_reaches_the_watchlist_filter(open_dash):
     assert "LangChain" in seen and seen[-1].startswith("Edit watchlist in Settings"), seen
     outline = page.evaluate("(() => { const s = getComputedStyle(document.activeElement); return [s.outlineStyle, s.outlineWidth] })()")
     assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a04_9_dashboard(fx):
+    from test_watchlist import chip_button  # here: test_watchlist imports this file
+    page = fx("open_dash")(reduced=True)
+    chip_button(page, "Langflow").click()  # a reload must not animate either (the product filter, A15b)
+    expect(page.locator(".chart").first.locator(".bar-row")).to_have_count(1)
+    still(page, "after a reload")
+    transforms = tile(page, TILES[2][0]).evaluate("""async el => { const seen = new Set();
+        for (let i = 0; i < 10; i++) { seen.add(getComputedStyle(el).transform); await new Promise(r => setTimeout(r, 50)) }
+        return [...seen] }""")
+    assert transforms == ["none"]  # the KEV tile doesn't wiggle

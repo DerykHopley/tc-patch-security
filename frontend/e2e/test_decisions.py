@@ -15,6 +15,7 @@ from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cv
 from test_dashboard import (  # noqa: F401 (fixtures)
     DESKTOP, PHONE, SHOTS, api, clean_state, confirm, open_dash, rows,
 )
+from reduced_motion import scene, still
 
 NO_FIX = "CVE-2026-0770"  # Langflow, critical, in KEV, no fixed version in OSV; published 2026-01-23
 FIXABLE = "CVE-2025-3248"  # Langflow, critical, in KEV, fixed in 1.3.0; overdue
@@ -273,7 +274,7 @@ def test_a16b_13_phone_and_pinned_show_the_decision_and_history_without_sideways
     assert no_sideways_scroll(wide)
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a16b_13).
+# Reduced motion: scene a16b_13 at the end of this file, in the shared check (reduced_motion.py).
 
 
 @pytest.mark.parametrize("width", [PHONE, DESKTOP])
@@ -315,3 +316,16 @@ def test_a16b_14_keyboard_reaches_accept_and_the_history(open_cves, api_url):
     page.keyboard.press("Enter")
     expect(cell(page, NO_FIX, "Status").locator(".history li")).to_be_visible()
     assert f"Accept the risk of {FIXABLE}" in seen, seen
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a16b_13_decisions(fx):
+    page = fx("open_cves")("?product=langflow&kev=1", reduced=True)
+    page.get_by_role("button", name=f"Accept the risk of {FIXABLE}", exact=True).click()
+    expect(page.get_by_role("dialog")).to_be_visible()
+    still(page, "the decision dialog")
+    page.keyboard.press("Escape")
+    page.get_by_role("button", name=f"Mark {FIXABLE} not affected", exact=True).click()
+    still(page, "the not-affected dialog")

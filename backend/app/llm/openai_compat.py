@@ -125,7 +125,7 @@ class ChatModelLLM:
         except openai.APIStatusError as e:
             if e.status_code == 402:  # OpenRouter: the key's spending cap is reached, or no credits left
                 raise LLMError(f"{self.name} payment required: {e}",
-                               public="The OpenRouter key has reached its spending cap or has no credits left.") from e
+                               public=LLMError.SPENDING_CAP, code="spending_cap") from e
             raise LLMError(f"{self.name} request failed: {type(e).__name__}: {e}") from e
         except openai.OpenAIError as e:
             raise LLMError(f"{self.name} request failed: {type(e).__name__}: {e}") from e

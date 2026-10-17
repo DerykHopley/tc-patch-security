@@ -13,7 +13,10 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { EXPLAIN_LEVELS, type ChatReply, type Example, type ExplainLevel } from '../api.ts'
 import { AnswerDetails, firstTab, sourceId, type DetailTab } from './AnswerDetails.tsx'
-import type { Message } from './useChat.ts'
+import { proposalOf } from '../toolCalls.ts'
+import { ProposalCard } from './ProposalCard.tsx'
+import { ToolCallCard } from './ToolCallCard.tsx'
+import type { Message, RefinedResult } from './useChat.ts'
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 const scrollTo = (el: Element | null, block: ScrollLogicalPosition) =>
@@ -119,8 +122,16 @@ function Answer({ reply }: { reply: ChatReply }) {
           </Markdown>
         </CiteContext>
       </div>
+      {reply.tool_calls.map((c) => {
+        // A change Patch proposes (B21, B22): its card under the answer, not folded in the details
+        const proposal = proposalOf(c)
+        return proposal ? <ProposalCard key={c.id} proposal={proposal} /> : null
+      })}
       {reply.flags.includes('injection_phrasing') && (
         <p className="flag-note">This message looks like an injection attempt. It was answered, and logged.</p>
+      )}
+      {reply.flags.includes('web_injection_phrasing') && (
+        <p className="flag-note">A web result tries to give instructions. It's shown as data, and Patch ignored it.</p>
       )}
       <CitationNote reply={reply} />
       {reply.dropped_context?.length > 0 && (
@@ -153,11 +164,43 @@ function Answer({ reply }: { reply: ChatReply }) {
   )
 }
 
+// Refined results already shown once: focus goes to a new one only, not again when the chat opens again.
+const focused = new Set<number>()
+
+/** A refine button's result (B24): chips saying what was applied, then the search card run again. No model text:
+ *  the answer above stays as it was, and asking again has Patch explain the narrower list. */
+function RefinedAnswer({ id, refined }: { id: number; refined: RefinedResult }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (focused.has(id)) return
+    focused.add(id)
+    ref.current?.focus({ preventScroll: true }) // the conversation scrolls to the end itself
+  }, [id])
+  const n = (refined.call.result as { sources?: unknown[] } | null)?.sources?.length ?? 0
+  return (
+    <>
+      <div className="refined-head" ref={ref} tabIndex={-1}>
+        <span className="visually-hidden">Applied: </span>
+        {refined.applied.map((a) => (
+          <span key={a} className="chip applied">
+            {a}
+          </span>
+        ))}
+      </div>
+      <p className="meta">
+        Searched again with {refined.applied.length === 1 ? 'this filter' : 'these filters'}: {n}{' '}
+        {n === 1 ? 'source' : 'sources'}. Patch didn't write a new answer: ask him to explain these.
+      </p>
+      <ToolCallCard call={refined.call} page={refined.page} applied={refined.filters} />
+    </>
+  )
+}
+
 /** The message list, the greeting with suggestions while empty, and the message box. */
 export function Conversation({ messages, pending, onSend, greeting, suggestions, examples }: {
   messages: Message[]
   pending: boolean
-  onSend: (text: string) => void
+  onSend: (text: string) => Promise<boolean> // true: answered; false: the request failed (B20)
   greeting: ReactNode
   suggestions: string[]
   examples: Example[]
@@ -181,8 +224,12 @@ export function Conversation({ messages, pending, onSend, greeting, suggestions,
   function submit(e?: FormEvent) {
     e?.preventDefault()
     if (!canSend) return
-    onSend(draft.trim())
+    const text = draft.trim()
     setDraft('')
+    // B20: a failed send puts the message back in the box (unless something new was typed meanwhile), so it isn't lost
+    void onSend(text).then((sent) => {
+      if (!sent) setDraft((d) => d || text)
+    })
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -220,11 +267,26 @@ export function Conversation({ messages, pending, onSend, greeting, suggestions,
             )}
           </>
         )}
-        {messages.map((m) => (
-          <div key={m.id}className={`message ${m.role}${m.error ? ' error' : ''}`}>
-            {m.error ? <p role="alert">{m.error}</p> : m.reply ? <Answer reply={m.reply} /> : <p>{m.content}</p>}
-          </div>
-        ))}
+        {messages.map((m) =>
+          m.quiet ? (
+            // B11: a limit or the spending cap, a quiet note under the question (DESIGN.md §6.2)
+            <output key={m.id} className="chat-limit">
+              {m.error}
+            </output>
+          ) : (
+            <div key={m.id} className={`message ${m.role}${m.error ? ' error' : ''}`}>
+              {m.error ? (
+                <p role="alert">{m.error}</p>
+              ) : m.refined ? (
+                <RefinedAnswer id={m.id} refined={m.refined} />
+              ) : m.reply ? (
+                <Answer reply={m.reply} />
+              ) : (
+                <p>{m.content}</p>
+              )}
+            </div>
+          ),
+        )}
         {pending && (
           <output className="thinking-note">Patch is thinking…</output>
         )}

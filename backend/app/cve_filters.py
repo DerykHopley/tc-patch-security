@@ -11,6 +11,7 @@ value rules.
 | verdict  | affected, not_affected, unknown                              | as is                  |
 | kev      | true, 1, "1", "true" / false, 0, "0", "false"                | True / False           |
 | since    | a real calendar date written YYYY-MM-DD, inclusive           | the date               |
+| new      | as kev: new since the user's previous check (B05)            | True / False           |
 
 GET /cves still takes its old names as aliases: severity_min (severity) and published_since (since).
 
@@ -29,11 +30,11 @@ STATUS_FILTERS = (*STATUSES, "all")
 PRODUCT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .-]{0,39}$")
 MAX_PRODUCTS = 20  # more than the snapshot tracks
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")  # strict: fromisoformat alone also takes 20250101 and week dates
-FIELDS = ("product", "severity", "status", "verdict", "kev", "since")  # the page context's order
+FIELDS = ("product", "severity", "status", "verdict", "kev", "since", "new")  # the page context's order
 ALIASES = {"severity_min": "severity", "published_since": "since"}  # GET /cves's old names, still accepted
 # The view in words, for FakeLLM's answers (prioritise: "in this view (Langflow, high or worse)")
 WORDS = {"product": "{}", "severity": "{} or worse", "verdict": "verdict {}", "kev": "in CISA KEV",
-         "since": "published since {}"}
+         "since": "published since {}", "new": "new since the last check"}
 
 
 def product(value: str, resolve_product) -> str | None:
@@ -85,7 +86,7 @@ def kev(value) -> bool | None:
 
 def check(key: str, value, resolve_product):
     """One of the view's filters normalised, or None when the value isn't allowed (or isn't text, but for kev)."""
-    if key == "kev":
+    if key in ("kev", "new"):
         return kev(value)
     if not isinstance(value, str):
         return None
@@ -104,6 +105,7 @@ MESSAGES = {
     "kev": "must be true or false.",
     "since": "must be a date, YYYY-MM-DD.",
     "verdict": "must be affected, not_affected or unknown.",
+    "new": "must be true or false.",
 }
 
 
@@ -117,6 +119,7 @@ class CveView:
     verdict: str | None = None
     kev: bool | None = None
     since: str | None = None
+    new: bool | None = None  # B05: new since the user's previous check (True), or not new (False)
 
     @classmethod
     def parse(cls, raw, resolve_product) -> "CveView":

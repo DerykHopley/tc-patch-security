@@ -11,7 +11,7 @@ Built for the Turing College sprint 2 project: a RAG assistant that rewrites que
 ## What it does
 
 - **Chat with Patch.** Retrieval over the knowledge base with query translation (multi-query rewrites, merged by reciprocal rank fusion) and structured retrieval (the model writes metadata filters; the server checks them against fixed lists). Search is hybrid: vectors plus our own BM25 keyword search. Answers cite numbered sources; a citation with no matching source is removed and listed.
-- **Six tools:** `search_security`, `lookup_cve` (with KEV, verdict and priority), `explain_weakness` (CWE → OWASP category, ATLAS technique → mitigations), `check_affected` (am I affected, for your version), `prioritise` (what to fix first, from the rules) and `update_watchlist`. Every call shows as a card under the answer.
+- **Six tools:** `search_security`, `lookup_cve` (with KEV, verdict and priority), `explain_weakness` (CWE → OWASP category, ATLAS technique → mitigations), `check_affected` (am I affected, for your version), `prioritise` (what to fix first, from the rules) and `update_watchlist` (which only proposes: you approve, edit or cancel the change in a card). Every call shows as a card under the answer.
 - **Am I affected?** You give each watched product a version and how you run it. OSV's affected and fixed versions give a verdict per CVE: affected, not affected or unknown, with the reason.
 - **Priority by rules.** KEV, EPSS, severity, the verdict and an internet-facing switch give each open CVE a priority (urgent, high, normal, low) and a due date from your policy. Rules decide; Patch only explains them.
 - **Dashboard and CVEs page.** Tiles, charts and the top 5 open CVEs, filtered by product. The CVEs page lists every CVE on your watchlist with filters in the URL. Each status change (fixed, not affected, accepted) goes through a dialog and into a history; not affected needs a justification, accepted a reason and a review date.
@@ -68,6 +68,8 @@ The core of the brief is covered too: RAG over a domain knowledge base, query tr
 
 Needs Python 3.12+ with [uv](https://docs.astral.sh/uv/), and Node.js with npm. All commands start in the repo root.
 
+To work on the code, turn on the pre-commit hook once per clone: `git config core.hooksPath .githooks`. It refuses a commit with staged conflict markers or a browser-check wait without a reason, in under a second. CI runs the same checks, so the hook only finds them sooner.
+
 ### With no key (FakeLLM)
 
 FakeLLM is a scripted stand-in model, and the hash embedder matches words. No key, no network, no GPU.
@@ -113,6 +115,36 @@ A real chat model and real embeddings, both through OpenRouter. Set a spending c
 - A missing key, or an index built with another embedder, stops the start-up with a plain message saying what to do.
 - Every setting is listed and explained in [backend/.env.example](./backend/.env.example).
 
+### Which settings live where
+
+Since B26 ([#70](https://github.com/DerykHopley/tc-patch-security/issues/70)), what can change while the app runs is set on **Settings**, by the owner; the rest stays in `backend/.env`.
+
+- **On Settings (the owner only):** live or snapshot data and the NVD key (Data card); the quiet hours' time zone (Alerts card); the app address for alert links, the ntfy server, topic and token, and the email (SMTP) details (Delivery card). They apply when you save, with no restart, and the refresh command line uses them too.
+- **Secrets on Settings are write-only:** the boxes are masked, the app never sends a saved one back (it says only "Saved" or "Not set"), and **Remove** deletes it. They are kept in the owner's state: `backend/data/state.json` locally (git-ignored), the private bucket when deployed. Reset demo data keeps them.
+- **`.env` still wins:** a setting set in `backend/.env` is used, and Settings shows it read-only as "set in the server's environment". To manage one on Settings, delete its line from `.env` and restart once.
+- **Stays in `.env` only:** what the app needs before it can read Settings, or what could lock you out if set wrong from a page: `AUTH`, the Clerk keys, `AUTH_ALLOWED_ORIGINS`, `OWNER`, `STORE`/`GCS_BUCKET`, `CORS_ORIGINS`, the paths (`LIVE_PATH`, `INDEX_PATH`, `STATE_PATH`), `SCHEDULER_SECRET`, the model and embedder settings, and the test switches (`FEEDS=fake`, `NOTIFY_DRY_RUN`).
+- **Tapping a phone alert:** while the app address is `localhost` (or `127.*`, `::1`, `0.0.0.0`), a phone can't open it, so alerts carry no link and a tap opens the message in the ntfy app. Set a LAN, Tailscale or Cloud Run address and a tap opens Patch at the CVE. A test alert from Settings says which happens.
+
+### Sign-in (Clerk)
+
+Off locally and in the tests (`AUTH=off`): one default user, no sign-in. On (`AUTH=on`, the Clerk keys in `backend/.env`: [#65](https://github.com/DerykHopley/tc-patch-security/issues/65)), Patch is **invite-only**, with email and password or an SSO provider such as Google or Discord (B31, [#78](https://github.com/DerykHopley/tc-patch-security/issues/78)). Every sign-in and sign-up step stays on Patch's page, never Clerk's hosted pages. Why, and what's checked: [DECISIONS.md](./DECISIONS.md) (B31), [docs/SOURCE-CHECKS.md](./docs/SOURCE-CHECKS.md) (Clerk, B31).
+
+- **Your state comes along.** On the first start with sign-in on, the owner (`OWNER`) gets a copy of what you set up with sign-in off (live mode, Settings, the watchlist, alerts), if the owner has nothing saved yet. The log says "the owner (…) adopted the default user's state, once". It never runs again and never overwrites; the default user's state stays as it was.
+- **Someone not invited** sees "This account isn't invited to Patch. Ask the owner for an invitation." on Patch's sign-in screen.
+
+**The owner's Clerk dashboard steps** (https://dashboard.clerk.com, the Patch application):
+
+1. **SSO connections** (under User & authentication; menu names *unverified*): add the providers you want (the free plan allows 3), e.g. Google and Discord. On a development instance Clerk offers its own shared credentials for them (*unverified* for each provider).
+2. **Restrictions → Sign-up mode: Restricted.** Leave the allowlist off: it only works in Open mode and is paid in production.
+3. **Invite with Patch's address as the redirect**, so the invitation opens Patch, not Clerk's page. The dashboard can't set a redirect, so use the Backend API once per person, with the secret key from **API keys** in your shell (never in `.env` or the repo):
+   ```bash
+   curl https://api.clerk.com/v1/invitations -X POST \
+     -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
+     -d '{"email_address": "friend@example.com", "redirect_url": "http://localhost:5173/"}'
+   ```
+   Use the address people open Patch at (your Cloud Run URL once deployed). The link opens "Join Patch", where they choose a password or an SSO provider.
+4. **Your own account and SSO:** signing in with Google or Discord links to your existing Clerk account only when that provider's *verified* email is the one on your account. If it differs, sign in with your password and add the other email under your profile first.
+
 ### Optional: local models through Ollama
 
 Free, and nothing leaves the machine. Needs a GPU for useful speed. The report's local runs used Ollama 0.40.4 on an RX 7900 XTX (24 GB).
@@ -123,6 +155,84 @@ ollama pull mxbai-embed-large   # the default embedder for real embeddings
 ```
 
 In `backend/.env`: `LLM_PROVIDER=local`, `LOCAL_LLM_MODEL=qwen3.8:27b`, `EMBEDDER=ollama`, `INDEX_PATH=data/index-ollama`. Then build the index and start as above. The local URL must be on this machine (`LOCAL_LLM_URL`, default Ollama's `http://localhost:11434/v1`). You can also switch models at runtime on the Dev page.
+
+### Live data from the real feeds, on a schedule
+
+By default the app runs on the frozen snapshot. Live mode refreshes the CVE data from NVD, the CISA KEV catalogue, EPSS and OSV.dev (spec B, [#36](https://github.com/DerykHopley/tc-patch-security/issues/36)). No key is needed. Switch it on in Settings, Data card (Live, then Save changes). The real feeds are the default (`FEEDS=real`, B28): the Data card says "Live: NVD, CISA KEV, EPSS and OSV.dev". `FEEDS=fake` is for tests and demos only (made-up CVEs, made-up alerts); with it the Data card and the dashboard's freshness card warn "Live: the made-up test data (FEEDS=fake)".
+
+- The optional NVD key (50 requests per 30 s instead of 5; only matters after a long gap) is on the same card. `DATA_MODE=live` and `NVD_API_KEY` in `.env` still work, and win.
+
+- **Check now** on the dashboard runs a refresh. So does the command line: `cd backend && uv run --env-file .env python -m app.refresh`.
+- **The schedule:** an hourly systemd user timer runs `python -m app.refresh --schedule`. That run skips (and fetches nothing) until the Settings schedule (every 1, 3, 6, 12 or 24 hours) has passed since the last check, so Settings controls the schedule without touching the timer. Install it from the repo root:
+
+  ```bash
+  deploy/systemd/install.sh                          # writes the two units to ~/.config/systemd/user/, reloads systemd
+  systemctl --user enable --now patch-refresh.timer  # start the hourly timer
+  systemctl --user list-timers patch-refresh.timer   # when it fires next
+  journalctl --user -u patch-refresh.service -n 30   # what the last run did
+  ```
+
+  The units are in [deploy/systemd/](./deploy/systemd/). For the timer to run while you're logged out: `loginctl enable-linger`.
+- A failed fetch (a service down, a timeout, a rate limit) stops the run before anything is written: the data and the last-checked time stay as they were, and the next run covers the gap. The error is in the run log (`GET /refresh`) and the journal.
+- The first live start copies the snapshot; the first refresh then fetches everything NVD changed since 2026-10-13, in windows of at most 120 days.
+- **One kind of data per live folder.** Each refresh records which feeds wrote the live data. A start, the CLI or the Settings switch on a folder the other kind wrote stops with a message naming the folder: move it aside (e.g. `mv data/live data/live-fake`) or set `LIVE_PATH` to a fresh folder, and the next start copies the snapshot in. A folder from before B28 has no record: it is accepted, and its next refresh records the kind.
+- In snapshot mode a scheduled tick skips ("skipped: the data is the frozen snapshot", exit 0), so the timer's unit doesn't show as failed. `python -m app.refresh` by hand still exits 2.
+
+### In a container
+
+One image runs the whole app on one port: the API (under `/api`) and the built frontend, with the search index built in. Needs Docker. Build the index first, then the image, from the repo root:
+
+```bash
+(cd backend && EMBEDDER=hash INDEX_PATH=data/index-image uv run python -m app.rag.build_index)   # free, no key
+docker build -t patch .
+docker run --rm -p 8080:8080 patch                       # http://localhost:8080, FakeLLM
+docker run --rm -p 8080:8080 --env-file backend/.env patch   # with your settings (keys stay outside the image)
+```
+
+- No key or `.env` is in the image; settings come from environment variables at `docker run`.
+- The image records the embedder its index was built with. For a real embedder, build its index into `backend/data/index-image` with that `EMBEDDER`, then pass it to the build: `docker build --build-arg EMBEDDER=ollama -t patch .`. Run the image with another embedder and it stops at start-up with the index-mismatch error. *Unverified:* only the hash index has been run in the image so far.
+- Your state lives inside the container and goes when it's removed. Keep it with a volume: `-v patch-data:/app/backend/data`.
+- In `--env-file backend/.env`, leave out `INDEX_PATH`, `STATE_PATH` and `FRONTEND_DIR`: the image sets them. A local URL such as Ollama's `localhost` means the container itself, not your machine.
+
+### On Google Cloud Run
+
+One container on Cloud Run, users' state and the live data in Cloud Storage, keys in Secret Manager, an hourly Cloud Scheduler job, Clerk sign-in, at no cost at this use (B13, [#44](https://github.com/DerykHopley/tc-patch-security/issues/44)). Every step, copy-pasteable, with the costs against the free tiers: [DEPLOY.md](./DEPLOY.md). *Unverified:* written without a Google Cloud account, so none of its `gcloud` commands has run yet; the first deploy ([#45](https://github.com/DerykHopley/tc-patch-security/issues/45)) checks them.
+
+### As an MCP server for other assistants
+
+Patch's knowledge can be used from another assistant, such as Claude Desktop or Claude Code, over MCP (B23, [#61](https://github.com/DerykHopley/tc-patch-security/issues/61)). The client starts the server itself, over stdio:
+
+```bash
+cd backend && uv run python -m app.mcp_server   # what the client runs; it waits for MCP messages on stdin
+```
+
+- **Four read-only tools:** `search_security`, `lookup_cve`, `explain_weakness` and `check_affected`. `check_affected` takes the version (and optionally the usage) in the call.
+- **No one's stack is read or changed.** The server never reads your watchlist, statuses or decisions, and has no tool that changes anything. `lookup_cve` answers "not watched", with no priority.
+- **Output is untrusted data,** wrapped as in the chat. Each result lists its sources with their URLs.
+- `search_security` uses the chat model to translate the query. Without `--env-file` that's FakeLLM (no key, no cost). With `--env-file .env` it's your model, and each search costs one model call.
+
+Claude Code (use your own absolute path to `backend/`):
+
+```bash
+claude mcp add patch -- uv --directory /absolute/path/to/backend run python -m app.mcp_server
+```
+
+Claude Desktop, in `claude_desktop_config.json` (Settings → Developer → Edit Config):
+
+```json
+{
+  "mcpServers": {
+    "patch": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/backend", "run", "python", "-m", "app.mcp_server"]
+    }
+  }
+}
+```
+
+- For your own model, add `"--env-file", ".env"` after `"run"`. It needs `backend/.env` to exist, or the server won't start. Checked: the command starts from another folder and lists the four tools, with and without `--env-file`.
+- *Unverified:* the `claude mcp add` syntax and the Desktop menu path were not run here. The human demo checks them: [docs/mcp-demo.md](./docs/mcp-demo.md).
+- **Not built:** the deployed server over streamable HTTP, behind Clerk or a token and rate-limited like the app. It's optional and waits on the rate limits ([#43](https://github.com/DerykHopley/tc-patch-security/issues/43)).
 
 ### The model check and the report
 
@@ -141,14 +251,16 @@ How the published report is rebuilt: [docs/report-src/README.md](./docs/report-s
 The same checks CI runs ([.github/workflows/ci.yml](./.github/workflows/ci.yml)). No key, no network.
 
 ```bash
-cd backend && uv run pytest                            # 774 tests (2026-10-15)
+cd backend && uv run pytest                            # backend tests (prints its own count)
 cd frontend && npx tsc -b && npm run lint && npm test  # types, lint (oxlint), unit tests (node --test)
 python3 frontend/e2e/check_waits.py                    # no fixed wait in the browser check without a reason
 frontend/e2e/run.sh                                    # browser check (Playwright), Firefox and Chromium
+frontend/e2e/container.sh                              # builds the image and smoke-tests it (needs Docker)
 ```
 
 - `frontend/e2e/run.sh` starts its own backend (FakeLLM, a throwaway state file and index) and frontend on two free ports, so it never touches an app on 8000/5173. Extra arguments go to pytest: `run.sh -k a02` still runs both browsers.
 - Slow mode: `E2E_LATENCY_MS=300 frontend/e2e/run.sh` delays every API response, to find timing races before CI's slower runner does.
+- `frontend/e2e/container.sh` builds the hash index and the image, starts it on a free port with FakeLLM, checks `/health`, the embedder check and that no `.env` got in, then runs a short browser check in Chromium (the dashboard loads, the chat answers). It removes its container and image afterwards.
 - First time: `uv run --project frontend/e2e playwright install firefox chromium`.
 - Review rules that lint can't check: [CODING_STANDARDS.md](./CODING_STANDARDS.md).
 
@@ -187,13 +299,13 @@ All public and openly licensed, frozen as a snapshot on 2026-10-13. The counts a
 - `backend/scripts/build_fixtures.py` builds the frozen snapshot in `backend/fixtures/` from them, offline. With `--fetch` it first re-downloads OSV and EPSS.
 - `backend/fixtures/manifest.json` records each source with its URL, licence, attribution, retrieval date and count.
 - **To refresh the data:** run `python3 -I feasibility/fetch.py`, copy the new files into `backend/snapshot_raw/`, change `AS_OF` in `build_fixtures.py`, then `cd backend && uv run python -m scripts.build_fixtures --fetch` and rebuild the index. *Unverified:* not re-run since 2026-10-14. Spec B replaces this with a live refresh ([#32](https://github.com/DerykHopley/tc-patch-security/issues/32), [#36](https://github.com/DerykHopley/tc-patch-security/issues/36)).
-- **The app makes no live calls to these sources.** Answers link back to the original pages: GitHub for OWASP, atlas.mitre.org, nvd.nist.gov and cwe.mitre.org.
+- **In snapshot mode (the default) the app makes no live calls to these sources.** In live mode with `FEEDS=real`, the refresh calls NVD, KEV, EPSS and OSV.dev at fixed URLs; ATLAS and the OWASP pages stay snapshot data. Answers link back to the original pages: GitHub for OWASP, atlas.mitre.org, nvd.nist.gov and cwe.mitre.org.
 
 ### Other data the app uses (not knowledge sources)
 
 - **Your local state:** the watchlist, product versions, CVE statuses and their history, settings, the alert log. One JSON file, `backend/data/state.json` (git-ignored).
 - **Embeddings:** the hash embedder runs locally and is free (the default). Real embeddings come from OpenRouter's API (`text-embedding-3-small`) or a local Ollama model (`mxbai-embed-large`). The index is stored locally in `backend/data/`.
-- **Optional outside services:** OpenRouter or a local model server for the chat; ntfy, email (SMTP) or the desktop for alerts. Their secrets live in `backend/.env` only.
+- **Optional outside services:** OpenRouter or a local model server for the chat; ntfy, email (SMTP) or the desktop for alerts. Model keys live in `backend/.env` only; the alert channels' secrets in `backend/.env` or, saved on Settings, in the owner's state (never sent back to the browser).
 
 ## Documents
 
@@ -208,11 +320,14 @@ Read in this order:
 More:
 
 - [CODING_STANDARDS.md](./CODING_STANDARDS.md): the judgement rules for review.
+- [DEPLOY.md](./DEPLOY.md): deploy to Google Cloud Run, step by step, with the costs.
 - [docs/adr/](./docs/adr/): architecture decision records.
 - [docs/SOURCE-CHECKS.md](./docs/SOURCE-CHECKS.md): facts about outside services, checked against their official docs.
+- [docs/mcp-demo.md](./docs/mcp-demo.md): Patch as an MCP server, used from another assistant: the demo steps and transcripts.
+- [docs/failure-demo.md](./docs/failure-demo.md): how to make a feed or a chat tool fail locally, and what partial success and retry look like (B20).
 - [FEASIBILITY.md](./FEASIBILITY.md): the data check behind the domain.
 - [ALERTS-PLAN.md](./ALERTS-PLAN.md): the alert design, built in spec B.
-- [docs/process-map.html](./docs/process-map.html): the system map and its flows. Download and open it in a browser (GitHub shows HTML as source).
+- [docs/process-map.html](./docs/process-map.html): the system map and its flows in two tabs: the current build ("Now", as of a named commit) and the prototype's of 2026-10-13, kept for comparison. Download and open it in a browser (GitHub shows HTML as source).
 - [docs/research/openrouter-alphadecisions.md](./docs/research/openrouter-alphadecisions.md): OpenRouter's decisions endpoint and Jev, and what it could add.
 - [docs/design-examples/README.md](./docs/design-examples/README.md): the designs and layouts that were tried, and why each was kept or dropped.
 - `REQUIREMENTS.md`: the course brief. Course material, so it's kept out of this public repo.

@@ -6,7 +6,11 @@ real tool results in `messages`, so retrieval and tools are tested for real. Eac
 
 Unscripted questions: a CVE id → lookup_cve, then search_security for how to prevent its OWASP
 category (what the dashboard's "Ask about this" sends). A CWE or ATLAS id → explain_weakness.
+A question about the web, news or advisories, while research_web is offered (B08) → research_web, first.
 Anything else → search_security with the question as is.
+
+A script with `steps` is a workflow (B22): each step's tool calls go out after the previous step's results came back,
+as a real model's would; the answer comes after the last step.
 
 Explain levels (A19): the level is read from the system prompt's level line, as a real model would read it. A script
 with `answers` has one template per level, with the same facts and citations.
@@ -21,6 +25,8 @@ from app.llm.base import LLMReply, QueryPlan, ToolCall
 NOTHING_FOUND = "I found nothing relevant in the knowledge base for that question."
 LEVEL_LINE = re.compile(r"^Explain level: (simple|normal|deep dive)\.", re.M)
 SEVERITY_WORD = {"CRITICAL": "critical", "HIGH": "high", "MEDIUM": "medium", "LOW": "low"}
+WEB_QUESTION = re.compile(r"\b(web|online|news|advisor(y|ies)|who'?s talking)\b", re.I)
+SCHEDULE_QUESTION = re.compile(r"\b(last (check|checked)|schedule|when did you (last )?check)\b", re.I)  # B19
 
 
 def _tokens(text: str) -> int:
@@ -140,6 +146,76 @@ def _weakness(w: dict) -> str:
     return "\n".join(lines)
 
 
+def _web(r: dict) -> str:
+    """research_web's result (B08): web results, unverified; a flagged page's instructions ignored, never followed."""
+    if not r["results"]:
+        return f"I searched the web for \"{r['query']}\" and found nothing."
+    lines = ["From the web (web results, unverified):", ""]
+    for w in r["results"]:
+        when = f", {w['date']}" if w["date"] else ""
+        if w["flagged"]:
+            lines.append(f"- **{w['title']}** ({w['site']}{when}): this page tries to give me instructions. I "
+                         f"ignored them [{w['n']}]")
+        else:
+            lines.append(f"- **{w['title']}** ({w['site']}{when}): {_first_sentence(w['snippet'])} [{w['n']}]")
+    return "\n".join(lines)
+
+
+REASON_WORDS = {"kev": "added to CISA KEV", "kev_recheck": "added to KEV while marked fixed: recheck it",
+                "new": "new", "new_unscored": "new, not scored yet", "now_critical": "now critical",
+                "due_soon": "due soon", "overdue": "overdue"}
+
+
+def _schedule(s: dict) -> str:
+    """B19: check_updates' `schedule` in one sentence."""
+    every = "every hour" if s["hours"] == 1 else f"every {s['hours']} hours"
+    if s["paused"]:
+        return "The schedule is paused: no scheduled check starts until you resume it on Settings."
+    if s["next_due"]:
+        return f"The schedule is on: {every}, next from {s['next_due'].replace('T', ' ').replace('+00:00', ' UTC')}."
+    return f"The schedule is on: {every}."
+
+
+def _updates(u: dict) -> str:
+    """check_updates (B06): this check or the last one, its counts, the new CVEs and the user's alerts; B19: the
+    schedule."""
+    if u["mode"] == "snapshot":
+        return _updates_only(u)
+    return _updates_only(u) + "\n\n" + _schedule(u["schedule"])
+
+
+def _updates_only(u: dict) -> str:
+    if u["mode"] == "snapshot":
+        return (f"This app runs on a frozen snapshot of the data as of {u['as_of']}, so there's nothing new to "
+                "check. Live mode checks the feeds.")
+    if u["last_checked"] is None:
+        return u["refusal"]["message"] + " There's no earlier check to report yet."
+    when = u["last_checked"].replace("T", " ").replace("+00:00", " UTC")
+    lines = [f"I checked the feeds just now ({when})." if u["ran"] else
+             f"{u['refusal']['message']} From the last check ({when}):"]
+    if u["ok"] is False:
+        lines.append("That check failed, so nothing changed: " + "; ".join(u["problems"]) + ".")
+        return "\n\n".join(lines)
+    if u["status"] == "partial":
+        lines.append("Some feeds didn't answer, so this check is partial: " + "; ".join(u["problems"]) + ".")
+    c = u["counts"]
+    lines.append(f"{c['new']} new, {c['updated']} updated, {c['kev_added']} added to CISA KEV, "
+                 f"{c['rescored']} rescored.")
+    cite = lambda n: f" [{n}]" if n else ""  # noqa: E731
+    if u["new_cves"]:
+        lines.append("New CVEs:\n" + "\n".join(
+            f"- {v['id']} ({v['product']}, {(v['severity'] or 'not scored').lower()}"
+            f"{', on your watchlist' if v['watched'] else ''}){cite(v['n'])}" for v in u["new_cves"]))
+    if u["alerts"]:
+        more = f" (the first {len(u['alerts'])} of {u['alerts_total']})" if u["alerts_total"] > len(u["alerts"]) else ""
+        lines.append(f"Alerts for you{more}:\n" + "\n".join(
+            f"- {a['cve']}: {REASON_WORDS.get(a['reason'], a['reason'])}"
+            f"{' (held for quiet hours)' if a['held'] else ''}{cite(a['n'])}" for a in u["alerts"]))
+    else:
+        lines.append("No alerts for you from it.")
+    return "\n\n".join(lines)
+
+
 def _level(messages: list[dict]) -> str:
     system = next((m["content"] or "" for m in messages if m["role"] == "system"), "")
     found = LEVEL_LINE.search(system)
@@ -180,7 +256,15 @@ class FakeLLM:
         return plan, reply
 
     @staticmethod
-    def _default_calls(question: str) -> list[dict]:
+    def _default_calls(question: str, tools: list[dict]) -> list[dict]:
+        offered = {t["function"]["name"] for t in tools}
+        if "research_web" in offered and WEB_QUESTION.search(question):
+            args = {"query": question[:200]}
+            if m := guard.CVE_RE.search(question):
+                args["cve_id"] = m.group(0).upper()
+            return [{"name": "research_web", "args": args}]
+        if "check_updates" in offered and SCHEDULE_QUESTION.search(question) and not guard.CVE_RE.search(question):
+            return [{"name": "check_updates", "args": {}}]  # B19: "when did you last check?", "is the schedule on?"
         if m := guard.CVE_RE.search(question):
             return [{"name": "lookup_cve", "args": {"cve_id": m.group(0).upper()}}]
         if m := (guard.CWE_RE.search(question) or guard.ATLAS_RE.search(question)):
@@ -196,8 +280,11 @@ class FakeLLM:
         n_input = _tokens(json.dumps(messages) + json.dumps(tools))
 
         calls = None
-        if not tool_msgs:
-            calls = script["tool_calls"] if script else self._default_calls(question)
+        rounds = sum(1 for m in messages[last_user:] if m["role"] == "assistant" and m.get("tool_calls"))
+        if script and "steps" in script:  # a workflow (B22): one step's calls per round, after the last's results
+            calls = script["steps"][rounds] if rounds < len(script["steps"]) else None
+        elif not tool_msgs:
+            calls = script["tool_calls"] if script else self._default_calls(question, tools)
         elif script is None and len(results) == 1 and results[0][0] == "lookup_cve" and "error" not in results[0][1]:
             # Unscripted CVE question: after the lookup, search for how to prevent its kind of bug.
             data = results[0][1]
@@ -215,20 +302,38 @@ class FakeLLM:
 
     @staticmethod
     def _results(turn: list[dict]) -> list[tuple[str, dict]]:
-        """Each tool result in this turn with its tool's name, from this model's own assistant messages."""
+        """Each tool result in this turn with its tool's name, from this model's own assistant messages. The note a
+        tool call gets on a reused search (#51) isn't a result: the results are the ones above it."""
         names = {tc["id"]: tc["function"]["name"] for m in turn if m["role"] == "assistant"
                  for tc in m.get("tool_calls") or []}
-        return [(names.get(m["tool_call_id"], ""), json.loads(guard.unwrap(m["content"])))
-                for m in turn if m["role"] == "tool"]
+        results = [(names.get(m["tool_call_id"], ""), json.loads(guard.unwrap(m["content"])))
+                   for m in turn if m["role"] == "tool"]
+        return [(name, data) for name, data in results if "already_searched" not in data]
 
     @staticmethod
     def _answer(script: dict | None, results: list[tuple[str, dict]], level: str = "normal") -> str:
-        """The template's fields, each from its tool by name (the result shapes are the tools' declared models)."""
+        """The template's fields, each from its tool by name (the result shapes are the tools' declared models); a
+        proposal, and "already so", by its shape, as the chat knows it (B27)."""
+        from app.tools.registry import UNFINISHED  # here: the registry imports the tools, which import the LLM base
+
         fields: dict = {}
         sources: list[dict] = []
+        unfinished: list[tuple[str, str]] = []  # B20: steps that didn't finish (a timeout, a rate limit)
         for name, data in results:
             if "error" in data and isinstance(data["error"], dict):
                 fields["error"] = data["error"]["message"]
+                if data["error"].get("code") in UNFINISHED:
+                    unfinished.append((name, data["error"]["message"]))
+            elif "proposal_id" in data:  # a proposal (B21), by its shape, whichever tool made it (B27)
+                said = f"I've proposed this: {data['title']}. {data['before']} → {data['after']}. "
+                if data["sources"]:  # a proposed decision (B22), with what it rests on
+                    cites = ", ".join(f"[{x['n']}] ({x['label']})" for x in data["sources"])
+                    fields["decision"] = f"{said}It rests on {cites}. {data['message']}"
+                else:
+                    fields["watch"] = said + data["message"]
+            elif "message" in data and set(data) <= {"message", "watchlist"}:  # nothing to propose: already so
+                fields["watch"] = fields["decision"] = data["message"] + (
+                    " Watching: " + ", ".join(data["watchlist"]) + "." if "watchlist" in data else "")
             elif name == "search_security":
                 sources += data["sources"]
             elif name == "check_affected":  # one CVE, or one product's open CVEs (A15)
@@ -239,20 +344,28 @@ class FakeLLM:
                 fields["cve"] = _cve_card(data)
             elif name == "explain_weakness":
                 fields["weakness"] = _weakness(data)
-            elif name == "update_watchlist":
-                fields["watch"] = data["message"] + " Watching: " + ", ".join(data["watchlist"]) + "."
+            elif name == "research_web":
+                fields["web"] = _web(data)
+            elif name == "check_updates":  # B06
+                fields["updates"] = _updates(data)
 
         if script is None:
-            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness") if k in fields]
+            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness", "web", "updates")
+                     if k in fields]
             if sources:
                 head = "How to prevent this kind of bug:" if "cve" in fields else "From the knowledge base:"
                 parts.append(f"{head}\n\n{_bullets(sources, 3 if 'cve' in fields else 2)}")
             return "\n\n".join(parts) or NOTHING_FOUND
         limit = script.get("limit", 3)
-        fields["sources"] = _bullets(sources, limit)
+        searched = not any(name == "search_security" for name, _ in unfinished)
+        fields["sources"] = _bullets(sources, limit) if searched else "- Missing: the knowledge-base search didn't finish."
         fields["cites"] = " ".join(f"[{s['n']}]" for s in sources[:limit])
         template = script["answers"][level] if "answers" in script else script["answer"]
         try:
-            return template.format(**fields)
+            text = template.format(**fields)
         except KeyError:
             return f"Sorry, a tool didn't give me what I needed: {fields.get('error', 'no result')}"
+        for name, message in unfinished:  # never claim a step that failed: say so, and what Try again does
+            text += (f"\n\nOne step didn't finish: {name} ({message}) I left its part out instead of guessing. "
+                     "Try again on its tool card runs that step again.")
+        return text

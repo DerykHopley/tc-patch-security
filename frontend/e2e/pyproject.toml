@@ -14,3 +14,8 @@ package = false
 
 [tool.pytest.ini_options]
 testpaths = ["."]
+# Keep only the last run's temp folders: tests' index copies (~36 MB each, ~100 a run) filled /tmp past its quota
+# when several agents tested at once and pytest kept three runs (2026-10-16). Not policy "failed": deleting a
+# passing test's folder frees its name for a later test, and Chroma's cached client for that path then points at
+# a deleted database ("attempt to write a readonly database", CI on 1eae8d2).
+tmp_path_retention_count = 1

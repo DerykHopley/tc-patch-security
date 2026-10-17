@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { examples as fetchExamples, health, type Example, type Health } from './api.ts'
 import { AlertBanner, useAlertLink } from './chat/AlertBanner.tsx'
 import { ChatDivider } from './chat/ChatDivider.tsx'
@@ -9,6 +9,7 @@ import { useChatLayout } from './chat/useChatLayout.ts'
 import { usePatch } from './chat/usePatch.ts'
 import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, ListIcon, MoonIcon, ShieldIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
+import { UserMenu, type Account } from './components/UserMenu.tsx'
 import { CvesPage } from './pages/CvesPage.tsx'
 import { DashboardPage } from './pages/Dashboard.tsx'
 import { DevPage } from './pages/DevPage.tsx'
@@ -36,7 +37,8 @@ const SUGGESTIONS: Record<Page, string[]> = {
   dev: ['What does an "ignore previous instructions" attack look like?'],
 }
 
-export default function App() {
+// `account`: the signed-in user, with sign-in on (B10, auth/ClerkApp.tsx): the top bar shows the user menu.
+export default function App({ account }: { account?: Account } = {}) {
   const [status, setStatus] = useState<Health | null>(null)
   const [offline, setOffline] = useState(false)
   const [theme, toggleTheme] = useTheme()
@@ -89,8 +91,9 @@ export default function App() {
   }
 
   // Ctrl/Cmd+K opens the chat on any page; Esc closes the bubble, never a pinned chat (DESIGN.md §6.4).
-  // Bound on every render, so it always sees the current layout.
-  useEffect(() => {
+  // Bound on every render, so it always sees the current layout. A layout effect, so it's bound in the same task that
+  // puts the shell on screen: a plain effect runs a moment later, and a Ctrl+K in that moment was lost (#67).
+  useLayoutEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
         e.preventDefault() // Firefox and Chrome would focus their own search box
@@ -167,7 +170,7 @@ export default function App() {
         </nav>
         <div className="side-card">
           <Robot size={64} variant={patch.restVariant} />
-          <strong>Snapshot</strong>
+          <strong>{status?.mode === 'live' ? 'Live data' : 'Snapshot'}</strong>
           <span>{status ? `Data as of ${status.as_of}` : offline ? 'Backend offline' : 'Loading…'}</span>
           <span className="side-model">{status?.model ?? '—'}</span>
         </div>
@@ -188,6 +191,7 @@ export default function App() {
             <span className="crumb-path">Pages / {current.title}</span>
             <h1>{current.title}</h1>
           </div>
+          {account && <UserMenu account={account} />}
           <button
             type="button"
             className="theme-btn"
@@ -229,7 +233,7 @@ export default function App() {
               onView={pageContext.reportView}
             />
           ) : page === 'settings' ? (
-            <SettingsPage asOf={status?.as_of ?? null} />
+            <SettingsPage asOf={status?.as_of ?? null} mode={status?.mode} onServerSaved={refreshHealth} />
           ) : status?.dev_panel ? (
             <DevPage onSaved={refreshHealth} />
           ) : null}
@@ -249,6 +253,7 @@ export default function App() {
           suggestions={SUGGESTIONS[page]}
           examples={examples}
           layout={layout}
+          asOf={status?.as_of ?? null}
           onClose={closeChat}
         />
       )}

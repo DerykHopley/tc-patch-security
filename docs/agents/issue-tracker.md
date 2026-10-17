@@ -15,6 +15,10 @@ The repo is public. Issue bodies may link to REQUIREMENTS.md but never quote it 
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+## Merging a ticket branch
+
+- **Into the integration branch**: `scripts/ff-merge.sh <branch> [integration=spec-b]` (try `--dry-run` first), run from the main checkout, not the ticket's worktree. It fast-forwards only, checks the push landed and that no conflict markers came with it, and only then removes the ticket's local worktree and branch; remote branches stay. Use it instead of typing the steps by hand.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_

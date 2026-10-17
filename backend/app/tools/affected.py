@@ -10,6 +10,7 @@ from pydantic import BaseModel, StringConstraints, model_validator
 from app.errors import ToolError
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
+from app.schemas import CveId
 from app.tools.registry import Severity, ToolResult, ToolSpec, Verdict, WatchStatus, WhoActs, register
 from app.verdict import USAGE_LABELS
 from app.watched import WatchedCves
@@ -20,8 +21,7 @@ NOTE = "The verdict is advice from the version check. The CVE's status stays the
 
 
 class AffectedArgs(BaseModel):
-    cve_id: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True,
-                                             pattern=r"(?i)^CVE-\d{4}-\d{4,}$")] | None = None
+    cve_id: CveId | None = None
     product: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)] | None = None
 
     @model_validator(mode="after")

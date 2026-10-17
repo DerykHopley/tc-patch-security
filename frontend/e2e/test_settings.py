@@ -11,6 +11,9 @@ import re
 import pytest
 from playwright.sync_api import Browser, Page, expect
 
+from test_shell import LateLoads
+from reduced_motion import scene, still
+
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
 
@@ -32,10 +35,12 @@ def settings_page(browser: Browser, ui_url: str):
     """Opens the Settings page in a fresh context, after resetting the throwaway state through the page's API."""
     contexts = []
 
-    def _open(width=DESKTOP, scheme="light", reduced=False) -> Page:
+    def _open(width=DESKTOP, scheme="light", reduced=False, setup=None) -> Page:
         ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme,
                                   reduced_motion="reduce" if reduced else "no-preference")
         contexts.append(ctx)
+        if setup:
+            setup(ctx)  # routes that must be in place before the first request
         page = ctx.new_page()
         page.goto(ui_url)
         page.get_by_role("button", name="Settings", exact=True).click()
@@ -83,11 +88,14 @@ def panel(page: Page, title: str):
 
 def test_a13_2_each_panel_says_whether_it_is_live_saved_for_later_or_a_mock(settings_page):
     page = settings_page()
-    for title, chip in (("Alerts", "Saved for later"), ("Delivery", "Live"), ("Watchlist", "Live"), ("Data", "Live")):
+    # Alerts went live with B04: a live check uses them
+    for title, chip in (("Alerts", "Live"), ("Delivery", "Live"), ("Watchlist", "Live"), ("Data", "Live")):
         expect(panel(page, title).locator(".status-chip")).to_have_text(chip)
-    check_now = page.get_by_role("button", name="Check for new CVEs now")
-    expect(check_now).to_be_disabled()
-    expect(panel(page, "Data")).to_contain_text("Not built yet")
+    # BR.13: no dead button; the Data card points to the dashboard's Check now and the Refresh runs card
+    expect(page.get_by_role("button", name="Check for new CVEs now")).to_have_count(0)
+    expect(panel(page, "Data")).not_to_contain_text("Not built yet")
+    expect(panel(page, "Data").get_by_role("link", name="dashboard's Data freshness card")).to_have_attribute("href", "/")
+    expect(panel(page, "Data").get_by_role("link", name="Refresh runs")).to_have_attribute("href", "#schedule")
     expect(page.get_by_role("heading", level=1)).to_have_text("Settings")
     expect(page.get_by_role("heading", name="Settings", level=2)).to_have_count(0)  # the top bar names the page
 
@@ -121,6 +129,17 @@ def test_a13_2_discard_brings_back_the_saved_values(settings_page):
     page.get_by_role("button", name="Discard").click()
     expect(page.get_by_label("Send alerts")).to_be_checked()
     expect(page.get_by_role("button", name="Save changes")).to_be_disabled()
+
+
+def test_a13_2_a_late_load_never_resets_an_edit(settings_page, api_url):
+    # The saved settings can answer twice (React's double effect in development) or late: an edit made once the
+    # card shows must survive the later answer (the Dev page's race, CI run 38847853994).
+    late = []
+    page = settings_page(setup=lambda ctx: late.append(LateLoads(ctx, f"{api_url}/settings")))
+    page.get_by_label("Minimum severity").select_option("CRITICAL")
+    late[0].wait_all(page)
+    expect(page.get_by_label("Minimum severity")).to_have_value("CRITICAL")
+    expect(page.locator(".save-bar").get_by_role("status")).to_contain_text("Unsaved changes")
 
 
 def test_a13_2_the_watchlist_card_edits_the_watchlist(settings_page):
@@ -245,7 +264,7 @@ def test_a13_6_save_bar_floats_at_the_bottom_clear_of_patch(settings_page, width
 
 # --- A13.7: reduced motion --------------------------------------------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a13_7).
+# Reduced motion: scene a13_7 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A13.8: light and dark, phone and desktop -------------------------------------------------------------------------
@@ -256,7 +275,7 @@ def test_a13_8_works_in_both_themes_at_both_widths(settings_page, browser_name, 
     page = settings_page(width=width, scheme=scheme, reduced=True)
     assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
     cards = page.locator("section.card")
-    expect(cards).to_have_count(6)  # with "Patch's answers" (A19) and "Priority and due dates" (A16)
+    expect(cards).to_have_count(7)  # with "Patch's answers" (A19), "Priority and due dates" (A16), "Refresh runs" (B19)
     one_column = len({round(c.bounding_box()["x"]) for c in cards.all()}) == 1
     assert one_column == (width == PHONE)  # one column of cards at ≤ 900px (DESIGN.md §4.2)
     SHOTS.mkdir(exist_ok=True)
@@ -271,7 +290,7 @@ def test_a13_9_every_control_reachable_by_keyboard_with_visible_focus(settings_p
     page.keyboard.press("Shift+Tab")
     page.keyboard.press("Tab")  # focus by keyboard, so :focus-visible applies
     seen = []
-    for _ in range(40):
+    for _ in range(70):  # B26: the owner's server settings add about 20 stops
         seen.append(page.evaluate("""(() => { const a = document.activeElement;
             const label = a.labels && a.labels[0] ? a.labels[0].textContent : '';
             return (a.getAttribute('aria-label') || label || a.textContent || '').trim() })()"""))
@@ -292,8 +311,20 @@ def test_a13_9_buttons_have_accessible_names(settings_page):
     page = settings_page()
     for name in ("Send test alert by desktop notification", "Send test alert by email",
                  "Send test alert by phone push (ntfy)", "Preview an alert (send nothing)",
-                 "Check for new CVEs now", "Reset demo data", "Discard", "Save changes"):
+                 "Reset demo data", "Discard", "Save changes"):
         expect(page.get_by_role("button", name=name, exact=True)).to_have_count(1)
     unnamed = page.evaluate("""[...document.querySelectorAll('main button')].filter(b =>
         !(b.getAttribute('aria-label') || b.textContent).trim()).length""")
     assert unnamed == 0
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a13_7_settings(fx):
+    page = fx("settings_page")(reduced=True)
+    page.get_by_label("Minimum severity").select_option("LOW")
+    page.get_by_role("button", name="Preview an alert (send nothing)").click()
+    expect(page.locator(".push-preview")).to_be_visible()
+    page.get_by_role("button", name="Discard").hover()
+    still(page, "the settings page")

@@ -1,10 +1,12 @@
 """The snapshot, loaded once: CVEs, KEV, OWASP pages and map, ATLAS, manifest, and (A14) OSV
 versions, EPSS scores and the product-match check. Moved from proto.
 
-`CveSource` is the seam for live data later: `FixtureCveSource` now, an NVD-backed one later.
+Live mode (B02) loads the CVE data (CVEs, KEV, OSV, EPSS, product check, manifest) from a live version's folder
+in the same shapes; OWASP and ATLAS always come from the snapshot.
 """
 import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Protocol
 
 from app.config import FIXTURES
@@ -75,13 +77,17 @@ class Knowledge:
         return None
 
 
-def load_knowledge() -> Knowledge:
+def load_knowledge(data: Path = FIXTURES) -> Knowledge:
+    """The snapshot, or with `data` a live version's folder (app.live_data) for the CVE data."""
+    def read(name: str, folder: Path = data):
+        return json.loads((folder / name).read_text())
+
     return Knowledge(
-        cves=FixtureCveSource(),
-        owasp=json.loads((FIXTURES / "owasp.json").read_text()),
-        atlas=json.loads((FIXTURES / "atlas.json").read_text()),
-        manifest=json.loads((FIXTURES / "manifest.json").read_text()),
-        osv=json.loads((FIXTURES / "osv.json").read_text()),
-        epss=json.loads((FIXTURES / "epss.json").read_text()),
-        product_check=json.loads((FIXTURES / "product_check.json").read_text()),
+        cves=FixtureCveSource(data / "cves.json", data / "kev.json"),
+        owasp=read("owasp.json", FIXTURES),
+        atlas=read("atlas.json", FIXTURES),
+        manifest=read("manifest.json"),
+        osv=read("osv.json"),
+        epss=read("epss.json"),
+        product_check=read("product_check.json"),
     )

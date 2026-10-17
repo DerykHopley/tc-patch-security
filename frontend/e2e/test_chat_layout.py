@@ -9,6 +9,7 @@ from playwright.sync_api import Locator, Page, expect
 
 from test_chat import box, fab, window
 from test_shell import DESKTOP, PHONE, SHOTS, contrast, eventually, no_sideways_scroll, open_app, settled  # noqa: F401
+from reduced_motion import scene, still
 
 REM = 15  # px: the base font size (DESIGN.md §3.4)
 HEIGHT = 900  # the viewport height open_app uses
@@ -218,6 +219,22 @@ def test_a07_3_ctrl_or_cmd_k_opens_the_chat_on_any_page(open_app, page_name, key
     expect(message_box(page)).to_be_focused()
 
 
+# Presses Ctrl+K the moment the shell is in the page: a MutationObserver runs right after React puts the shell in the
+# DOM, before React's ordinary (passive) effects run. A listener bound in one of those lost this press (#67).
+CTRL_K_ON_MOUNT = """
+new MutationObserver((_, obs) => {
+  if (!document.querySelector('.side-ask')) return
+  obs.disconnect()
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }))
+}).observe(document, { childList: true, subtree: true })
+"""
+
+
+def test_a07_3_ctrl_k_works_the_moment_the_shell_appears(open_app):
+    page = open_app(init_script=CTRL_K_ON_MOUNT)
+    expect(window(page)).to_be_visible()
+
+
 def test_a07_3_esc_closes_the_bubble_and_returns_focus_to_patch(open_app):
     page = open_app()
     open_chat(page)
@@ -334,7 +351,7 @@ ALERT_CVE = "CVE-2024-8309"
 
 
 def alert_banner(page: Page) -> Locator:
-    return page.get_by_role("region", name="Alert")
+    return page.get_by_role("region", name="Alert", exact=True)
 
 
 def test_a07_6_alert_link_shows_a_banner_and_explain_it_asks_patch(open_app):
@@ -401,7 +418,7 @@ def test_a07_7_pin_icon_rotates_from_35_degrees_to_0_when_pinned(open_app):
     assert any(s not in ("0deg", "35deg", "none") for s in seen), seen  # in between: it turns
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a07_8).
+# Reduced motion: scene a07_8 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A07.9: light and dark, phone and desktop (DESIGN.md §9, §4.2) -----------------------------------------------
@@ -489,3 +506,31 @@ def test_a07_10_layout_controls_by_keyboard_with_names_and_visible_focus(open_ap
     page.keyboard.press("Escape")
     expect(window(page)).to_have_count(0)
     expect(fab(page)).to_be_focused()
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a07_8_chat_layout(fx):
+    page = fx("open_app")(reduced=True, query=f"#cve={ALERT_CVE}")
+    still(page, "the alert banner")
+    page.keyboard.press("Control+k")
+    expect(window(page)).to_be_visible()
+    still(page, "no pop")
+    window(page).get_by_role("group", name="Explain level").get_by_role("radio", name="Deep dive").check()
+    still(page, "the explain-level switch's pills")
+    head_button(page, "Make larger").click()
+    still(page, "Make larger")
+    head_button(page, PIN).click()
+    expect(head_button(page, UNPIN)).to_be_visible()
+    still(page, "the pin icon jumps to 0°")
+    assert head_button(page, UNPIN).locator("svg").evaluate("el => getComputedStyle(el).transitionDuration") == "0s"
+    divider(page).hover()
+    divider(page).focus()
+    page.keyboard.press("ArrowLeft")
+    still(page, "the divider's colour")
+    head_button(page, UNPIN).click()
+    still(page, "Unpin")
+    page.keyboard.press("Escape")
+    expect(window(page)).to_have_count(0)
+    still(page, "closed")

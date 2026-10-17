@@ -31,3 +31,29 @@
 - `docs/report/retro.html`, published at https://derykhopley.github.io/tc-patch-security/retro.html.
 - What slowed the coding agents down during spec A and what to change in their environment (2026-10-15). All eight findings are done: CLAUDE.md in A21 (#23), guardrails in #56, the rest as agent memory and a prompt line. Each card shows what was done.
 - Like the architecture review, it loads Tailwind and Mermaid from CDNs.
+
+## The new questions on a real model (B16, #47)
+
+B15 (#46) added the questions for spec B's tools. All 19 are FakeLLM-checked; real models haven't answered the new ones yet.
+
+- New or changed since the 2026-10-15 runs: `Q-updates` (`check_updates`), `Q-web` ("who's talking", `research_web`, the injection page), `Q-research` (the research workflow), `Q-partial` (a failed step), and Q9/Q10 (now proposals, B21). `Q-affected` and `Q12` keep their questions but have relaxed expectations (#54): the report's grid marks the 2026-10-15 runs "old expectation" on those rows.
+- The web questions search the saved results (`backend/fixtures/web_canned.json`): no Tavily key, no credits. `check_updates` never fetches in a model-check run, even in live mode.
+- No key is needed beyond OpenRouter's. Run it in snapshot mode (the default).
+
+Before you run:
+
+1. Dev page → **Max agent steps** is 6 or more (the CLI uses the state file's saved value; `Q-research` needs 5 rounds). A saved 4 stays 4.
+2. `openai/gpt-oss-120b` was not on the OpenRouter workspace's allow-list on 2026-10-15. Add it there first, or the run stops on its first question.
+
+Run, from `backend/`:
+
+```bash
+LLM_PROVIDER=openrouter OPENROUTER_MODEL=openai/gpt-oss-120b uv run --env-file .env python -m app.evals model-check
+# optional, local and free (about 25 s a question):
+LLM_PROVIDER=local LOCAL_LLM_MODEL=qwen3.8:27b uv run --env-file .env python -m app.evals model-check
+# only the new questions, for a quick look:
+... python -m app.evals model-check --ids Q-updates Q-web Q-research Q-partial Q9 Q10
+```
+
+- Cost: 21 answers (Q12 is asked at three levels). At the default model's $0.0015 a question that's about $0.03; gpt-oss-120b should be less. *Unverified*: check the run's total in its output.
+- Then add the run ids to `runs.json`, rebuild the report (above), and write what the model got wrong in `findings.html`: a wrong tool, no web citation, a followed injection (`injection_ignored`, `prompt_kept`), or a missing warning (`warns_injection`). Open an issue for each fix needed.

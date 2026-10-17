@@ -2,7 +2,7 @@
 // running gives one plain message instead of a raw network error.
 
 import { cvesQuery, type CveView } from './cveView.ts'
-import type { NamedResult } from './toolResults.ts'
+import type { NamedResult, Proposal, ProposalSource } from './toolResults.ts'
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
@@ -12,29 +12,92 @@ export interface Health {
   model: string // the model in use, as shown to the user
   as_of: string // the as-of date, YYYY-MM-DD
   dev_panel: boolean // the Dev page is shown only when this is true
+  mode: DataMode // B02: frozen snapshot or live data
+  last_checked: string | null // B02: when the live data was last checked (ISO 8601, UTC); null before the first check
+  auth: AuthConfig // B10: whether to sign in
+}
+
+// B10: sign-in. Off locally: no sign-in, one default user. On: the Clerk instance's publishable key (not a secret),
+// read at run time so one built frontend fits any instance.
+export interface AuthConfig {
+  on: boolean
+  publishable_key: string | null
+}
+
+// B02: the data mode. "snapshot": frozen data, as of the snapshot date. "live": refreshed by Check now, as of today.
+export type DataMode = 'snapshot' | 'live'
+
+export interface DataStatus {
+  mode: DataMode
+  last_checked: string | null
+  last_result?: RefreshResult | null // /dashboard only (B20): the last run, for the partial or failed banner
+  schedule?: ScheduleStatus // /dashboard only (B19): "Schedule paused", and Resume
+  feeds?: Feeds | null // /dashboard only (B28): which feeds live mode reads; null for anyone but the owner
+}
+
+/** B28: where live data comes from (FEEDS, set in backend/.env): the real services, or the made-up test data. */
+export type Feeds = 'real' | 'fake'
+
+// B10: with sign-in on, every call carries a fresh Clerk session token (they live 60 s; Clerk's getToken refreshes
+// one before it expires). Set by the signed-in app (auth/ClerkApp.tsx); null with sign-in off.
+type TokenGetter = () => Promise<string | null>
+let sessionToken: TokenGetter | null = null
+export function setSessionToken(getter: TokenGetter | null): void {
+  sessionToken = getter
+}
+
+/** The backend's refusal or failure: its plain message, its error code, and (B11) when to try again. */
+export class ApiError extends Error {
+  readonly status: number
+  readonly code: string | undefined
+  readonly retryAt: string | undefined // B11, a 429: ISO 8601, UTC
+  readonly body: unknown // the whole reply: a refused Check now still carries the last run
+
+  constructor(message: string, status: number, body: unknown) {
+    super(message)
+    const error = (body as { error?: { code?: string; retry_at?: string } } | null)?.error
+    this.status = status
+    this.code = error?.code
+    this.retryAt = error?.retry_at
+    this.body = body
+  }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
+  const headers = new Headers(init?.headers)
+  if (sessionToken) {
+    const token = await sessionToken().catch(() => null)
+    if (!token) throw new Error("You're signed out. Reload the page to sign in again.")
+    headers.set('Authorization', `Bearer ${token}`)
+  }
   try {
-    res = await fetch(`${API_URL}${path}`, init)
+    res = await fetch(`${API_URL}${path}`, { ...init, headers })
   } catch {
     throw new Error(`Can't reach the backend at ${API_URL}. Is it running?`)
   }
   const body: unknown = await res.json().catch(() => null)
   if (!res.ok) {
     const message = (body as { error?: { message?: string } } | null)?.error?.message
-    throw new Error(message ?? `The backend answered ${res.status}.`)
+    throw new ApiError(message ?? `The backend answered ${res.status}.`, res.status, body)
   }
   return body as T
 }
 
-export const health = () => request<Health>('/health')
+// #69: the wait before the first paint passes a signal, to give up on a /health that doesn't answer
+export const health = (signal?: AbortSignal) => request<Health>('/health', { signal })
 
 // --- Chat (A06). Shapes written by hand from backend/app/schemas.py. Severity is the dashboard's, below.
 
 export type Role = 'user' | 'assistant'
-export type DocType = 'owasp_llm' | 'owasp_web' | 'atlas_technique' | 'atlas_mitigation' | 'atlas_case' | 'cve'
+export type DocType =
+  | 'owasp_llm'
+  | 'owasp_web'
+  | 'atlas_technique'
+  | 'atlas_mitigation'
+  | 'atlas_case'
+  | 'cve'
+  | 'web' // a web result from research_web (B08): unverified
 
 export interface Turn {
   role: Role
@@ -56,6 +119,8 @@ export interface Source {
   severity: Severity | null
   cvss: number | null
   kev: boolean | null
+  site?: string | null // web only (B08): the page's site
+  flags?: string[] // web only: "injection_phrasing" when the page tries to give instructions
 }
 
 export interface QueryInfo {
@@ -65,6 +130,7 @@ export interface QueryInfo {
   filters: Record<string, string>
   dropped_filters: string[]
   relaxed: boolean
+  off_topic?: boolean // #53: no vector hit reached the threshold, so keyword (BM25) hits were dropped too
   found_by: Record<string, string[]> // source n → the retrievers that found it: "keyword" (BM25), "vector"
 }
 
@@ -75,6 +141,7 @@ export type ToolCallRecord = NamedResult & {
   status: 'ok' | 'error'
   error: { code: string; message: string } | null
   duration_ms: number
+  retryable: boolean // B20: an error a second try may pass (a timeout, a rate limit): the card offers Try again
 }
 
 export interface Usage {
@@ -92,12 +159,13 @@ export interface ChatReply {
   query: QueryInfo | null
   usage: Usage
   steps: number
-  flags: string[] // "injection_phrasing": flagged, still answered
+  flags: string[] // "injection_phrasing": flagged, still answered; "web_injection_phrasing": a web result was
   bad_citations: number[] // [n] removed from the answer: no source n
   no_citations: boolean // has sources but cites none of them
   explain_level: ExplainLevel // the level this answer was pitched at (A19)
   page_context: PageContext // the checked page context Patch had (A18)
   dropped_context: string[] // page-context values the backend dropped: "key=value"
+  search_reused: boolean // #51: answered from the earlier answer's search at another level: the same sources
 }
 
 // Page context (A18): fixed fields only, each checked by the backend (app/page_context.py). Never free text.
@@ -109,6 +177,7 @@ export interface PageContext {
   verdict?: Verdict
   kev?: boolean
   since?: string // YYYY-MM-DD
+  new?: boolean // new since the last check (B05)
   cve?: string // the selected CVE
 }
 
@@ -133,6 +202,42 @@ export const chat = (message: string, history: Turn[], explainLevel?: ExplainLev
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message, history, ...(explainLevel && { explain_level: explainLevel }), ...(page && { page }) }),
   })
+
+/** Try again on a tool card (B20): that one step, run again with the same arguments. Its result is the card's only. */
+export const retryTool = (call: ToolCallRecord, page: PageContext) =>
+  request<ToolCallRecord>('/chat/tool', json('POST', { name: call.name, args: call.args, page }))
+
+// Buttons on tool cards (B24): a structured action, never free text. A change only proposes (B21); a refine runs the
+// card's search again with a fixed filter.
+export type RefineFilter = 'only_cves' | 'only_critical'
+export type CardAction =
+  | {
+      action: 'propose'
+      change: 'watch' | 'set_details' | 'set_status'
+      product?: string
+      cve_id?: string
+      status?: 'not_affected' | 'accepted'
+      justification?: Justification
+      reason?: string
+      review_date?: string
+      compensating_control?: string
+      note?: string
+      version?: string
+    }
+  | { action: 'refine'; tool: 'search_security'; query: string; filters: RefineFilter[]; page?: PageContext }
+export interface Proposed {
+  proposal: Proposal | null // null: it's already so, and `message` says it
+  message: string
+}
+export interface Refined {
+  applied: string[] // the chips: "Only CVEs", "Only critical"
+  call: ToolCallRecord
+}
+export function cardAction(body: Extract<CardAction, { action: 'propose' }>): Promise<Proposed>
+export function cardAction(body: Extract<CardAction, { action: 'refine' }>): Promise<Refined>
+export function cardAction(body: CardAction): Promise<Proposed | Refined> {
+  return request<Proposed | Refined>('/chat/action', json('POST', body))
+}
 
 export const examples = () => request<Example[]>('/examples')
 
@@ -160,6 +265,8 @@ export interface Decision {
   decided_at: string | null // ISO date and time (UTC); null for a status saved before decision records
   decided_by: string | null // "owner" until there are users
   via: 'page' | 'chat' | null
+  proposal?: string // the proposal you approved, for a change Patch proposed in the chat (B21)
+  sources?: ProposalSource[] // what that proposal cited (B22)
 }
 
 /** What the user enters when changing a status. Which fields a status takes is checked by the backend. */
@@ -198,6 +305,7 @@ export interface Dashboard {
   owasp_unmapped: number // open CVEs whose CWE isn't in OWASP's lists
   latest_incidents: Incident[] // the 5 latest MITRE ATLAS incidents
   freshness: SnapshotSource[] // one per snapshot source
+  data: DataStatus // B02: Live or Snapshot, and the last check, for the freshness panel
 }
 
 /** A watched product's open CVEs and how many of them are in CISA KEV (A15b: the dashboard filter's chips). */
@@ -249,6 +357,7 @@ export interface CveRow {
   owasp_title: string | null
   kev: boolean
   kev_deadline: string | null // CISA's remediation date: a fact, not your due date
+  new: boolean // new since the user's previous check (B05): the "New" chip
   status: CveStatus
   summary: string
   url: string
@@ -323,8 +432,109 @@ export const dashboard = (products: string[] = []) =>
 /** One page of the CVE view's rows: the view's names are the query's (cveView.ts). */
 export const cves = (view: CveView, limit: number, offset = 0) => request<CvePage>(cvesQuery(view, limit, offset))
 
+// --- Live data (B02): Check now. The backend's app/refresh.py has the same shapes (RefreshResult, CheckReply).
+
+export interface RefreshCounts {
+  new: number // CVEs not there before
+  updated: number // CVEs whose record changed (rescored and added to KEV included)
+  kev_added: number // CVEs newly in CISA KEV
+  rescored: number // CVEs whose severity or CVSS score changed
+}
+
+/** One feed's step in a refresh (B20): it answered, or why it didn't. */
+export interface FeedResult {
+  source: string // nvd, kev, osv or epss
+  ok: boolean
+  message: string | null
+}
+
+export interface RefreshResult {
+  trigger: string // button, chat, schedule or cli
+  started: string // ISO 8601, UTC
+  finished: string
+  ok: boolean // true: a version was written (every feed answered, or some did: see status); false: nothing changed
+  counts: RefreshCounts
+  new_cves: string[]
+  version: number | null
+  errors: { source: string; message: string }[] // the feeds that failed, and failed alerts (source "alerts")
+  alerts?: Record<string, AlertLogEntry[]> // per user id, this run's alerts (B04)
+  status: 'ok' | 'partial' | 'failed' // B20: every feed answered, some did (and were written), or none did
+  feeds: FeedResult[] // B20: each feed's step, in the order asked; empty in runs logged before B20
+}
+
+export interface CheckReply {
+  ran: boolean
+  result: RefreshResult | null // this run's result; when refused, the last run's (null before any run)
+  refusal: { reason: 'too_soon' | 'running'; next_allowed: string; message: string } | null
+}
+
+// B11: a refused check is a 429 that still carries the reply (the refusal and the last run), so it reads as one.
+export const checkNow = () =>
+  request<CheckReply>('/refresh', { method: 'POST' }).catch((e: unknown) => {
+    if (e instanceof ApiError && e.status === 429 && (e.body as Partial<CheckReply> | null)?.refusal) {
+      return e.body as CheckReply
+    }
+    throw e
+  })
+
+// --- The schedule and the run history (B19). The backend's app/refresh.py `history` and main.py `schedule_status`.
+
+export interface ScheduleStatus {
+  hours: number // every N hours (Settings' schedule_hours)
+  paused: boolean
+  next_due: string | null // ISO 8601, UTC; null when paused, in snapshot mode, or never checked (the next tick runs)
+  // The caller is the owner, so may change it: the schedule is the owner's (B09). /dashboard, /refresh/runs and
+  // /settings say it; check_updates' copy doesn't.
+  yours?: boolean
+}
+
+export type RunTrigger = 'button' | 'chat' | 'schedule' | 'cli'
+
+/** One line of the "Refresh runs" card: a run (ok, partial, failed) or a refused one (skipped). */
+export interface RunRow {
+  trigger: RunTrigger
+  started: string // ISO 8601, UTC
+  finished: string | null // null for a skip
+  result: 'ok' | 'partial' | 'failed' | 'skipped'
+  duration_s: number | null
+  counts: RefreshCounts | null // null for a skip
+  new_cves: string[]
+  version: number | null
+  feeds: FeedResult[]
+  errors: { source: string; message: string }[]
+  alerts_sent: number // alerts sent to you (each one in a digest counts)
+  alerts_held: number // held for quiet hours
+  reason: 'too_soon' | 'running' | null // a skip's reason
+  next_allowed: string | null // a skip's next allowed time
+  times: number // a skip asked again before the next allowed time counts up
+}
+
+export interface RunsReply extends DataStatus {
+  schedule: ScheduleStatus
+  runs: RunRow[] // newest first, at most 20
+}
+
+export const refreshRuns = () => request<RunsReply>('/refresh/runs')
+
+/** Resume (or pause) the schedule from the dashboard: the saved settings with schedule_paused changed. */
+export async function setSchedulePaused(paused: boolean): Promise<AppSettings> {
+  const { settings } = await getSettings()
+  return (await saveSettings({ ...settings, alerts: { ...settings.alerts, schedule_paused: paused } })).settings
+}
+
 export const setStatus = (id: string, body: DecisionInput) =>
   request<{ id: string; status: CveStatus; decision: Decision }>(`/cves/${encodeURIComponent(id)}`, json('PATCH', body))
+
+// Changes Patch proposes (B21): nothing changes until you approve. Approving again returns the first result.
+/** Your corrections to a proposal: a status's decision fields, or a product's usage, version, internet-facing. */
+export type ProposalEdit =
+  | DecisionInput
+  | { usage?: ProductUsage; version?: string; internet_facing?: boolean }
+const proposalPath = (id: string) => `/proposals/${encodeURIComponent(id)}`
+export const getProposal = (id: string) => request<Proposal>(proposalPath(id))
+export const approveProposal = (id: string) => request<Proposal>(`${proposalPath(id)}/approve`, { method: 'POST' })
+export const cancelProposal = (id: string) => request<Proposal>(`${proposalPath(id)}/cancel`, { method: 'POST' })
+export const editProposal = (id: string, body: ProposalEdit) => request<Proposal>(proposalPath(id), json('PATCH', body))
 
 export const getWatchlist = () => request<Watchlist>('/watchlist')
 
@@ -345,6 +555,7 @@ export interface AlertSettings {
   now_critical: boolean
   digest_over: number
   schedule_hours: 1 | 3 | 6 | 12 | 24
+  schedule_paused: boolean // B19: no scheduled check starts; Check now and Patch still check
   quiet_start: string | null // HH:MM
   quiet_end: string | null
   channels: Channel[]
@@ -374,6 +585,52 @@ export interface ChannelStatus {
 export interface SettingsReply {
   settings: AppSettings
   channels: Record<Channel, ChannelStatus>
+  alert_tz?: string // the time zone of quiet hours (ALERT_TZ or Settings, B04, B26)
+  schedule?: ScheduleStatus // the owner's schedule, with `yours` (BR.9)
+  server?: ServerStatus | null // B26: the owner's server settings; null for anyone else
+}
+
+// --- B26: what the owner sets on Settings instead of .env. The environment wins when it sets one.
+
+export type SettingSource = 'env' | 'saved' | 'default'
+
+export interface ServerFields {
+  data_mode: DataMode
+  alert_tz: string // an IANA time zone, e.g. Europe/London
+  app_url: string // alerts link back to the CVE at this address
+  ntfy_url: string
+  smtp_port: number
+  smtp_starttls: boolean
+}
+
+export type SecretName =
+  | 'ntfy_topic'
+  | 'ntfy_token'
+  | 'smtp_host'
+  | 'smtp_user'
+  | 'smtp_password'
+  | 'alert_email_from'
+  | 'alert_email_to'
+  | 'nvd_api_key'
+
+/** The server settings as Settings shows them. A secret is never sent back: only whether it's set, and where from. */
+export interface ServerStatus {
+  fields: { [K in keyof ServerFields]: { value: ServerFields[K]; source: SettingSource } }
+  secrets: Record<SecretName, { set: boolean; source: SettingSource }>
+  env_names: Record<keyof ServerFields | SecretName, string> // the environment variable of each
+  app_url_reachable: boolean
+  feeds: Feeds // B28: the Data card says where live data comes from
+}
+
+/** A change: a field left out stays as saved, a value saves it, null removes the saved one. */
+export type ServerUpdate = { [K in keyof ServerFields]?: ServerFields[K] | null } & {
+  [K in SecretName]?: string | null
+}
+
+export interface ServerReply {
+  server: ServerStatus
+  channels: Record<Channel, ChannelStatus>
+  alert_tz: string
 }
 
 export interface AlertMessage {
@@ -384,12 +641,27 @@ export interface AlertMessage {
   click: string | null
 }
 
-export interface AlertLogEntry extends AlertMessage {
-  at: string // ISO time, UTC
+// The alert reasons (B04; the table in ALERTS-PLAN.md)
+export type AlertReason = 'kev' | 'kev_recheck' | 'new' | 'new_unscored' | 'now_critical' | 'due_soon' | 'overdue'
+
+/** One channel's result for one message: sent, recorded only (not sent, no error), not set up, or failed. */
+export interface ChannelResult {
   channel: Channel | 'preview'
   sent: boolean
   error: string | null
   error_code: 'not_configured' | 'notify_failed' | null
+}
+
+/** One message in the alerts log (app/alerts.py): one alert, a digest of several, a test alert from Settings, or
+ * (in a refresh result only) an alert held through quiet hours. */
+export interface AlertLogEntry extends AlertMessage {
+  at: string // ISO time, UTC
+  kind: 'alert' | 'digest' | 'held' | 'test'
+  cve: string | null // one alert's CVE; null for a digest or a test
+  reason: AlertReason | null
+  alerts: { cve: string; reason: AlertReason; priority: number }[]
+  channels: ChannelResult[]
+  in_app_only?: boolean // B09: another user's alert: recorded and shown here, never sent (the channels are the owner's)
 }
 
 export interface TestAlertReply {
@@ -397,10 +669,13 @@ export interface TestAlertReply {
   channel: Channel | 'preview'
   sent: boolean
   note: string
+  tap: string // B26: what tapping the phone alert does
+  tap_link: string | null // the link a phone alert or an email carries; null while a phone can't open the app
 }
 
 export const getSettings = () => request<SettingsReply>('/settings')
 export const saveSettings = (s: AppSettings) => request<{ settings: AppSettings }>('/settings', json('PUT', s))
+export const saveServerSettings = (u: ServerUpdate) => request<ServerReply>('/settings/server', json('PUT', u))
 export const alertsLog = () => request<{ alerts: AlertLogEntry[] }>('/alerts')
 export const testAlert = (channel: Channel | 'preview') =>
   request<TestAlertReply>('/alerts/test', json('POST', { channel }))
@@ -431,6 +706,7 @@ export interface DevSettingsReply {
   settings: DevSettings
   defaults: DevSettings // from the backend's .env
   openrouter_key: boolean // whether OPENROUTER_API_KEY is set; the key itself never leaves the server
+  yours?: boolean // false: the caller isn't the owner, so sees the owner's choices read-only (B29)
 }
 
 export interface DevInfo {

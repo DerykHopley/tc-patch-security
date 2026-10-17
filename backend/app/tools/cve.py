@@ -1,19 +1,21 @@
 """lookup_cve (T2): one CVE from the snapshot, with OWASP, KEV and watchlist context."""
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel
 
 from app.errors import ToolError
+from app.proposals import ProposalSource
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
 from app.status import JUSTIFICATIONS, STATUSES
+from app.schemas import CveId
 from app.tools.registry import (Category, PriorityLevel, Severity, ToolResult, ToolSpec, Verdict, WatchStatus,
                                 WhoActs, register)
 from app.watched import WatchedCves
 
 
 class CveArgs(BaseModel):
-    cve_id: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, pattern=r"(?i)^CVE-\d{4}-\d{4,}$")]
+    cve_id: CveId
 
 
 class Kev(ToolResult):
@@ -40,6 +42,8 @@ class Decision(ToolResult):
     decided_at: str | None  # None: recorded before decision records
     decided_by: str | None
     via: str | None
+    proposal: str | None = None  # the proposal you approved, for a change Patch proposed (B21)
+    sources: list[ProposalSource] | None = None  # what that proposal cited (B22)
 
 
 class Priority(ToolResult):
@@ -84,7 +88,7 @@ def run(args: CveArgs, deps, ctx) -> dict:
     cve = k.cves.get(args.cve_id)
     if cve is None:
         raise ToolError(f"{args.cve_id} isn't in my snapshot ({len(k.cves.all())} CVEs for "
-                        f"{len(k.products)} LLM products, as of {deps.settings.as_of}).", "cve_not_in_snapshot")
+                        f"{len(k.products)} LLM products, as of {deps.as_of}).", "cve_not_in_snapshot")
     kev = k.cves.kev.get(cve["id"])
     a = WatchedCves.of(deps).assess(cve["id"])  # verdict (advice, never the status), decision, priority
     v, p = a.verdict, a.priority

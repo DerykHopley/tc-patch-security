@@ -42,6 +42,13 @@ export function useRoute(): [Route, (href: string) => void] {
   return [route, navigate]
 }
 
+/** Opens an in-app path from a part that has no `navigate` (the chat's proposal card, B21): a new history entry,
+ *  then the popstate useRoute listens to, so the page follows as for Back. */
+export function openPath(href: string): void {
+  history.pushState(null, '', href)
+  window.dispatchEvent(new PopStateEvent('popstate'))
+}
+
 /** Follows an in-app link without a page load; a modified click (new tab, new window) is left to the browser. */
 export function followLink(e: MouseEvent<HTMLAnchorElement>, navigate: (href: string) => void): void {
   if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return

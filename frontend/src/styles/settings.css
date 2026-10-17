@@ -6,16 +6,29 @@
   color: var(--muted);
 }
 
-.settings-grid {
+/* Dev: a grid of cards in rows. */
+.settings-grid,
+.settings-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.2rem;
   align-items: start;
 }
 
-/* ≤ 900px: one column of cards (DESIGN.md §4.2). */
+/* Settings: the Watchlist across the top, then two packed columns (DESIGN.md §5.7). Each column stacks its own
+   cards, so a short card never leaves a hole beside a tall one, as the grid's rows did (DECISIONS.md, 2026-10-16).
+   Two real columns, not CSS `columns`: that splits reading and Tab order unpredictably and can break a card in two. */
+.settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  min-width: 0;
+}
+
+/* ≤ 900px: one column of cards (DESIGN.md §4.2); on Settings the left column, then the right. */
 @media (max-width: 900px) {
-  .settings-grid {
+  .settings-grid,
+  .settings-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -358,4 +371,111 @@
 /* The policy's days (A16): the four inputs line up under each other. */
 .policy-days .field-row > label:first-child {
   min-width: 4.5rem;
+}
+
+/* ---------- B26: the owner's server settings (DESIGN.md §5.7) ---------- */
+
+/* A box for an address or a secret takes the rest of its row, never under 12rem: on a phone it wraps under its
+   label instead of shrinking. */
+.field-row input[type='url'],
+.field-row input[type='password'] {
+  flex: 1 1 12rem;
+}
+
+/* Delivery's setup blocks, folded by default (DESIGN.md §5.7): one nested card each, its summary line the header,
+   the fieldset under it in the same fill. A chevron turns when open, with no transition: nothing moves. */
+.setup-block {
+  margin: 0.5rem 0 0;
+  border-radius: var(--radius-nested);
+  background: var(--nested-fill);
+}
+
+.setup-block:last-of-type {
+  margin-bottom: 0.8rem; /* the callout's own gap below */
+}
+
+.setup-block summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.3rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-nested);
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+}
+
+.setup-block summary::-webkit-details-marker {
+  display: none;
+}
+
+.setup-block summary::before {
+  content: '';
+  flex: none;
+  align-self: center;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.35rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.setup-block[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.setup-block summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.setup-unsaved {
+  font-weight: 700;
+}
+
+.settings-card .setup-block fieldset {
+  margin: 0;
+  padding-top: 0;
+}
+
+.secret-field .field-row {
+  padding-bottom: 0;
+}
+
+.secret-field .meta,
+.env-note {
+  margin: 0 0 0.3rem;
+}
+
+/* Status text on the surface follows §5.7's edge rule: --text, with the status colour as an edge */
+.secret-state.removing,
+.tap-line {
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--warn);
+  color: var(--text);
+}
+
+.tap-line.reachable {
+  border-left-color: var(--ok);
+}
+
+/* B28: where live data comes from (the Data card; the freshness card when the feeds are fake). The edge rule: --text
+   with the status colour as a 3px edge; the fake feeds also get the warn fill, so the warning can't be missed. */
+.card .feeds-line { /* beats .card p (muted) */
+  margin: 0.3rem 0 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid var(--ok);
+  border-radius: var(--radius-input);
+  color: var(--text);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.card .feeds-line.warn {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+  font-weight: 600;
 }

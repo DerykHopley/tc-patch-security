@@ -14,6 +14,7 @@ import pytest
 from playwright.sync_api import Browser, Page, expect
 
 from test_dev import DESKTOP, PHONE, SHOTS, api, css_var, resolved, style
+from test_shell import LateLoads
 
 # The model check's questions: the scripts with an `expect`. Not /examples: a question asked from a page isn't one.
 SCRIPT = Path(__file__).resolve().parents[2] / "backend" / "fixtures" / "fake_script.json"
@@ -30,10 +31,12 @@ def default_dev_settings(api_url: str):
 def dev_page(browser: Browser, ui_url: str):
     contexts = []
 
-    def _open(width=DESKTOP, scheme="light", reduced=False) -> Page:
+    def _open(width=DESKTOP, scheme="light", reduced=False, setup=None) -> Page:
         ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme,
                                   reduced_motion="reduce" if reduced else "no-preference")
         contexts.append(ctx)
+        if setup:
+            setup(ctx)  # routes that must be in place before the first request
         page = ctx.new_page()
         page.goto(ui_url)
         page.get_by_role("button", name="Dev", exact=True).click()
@@ -84,7 +87,7 @@ def test_a12_6_fakellm_passes_every_question_in_the_dev_panel(dev_page):
     expect(result.locator(".eval-answer-text")).to_contain_text("Langflow")
 
 
-def test_a12_6_past_runs_listed_and_two_side_by_side(dev_page):
+def test_a12_6_past_runs_listed_and_two_side_by_side(dev_page, api_url):
     page = dev_page()
     run_model_check(page)
     page.reload()
@@ -102,16 +105,21 @@ def test_a12_6_past_runs_listed_and_two_side_by_side(dev_page):
     # The report link carries the ticked runs
     href = page.get_by_role("link", name=re.compile("Open the report")).get_attribute("href")
     query = parse_qs(urlparse(href).query)
-    assert urlparse(href).path == "/dev/report" and len(query["models"][0].split(",")) == 2
+    # On the API: /dev/report, or /api/dev/report when the backend serves the built frontend (#72)
+    assert urlparse(href).path == urlparse(api_url).path + "/dev/report" and len(query["models"][0].split(",")) == 2
 
 
-def test_a12_6_save_first_before_a_model_check(dev_page):
-    page = dev_page()
+def test_a12_6_save_first_before_a_model_check(dev_page, api_url):
+    # A late load of the saved settings (React's double effect in development, a slow network) must not reset an
+    # edit made once the form shows: it did, and the check stayed enabled (CI run 38847853994).
+    late = []
+    page = dev_page(setup=lambda ctx: late.append(LateLoads(ctx, f"{api_url}/dev/settings")))
     run = page.get_by_role("button", name="Run model check")
-    # The saved settings load after the heading: a field filled before that is reset by the load (CI race).
     expect(run).to_be_enabled()
-    expect(page.get_by_label("Sources per search")).not_to_have_value("")
     page.get_by_label("Sources per search").fill("7")
+    expect(run).to_be_disabled()
+    late[0].wait_all(page)
+    expect(page.get_by_label("Sources per search")).to_have_value("7")
     expect(run).to_be_disabled()
     expect(page.get_by_text("Save your settings first")).to_be_visible()
 

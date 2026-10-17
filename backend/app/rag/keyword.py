@@ -45,6 +45,10 @@ def _singular(word: str) -> str:
     return word
 
 
+def _squash(name: str) -> str:
+    return "".join(ch for ch in name.lower() if ch.isalnum())  # "open-webui", "Open WebUI" → "openwebui"
+
+
 def keyword_text(c: Chunk) -> str:
     """What BM25 reads: the embedded text plus the CVE's product slug and CWE ids, so `CWE-918` finds its CVEs."""
     from app.rag.vector import index_text  # vector imports chromadb; keep this module light
@@ -65,10 +69,20 @@ class BM25Index:
         n = len(chunks)
         # The "+1" form: never negative, so a very common word adds a little rather than taking away.
         self._idf = {t: math.log(1 + (n - d + 0.5) / (d + 0.5)) for t, d in df.items()}
+        self._products = {_squash(c.product) for c in chunks if c.product}
         self._postings: dict[str, list[int]] = {}
         for i, tf in enumerate(self._tf):
             for t in tf:
                 self._postings.setdefault(t, []).append(i)
+
+    def exact_terms(self, query: str) -> list[str]:
+        """The ids and product names in the query that the index holds: `cve-2024-8309`, `llm01`, `aml.t0051.001`
+        (a token with a letter and a digit), `llamaindex`, "Open WebUI" (a product slug, one word or two). The
+        off-topic gate (#53) never closes on these: an id-only question can score low on the vector side."""
+        toks = [t for t in _TOKEN.findall(query.lower()) if t not in STOP_WORDS]
+        ids = [t for t in toks if t in self._idf and any(ch.isdigit() for ch in t) and any(ch.isalpha() for ch in t)]
+        names = toks + [a + b for a, b in zip(toks, toks[1:])]
+        return ids + [n for n in names if _squash(n) in self._products]
 
     def search(self, query: str, k: int = 10, filters: Filters | None = None) -> list[Hit]:
         """Up to k hits, best first; only chunks inside the filters; none that share no word with the query."""

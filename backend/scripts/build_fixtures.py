@@ -14,6 +14,7 @@ from pathlib import Path
 
 import yaml
 
+from app.cve_build import PRODUCTS, build_cves
 from scripts import snapshot_additions as add
 
 HERE = Path(__file__).resolve().parent
@@ -23,22 +24,6 @@ AS_OF = "2026-10-13"
 
 LLM_REPO = "https://github.com/OWASP/www-project-top-10-for-large-language-model-applications/blob/main/2_0_vulns"
 WEB_REPO = "https://github.com/OWASP/Top10/blob/master/2025/docs/en"
-
-# product id -> (display name, aliases matched in CPE product names and descriptions)
-PRODUCTS = {
-    "langflow": ("Langflow", ["langflow"]),
-    "open-webui": ("Open WebUI", ["open webui", "open-webui", "open_webui", "openwebui"]),
-    "flowise": ("Flowise", ["flowise"]),
-    "vllm": ("vLLM", ["vllm"]),
-    "langchain": ("LangChain", ["langchain", "langchainjs"]),
-    "dify": ("Dify", ["dify"]),
-    "gradio": ("Gradio", ["gradio"]),
-    "ollama": ("Ollama", ["ollama"]),
-    "llama.cpp": ("llama.cpp", ["llama.cpp", "llama_cpp"]),
-    "litellm": ("LiteLLM", ["litellm"]),
-    "anything-llm": ("AnythingLLM", ["anything-llm", "anythingllm"]),
-    "llamaindex": ("LlamaIndex", ["llama_index", "llamaindex", "llama-index"]),
-}
 
 LINK_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)(\{[^}]*\})?")  # images, with mkdocs attributes
 
@@ -110,45 +95,9 @@ def atlas(raw: Path, out: Path) -> dict:
     return {k: len(v) for k, v in result.items() if isinstance(v, list)} | {"version": d["version"]}
 
 
-def match_product(row: dict) -> tuple[str | None, str | None]:
-    """CPE product name first; else the product named earliest in the description."""
-    for cpe in row["vendor_products"]:
-        name = cpe.split(":", 1)[1].lower()
-        for pid, (_, aliases) in PRODUCTS.items():
-            if name in aliases or name.replace("_", "-") in aliases:
-                return pid, "cpe"
-    desc = row["description"].lower()
-    best = None
-    for pid, (_, aliases) in PRODUCTS.items():
-        for a in aliases:
-            m = re.search(rf"(?<![\w-]){re.escape(a)}(?![\w-])", desc)
-            if m and (best is None or m.start() < best[1]):
-                best = (pid, m.start())
-    return (best[0], "text") if best else (None, None)
-
-
 def cves(raw: Path, out: Path, cwe_map: dict) -> dict:
     nvd = json.loads((raw / "nvd_ai.json").read_text())["cves"]
-    kev = {v["cveID"]: v for v in json.loads((raw / "kev.json").read_text())["vulnerabilities"]}
-    rows, kev_rows = [], []
-    for r in nvd:
-        if r["status"] == "Rejected":
-            continue
-        pid, how = match_product(r)
-        if not pid:
-            continue
-        cats = sorted({cwe_map[c] for c in r["cwes"] if c in cwe_map})
-        rows.append({
-            "id": r["id"], "published": r["published"][:10], "product": pid, "product_source": how,
-            "severity": r["severity"], "cvss": r["score"], "cwes": r["cwes"], "owasp": cats[0] if cats else None,
-            "description": " ".join(r["description"].split()), "kev": r["id"] in kev,
-            "url": f"https://nvd.nist.gov/vuln/detail/{r['id']}",
-        })
-        if r["id"] in kev:
-            v = kev[r["id"]]
-            kev_rows.append({k: v.get(k) for k in ("cveID", "vulnerabilityName", "dateAdded", "dueDate",
-                                                   "knownRansomwareCampaignUse", "requiredAction")})
-    rows.sort(key=lambda r: (r["published"], r["id"]), reverse=True)
+    rows, kev_rows = build_cves(nvd, cwe_map, json.loads((raw / "kev.json").read_text()))
     (out / "cves.json").write_text(json.dumps(
         {"products": {k: v[0] for k, v in PRODUCTS.items()}, "cves": rows}, indent=1))
     (out / "kev.json").write_text(json.dumps(kev_rows, indent=1))
@@ -209,22 +158,19 @@ def build(raw: Path = RAW, out: Path = OUT, fetch: bool = False) -> dict:
     return {"owasp": o, "atlas": a, "cves": c, **x}
 
 
-def fetch_additions(raw: Path, cve_ids: list[str]) -> None:
-    """Download OSV records by package and EPSS scores as of the snapshot date. Free APIs, no key."""
+def fetch_additions(raw: Path, cve_ids: list[str], feeds=None) -> None:
+    """Download OSV records by package and EPSS scores as of the snapshot date, with the real Feeds adapter (B03).
+    Free APIs, no key."""
     import datetime as dt
-    import urllib.request
 
-    def call(url: str, body: dict | None = None) -> dict:
-        data = json.dumps(body).encode() if body is not None else None
-        req = urllib.request.Request(url, data=data, headers={
-            "User-Agent": "tc-patch-security-snapshot/0.1", "Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            return json.loads(resp.read())
+    from app.cve_build import PACKAGES, package_key
+    from app.feeds import HttpFeeds
 
+    feeds = feeds or HttpFeeds(timeout=60)
     today = dt.date.today().isoformat()
-    osv = add.fetch_osv(lambda url, body: call(url, body))
+    osv = {package_key(e, n): feeds.osv(e, n) for p in PACKAGES.values() for e, n in p["packages"]}
     (raw / "osv.json").write_text(json.dumps({"retrieved": today, "packages": osv}, indent=1) + "\n")
-    epss = add.fetch_epss(call, cve_ids, date=AS_OF)
+    epss = feeds.epss(cve_ids, date=AS_OF)
     (raw / "epss.json").write_text(json.dumps({"retrieved": today, **epss}, indent=1) + "\n")
 
 

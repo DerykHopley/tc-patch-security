@@ -11,6 +11,7 @@ from playwright.sync_api import Locator, Page, expect
 
 from test_chat import ask, open_chat, window
 from test_shell import DESKTOP, PHONE, SHOTS, contrast, no_sideways_scroll, open_app  # noqa: F401 (fixture)
+from reduced_motion import scene, still
 
 Q12 = "What is prompt injection and how do I prevent it?"
 ALERT_CVE = "CVE-2025-3248"
@@ -111,7 +112,7 @@ def test_a19_4_explain_it_uses_the_saved_level(open_app, api_url):
     save_level(api_url, "deep_dive")
     page = open_app(query=f"#cve={ALERT_CVE}")
     bodies = chat_bodies(page)
-    page.get_by_role("region", name="Alert").get_by_role("button", name="Explain it").click()
+    page.get_by_role("region", name="Alert", exact=True).get_by_role("button", name="Explain it").click()
     answer = window(page).locator(".message.assistant").first
     expect(answer).to_be_visible(timeout=10_000)
     assert bodies[-1].get("explain_level") is None
@@ -124,7 +125,7 @@ def test_a19_4_explain_it_ignores_a_level_picked_for_the_next_question(open_app,
     open_chat(page)
     switch(page).get_by_role("radio", name="Simple").check()
     page.evaluate(f"location.hash = 'cve={ALERT_CVE}'")
-    page.get_by_role("region", name="Alert").get_by_role("button", name="Explain it").click()
+    page.get_by_role("region", name="Alert", exact=True).get_by_role("button", name="Explain it").click()
     answer = window(page).locator(".message.assistant").first
     expect(answer).to_be_visible(timeout=10_000)
     expect(level_note(answer)).to_contain_text("Deep dive")
@@ -132,7 +133,7 @@ def test_a19_4_explain_it_ignores_a_level_picked_for_the_next_question(open_app,
 
 # --- A19.6: reduced motion: nothing in this ticket moves ---------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a19_6).
+# Reduced motion: scene a19_6 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A19.7: light and dark, phone and desktop ---------------------------------------------------------------------
@@ -187,3 +188,17 @@ def test_a19_8_switch_by_keyboard_with_visible_focus_and_names(open_app):
     expect(switch(page).get_by_role("radio", name="Deep dive")).to_be_focused()
     for name in LABEL.values():
         expect(switch(page).get_by_role("radio", name=name, exact=True)).to_have_count(1)
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a19_6_explain_levels(fx):
+    page = fx("open_app")(reduced=True)
+    open_chat(page)
+    for name in ("Simple", "Deep dive", "Normal"):
+        switch(page).get_by_role("radio", name=name).check()
+        still(page, f"the switch at {name}")
+    page.get_by_role("button", name="Settings", exact=True).click()
+    settings_group(page).get_by_role("radio", name="Simple").check()
+    still(page, "the saved level on Settings")

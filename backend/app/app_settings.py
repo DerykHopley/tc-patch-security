@@ -16,7 +16,8 @@ HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
 
 
 class AlertSettings(BaseModel):
-    """Saved now; the refresh worker in spec B reads them. Nothing checks for new CVEs yet."""
+    """The alert rules and channels a live refresh reads (app.alerts, B04). due_soon and overdue have no switch: they
+    are always on while `enabled` is. Quiet hours are in ALERT_TZ."""
     enabled: bool = True
     min_severity: Severity = "HIGH"
     kev: bool = True  # a watched CVE is added to CISA KEV
@@ -25,6 +26,7 @@ class AlertSettings(BaseModel):
     now_critical: bool = True  # an open CVE is rescored as critical
     digest_over: int = Field(5, ge=1, le=50)  # more alerts than this per check become one digest
     schedule_hours: Literal[1, 3, 6, 12, 24] = 6
+    schedule_paused: bool = False  # B19: no scheduled run starts; Check now, the CLI and check_updates still run
     quiet_start: str | None = Field(None, pattern=HHMM)
     quiet_end: str | None = Field(None, pattern=HHMM)
     channels: list[Channel] = Field(default_factory=lambda: ["desktop"])
@@ -67,7 +69,7 @@ class AppSettings(BaseModel):
 
 
 def default_settings(env: Settings) -> AppSettings:
-    """The defaults from the environment: desktop, plus every channel set up in .env."""
+    """The defaults from the settings: desktop, plus every channel set up (in .env, or on Settings: B26)."""
     channels: list[Channel] = ["desktop"]
     if env.smtp_host and env.alert_email_to:
         channels.append("email")
@@ -86,7 +88,7 @@ class DevSettings(BaseModel):
     local_url: str = Field("http://localhost:11434/v1", max_length=200)  # checked by the SSRF guard on save
     local_model: str = Field("", max_length=200, pattern=r"^[\w.:/@\-]*$")
     temperature: float = Field(0.2, ge=0, le=2)
-    max_steps: int = Field(4, ge=1, le=8)
+    max_steps: int = Field(6, ge=1, le=8)  # 6 (B22): the research workflow is four tool rounds and an answer
     # Search (SearchOptions): the defaults are the spec's values.
     top_n: int = Field(5, ge=1, le=10)
     per_query_k: int = Field(10, ge=1, le=30)

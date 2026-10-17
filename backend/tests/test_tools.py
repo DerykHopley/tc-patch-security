@@ -67,23 +67,30 @@ def test_a06_1_t3_unknown_ids(deps):
     assert call(deps, "explain_weakness", id="XSS").error["code"] == "unknown_id"
 
 
+def approved(deps, result):
+    """The user approves Patch's proposal (B21): only then does anything change."""
+    from app import proposals
+
+    return proposals.approve(deps, result["proposal_id"])
+
+
 def test_a06_1_t4_watch_unwatch(deps):
     r = call(deps, "update_watchlist", action="watch", product="vLLM").result
-    assert "vLLM" in r["watchlist"] and r["message"] == "Added vLLM to your watchlist."
-    assert call(deps, "update_watchlist", action="watch", product="vllm").result["message"].endswith("already on your watchlist.")
-    r = call(deps, "update_watchlist", action="unwatch", product="vllm").result
-    assert "vLLM" not in r["watchlist"]
+    assert approved(deps, r)["message"] == "Added vLLM to your watchlist." and deps.state.read().watches("vllm")
+    assert call(deps, "update_watchlist", action="watch", product="vllm").result["message"].endswith(
+        "already on your watchlist: nothing to change.")
+    approved(deps, call(deps, "update_watchlist", action="unwatch", product="vllm").result)
+    assert not deps.state.read().watches("vllm")
 
 
 def test_a06_1_t4_set_status(deps):
     r = call(deps, "update_watchlist", action="set_status", cve_id="CVE-2024-8309", status="fixed")
     assert r.status == "ok"
+    approved(deps, r.result)
     assert call(deps, "lookup_cve", cve_id="CVE-2024-8309").result["watch_status"] == "fixed"
 
 
 def test_a06_1_t5_bad_arguments(deps):
     assert call(deps, "lookup_cve", cve_id="not-a-cve").error["code"] == "bad_arguments"
-    assert call(deps, "update_watchlist", action="watch").error["code"] == "bad_arguments"
-    assert call(deps, "update_watchlist", action="watch", product="Notion").error["code"] == "bad_value"
-    assert call(deps, "update_watchlist", action="set_status", cve_id="CVE-1999-0001", status="fixed").error["code"] == "cve_not_in_snapshot"
+    # update_watchlist's needs and errors are the proposal's own: test_one_way_in.py (B27.1, B27.2)
     assert call(deps, "no_such_tool").error["code"] == "unknown_tool"
