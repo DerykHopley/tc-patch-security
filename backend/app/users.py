@@ -5,6 +5,7 @@ unchanged. Other users' states are `<id>.json` in the same store (locally the `s
 user with nothing saved reads the defaults: the default watchlist and settings. Each user's State is made once and
 kept, so its locks (the in-process writer lock, the proposals' approvals lock) are shared by that user's requests.
 """
+import logging
 import threading
 
 from app.config import DEFAULT_USER, USER_ID, Settings
@@ -14,6 +15,10 @@ from app.store import USERS_PREFIX, Conflict, GcsStore, LocalStore, Store, open_
 # The users who have signed in (story 61): a small list next to the users' state, so a user who never saved anything,
 # or reset, still counts for the refresh. The dot keeps it from being read as a user's state (a user id has none).
 KNOWN = "known.users.json"
+# The owner's one-time adoption of the default user's state has been checked (B31): never again after this.
+ADOPTED = "adopted.users.json"
+
+log = logging.getLogger(__name__)
 
 
 def local_store(settings: Settings) -> LocalStore:
@@ -55,6 +60,30 @@ class Users:
                 self._states[user_id] = State(None, self.k, self.defaults, self.dev_defaults, store=self.store,
                                               key=f"{user_id}.json")
             return self._states[user_id]
+
+    def adopt_default(self) -> bool:
+        """Sign-in on (B31, #78): the owner adopts the default user's state, once. Everything set up while sign-in was
+        off (live mode, Settings, the watchlist, alerts) is the default user's; the owner is a Clerk user id that would
+        otherwise start from the defaults. Copied only when the owner has no state and the default user has; never
+        over an owner's state (the write is create-only). ADOPTED records that the check ran, so a later reset of the
+        owner's state isn't refilled from the old default state. The default user's state is left as it was.
+        Returns whether it copied."""
+        if self.owner == DEFAULT_USER or self.store.read(ADOPTED)[0] is not None:
+            return False
+        copied = False
+        if self.store.read(f"{self.owner}.json")[0] is None:
+            default, _ = self.store.read(f"{DEFAULT_USER}.json")
+            if default is None:
+                return False  # nothing to adopt yet: check again on the next start
+            try:
+                self.store.write(f"{self.owner}.json", default, if_version=None)
+                copied = True
+                log.info("Sign-in on: the owner (%s) adopted the default user's state, once. The default user's "
+                         "state is unchanged.", self.owner)
+            except Conflict:  # the owner saved something meanwhile (another instance): theirs wins
+                pass
+        self.store.write(ADOPTED, {"owner": self.owner})
+        return copied
 
     def seen(self, user_id: str) -> None:
         """A user made a signed-in request: add them to the KNOWN record, once. The record is read and written only

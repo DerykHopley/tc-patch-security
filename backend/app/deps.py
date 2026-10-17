@@ -245,6 +245,8 @@ def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge 
     env = settings
     bucket = open_bucket(env, bucket)
     users = Users.for_settings(env, knowledge, default_settings(env), default_dev_settings(env), bucket)
+    if env.auth:  # B31: before the owner's saved server settings are read, so live mode comes along
+        users.adopt_default()
     settings = effective(env, users.state(env.owner).server_settings())  # B26: the owner's saved server settings
     snapshot = knowledge
     refresher = version = None
