@@ -1,6 +1,7 @@
 import type { PriorityLevel } from '../api.ts'
 import { NoFixMark } from './Decision.tsx'
 import { WarningIcon } from './Icons.tsx'
+import { kevDeadlineLine } from '../due.ts'
 
 // Priority by rules (A16): the level, its reasons and your due date, shown the same way on the CVEs page, the
 // dashboard's Top 5 and Patch's cards. Rules decide; nothing here re-orders anything. Never colour alone: the chip
@@ -31,7 +32,8 @@ export function OverdueMark() {
   )
 }
 
-/** Your due date (with where it came from), the overdue mark, and CISA's KEV deadline as a separate fact. An open
+/** Your due date (with where it came from), the overdue mark, and CISA's KEV deadline as a separate fact when it's
+ *  another date. An open
  *  CVE with no fix yet (A16b) shows "No fix yet · open N days" instead, and its due date is the "decide by" date:
  *  accept, mitigate or replace. */
 export function DueFacts({ due, from, overdue, kevDeadline, noFix = null }: {
@@ -41,6 +43,7 @@ export function DueFacts({ due, from, overdue, kevDeadline, noFix = null }: {
   kevDeadline: string | null
   noFix?: { days: number } | null
 }) {
+  const kevLine = kevDeadlineLine(due, kevDeadline) // never the same date twice (B36)
   return (
     <>
       {noFix && <span className="due-label">Decide by</span>}
@@ -50,11 +53,13 @@ export function DueFacts({ due, from, overdue, kevDeadline, noFix = null }: {
       {overdue && <OverdueMark />}
       {noFix && <NoFixMark days={noFix.days} />}
       <span className="due-from">
-        {noFix ? 'accept, mitigate or replace · ' : ''}by your policy: {from}
+        {noFix ? 'accept, mitigate or replace · ' : ''}
+        <span className="policy-words">by your policy: </span>
+        {from}
       </span>
-      {kevDeadline && (
+      {kevLine && (
         <span className="kev-deadline" title="CISA's remediation date for US federal agencies: a fact, not your due date">
-          CISA KEV deadline <span className="nowrap">{kevDeadline}</span>
+          CISA KEV deadline <span className="nowrap">{kevLine}</span>
         </span>
       )}
     </>

@@ -13,7 +13,7 @@ from playwright.sync_api import Page, Route, expect
 
 from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cves, pin, visible_focus, window  # noqa: F401
 from test_dashboard import (  # noqa: F401 (fixtures)
-    DESKTOP, PHONE, SHOTS, api, clean_state, confirm, open_dash, rows,
+    DESKTOP, PHONE, SHOTS, api, clean_state, confirm, more_actions, open_dash, rows,
 )
 from reduced_motion import scene, still
 
@@ -50,6 +50,7 @@ def plus_days(iso: str, days: int) -> str:
 
 
 def accept(page: Page, cve: str, reason="Behind our VPN; vendor has no fix", control="WAF rule") -> None:
+    more_actions(page, cve)  # Accept risk is under the row's More (B36)
     page.get_by_role("button", name=f"Accept the risk of {cve}", exact=True).click()
     d = page.get_by_role("dialog", name=f"Accept the risk of {cve}")
     d.get_by_role("textbox", name="Reason (required)").fill(reason)
@@ -62,6 +63,7 @@ def accept(page: Page, cve: str, reason="Behind our VPN; vendor has no fix", con
 
 def test_a16b_9_accepting_moves_it_out_of_open_with_reason_review_date_and_history(open_cves, api_url):
     page = open_cves("?product=langflow&kev=1")
+    more_actions(page, NO_FIX)
     page.get_by_role("button", name=f"Accept the risk of {NO_FIX}", exact=True).click()
     d = page.get_by_role("dialog", name=f"Accept the risk of {NO_FIX}")
     expect(d).to_be_visible()
@@ -89,6 +91,7 @@ def test_a16b_9_accepting_moves_it_out_of_open_with_reason_review_date_and_histo
     expect(status.locator(".history li")).to_contain_text("by owner, on the CVEs page")
     expect(status.locator(".history li .history-when")).to_have_text(re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d UTC$"))
     # Reopen: the history grows, never shrinks
+    more_actions(page, NO_FIX)
     status.get_by_role("button", name=f"Reopen {NO_FIX}").click()
     page.get_by_role("dialog").get_by_role("textbox", name="Note (optional)").fill("Vendor shipped a fix")
     confirm(page)
@@ -97,6 +100,7 @@ def test_a16b_9_accepting_moves_it_out_of_open_with_reason_review_date_and_histo
 
 def test_a16b_9_esc_closes_the_dialog_and_changes_nothing_focus_goes_back(open_cves, api_url):
     page = open_cves("?product=langflow&kev=1")
+    more_actions(page, FIXABLE)
     opener = page.get_by_role("button", name=f"Accept the risk of {FIXABLE}", exact=True)
     opener.click()
     d = page.get_by_role("dialog")
@@ -109,6 +113,7 @@ def test_a16b_9_esc_closes_the_dialog_and_changes_nothing_focus_goes_back(open_c
 
 def test_a16b_9_the_dialog_traps_focus(open_cves):
     page = open_cves("?product=langflow&kev=1")
+    more_actions(page, FIXABLE)
     page.get_by_role("button", name=f"Accept the risk of {FIXABLE}", exact=True).click()
     expect(page.get_by_role("dialog")).to_be_visible()
     seen = []
@@ -127,6 +132,7 @@ def test_a16b_9_the_dialog_traps_focus(open_cves):
 
 def test_a16b_9_a_server_error_shows_in_the_dialog(open_cves, api_url):
     page = open_cves("?product=langflow&kev=1")
+    more_actions(page, FIXABLE)
     page.get_by_role("button", name=f"Accept the risk of {FIXABLE}", exact=True).click()
     d = page.get_by_role("dialog")
     d.get_by_role("textbox", name="Reason (required)").fill("ok")
@@ -141,6 +147,7 @@ def test_a16b_9_a_server_error_shows_in_the_dialog(open_cves, api_url):
 
 def test_a16b_10_the_justification_picker(open_cves, api_url):
     page = open_cves("?product=langflow&kev=1")
+    more_actions(page, FIXABLE)
     page.get_by_role("button", name=f"Mark {FIXABLE} not affected", exact=True).click()
     d = page.get_by_role("dialog", name=f"Mark {FIXABLE} not affected")
     group = d.get_by_role("group", name="Why isn't it affected? (required)")
@@ -240,8 +247,10 @@ def test_a16b_12_review_due_shows_in_open_with_its_acceptance(open_cves, api_url
     expect(status.locator(".chip.review-due")).to_have_text("Review due")
     expect(status).to_contain_text(f"Review was due {when}")
     expect(status).to_contain_text("Vendor has no fix")
-    for name in (f"Accept the risk of {FIXABLE} again", f"Mark {FIXABLE} fixed", f"Mark {FIXABLE} not affected",
-                 f"Reopen {FIXABLE}"):
+    # Accept again is the main action (B36); the rest are under More
+    expect(status.get_by_role("button", name=f"Accept the risk of {FIXABLE} again", exact=True)).to_be_visible()
+    more_actions(page, FIXABLE)
+    for name in (f"Mark {FIXABLE} fixed", f"Mark {FIXABLE} not affected", f"Reopen {FIXABLE}"):
         expect(status.get_by_role("button", name=name, exact=True)).to_be_visible()
     status.get_by_role("button", name=f"Accept the risk of {FIXABLE} again", exact=True).click()
     expect(page.get_by_role("dialog", name=f"Accept the risk of {FIXABLE} again")).to_be_visible()
@@ -260,6 +269,7 @@ def test_a16b_13_phone_and_pinned_show_the_decision_and_history_without_sideways
     assert no_sideways_scroll(page)
     b = status.locator(".history").bounding_box()
     assert b and b["x"] >= 0 and b["x"] + b["width"] <= PHONE
+    more_actions(page, NO_FIX)
     page.get_by_role("button", name=f"Reopen {NO_FIX}").click()
     d = page.get_by_role("dialog").bounding_box()
     assert d and d["x"] >= 0 and d["x"] + d["width"] <= PHONE
@@ -267,6 +277,7 @@ def test_a16b_13_phone_and_pinned_show_the_decision_and_history_without_sideways
     wide = open_cves("?product=langflow&kev=1")
     pin(wide)
     actions_in_view(wide)
+    more_actions(wide, FIXABLE)
     for name in (f"Accept the risk of {FIXABLE}", f"Mark {FIXABLE} not affected"):
         bb = wide.get_by_role("button", name=name, exact=True).bounding_box()
         box = wide.locator(".table-scroll").bounding_box()
@@ -287,6 +298,7 @@ def test_a16b_13_light_dark_phone_and_desktop(open_cves, api_url, browser_name, 
     SHOTS.mkdir(exist_ok=True)
     page.screenshot(path=SHOTS / f"a16b-{browser_name}-{width}-{scheme}-cves.png")
     assert no_sideways_scroll(page)
+    more_actions(page, FIXABLE)
     page.get_by_role("button", name=f"Mark {FIXABLE} not affected", exact=True).click()
     d = page.get_by_role("dialog")
     bg = d.evaluate("el => getComputedStyle(el).backgroundColor")
@@ -315,7 +327,7 @@ def test_a16b_14_keyboard_reaches_accept_and_the_history(open_cves, api_url):
     assert visible_focus(page)
     page.keyboard.press("Enter")
     expect(cell(page, NO_FIX, "Status").locator(".history li")).to_be_visible()
-    assert f"Accept the risk of {FIXABLE}" in seen, seen
+    assert f"More actions for {FIXABLE}" in seen, seen  # Accept risk is in it (B36.7 opens it by keyboard)
 
 
 # --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
@@ -323,6 +335,7 @@ def test_a16b_14_keyboard_reaches_accept_and_the_history(open_cves, api_url):
 @scene
 def a16b_13_decisions(fx):
     page = fx("open_cves")("?product=langflow&kev=1", reduced=True)
+    more_actions(page, FIXABLE)
     page.get_by_role("button", name=f"Accept the risk of {FIXABLE}", exact=True).click()
     expect(page.get_by_role("dialog")).to_be_visible()
     still(page, "the decision dialog")

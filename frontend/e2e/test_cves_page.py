@@ -13,7 +13,8 @@ import pytest
 from playwright.sync_api import Browser, Locator, Page, expect
 
 from test_dashboard import (  # noqa: F401 (fixtures)
-    DESKTOP, PHONE, SHOTS, TILES, api, clean_state, confirm, expect_rows, open_dash, rows, tile, tile_value,
+    DESKTOP, PHONE, SHOTS, TILES, api, clean_state, confirm, expect_rows, more_actions, open_dash, rows, tile,
+    tile_value,
 )
 from test_shell import settled
 from reduced_motion import scene, still
@@ -71,13 +72,14 @@ def no_sideways_scroll(page: Page) -> bool:
 
 
 def actions_in_view(page: Page) -> None:
-    """Every row's actions sit inside the table's box and the window: nothing to scroll sideways to reach them."""
+    """Every row's actions sit inside the table's box and the window: nothing to scroll sideways to reach them. A row
+    shows its main action and More (B36); what More opens stacks under it, in the same column."""
     scroll = page.locator(".table-scroll")
     assert scroll.evaluate("el => el.scrollWidth <= el.clientWidth + 1"), "the table scrolls sideways"
     box = scroll.bounding_box()
     width = page.viewport_size["width"] if page.viewport_size else DESKTOP
-    for name in (re.compile(r"^Mark .* fixed$"), re.compile(r"^Ask about this: ")):
-        for button in page.get_by_role("button", name=name).all()[:5]:
+    for name in (re.compile(r"^Mark .* fixed$"), re.compile(r"^More actions for ")):
+        for button in page.get_by_label(name).all()[:5]:
             b = button.bounding_box()
             assert b and box and b["x"] >= box["x"] - 0.5 and b["x"] + b["width"] <= box["x"] + box["width"] + 0.5
             assert b["x"] + b["width"] <= width
@@ -157,6 +159,7 @@ def test_a04_7_row_actions_reload_the_table_and_the_tiles(open_cves, api_url):
     confirm(page)
     expect(page.get_by_role("link", name=top, exact=True)).to_have_count(0)
     second = rows(page)[0]
+    more_actions(page, second)
     page.get_by_role("button", name=f"Mark {second} not affected").click()
     confirm(page, "Component not present")
     expect(page.get_by_role("link", name=second, exact=True)).to_have_count(0)
@@ -292,6 +295,7 @@ def test_a04b_7_phone_rows_are_stacked_cards(open_cves):
     for label in ("Product", "Severity", "EPSS", "Status"):
         expect(first.locator(f"td[data-label='{label}']")).to_be_visible()
     cve = rows(page)[0]
+    more_actions(page, cve)
     for name in (f"Mark {cve} fixed", f"Mark {cve} not affected", f"Ask about this: {cve}"):
         b = page.get_by_role("button", name=name).bounding_box()
         assert b and b["x"] >= 0 and b["x"] + b["width"] <= PHONE
@@ -383,8 +387,8 @@ def test_a04_11_keyboard_reaches_filters_actions_and_paging(open_cves):
         seen.append(focused(page))
         if seen[-1] == "Next page":
             break
-    for name in ("Severity", "Status", "In CISA KEV only", top, f"Mark {top} fixed", f"Mark {top} not affected",
-                 f"Ask about this: {top}", "FIRST", "Next page"):
+    for name in ("Severity", "Status", "In CISA KEV only", top, f"Mark {top} fixed", f"More actions for {top}",
+                 "FIRST", "Next page"):  # More's own buttons by keyboard: B36.7
         assert any(s.startswith(name) for s in seen), (name, seen)
     page.get_by_role("button", name=f"Mark {top} fixed").focus()
     assert visible_focus(page)

@@ -8,6 +8,7 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from test_chat import box, fab, window
+from test_dashboard import ask_about
 from test_shell import DESKTOP, PHONE, SHOTS, contrast, eventually, no_sideways_scroll, open_app, settled  # noqa: F401
 from reduced_motion import scene, still
 
@@ -320,7 +321,7 @@ def first_row_cve(page: Page) -> str:
 def test_a07_5_ask_about_this_opens_the_chat_over_the_cves_page_and_asks(open_app):
     page = open_app(query="/cves")  # the table moved to the CVEs page (A04b)
     cve = first_row_cve(page)
-    button = page.get_by_role("button", name=f"Ask about this: {cve}")
+    button = ask_about(page, cve)
     expect(button).to_have_text("Ask about this")
     button.focus()
     page.keyboard.press("Enter")  # reachable by keyboard
@@ -340,7 +341,7 @@ def test_a07_5_ask_about_this_uses_a_pinned_chat_when_pinned(open_app):
     page = open_app(init_script="localStorage.setItem('pinned', '1')", query="/cves")
     cve = first_row_cve(page)
     head_button(page, "Close the chat").click()
-    page.get_by_role("button", name=f"Ask about this: {cve}").click()
+    ask_about(page, cve).click()
     expect(head_button(page, UNPIN)).to_be_visible()
     expect(window(page).locator(".message.user")).to_have_text(f"Explain {cve} and how to defend against it.")
 

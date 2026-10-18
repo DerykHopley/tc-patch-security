@@ -78,9 +78,14 @@ table.cves {
 table.cves th,
 table.cves td {
   text-align: left;
-  padding: 0.45rem 0.5rem;
+  padding: 0.35rem 0.4rem; /* 0.45rem 0.5rem before B36: the room went to a dozen rows a screen */
   border-bottom: 1px solid var(--border);
   vertical-align: top;
+}
+
+/* Dense data, so lines a little closer than the body's 1.5 (B36): a three-line cell is 5px shorter. */
+table.cves td {
+  line-height: 1.35;
 }
 
 table.cves th {
@@ -121,18 +126,68 @@ table.cves .status {
   white-space: nowrap;
 }
 
-/* Stacked, so the column stays narrow and the columns A15/A16 add still fit. */
+/* One main action and "More" side by side (B36): a row is two lines shorter than with four stacked buttons. */
 table.cves .actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+table.cves .status-cell {
+  min-width: 8.6rem; /* the main action and More side by side */
+}
+
+table.cves .actions button,
+table.cves .more-actions summary {
+  padding: 0.15rem 0.55rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* "More": a native disclosure drawn as a plain pill (DESIGN.md §5.3), with a chevron that turns when open. Opened,
+   the rest of the actions stack under it, inside the row: nothing floats, so nothing is clipped or off-screen. */
+table.cves .more-actions summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+table.cves .more-actions summary::-webkit-details-marker {
+  display: none;
+}
+
+table.cves .more-actions summary::after {
+  content: '';
+  width: 0.35rem;
+  height: 0.35rem;
+  margin-top: -0.15rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+table.cves .more-actions[open] summary::after {
+  margin-top: 0.15rem;
+  transform: rotate(-135deg);
+}
+
+table.cves .more-actions summary:hover {
+  border-color: var(--accent);
+}
+
+table.cves .more-list {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 0.25rem;
-}
-
-table.cves .actions button {
-  padding: 0.15rem 0.55rem;
-  font-size: 0.75rem;
-  white-space: nowrap;
+  margin-top: 0.25rem;
 }
 
 /* The percentile may wrap ("98th / percentile"): the column stays narrow. */
@@ -159,8 +214,8 @@ table.cves .epss .meta {
 /* ---------- Verdict (A15): the chip, its reason, the fixed version, who acts, and the suggestion ---------- */
 
 table.cves .verdict-cell {
-  min-width: 9rem;
-  max-width: 13rem;
+  min-width: 10rem;
+  max-width: 14rem;
 }
 
 .verdict-cell .chip.verdict {
@@ -178,8 +233,29 @@ table.cves .verdict-cell {
   color: var(--muted);
 }
 
+/* In the list (B36): the chip and its reason share a line, and "Fixed in …" and "Who acts: …" share the next, so
+   the cell is two or three lines, not five. The CVE page and Patch's cards keep one fact a line. */
+table.cves .verdict-cell .chip.verdict {
+  margin: 0 0.3rem 0 0;
+}
+
+table.cves .verdict-cell .verdict-reason,
+table.cves .verdict-cell .verdict-fact {
+  display: inline;
+}
+
+table.cves .verdict-cell .verdict-reason + .verdict-fact::before {
+  content: '';
+  display: block;
+}
+
+table.cves .verdict-cell .verdict-fact + .verdict-fact::before {
+  content: ' · ';
+}
+
 table.cves .verdict-cell .suggest {
-  margin-top: 0.3rem;
+  display: block;
+  margin-top: 0.2rem;
   padding: 0.15rem 0.55rem;
   font-size: 0.75rem;
   white-space: nowrap;
@@ -189,11 +265,19 @@ table.cves .verdict-cell .suggest {
 /* ---------- Priority and due date (A16) ---------- */
 
 table.cves .priority-cell {
-  min-width: 7rem;
-  max-width: 11rem;
+  min-width: 6.5rem;
+  max-width: 9rem;
 }
 
-table.cves .priority-cell .priority-reasons,
+/* The chip and its reasons run on as one text (B36): two lines, not three. */
+table.cves .priority-cell .chip.priority {
+  margin-right: 0.3rem;
+}
+
+table.cves .priority-cell .priority-reasons {
+  font-size: 0.75rem;
+}
+
 table.cves .due-cell .due-from,
 table.cves .due-cell .kev-deadline {
   display: block;
@@ -205,10 +289,11 @@ table.cves .due-cell .nowrap {
   white-space: nowrap;
 }
 
-/* Narrow: the date, then "Overdue" on its own line, then where the date came from and the KEV deadline. */
+/* The date, "Overdue" on its own line, where the date came from, and the KEV deadline only when it's another date
+   (due.ts). Wide enough that "published + 90 days" stays one line (B36). */
 table.cves .due-cell {
-  min-width: 6.5rem;
-  max-width: 8rem;
+  min-width: 8.2rem;
+  max-width: 8.6rem;
 }
 
 table.cves .due-cell .due-date {
@@ -218,7 +303,18 @@ table.cves .due-cell .due-date {
 
 table.cves .due-cell .overdue {
   display: flex;
-  margin: 0.1rem 0 0;
+  margin: 0;
+}
+
+/* "by your policy:" is the Due column's own heading (its title says so): screen readers still hear it, the eye
+   reads "KEV deadline" under the date. It saved a line in every row (B36). The CVE page shows it. */
+table.cves .due-cell .policy-words {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 table.cves .due-cell .due-from,

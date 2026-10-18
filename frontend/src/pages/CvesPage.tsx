@@ -4,6 +4,7 @@ import {
   dashboard as fetchDashboard,
   setStatus,
   type CvePage,
+  type CveRow,
   type DecisionInput,
   type Product,
   type Severity,
@@ -19,7 +20,8 @@ import {
   type DecisionRequest,
 } from '../components/Decision.tsx'
 import { VERDICT_LABEL, VERDICTS, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
-import { StatusActions, SuggestNotAffected } from '../components/CveActions.tsx'
+import { ActionButtons, SuggestNotAffected } from '../components/CveActions.tsx'
+import { rowActions } from '../cveActions.ts'
 import { CveLink } from '../components/CveLink.tsx'
 import { SEVERITIES, sevLabel } from '../severity.ts'
 import {
@@ -390,12 +392,7 @@ function CveTable({ page, onDecide, onAsk, onOpen, selected }: {
                   {r.review_due && <span className="chip review-due">Review due</span>}
                 </span>
                 <DecisionSummary row={r} />
-                <div className="actions">
-                  <StatusActions row={r} onDecide={onDecide} />
-                  <button type="button" aria-label={`Ask about this: ${r.id}`} onClick={() => onAsk(r.id)}>
-                    Ask about this
-                  </button>
-                </div>
+                <RowActions row={r} onDecide={onDecide} onAsk={onAsk} />
                 <DecisionHistory row={r} />
               </td>
             </tr>
@@ -409,6 +406,33 @@ function CveTable({ page, onDecide, onAsk, onOpen, selected }: {
           )}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+// A row's actions (B36, #86): the one main action in view, the rest and "Ask about this" under "More", a native
+// disclosure. Four stacked buttons made each row about 147px tall, so only 4 fit on a screen. A disclosure rather
+// than a pop-up menu: it opens in place inside the row, so the table's sideways-scroll box can't clip it and a phone
+// never has it off-screen; the browser gives it Enter, Space and its expanded state for free. Every action also sits
+// on the CVE's own page (§5.15), one click on the id away.
+function RowActions({ row: r, onDecide, onAsk }: {
+  row: CveRow
+  onDecide?: (r: DecisionRequest) => void
+  onAsk: (id: string) => void
+}) {
+  const { main, more } = rowActions(r)
+  return (
+    <div className="actions">
+      <ActionButtons actions={[main]} onDecide={onDecide} />
+      <details className="more-actions">
+        <summary aria-label={`More actions for ${r.id}`}>More</summary>
+        <div className="more-list">
+          <ActionButtons actions={more} onDecide={onDecide} />
+          <button type="button" aria-label={`Ask about this: ${r.id}`} onClick={() => onAsk(r.id)}>
+            Ask about this
+          </button>
+        </div>
+      </details>
     </div>
   )
 }

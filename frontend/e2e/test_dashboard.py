@@ -109,6 +109,22 @@ def rows(page: Page) -> list[str]:
     return page.locator("table.cves tbody tr td:first-child a").all_inner_texts()
 
 
+def more_actions(page: Page, cve: str) -> None:
+    """Opens a CVE row's "More" (B36): its status actions after the main one, and "Ask about this". Open stays open."""
+    summary = page.get_by_label(f"More actions for {cve}", exact=True)
+    if not summary.evaluate("el => el.parentElement.open"):
+        # By keyboard: the open chat's head may sit over the top row's More, and a click would land on it
+        summary.focus()
+        page.keyboard.press("Enter")
+    expect(summary.locator("xpath=..").get_by_role("button", name=f"Ask about this: {cve}")).to_be_visible()
+
+
+def ask_about(page: Page, cve: str):
+    """A CVE row's "Ask about this", in view: it's under the row's More (B36)."""
+    more_actions(page, cve)
+    return page.locator("table.cves").get_by_role("button", name=f"Ask about this: {cve}")
+
+
 def expect_rows(page: Page, ids: list[str]) -> None:
     """Waits until the table shows exactly these CVEs, in this order."""
     expect(page.locator("table.cves tbody tr td:first-child a")).to_have_text(ids)

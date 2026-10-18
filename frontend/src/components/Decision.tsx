@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import type { CveRow, CveStatus, Decision, DecisionInput, Justification } from '../api.ts'
 import { STATUS_LABEL } from '../cveView.ts'
+import type { DecisionRequest } from '../cveActions.ts'
 
 // Decision records (A16b, DESIGN.md §5.9): the dialog every status change goes through, the current decision under
 // the status, the append-only history, and the "No fix yet" mark. Only the user decides: nothing here is clicked for
@@ -30,12 +31,7 @@ export function addDays(iso: string, days: number): string {
 }
 
 /** What the dialog asks for. `preset`: "Mark not affected?" pre-selects a justification and the verdict's reason. */
-export interface DecisionRequest {
-  cve: string
-  status: CveStatus
-  again?: boolean // re-accepting: a new review date for an accepted CVE
-  preset?: { justification: Justification; note: string }
-}
+export type { DecisionRequest } // defined in cveActions.ts, so `npm test` can check the actions that build one
 
 const TITLE: Record<CveStatus, (cve: string, again?: boolean) => string> = {
   accepted: (cve, again) => (again ? `Accept the risk of ${cve} again` : `Accept the risk of ${cve}`),

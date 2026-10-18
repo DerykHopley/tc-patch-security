@@ -85,7 +85,8 @@ def test_a16_9_cves_page_shows_priority_reasons_due_date_and_overdue(open_cves, 
     expect(due.locator(".overdue")).to_have_text("Overdue")
     expect(due.locator(".overdue svg")).to_have_attribute("aria-hidden", "true")
     expect(due.locator(".due-from")).to_have_text("by your policy: KEV deadline")
-    expect(due.locator(".kev-deadline")).to_have_text("CISA KEV deadline 2025-05-26")  # CISA's date, its own fact
+    # Your due date is CISA's date here: said once (B36). Another due date keeps it as its own fact (the policy check below).
+    expect(due.locator(".kev-deadline")).to_have_count(0)
     levels = [r["priority"] for r in api(api_url, "/cves?limit=200")["rows"]]
     assert levels == sorted(levels, key=["urgent", "high", "normal", "low"].index)
 

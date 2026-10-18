@@ -1,54 +1,27 @@
 import { useState } from 'react'
 import type { CveRow, DecisionInput } from '../api.ts'
 import { DecisionDialog, type DecisionRequest } from './Decision.tsx'
+import { statusActions, type StatusAction } from '../cveActions.ts'
 
 // A CVE's actions (A16b, B35): the status changes, each through the decision dialog, and "Ask Patch". The CVEs list
-// shows the status actions in each row (StatusActions); the page for one CVE shows all of them (CveActions), with
-// its own dialog. One place for both, so the list's actions can move onto the CVE page (B36, #86) unchanged.
+// shows one in each row and the rest under "More" (B36, #86: cveActions.ts `rowActions`); the page for one CVE shows
+// all of them (CveActions), with its own dialog.
 
-/** The status actions a CVE offers (A16b). Open: fixed, not affected (unless the verdict suggests it), accept.
- *  Accepted with its review due: accept again, fixed, not affected, reopen. Accepted: fixed, reopen. Fixed or not
- *  affected: reopen. Each opens the decision dialog. Undefined `onDecide` (the as-of date not known yet): disabled. */
-export function StatusActions({ row: r, onDecide }: { row: CveRow; onDecide?: (req: DecisionRequest) => void }) {
-  const action = (label: string, name: string, req: Omit<DecisionRequest, 'cve'>) => (
-    <button
-      key={name}
-      type="button"
-      disabled={!onDecide}
-      aria-label={name}
-      onClick={() => onDecide?.({ cve: r.id, ...req })}
-    >
-      {label}
+/** The status actions a CVE offers (A16b; which ones by status: cveActions.ts), each a button that opens the decision
+ *  dialog. Undefined `onDecide` (the as-of date not known yet): disabled. */
+export function StatusActions({ row, onDecide }: { row: CveRow; onDecide?: (req: DecisionRequest) => void }) {
+  return <ActionButtons actions={statusActions(row)} onDecide={onDecide} />
+}
+
+export function ActionButtons({ actions, onDecide }: {
+  actions: StatusAction[]
+  onDecide?: (req: DecisionRequest) => void
+}) {
+  return actions.map((a) => (
+    <button key={a.name} type="button" disabled={!onDecide} aria-label={a.name} onClick={() => onDecide?.(a.request)}>
+      {a.label}
     </button>
-  )
-  const fixed = action('Mark fixed', `Mark ${r.id} fixed`, { status: 'fixed' })
-  const notAffected = action('Not affected', `Mark ${r.id} not affected`, { status: 'not_affected' })
-  const reopen = action('Reopen', `Reopen ${r.id}`, { status: 'open' })
-  if (r.status === 'open') {
-    return (
-      <>
-        {fixed}
-        {r.verdict !== 'not_affected' && notAffected}
-        {action('Accept risk', `Accept the risk of ${r.id}`, { status: 'accepted' })}
-      </>
-    )
-  }
-  if (r.status === 'accepted') {
-    return r.review_due ? (
-      <>
-        {action('Accept again', `Accept the risk of ${r.id} again`, { status: 'accepted', again: true })}
-        {fixed}
-        {notAffected}
-        {reopen}
-      </>
-    ) : (
-      <>
-        {fixed}
-        {reopen}
-      </>
-    )
-  }
-  return reopen
+  ))
 }
 
 /** "Mark not affected?": the version check's suggestion on an open CVE it finds not affected. A suggestion only:
