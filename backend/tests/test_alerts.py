@@ -6,7 +6,7 @@ import datetime as dt
 
 import pytest
 
-from app.alerts import Diff, batch, diff, digest, in_quiet_hours, rules
+from app.alerts import Diff, alert_counts, batch, diff, digest, first_check, in_quiet_hours, rules
 from app.app_settings import AlertSettings
 
 
@@ -219,6 +219,63 @@ def test_b04_3_above_the_limit_the_alerts_become_one_digest():
     alerts = [msg("CVE-1", "kev", 5), msg("CVE-2", "kev", 5), msg("CVE-3", "new"), msg("CVE-4", "overdue", 4)]
     assert batch(alerts, 3) == [alerts]  # one message carries every alert, so each is still logged
     d = digest(alerts, "http://app")
-    assert d == {"title": "4 alerts for your watchlist", "body": "2 in CISA KEV · 1 new · 1 overdue",
+    assert d == {"title": "4 alerts for your watchlist", "body": "2 in CISA KEV · 1 new · 1 reminder",
                  "priority": 5, "tags": ["digest"], "click": "http://app/cves"}
     assert all(a["body"] not in d["body"] for a in alerts)  # the digest says counts only: the ids are in the app
+
+
+DIGEST_BODIES = {
+    "what a check found, and reminders: the reminders as one count": (
+        [("kev", 1), ("new", 1), ("due_soon", 12), ("overdue", 260)], "1 in CISA KEV · 1 new · 272 reminders"),
+    "reminders only: by kind": ([("due_soon", 12), ("overdue", 263)], "12 due soon · 263 overdue"),
+    "what a check found only: by kind": ([("kev", 2), ("now_critical", 1)], "2 in CISA KEV · 1 now critical"),
+}
+
+
+@pytest.mark.parametrize("reasons, body", DIGEST_BODIES.values(), ids=DIGEST_BODIES.keys())
+def test_b34_3_a_digest_that_mixes_kinds_counts_the_reminders_as_one(reasons, body):
+    alerts = [msg(f"CVE-{reason}-{i}", reason) for reason, n in reasons for i in range(n)]
+    assert digest(alerts, "http://app")["body"] == body
+
+
+# --- B34.1: a first check sends what it found, never reminders --------------------------------------------------------
+
+def test_b34_1_a_first_check_keeps_what_it_found_and_notes_the_reminders_unsent():
+    d = Diff(new=("CVE-1",), kev_added={"CVE-2": AS_OF}, rescored={"CVE-3": ("HIGH", "CRITICAL")})
+    rows = {"CVE-1": row(), "CVE-2": row("CVE-2"), "CVE-3": row("CVE-3", severity="CRITICAL"),
+            "CVE-4": row("CVE-4", due_date="2026-10-01", overdue=True), "CVE-5": row("CVE-5", due_date="2026-10-16")}
+    send, noted = first_check(rules(d, rows, AlertSettings(), AS_OF))
+    assert [(a.cve, a.reason) for a in send] == [("CVE-2", "kev"), ("CVE-1", "new"), ("CVE-3", "now_critical")]
+    assert noted == ["CVE-4|overdue|2026-W42", "CVE-5|due_soon"]
+
+
+# --- B34.2: alerts counted by what happened: sent, recorded only, failed, held ----------------------------------------
+
+def entry(kind="alert", n=1, *channels):
+    """An alerts-log entry with `n` alerts and these channel results: "sent", "recorded" or "failed"."""
+    results = {"sent": {"sent": True, "error": None}, "recorded": {"sent": False, "error": None},
+               "failed": {"sent": False, "error": "network down"}}
+    return {"kind": kind, "alerts": [{"cve": f"CVE-{i}"} for i in range(n)],
+            "channels": [{"channel": f"c{i}", **results[c]} for i, c in enumerate(channels)]}
+
+
+COUNTS = {
+    "sent on every channel": ([entry("alert", 1, "sent", "sent")], (1, 0, 0, 0)),
+    "a digest counts each alert": ([entry("digest", 7, "sent")], (7, 0, 0, 0)),
+    "dry run: recorded only": ([entry("digest", 275, "recorded", "recorded")], (0, 275, 0, 0)),
+    "no channel picked: recorded only": ([entry("alert", 1)], (0, 1, 0, 0)),
+    "another user's, in the app only": ([entry("alert", 1) | {"in_app_only": True}], (0, 1, 0, 0)),
+    "every channel failed": ([entry("alert", 1, "failed", "failed")], (0, 0, 1, 0)),
+    "one channel sent, one failed: it reached you": ([entry("alert", 1, "sent", "failed")], (1, 0, 0, 0)),
+    "recorded and failed: failed": ([entry("alert", 1, "recorded", "failed")], (0, 0, 1, 0)),
+    "held for quiet hours": ([entry("held", 1), entry("held", 1)], (0, 0, 0, 2)),
+    "a mix": ([entry("alert", 1, "sent"), entry("alert", 1, "failed"), entry("digest", 3, "recorded")],
+              (1, 3, 1, 0)),
+    "nothing": ([], (0, 0, 0, 0)),
+}
+
+
+@pytest.mark.parametrize("entries, expected", COUNTS.values(), ids=COUNTS.keys())
+def test_b34_2_alerts_are_counted_by_what_happened(entries, expected):
+    sent, recorded, failed, held = expected
+    assert alert_counts(entries) == {"sent": sent, "recorded": recorded, "failed": failed, "held": held}

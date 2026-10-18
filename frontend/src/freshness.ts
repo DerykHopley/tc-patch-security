@@ -1,6 +1,6 @@
 // The freshness panel's words (B02, DESIGN.md §5.10): when the data was last checked, and the one line Check now
 // leaves behind. Plain functions, so `npm test` checks the words without a browser.
-import type { CheckReply, DataStatus, Feeds, RefreshCounts, RefreshResult } from './api.ts'
+import type { AlertCounts, CheckReply, DataStatus, Feeds, RefreshCounts, RefreshResult } from './api.ts'
 
 const two = (n: number) => String(n).padStart(2, '0')
 
@@ -31,6 +31,23 @@ export const SOURCE_NAME: Record<string, string> = { nvd: 'NVD', kev: 'CISA KEV'
 
 export type Tone = 'ok' | 'warn' | 'error'
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+
+// B34: what happened to the alerts, in this order. "Recorded only" says "not sent", so a dry run (NOTIFY_DRY_RUN)
+// never reads as alerts that went out.
+const ALERT_WORDS: [keyof AlertCounts, string][] = [
+  ['sent', 'sent'],
+  ['recorded', 'recorded only (not sent)'],
+  ['failed', 'failed'],
+  ['held', 'held for quiet hours'],
+]
+
+/** "1 alert sent", "275 alerts recorded only (not sent)", …; a zero is left out. The dashboard's line and the
+ *  refresh runs list say the same words. */
+export function alertWords(c: AlertCounts): string[] {
+  return ALERT_WORDS.filter(([k]) => c[k] > 0).map(([k, words]) => `${plural(c[k], 'alert')} ${words}`)
+}
+
 /** The line after Check now: what the run found, why it failed, or when the next check is allowed. */
 export function replyLine(reply: CheckReply): { tone: Tone; text: string } {
   if (reply.refusal) {
@@ -48,9 +65,12 @@ export function replyLine(reply: CheckReply): { tone: Tone; text: string } {
     return { tone: 'error', text: `The check failed${why ? ` (${why})` : ''}. The data is unchanged.` }
   }
   const parts = COUNT_WORDS.filter(([key]) => r.counts[key] > 0).map(([key, words]) => words(r.counts[key]))
+  const alerts = reply.alerts_for_you ? alertWords(reply.alerts_for_you) : []
+  const then = alerts.length ? ` ${alerts.join(', ')}.` : '' // B34: your alerts, by what happened
   if (r.status === 'partial') // B20: never "Done" for a run where a feed failed; the banner says which
-    return { tone: 'warn', text: parts.length ? `Done in part: ${parts.join(', ')}.` : 'Done in part: nothing new from the sources that answered.' }
-  return { tone: 'ok', text: parts.length ? `Done: ${parts.join(', ')}.` : 'Done: nothing new since the last check.' }
+    return { tone: 'warn', text: (parts.length ? `Done in part: ${parts.join(', ')}.` : 'Done in part: nothing new from the sources that answered.') + then }
+  const tone = reply.alerts_for_you?.failed ? 'warn' : 'ok' // an alert that failed needs a look at Recent alerts
+  return { tone, text: (parts.length ? `Done: ${parts.join(', ')}.` : 'Done: nothing new since the last check.') + then }
 }
 
 const GAP_MS = 5 * 60 * 1000 // at most one run per 5 minutes, counted from the last run's start (app/refresh.py)

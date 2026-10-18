@@ -342,7 +342,12 @@ function UpdatesCard({ r }: { r: UpdatesResult }) {
                 <span className="meta">{v.product}</span>
                 <SeverityBadge severity={v.severity} cvss={null} />
                 {v.kev && <span className="chip kev">KEV</span>}
-                {v.priority ? <PriorityChip level={v.priority} /> : <span className="chip">Not watched</span>}
+                {/* watched and closed (B33): no priority, and no "Not watched" either */}
+                {v.priority ? (
+                  <PriorityChip level={v.priority} />
+                ) : (
+                  !v.watched && <span className="chip">Not watched</span>
+                )}
               </li>
             ))}
           </ul>

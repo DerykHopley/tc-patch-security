@@ -6,6 +6,7 @@ back at the snapshot and an empty run log (the fake feeds' reset route), so each
 Expected looks: docs/design/DESIGN.md §5.10.
 """
 import pathlib
+import re
 
 import pytest
 from playwright.sync_api import Browser, Error, Locator, Page, Route, expect
@@ -19,6 +20,9 @@ PHONE, DESKTOP = 400, 1400
 # Day 2 of the fake feeds on top of the snapshot: two new CVEs, an old Langflow CVE added to KEV
 NEW = ["CVE-2026-99101", "CVE-2026-99102"]
 DONE = "Done: 2 new CVEs, 1 updated, 1 added to KEV."
+# B34: then the alerts, by what happened. Recorded only or failed depends on the machine (NOTIFY_DRY_RUN records on a
+# channel that is set up; the desktop channel needs notify-send), so the line is matched up to there.
+DONE_LINE = re.compile("^" + re.escape(DONE) + r"( \d+ alerts? [^.]+(, \d+ alerts? [^.]+)*\.)?$")
 
 
 @pytest.fixture
@@ -96,7 +100,7 @@ def test_b02_9_check_now_shows_the_spinner_then_the_result_and_the_new_cves(open
 
     held = check_now_running(page)
     release(page, held)
-    expect(line(page)).to_have_text(DONE)
+    expect(line(page)).to_have_text(DONE_LINE)
     expect(button(page)).to_be_enabled()
     expect(card(page)).to_contain_text("Last checked")  # the dashboard loaded again with the new time
 
@@ -124,7 +128,7 @@ def test_b02_11_done_shows_once_the_dashboard_shows_the_new_data(open_live):
         page.route(path, late)
 
     button(page).click()
-    expect(line(page)).to_have_text(DONE)
+    expect(line(page)).to_have_text(DONE_LINE)
     above = card(page).locator(".checked-line"), page.locator(".alerts-card")
     assert above[0].inner_text().startswith("Last checked"), above[0].inner_text()  # read the moment Done shows
     assert "No alerts yet" not in above[1].inner_text()
@@ -137,7 +141,7 @@ def test_b02_10_the_panel_in_both_themes_on_a_phone_and_by_keyboard(open_live, s
     card(page).scroll_into_view_if_needed()
     button(page).focus()
     page.keyboard.press("Enter")  # keyboard: Enter on the focused button runs the check
-    expect(line(page)).to_have_text(DONE)
+    expect(line(page)).to_have_text(DONE_LINE)
     colours = line(page).evaluate("el => { const s = getComputedStyle(el); return [s.color, s.backgroundColor] }")
     assert contrast(*colours) >= 4.5, colours
     assert no_sideways_scroll(page)
@@ -164,5 +168,5 @@ def b02_9_check_now(fx):
     held = check_now_running(page)  # the spinner is on screen, and must stand still
     still(page, "Check now running")
     release(page, held)
-    expect(line(page)).to_have_text(DONE)
+    expect(line(page)).to_have_text(DONE_LINE)
     still(page, "the result line")

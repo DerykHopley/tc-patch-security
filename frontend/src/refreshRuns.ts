@@ -1,7 +1,7 @@
 // The "Refresh runs" card's words and the schedule line (B19, DESIGN.md §5.12). Plain functions, so `npm test`
 // checks the words without a browser.
 import type { DataMode, FeedResult, RefreshCounts, RunRow, RunTrigger, ScheduleStatus } from './api.ts'
-import { SOURCE_NAME, utcTime, type Tone } from './freshness.ts'
+import { alertWords, SOURCE_NAME, utcTime, type Tone } from './freshness.ts'
 
 const TRIGGER_NAME: Record<RunTrigger, string> = {
   button: 'Check now',
@@ -25,8 +25,6 @@ export function runWhen(r: RunRow): string {
   return r.duration_s === null ? utcTime(r.started) : `${utcTime(r.started)} · ${r.duration_s.toFixed(1)} s`
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
-
 // The counts in the order they are said; a zero is left out. Short, for one line under each run.
 const COUNTS: [keyof RefreshCounts, (n: number) => string][] = [
   ['new', (n) => `${n} new`],
@@ -43,8 +41,8 @@ export function runCounts(r: RunRow): string {
   }
   const c = r.counts
   const parts = c ? COUNTS.filter(([k]) => c[k] > 0).map(([k, words]) => words(c[k])) : []
-  if (r.alerts_sent) parts.push(`${plural(r.alerts_sent, 'alert')} sent`)
-  if (r.alerts_held) parts.push(`${plural(r.alerts_held, 'alert')} held`)
+  // B34: what happened to your alerts (the server counts them again from each run's log, older runs too)
+  parts.push(...alertWords({ sent: r.alerts_sent, recorded: r.alerts_recorded, failed: r.alerts_failed, held: r.alerts_held }))
   if (parts.length) return parts.join(' · ')
   return r.result === 'failed' ? 'Nothing written' : 'Nothing new'
 }

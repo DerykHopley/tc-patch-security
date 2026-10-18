@@ -5,7 +5,9 @@ Pure functions, with table tests (tests/test_alerts.py):
   versions.
 - `rules(diff, rows, settings, as_of)`: the diff and one user's watched CVEs (WatchedCves rows: status, verdict,
   priority and due date at the as-of date) -> the alerts, as (CVE, reason, priority, de-duplication key).
+- `first_check(alerts)` (B34): a user's first check sends what it found, and notes the reminders unsent.
 - `in_quiet_hours(t, start, end)` and `digest(alerts, ...)`: when to hold, and one message for many.
+- `alert_counts(entries)` (B34): one run's alerts by what happened: sent, recorded only, failed, held.
 
 `Alerter` (below the pure part) runs them after a refresh for each user (B09): rules, de-duplicate against the
 user's state, hold in quiet hours, digest above the limit, deliver and log the result per channel. Only the owner's
@@ -134,6 +136,18 @@ def rules(d: Diff, rows: dict[str, dict], s, as_of: str) -> list[Alert]:
     return out
 
 
+REMINDERS = ("due_soon", "overdue")  # about a due date, not about something the check found
+
+
+def first_check(alerts: list[Alert]) -> tuple[list[Alert], list[str]]:
+    """B34: a user's first check sends only what it found (new CVEs, KEV additions, rescores), never reminders: a
+    first alert of "272 overdue" teaches you to ignore alerts. -> (the alerts to send, the keys to note unsent).
+    The reminders' keys are noted as if sent, so a second check soon after doesn't send them either: overdue comes
+    back with next week's key, and a CVE that falls due later still gets its due_soon or overdue then."""
+    return ([a for a in alerts if a.reason not in REMINDERS],
+            [a.key for a in alerts if a.reason in REMINDERS])
+
+
 # --- Quiet hours and the digest -------------------------------------------------------------------------------------
 
 def in_quiet_hours(t: dt.time, start: str | None, end: str | None) -> bool:
@@ -160,9 +174,13 @@ def digest(messages: list[dict], app_url: str) -> dict:
     counts: dict[str, int] = {}
     for m in messages:
         counts[m["reason"]] = counts.get(m["reason"], 0) + 1
-    return {"title": f"{len(messages)} alerts for your watchlist",
-            "body": " · ".join(f"{n} {DIGEST_WORDS[r]}" for r, n in sorted(counts.items(),
-                                                                         key=lambda x: REASONS.index(x[0]))),
+    ordered = sorted(counts.items(), key=lambda x: REASONS.index(x[0]))
+    words = [f"{n} {DIGEST_WORDS[r]}" for r, n in ordered]
+    reminders = sum(n for r, n in ordered if r in REMINDERS)
+    if 0 < reminders < len(messages):  # B34: it mixes kinds: what the check found, then the reminders as one count
+        words = [f"{n} {DIGEST_WORDS[r]}" for r, n in ordered if r not in REMINDERS]
+        words.append(f"{reminders} reminder{'' if reminders == 1 else 's'}")
+    return {"title": f"{len(messages)} alerts for your watchlist", "body": " · ".join(words),
             "priority": max(m["priority"] for m in messages), "tags": ["digest"], "click": f"{app_url}/cves"}
 
 
@@ -197,6 +215,7 @@ class Alerter:
     def _for_user(self, user, state, changes: Diff | None, knowledge, now: dt.datetime,
                   complete: bool = True) -> list[dict]:
         at = iso_utc(now)
+        first = changes is not None and not state.checked_before()  # B34: before this run notes it
         if changes is not None:  # B05: the CVEs page's "new since last check", alerts on or off
             state.note_new_cves(list(changes.new), at, complete)
         s = state.settings().alerts
@@ -213,6 +232,9 @@ class Alerter:
         as_of = now.astimezone(dt.UTC).date().isoformat()
         rows = {r["id"]: r for r in WatchedCves(knowledge, state, as_of).rows(status="all")}
         alerts = rules(changes, rows, s, as_of)
+        if first:
+            alerts, noted = first_check(alerts)
+            state.claim_alerts(noted, at)
         fresh = state.claim_alerts([a.key for a in alerts], at)
         messages = [{"cve": a.cve, "reason": a.reason,
                      **format_alert(knowledge.cves.get(a.cve), a.reason, knowledge, self.settings.app_url,
@@ -237,6 +259,24 @@ class Alerter:
                 out.append(_entry("alert" if one else "digest", group, message, at, []) | {"in_app_only": True})
         state.log_alerts(out)  # on top of the log in the order sent: KEV and new CVEs above the reminders
         return out
+
+
+def alert_counts(entries: list[dict]) -> dict[str, int]:
+    """B34: one run's alerts for one user (alerts-log entries), counted by what happened to each. Each alert in a
+    digest counts. An alert is **sent** when at least one channel sent it (it reached you); else **failed** when a
+    channel failed or wasn't set up; else **recorded only**: the dry run, no channel picked, or another user's alert
+    (in the app only). **held**: kept for quiet hours. "Sent" never counts a dry run, so the line can't claim alerts
+    went out that didn't."""
+    out = {"sent": 0, "recorded": 0, "failed": 0, "held": 0}
+    for e in entries:
+        if e["kind"] == "held":
+            out["held"] += len(e["alerts"]) or 1
+            continue
+        channels = e.get("channels", [])
+        result = ("sent" if any(c["sent"] for c in channels) else
+                  "failed" if any(c.get("error") for c in channels) else "recorded")
+        out[result] += len(e["alerts"])
+    return out
 
 
 def _entry(kind: str, group: list[dict], message: dict, at: str, channels: list[dict]) -> dict:

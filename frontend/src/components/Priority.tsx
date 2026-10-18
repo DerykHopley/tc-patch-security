@@ -14,7 +14,20 @@ export const PRIORITY_LABEL: Record<PriorityLevel, string> = {
   low: 'Low',
 }
 
-export function PriorityChip({ level }: { level: PriorityLevel }) {
+/** A closed CVE (fixed, not affected, accepted before its review: B33) has no priority and no due date: a muted dash,
+ *  with the reason for screen readers and on hover. The backend decides "closed" (app.status.is_closed); null is how
+ *  it says so. */
+function Closed({ what }: { what: string }) {
+  return (
+    <span className="no-priority" title={`Closed: no ${what}. Priority and due dates are for open CVEs.`}>
+      <span aria-hidden="true">—</span>
+      <span className="visually-hidden">No {what}: closed</span>
+    </span>
+  )
+}
+
+export function PriorityChip({ level }: { level: PriorityLevel | null }) {
+  if (level === null) return <Closed what="priority" />
   return <span className={`chip priority ${level}`}>{PRIORITY_LABEL[level]}</span>
 }
 
@@ -37,13 +50,19 @@ export function OverdueMark() {
  *  CVE with no fix yet (A16b) shows "No fix yet · open N days" instead, and its due date is the "decide by" date:
  *  accept, mitigate or replace. */
 export function DueFacts({ due, from, overdue, kevDeadline, noFix = null }: {
-  due: string
-  from: string
+  due: string | null // null: a closed CVE (B33), no due date; CISA's KEV deadline still shows
+  from: string | null
   overdue: boolean
   kevDeadline: string | null
   noFix?: { days: number } | null
 }) {
-  const kevLine = kevDeadlineLine(due, kevDeadline) // never the same date twice (B36)
+  if (due === null)
+    return (
+      <>
+        <Closed what="due date" />
+        <KevDeadline date={kevDeadline} />
+      </>
+    )
   return (
     <>
       {noFix && <span className="due-label">Decide by</span>}
@@ -57,11 +76,16 @@ export function DueFacts({ due, from, overdue, kevDeadline, noFix = null }: {
         <span className="policy-words">by your policy: </span>
         {from}
       </span>
-      {kevLine && (
-        <span className="kev-deadline" title="CISA's remediation date for US federal agencies: a fact, not your due date">
-          CISA KEV deadline <span className="nowrap">{kevLine}</span>
-        </span>
-      )}
+      <KevDeadline date={kevDeadlineLine(due, kevDeadline)} /> {/* never the same date twice (B36) */}
     </>
+  )
+}
+
+function KevDeadline({ date }: { date: string | null }) {
+  if (!date) return null
+  return (
+    <span className="kev-deadline" title="CISA's remediation date for US federal agencies: a fact, not your due date">
+      CISA KEV deadline <span className="nowrap">{date}</span>
+    </span>
   )
 }

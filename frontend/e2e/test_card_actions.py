@@ -12,7 +12,7 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from test_chat import Q2, ask, open_chat, window
-from test_dashboard import api
+from test_dashboard import api, cve_row
 from test_fix_first import FIX_FIRST
 from test_shell import DESKTOP, PHONE, SHOTS, contrast, no_sideways_scroll, open_app  # noqa: F401 (fixture)
 from reduced_motion import scene, still
@@ -35,8 +35,7 @@ def tool_cards(answer: Locator) -> Locator:
 
 
 def status(api_url: str, cve: str = CVE, product: str = "langchain") -> str:
-    rows = api(api_url, f"/cves?status=all&product={product}&limit=200")["rows"]
-    return next(r for r in rows if r["id"] == cve)["status"]
+    return cve_row(api_url, cve, product)["status"]
 
 
 def action_bodies(page: Page) -> list[dict]:

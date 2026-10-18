@@ -10,7 +10,7 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from test_chat import ask, open_chat, window
-from test_dashboard import api
+from test_dashboard import api, cve_row
 from test_shell import DESKTOP, PHONE, SHOTS, contrast, no_sideways_scroll, open_app  # noqa: F401 (fixture)
 from reduced_motion import scene, still
 
@@ -31,13 +31,11 @@ def proposal(answer: Locator) -> Locator:
 
 
 def status(api_url: str) -> str:
-    rows = api(api_url, "/cves?status=all&product=langchain&limit=200")["rows"]
-    return next(r for r in rows if r["id"] == CVE)["status"]
+    return cve_row(api_url, CVE, "langchain")["status"]
 
 
 def history(api_url: str) -> list[dict]:
-    rows = api(api_url, "/cves?status=all&product=langchain&limit=200")["rows"]
-    return next(r for r in rows if r["id"] == CVE)["history"]
+    return cve_row(api_url, CVE, "langchain")["history"]
 
 
 def test_b21_9_the_card_previews_the_change_and_nothing_changes_until_approve(open_app, api_url):
@@ -59,7 +57,7 @@ def test_b21_9_the_card_previews_the_change_and_nothing_changes_until_approve(op
 
     link = line.get_by_role("link", name=f"See {CVE} on the CVEs page")
     link.click()
-    expect(page).to_have_url(re.compile(r"/cves\?product=langchain&status=all$"))
+    expect(page).to_have_url(re.compile(r"/cves\?product=langchain&status=fixed$"))  # its new status: B33 sorts closed CVEs last
     expect(page.get_by_role("row", name=re.compile(CVE))).to_be_visible()
     expect(window(page)).to_be_visible()  # the chat stays open: no page load
 

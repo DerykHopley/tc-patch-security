@@ -13,7 +13,7 @@ from playwright.sync_api import Page, Route, expect
 
 from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cves, pin, visible_focus, window  # noqa: F401
 from test_dashboard import (  # noqa: F401 (fixtures)
-    DESKTOP, PHONE, SHOTS, api, clean_state, confirm, more_actions, open_dash, rows,
+    DESKTOP, PHONE, SHOTS, api, clean_state, confirm, cve_row, more_actions, open_dash, rows,
 )
 from reduced_motion import scene, still
 
@@ -38,7 +38,7 @@ def cell(page: Page, cve: str, label: str):
 
 
 def api_row(api_url: str, cve: str) -> dict:
-    return next(r for r in api(api_url, "/cves?status=all&product=langflow&limit=200")["rows"] if r["id"] == cve)
+    return cve_row(api_url, cve, "langflow")
 
 
 def as_of(api_url: str) -> str:

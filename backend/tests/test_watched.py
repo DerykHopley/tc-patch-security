@@ -43,9 +43,9 @@ def _accept(state, cve_id, review_date):
 TABLE = {
     "unwatched: a normal answer, no status or priority":
         (lambda s: None, AS_OF, "CVE-2026-105762", False, None, False, False, "unknown", False, None, None, None, None),
-    "accepted, review not due yet: not open, not overdue":
+    "accepted, review not due yet: closed, so no priority or due date (B33)":
         (lambda s: _accept(s, "CVE-2024-8309", "2026-11-01"), AS_OF, "CVE-2024-8309",
-         True, "accepted", False, False, "unknown", False, "high", "2024-11-28", "published + 30 days", False),
+         True, "accepted", False, False, "unknown", False, None, None, None, None),
     "accepted, review due: open again":
         (lambda s: _accept(s, "CVE-2024-8309", "2026-11-01"), "2026-11-02", "CVE-2024-8309",
          True, "accepted", True, True, "unknown", False, "high", "2024-11-28", "published + 30 days", True),
@@ -58,9 +58,12 @@ TABLE = {
     "KEV but not affected at your version: not urgent, one level lower":
         (lambda s: s.set_fields("langflow", version="1.3.0"), AS_OF, "CVE-2025-3248",
          True, "open", True, False, "not_affected", False, "normal", "2025-05-26", "KEV deadline", True),
-    "fixed: not open, still prioritised":
+    "fixed: closed, so no priority or due date (B33)":
         (lambda s: s.set_status("CVE-2026-27966", "fixed", AS_OF), AS_OF, "CVE-2026-27966",
-         True, "fixed", False, False, "unknown", True, "high", "2026-03-28", "published + 30 days", False),
+         True, "fixed", False, False, "unknown", True, None, None, None, None),
+    "not affected (your mark): closed, so no priority or due date (B33)":
+        (lambda s: s.set_status("CVE-2025-3248", "not_affected", AS_OF, justification="component_not_present"),
+         AS_OF, "CVE-2025-3248", True, "not_affected", False, False, "unknown", False, None, None, None, None),
 }
 
 
@@ -72,6 +75,14 @@ def test_assessment_table(case, knowledge, state):
     p = a.priority
     assert [a.watched, a.status, a.open, a.review_due, a.verdict.verdict, a.no_fix,
             p and p.level, p and p.due_date, p and p.due_from, p and p.overdue] == expected
+
+
+def test_b33_1_a_reopened_cve_gets_its_priority_and_due_date_back(knowledge, state):
+    state.set_status("CVE-2025-3248", "fixed", AS_OF)
+    assert WatchedCves(knowledge, state, AS_OF).assess("CVE-2025-3248").priority is None
+    state.set_status("CVE-2025-3248", "open", AS_OF)
+    p = WatchedCves(knowledge, state, AS_OF).assess("CVE-2025-3248").priority
+    assert (p.level, p.due_date, p.overdue) == ("urgent", "2025-05-26", True)
 
 
 def test_the_decision_record_comes_with_the_assessment(knowledge, state):

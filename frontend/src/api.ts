@@ -372,12 +372,13 @@ export interface CveRow {
   version: string | null
   internet_facing: boolean
   // Priority by rules (A16): the level, its reasons, and your due date from your policy. Rules decide the order.
-  priority: PriorityLevel
+  // A closed CVE (fixed, not affected, accepted before its review: B33) has none: null, [] and never overdue.
+  priority: PriorityLevel | null
   priority_reasons: string[] // e.g. ["in KEV", "EPSS 99th percentile", "internet-facing"]
-  priority_rule: number // the rule table's row that matched
-  alert_priority: 5 | 4 | 3 | 2 // the level as an alert priority (spec B)
-  due_date: string
-  due_from: string // "KEV deadline", "published + 90 days", "added to KEV + 7 days"
+  priority_rule: number | null // the rule table's row that matched
+  alert_priority: 5 | 4 | 3 | 2 // the rules' level as an alert priority (spec B), closed CVEs too
+  due_date: string | null
+  due_from: string | null // "KEV deadline", "published + 90 days", "added to KEV + 7 days"
   overdue: boolean // open, a fix exists, and past the due date at the as-of date (A16b)
   // Your decision (A16b). `open`: status open, or accepted with its review due. "No fix yet": OSV lists no fixed
   // version, so it can't be overdue; the due date is the "decide by" date.
@@ -501,10 +502,19 @@ export interface RefreshResult {
   feeds: FeedResult[] // B20: each feed's step, in the order asked; empty in runs logged before B20
 }
 
+/** B34: one run's alerts for you, by what happened (app.alerts.alert_counts). Each alert in a digest counts. */
+export interface AlertCounts {
+  sent: number // at least one channel sent it
+  recorded: number // recorded only: the dry run, no channel picked, or in the app only (another user's)
+  failed: number // no channel sent it, and one failed or wasn't set up
+  held: number // held for quiet hours
+}
+
 export interface CheckReply {
   ran: boolean
   result: RefreshResult | null // this run's result; when refused, the last run's (null before any run)
   refusal: { reason: 'too_soon' | 'running'; next_allowed: string; message: string } | null
+  alerts_for_you?: AlertCounts | null // B34: Check now's reply only, when it ran
 }
 
 // B11: a refused check is a 429 that still carries the reply (the refusal and the last run), so it reads as one.
@@ -541,8 +551,12 @@ export interface RunRow {
   version: number | null
   feeds: FeedResult[]
   errors: { source: string; message: string }[]
-  alerts_sent: number // alerts sent to you (each one in a digest counts)
-  alerts_held: number // held for quiet hours
+  // B34: your alerts by what happened (each one in a digest counts): sent on a channel, recorded only (dry run, no
+  // channel picked, or in the app only), failed on every channel tried, held for quiet hours
+  alerts_sent: number
+  alerts_recorded: number
+  alerts_failed: number
+  alerts_held: number
   reason: 'too_soon' | 'running' | null // a skip's reason
   next_allowed: string | null // a skip's next allowed time
   times: number // a skip asked again before the next allowed time counts up

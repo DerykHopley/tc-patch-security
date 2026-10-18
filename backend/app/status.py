@@ -9,6 +9,10 @@
 | accepted      | on or after its review date       | yes: "review due", until you decide again |
 
 Only the user sets a status. Rules, the verdict and Patch never do.
+
+A closed CVE (B33) is a watched CVE that isn't open: fixed, not affected, or accepted before its review date. It has
+no priority, no due date and is never overdue; reopening it (or its review coming due) brings them back. A CVE off
+the watchlist has no status, so it's neither open nor closed.
 """
 
 import datetime as dt
@@ -68,3 +72,8 @@ def review_due(status: str, review_date: str | None, as_of: str) -> bool:
 
 def is_open(status: str, review_date: str | None, as_of: str) -> bool:
     return status == "open" or review_due(status, review_date, as_of)
+
+
+def is_closed(status: str | None, review_date: str | None, as_of: str) -> bool:
+    """The one rule for "closed" (B33): watched (has a status) and not open. No priority or due date then."""
+    return status is not None and not is_open(status, review_date, as_of)

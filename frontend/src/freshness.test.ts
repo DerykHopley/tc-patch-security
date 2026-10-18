@@ -1,8 +1,8 @@
 // The freshness panel's words (B02): when the data was last checked, and the line after Check now. Run with `npm test`.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import type { CheckReply, RefreshResult } from './api.ts'
-import { checkedLine, replyLine, runBanner, utcTime } from './freshness.ts'
+import type { AlertCounts, CheckReply, RefreshResult } from './api.ts'
+import { alertWords, checkedLine, replyLine, runBanner, utcTime } from './freshness.ts'
 
 const run = (over: Partial<RefreshResult> = {}): RefreshResult => ({
   trigger: 'button',
@@ -51,6 +51,27 @@ test('B02.8 the line after Check now: counts, nothing new, a failed feed, a refu
     { tone: 'warn', text: 'Checked less than 5 minutes ago. The next check is allowed at 09:05 UTC.' })
   assert.deepEqual(replyLine({ ...refused, refusal: { ...refused.refusal!, reason: 'running' } }),
     { tone: 'warn', text: 'A check is running already. The next one is allowed at 09:05 UTC.' })
+})
+
+// B34: the line counts your alerts by what happened, so a dry run never reads as "sent".
+const counts = (over: Partial<AlertCounts> = {}): AlertCounts => ({ sent: 0, recorded: 0, failed: 0, held: 0, ...over })
+
+test('B34.4 the line after Check now counts your alerts by what happened', () => {
+  const oneNew = run({ counts: { new: 1, updated: 0, kev_added: 0, rescored: 0 } })
+  const withAlerts = (c: AlertCounts): CheckReply => ({ ...ran(oneNew), alerts_for_you: c })
+  assert.deepEqual(replyLine(withAlerts(counts({ sent: 1 }))), { tone: 'ok', text: 'Done: 1 new CVE. 1 alert sent.' })
+  assert.deepEqual(replyLine(withAlerts(counts({ recorded: 275 }))),
+    { tone: 'ok', text: 'Done: 1 new CVE. 275 alerts recorded only (not sent).' })
+  assert.deepEqual(replyLine(withAlerts(counts({ sent: 1, failed: 2, held: 3 }))),
+    { tone: 'warn', text: 'Done: 1 new CVE. 1 alert sent, 2 alerts failed, 3 alerts held for quiet hours.' })
+  assert.deepEqual(replyLine(withAlerts(counts())), { tone: 'ok', text: 'Done: 1 new CVE.' })
+  assert.deepEqual(replyLine(ran(oneNew)), { tone: 'ok', text: 'Done: 1 new CVE.' }) // a reply without counts
+})
+
+test('B34.4 alert counts in words: zeros left out, in the order sent, recorded only, failed, held', () => {
+  assert.deepEqual(alertWords(counts({ sent: 1, recorded: 2, failed: 1, held: 4 })),
+    ['1 alert sent', '2 alerts recorded only (not sent)', '1 alert failed', '4 alerts held for quiet hours'])
+  assert.deepEqual(alertWords(counts()), [])
 })
 
 // B20: a run where some feeds failed. Each feed is a step; the ones that answered were written.

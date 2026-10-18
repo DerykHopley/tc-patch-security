@@ -168,7 +168,7 @@ def test_b22_4_approving_records_the_decision_with_its_sources(web_deps):
     # lookup_cve shows the record, sources and all (its declared shape allows them)
     rec = call(web_deps, Context(), "lookup_cve", cve_id=CVE)
     assert rec.status == "ok" and rec.result["decision"]["sources"][1]["kind"] == "web"
-    rows = client.get("/cves", params={"status": "all", "product": "langflow", "limit": 200}).json()["rows"]
+    rows = client.get("/cves", params={"status": "accepted", "product": "langflow"}).json()["rows"]
     row = next(c for c in rows if c["id"] == CVE)
     assert row["history"][-1]["sources"] == d["sources"]
 

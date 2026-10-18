@@ -16,6 +16,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
 from app import agent, card_actions, chat_turn, dashboard, page_context, proposals, refresh
+from app.alerts import alert_counts
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.auth import SIGNED_OUT, SignedOut, Verifier, current_user, owner_only, user_name
 from app.config import Settings
@@ -414,7 +415,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         reply = live_only().run("button")
         if reply.ran:
             deps.sync()  # load the new version now, so the reply comes when the new CVEs can be found
-            return reply
+            assert reply.result is not None  # B34: the dashboard's line counts the caller's own alerts
+            return reply.model_copy(update={"alerts_for_you": alert_counts(reply.result.alerts.get(user, []))})
         assert reply.refusal is not None
         nxt = dt.datetime.fromisoformat(reply.refusal.next_allowed)
         return _too_many(refused(reply.refusal.message, deps.clock(), nxt, say_when=False), user, "/refresh",

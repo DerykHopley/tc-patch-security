@@ -9,7 +9,7 @@ import pytest
 from playwright.sync_api import Locator, expect
 
 from test_chat import ask, open_chat, window
-from test_dashboard import api
+from test_dashboard import api, cve_row
 from test_shell import DESKTOP, PHONE, contrast, no_sideways_scroll, open_app  # noqa: F401 (fixture)
 from reduced_motion import scene, still
 
@@ -25,8 +25,7 @@ def fresh_state(api_url: str):
 
 
 def langflow_row(api_url: str) -> dict:
-    rows = api(api_url, "/cves?status=all&product=langflow&limit=200")["rows"]
-    return next(r for r in rows if r["id"] == CVE)
+    return cve_row(api_url, CVE, "langflow")
 
 
 def card_for(page) -> Locator:
@@ -57,7 +56,9 @@ def test_b22_9_the_workflow_ends_in_a_card_with_its_sources_and_approve_records_
     # The decision's history on the CVEs page names its sources, the web one still unverified
     card.locator("output.proposal-line").get_by_role("link").click()
     history = page.locator("tr", has_text=CVE).locator("details.history")
-    history.locator("summary").click()
+    # By keyboard: the chat stays open and, with this view's one row (B33 links to the new status), covers it
+    history.locator("summary").focus()
+    page.keyboard.press("Enter")
     expect(history).to_contain_text("(web result, unverified)")
 
 

@@ -16,6 +16,8 @@ const row = (over: Partial<RunRow> = {}): RunRow => ({
   feeds: [],
   errors: [],
   alerts_sent: 4,
+  alerts_recorded: 0,
+  alerts_failed: 0,
   alerts_held: 0,
   reason: null,
   next_allowed: null,
@@ -46,11 +48,19 @@ test('B19.4 the counts: zero counts left out, alerts sent last', () => {
     '1 rescored · 1 alert sent')
   assert.equal(runCounts(row({ counts: { new: 0, updated: 0, kev_added: 0, rescored: 0 }, alerts_sent: 0 })),
     'Nothing new')
-  assert.equal(runCounts(row({ alerts_sent: 0, alerts_held: 2 })), '2 new · 3 updated · 1 added to KEV · 2 alerts held')
+  assert.equal(runCounts(row({ alerts_sent: 0, alerts_held: 2 })),
+    '2 new · 3 updated · 1 added to KEV · 2 alerts held for quiet hours')
   assert.equal(runCounts(row({ result: 'failed', counts: { new: 0, updated: 0, kev_added: 0, rescored: 0 }, alerts_sent: 0 })),
     'Nothing written')
   assert.equal(runCounts(row({ result: 'skipped', counts: null, reason: 'too_soon', next_allowed: '2026-10-15T09:05:00+00:00', times: 3 })),
     'Next allowed 09:05 UTC · asked 3 times')
+})
+
+test('B34.4 the counts say what happened to the alerts: a dry run is never "sent"', () => {
+  const none = { counts: { new: 0, updated: 0, kev_added: 0, rescored: 0 } }
+  assert.equal(runCounts(row({ ...none, alerts_sent: 0, alerts_recorded: 275 })), '275 alerts recorded only (not sent)')
+  assert.equal(runCounts(row({ ...none, alerts_sent: 1, alerts_failed: 2 })), '1 alert sent · 2 alerts failed')
+  assert.equal(runCounts(row({ ...none, alerts_sent: 0 })), 'Nothing new')
 })
 
 test('B19.4 each feed\'s step in words', () => {

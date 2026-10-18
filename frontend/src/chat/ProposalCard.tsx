@@ -28,11 +28,16 @@ const latest = new Map<string, Proposal>()
 const STATUSES: CveStatus[] = ['fixed', 'not_affected', 'open', 'accepted']
 const utcTime = (iso: string) => `${iso.slice(11, 16)} UTC`
 
-/** Where "Done" links to, by the proposal's `link_to` (B27): the CVE in the CVEs page (its product, any status), or
- *  the watchlist in Settings. The backend names the kind; the page addresses live here. */
+/** Where "Done" links to, by the proposal's `link_to` (B27): the CVE in the CVEs page (its product and its new
+ *  status: a closed CVE sorts after every open one, B33, so "all" could put it pages away), or the watchlist in
+ *  Settings. The backend names the kind; the page addresses live here. */
 function doneLink(p: Proposal): { href: string; label: string } {
   if (p.link_to === 'cve' && p.cve_id && p.product) {
-    return { href: `/cves?product=${encodeURIComponent(p.product)}&status=all`, label: `See ${p.cve_id} on the CVEs page` }
+    const status = p.fields.status ?? 'all'
+    return {
+      href: `/cves?product=${encodeURIComponent(p.product)}&status=${status}`,
+      label: `See ${p.cve_id} on the CVEs page`,
+    }
   }
   return { href: '/settings', label: 'See your watchlist in Settings' }
 }
