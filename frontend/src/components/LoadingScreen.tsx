@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { HealthWait } from '../healthWait.ts'
 import { pickPose } from './patchPose.ts'
 import { Robot } from './Robot.tsx'
-import { ShieldIcon } from './Icons.tsx'
+import { Brand } from './Brand.tsx'
 
 // The loading screen (#69, DESIGN.md §5.14): what shows until /health answers. It knows nothing of sign-in (that's
 // what /health says), so it's the same for everyone: one Playful card, Patch idling over its top edge, the brand,
@@ -15,15 +15,7 @@ export function LoadingScreen({ wait, onRetry }: { wait: HealthWait | null; onRe
     <div className="loading-page">
       <main className="loading-card" aria-labelledby="loading-status">
         <Robot size={110} variant={pose.variant} />
-        <div className="brand loading-brand">
-          <span className="brand-mark">
-            <ShieldIcon />
-          </span>
-          <span className="brand-name">
-            <span>LLM Security</span>
-            <small>assistant</small>
-          </span>
-        </div>
+        <Brand className="loading-brand" />
         <output id="loading-status" className="loading-status">
           {wait ? 'Backend offline — retrying' : 'Waking Patch up…'}
         </output>

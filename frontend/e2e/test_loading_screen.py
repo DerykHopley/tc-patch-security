@@ -96,7 +96,9 @@ def test_b69_7_a_late_health_shows_the_loading_screen_then_the_app(open_loading)
     page, health = open_loading()
     expect(status(page, "Waking Patch up…")).to_be_visible()
     expect(card(page).locator("svg.robot")).to_have_attribute("data-mood", "idle")
-    expect(card(page)).to_contain_text("LLM Security")
+    brand = card(page).locator(".brand")  # B32.3: the same name as the app
+    expect(brand.get_by_text("Patch", exact=True)).to_be_visible()
+    expect(brand.get_by_text("LLM-security assistant", exact=True)).to_be_visible()
     expect(page.get_by_role("navigation")).to_have_count(0)  # nothing of the app: sign-in isn't known yet
     expect(page.get_by_role("heading", level=1)).to_have_count(0)
     health.asked(page, 1)
