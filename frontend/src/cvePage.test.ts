@@ -17,9 +17,11 @@ test('B35.7 an OSV range in words: which versions are affected', () => {
   assert.equal(rangeWords(range(null, '2.0')), 'every version before 2.0')
 })
 
-const row = (status: CveRow['status'], open: boolean) => ({ status, open }) as CveRow
+// As the backend sends them (B33): a closed CVE comes with no priority
+const row = (status: CveRow['status'], open: boolean) =>
+  ({ status, open, priority: open ? 'urgent' : null }) as CveRow
 
-test('B35.8 priority and due date show for open CVEs only (GLOSSARY.md; the shared rule comes with B33, #83)', () => {
+test('B35.8 B33 priority and due date show for open CVEs only: the backend\'s closed rule decides', () => {
   assert.equal(showsPriority(row('open', true)), true)
   assert.equal(showsPriority(row('accepted', true)), true) // its review is due: open again
   assert.equal(showsPriority(row('accepted', false)), false)

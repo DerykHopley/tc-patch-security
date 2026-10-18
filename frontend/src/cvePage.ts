@@ -10,8 +10,8 @@ export function rangeWords({ introduced, fixed, last_affected }: AffectedPackage
   return from ? `from ${from} on (no fix listed)` : 'every version (no fix listed)'
 }
 
-/** Priority and due date belong to open CVEs (GLOSSARY.md): open, or accepted with its review due.
- *  Seam for B33 (#83): when its shared "is closed" rule lands, call it here. */
+/** Priority and due date belong to open CVEs (GLOSSARY.md). The backend's one rule (B33, `app.status.is_closed`)
+ *  decides: a closed CVE (fixed, not affected, accepted before its review) comes with no priority. */
 export function showsPriority(row: CveRow): boolean {
-  return row.open
+  return row.priority !== null
 }
