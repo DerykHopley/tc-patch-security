@@ -242,8 +242,10 @@ def test_a02_3_primary_gradient_passes_with_white_text_at_both_ends(open_app):
 def test_a02_4_sidebar_has_brand_sections_snapshot_card_and_collapse(open_app):
     page = open_app()
     side = page.get_by_role("complementary", name="Main")
-    expect(side.get_by_text("LLM Security", exact=True)).to_be_visible()
-    expect(side.get_by_text("assistant", exact=True)).to_be_visible()
+    brand = side.locator(".brand")  # B32.1: one name, Patch, with what he is under it
+    expect(brand.get_by_text("Patch", exact=True)).to_be_visible()
+    expect(brand.get_by_text("LLM-security assistant", exact=True)).to_be_visible()
+    expect(side).not_to_contain_text("LLM Security")
     expect(side.get_by_text("Monitor", exact=True)).to_be_visible()
     expect(side.get_by_text("Assistant", exact=True)).to_be_visible()
     for name in ("Dashboard", "CVEs", "Settings", "Dev", "Ask Patch"):
@@ -262,7 +264,7 @@ def test_a02_4_collapsed_rail_keeps_names_and_is_remembered(open_app):
     expect(page.get_by_role("button", name="Expand the sidebar")).to_be_visible()
     page.wait_for_function("document.querySelector('.sidenav').getBoundingClientRect().width === 78")
     expect(page.locator(".side-card")).to_be_hidden()
-    expect(page.get_by_text("LLM Security", exact=True)).to_be_hidden()
+    expect(page.locator(".brand-name")).to_be_hidden()
     side = page.get_by_role("complementary", name="Main")  # Patch's own button is also "Ask Patch" (A06)
     for name in ("Dashboard", "CVEs", "Settings", "Dev", "Ask Patch"):
         expect(side.get_by_role("button", name=name, exact=True)).to_be_visible()

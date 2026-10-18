@@ -54,6 +54,7 @@
   font-size: 0.95rem;
   line-height: 1.2;
   white-space: nowrap;
+  text-align: start; /* name and line align as in the sidebar, also on the centred cards (B32) */
 }
 
 .brand-name small {
