@@ -35,6 +35,17 @@ def api(api_url: str, path: str, method: str = "GET", body: dict | None = None) 
         return json.load(r)
 
 
+def cve_row(api_url: str, cve: str, product: str) -> dict:
+    """One CVE's row on the CVEs page, any status. Page by page: closed CVEs sort after the open ones (B33), so a
+    product with over 200 CVEs can put a fixed one past the first page."""
+    offset = 0
+    while rows := api(api_url, f"/cves?status=all&product={product}&limit=200&offset={offset}")["rows"]:
+        if found := next((r for r in rows if r["id"] == cve), None):
+            return found
+        offset += 200
+    raise KeyError(cve)
+
+
 @pytest.fixture
 def clean_state(api_url: str):
     """Default watchlist, default usage, version and internet-facing, and every CVE open, before and after the test."""

@@ -13,7 +13,8 @@ from playwright.sync_api import Browser, Locator, Page, expect
 from test_affected import set_stack
 from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cves, pin, visible_focus, window  # noqa: F401
 from test_dashboard import (  # noqa: F401 (fixtures)
-    DESKTOP, PHONE, SHOTS, api, clean_state, confirm, contrast, expect_rows, open_dash, rgb_list, rows, tile,
+    DESKTOP, PHONE, SHOTS, api, clean_state, confirm, contrast, cve_row, expect_rows, open_dash, rgb_list, rows,
+    tile,
 )
 from reduced_motion import scene, still
 
@@ -62,7 +63,7 @@ def cell(page: Page, cve: str, label: str) -> Locator:
 
 
 def api_row(api_url: str, cve: str, product: str = "langflow") -> dict:
-    return next(r for r in api(api_url, f"/cves?status=all&product={product}&limit=200")["rows"] if r["id"] == cve)
+    return cve_row(api_url, cve, product)
 
 
 # --- A16.9: the CVEs page: priority with reasons, due date, overdue, KEV deadline; sorted by priority -------------
