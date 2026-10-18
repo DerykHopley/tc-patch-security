@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore, type ReactNode } from 'react'
-import { MoonIcon, ShieldIcon, SunIcon } from '../components/Icons.tsx'
+import { Brand } from '../components/Brand.tsx'
+import { MoonIcon, SunIcon } from '../components/Icons.tsx'
 import { Robot } from '../components/Robot.tsx'
 import { pickPose } from '../components/patchPose.ts'
 import { useTheme } from '../theme.ts'
@@ -54,15 +55,7 @@ export function SignInScreen({ children }: { children: ReactNode }) {
       </button>
       <main className="signin-card" aria-labelledby="signin-title">
         <Robot size={110} variant={pose.variant} />
-        <div className="brand signin-brand">
-          <span className="brand-mark">
-            <ShieldIcon />
-          </span>
-          <span className="brand-name">
-            <span>LLM Security</span>
-            <small>assistant</small>
-          </span>
-        </div>
+        <Brand className="signin-brand" />
         <h1 id="signin-title">{title}</h1>
         <p className="signin-lead">{lead}</p>
         <div className="signin-form">{view === 'not-invited' ? <NotInvited /> : children}</div>

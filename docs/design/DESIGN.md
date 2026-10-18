@@ -1,4 +1,4 @@
-# Design: LLM security assistant ("Playful")
+# Design: Patch, the LLM-security assistant ("Playful")
 
 The design of the prototype in `proto/`, written down so it can be built again from tickets. Decided 2026-10-13, after trying six designs and four chat layouts (history: [../design-examples/README.md](../design-examples/README.md)).
 
@@ -178,7 +178,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 
 - **Sidebar** (left), then the **main column**: top bar, then the page.
 - Sidebar, expanded: 250px wide, floating card with 1rem margin. Contents, top to bottom:
-  1. Brand: 36px purple-gradient rounded square with a shield icon, "LLM Security", "assistant" ("prototype" dropped in the real build, 2026-10-14). Dashed line under it.
+  1. Brand: 36px purple-gradient rounded square with a shield icon, **"Patch"**, and under it the small line "LLM-security assistant" (one name everywhere, B32, 2026-10-18; it read "LLM Security" / "assistant" before). Name and line align left, also on the centred loading and sign-in cards. One component (`frontend/src/components/Brand.tsx`) draws it on all three. Dashed line under it. *Checked* by the browser check B32.1 (sidebar), B32.2 (sign-in), B32.3 (loading screen).
   2. Section label "MONITOR": Dashboard, CVEs, Settings, Dev (Dev only when the backend allows the dev panel). CVEs added 2026-10-14 (A04b).
   3. Section label "ASSISTANT": "Ask Patch" (opens and hides the chat; shows the unread dot). Until the chat ticket (A06) it is a placeholder: named, reachable by keyboard, `aria-disabled`, described as "Coming soon".
   4. At the bottom, the **snapshot card**: Patch (64px) with his head over the card's top edge, "Snapshot", data date, model name.

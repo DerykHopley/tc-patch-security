@@ -1,4 +1,4 @@
-# LLM-security assistant (Patch)
+# Patch, the LLM-security assistant
 
 A security assistant for people building LLM apps: it answers questions about risks, attacks and CVEs from public sources, and tracks the CVEs in the products you use. Decisions and their reasons are in [DECISIONS.md](./DECISIONS.md); this file only fixes the words.
 
@@ -201,8 +201,8 @@ _Avoid_: JWT (it is one, but say what it's for), API key
 ### The assistant
 
 **Patch**:
-The assistant, and the robot that is its face in the UI.
-_Avoid_: the bot, the chatbot, the agent
+The product name, and the robot that is its face in the UI. The brand reads "Patch", with "LLM-security assistant" as the small line under it (B32).
+_Avoid_: the bot, the chatbot, the agent; "LLM Security assistant" as a name
 
 **Page context**:
 What Patch is told about the view under the chat: the page, the CVEs page's filters (product, severity, status, verdict, KEV, since) and the selected CVE; on a CVE page, that CVE. Fixed fields only, each checked against a fixed list; anything else is dropped and listed. Never free text.
