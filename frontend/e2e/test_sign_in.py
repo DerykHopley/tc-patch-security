@@ -87,6 +87,9 @@ def test_b10_13_a_signed_out_visitor_sees_the_sign_in_screen_and_no_data(open_si
     page, asked = open_signed_out()
     card = page.locator(".signin-card")
     expect(card.locator("svg.robot")).to_have_attribute("data-mood", "idle")
+    brand = card.locator(".brand")  # B32.2: the same name as the app
+    expect(brand.get_by_text("Patch", exact=True)).to_be_visible()
+    expect(brand.get_by_text("LLM-security assistant", exact=True)).to_be_visible()
     expect(card).to_contain_text("Patch is invite-only. Sign in with the email address your invitation went to.")
     expect(loading_note(page)).to_be_visible()
     # nothing of the app: no navigation, no dashboard, and no API call but /health

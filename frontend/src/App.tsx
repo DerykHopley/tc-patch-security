@@ -7,7 +7,8 @@ import { PatchButton } from './chat/PatchButton.tsx'
 import { useChat } from './chat/useChat.ts'
 import { useChatLayout } from './chat/useChatLayout.ts'
 import { usePatch } from './chat/usePatch.ts'
-import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, ListIcon, MoonIcon, ShieldIcon, SunIcon } from './components/Icons.tsx'
+import { Brand } from './components/Brand.tsx'
+import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, ListIcon, MoonIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
 import { UserMenu, type Account } from './components/UserMenu.tsx'
 import { CvesPage } from './pages/CvesPage.tsx'
@@ -120,15 +121,7 @@ export default function App({ account }: { account?: Account } = {}) {
   return (
     <div className={`app${collapsed ? ' collapsed' : ''}${layout.docked ? ' docked' : ''}`}>
       <aside className="sidenav" aria-label="Main">
-        <div className="brand">
-          <span className="brand-mark">
-            <ShieldIcon />
-          </span>
-          <span className="brand-name">
-            <span>LLM Security</span>
-            <small>assistant</small>
-          </span>
-        </div>
+        <Brand />
         <nav className="side-links" aria-label="Pages">
           <span className="side-section">Monitor</span>
           {pages.map((p) => {
