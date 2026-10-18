@@ -13,8 +13,8 @@ from playwright.sync_api import Browser, Locator, Page, expect
 from test_affected import set_stack
 from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cves, pin, visible_focus, window  # noqa: F401
 from test_dashboard import (  # noqa: F401 (fixtures)
-    DESKTOP, PHONE, SHOTS, api, clean_state, confirm, contrast, cve_row, expect_rows, open_dash, rgb_list, rows,
-    tile,
+    DESKTOP, PHONE, SHOTS, api, clean_state, confirm, contrast, cve_row, expect_rows, more_actions, open_dash, rgb_list,
+    rows, tile,
 )
 from reduced_motion import scene, still
 
@@ -86,7 +86,7 @@ def test_a16_9_cves_page_shows_priority_reasons_due_date_and_overdue(open_cves, 
     expect(due.locator(".overdue")).to_have_text("Overdue")
     expect(due.locator(".overdue svg")).to_have_attribute("aria-hidden", "true")
     expect(due.locator(".due-from")).to_have_text("by your policy: KEV deadline")
-    # Your due date is CISA's date here: said once (B36). Another due date keeps it as its own fact (the policy check below).
+    # Your due date is CISA's date here: said once (B36). Another due date keeps it as its own fact (A16.10).
     expect(due.locator(".kev-deadline")).to_have_count(0)
     levels = [r["priority"] for r in api(api_url, "/cves?limit=200")["rows"]]
     assert levels == sorted(levels, key=["urgent", "high", "normal", "low"].index)
@@ -206,6 +206,7 @@ def test_b33_5_a_closed_cve_shows_no_priority_or_due_date(open_cves, api_url, st
     expect(due).not_to_contain_text("by your policy")
     expect(due.locator(".kev-deadline")).to_have_text("CISA KEV deadline 2025-05-26")  # CISA's fact stays
     expect(priority.get_by_text("No priority: closed")).to_be_attached()  # a screen reader hears why
+    more_actions(page, LANGFLOW_KEV)  # Reopen is under More when accepted (B36)
     row(page, LANGFLOW_KEV).get_by_role("button", name=f"Reopen {LANGFLOW_KEV}").click()
     confirm(page)
     expect(page.get_by_role("dialog")).to_have_count(0)  # saved: the dialog closes

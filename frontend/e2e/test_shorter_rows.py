@@ -47,7 +47,8 @@ def more(page: Page, cve: str) -> Locator:
 
 
 # The fill behind an element: its own, or the nearest ancestor's that isn't transparent
-OWN_FILL = ("el => { let n = el; while (getComputedStyle(n).backgroundColor === 'rgba(0, 0, 0, 0)') n = n.parentElement;"
+OWN_FILL = ("el => { let n = el;"
+            " while (getComputedStyle(n).backgroundColor === 'rgba(0, 0, 0, 0)') n = n.parentElement;"
             " return getComputedStyle(n).backgroundColor }")
 ROW_HEIGHTS = "[...document.querySelectorAll('table.cves tbody tr')].map(r => r.getBoundingClientRect().height)"
 IN_VIEW = ("[...document.querySelectorAll('table.cves tbody tr')]"
@@ -71,7 +72,7 @@ def test_b36_6_one_phone_card_fits_the_screen(open_list, api_url):
         {"status": "accepted", "reason": "Behind the VPN until the upgrade", "review_date": "2026-12-01",
          "compensating_control": "Only reachable over the VPN"})
     page = open_list(PHONE_VP)
-    page.get_by_label("Status").select_option("all")
+    page.get_by_label("Status").select_option("accepted")  # closed rows sort last (B33): show the accepted ones
     expect(row(page, CVE)).to_be_visible()
     tab_bar = page.locator(".sidenav").evaluate("el => el.getBoundingClientRect().height")
     room = PHONE_VP["height"] - tab_bar
