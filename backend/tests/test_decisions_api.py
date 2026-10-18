@@ -230,7 +230,7 @@ def test_a16b_8_lookup_cve_returns_the_decision_and_no_fix(client, deps):
     r = rec.result
     assert (r["watch_status"], r["no_fix"], r["review_due"], r["open_days"]) == ("accepted", True, False, 263)
     assert r["decision"]["reason"] == ACCEPT["reason"]
-    assert r["priority"]["overdue"] is False
+    assert r["priority"] is None  # accepted, review not due: closed, so no priority or due date (B33)
 
 
 def test_a16b_8_not_affected_from_the_chat_needs_a_justification_and_is_recorded_as_chat(deps):

@@ -84,7 +84,7 @@ def test_b09_4_a_status_change_is_the_callers_only(users):
     assert r.status_code == 200, r.text
 
     def status(c):
-        rows = c.get("/cves", params={"status": "all", "limit": 200}).json()["rows"]
+        rows = c.get("/cves", params={"status": "all", "product": "langchain", "limit": 200}).json()["rows"]
         return next(row["status"] for row in rows if row["id"] == CVE)
 
     assert status(alice) == "fixed"

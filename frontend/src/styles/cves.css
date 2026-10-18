@@ -211,6 +211,12 @@ table.cves .due-cell {
   max-width: 8rem;
 }
 
+/* A closed CVE (B33): a muted dash instead of the chip and the date; the KEV deadline stays under it. */
+table.cves .no-priority {
+  display: block;
+  color: var(--muted);
+}
+
 table.cves .due-cell .due-date {
   display: block;
   white-space: nowrap;

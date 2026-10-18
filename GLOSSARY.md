@@ -84,6 +84,10 @@ _Avoid_: active CVE, unresolved CVE
 Your status for a CVE you've decided to live with for now (risk accepted), with a reason, a review date and optionally a compensating control. Not open, not overdue, not in the priority order until its review date.
 _Avoid_: ignored, waived, snoozed
 
+**Closed CVE**:
+A CVE for a product on your watchlist that isn't open: fixed, not affected, or accepted before its review date. It has no priority and no due date, and is never overdue; reopen it and they come back. The KEV deadline still shows: it's a fact about the CVE.
+_Avoid_: resolved, done, inactive
+
 **Review due**:
 An accepted CVE whose review date has come (at the as-of date). It's back in the open list and counts, its acceptance shown, until you accept it again, fix it, mark it not affected or reopen it.
 _Avoid_: expired, lapsed

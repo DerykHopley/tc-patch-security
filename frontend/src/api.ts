@@ -372,12 +372,13 @@ export interface CveRow {
   version: string | null
   internet_facing: boolean
   // Priority by rules (A16): the level, its reasons, and your due date from your policy. Rules decide the order.
-  priority: PriorityLevel
+  // A closed CVE (fixed, not affected, accepted before its review: B33) has none: null, [] and never overdue.
+  priority: PriorityLevel | null
   priority_reasons: string[] // e.g. ["in KEV", "EPSS 99th percentile", "internet-facing"]
-  priority_rule: number // the rule table's row that matched
-  alert_priority: 5 | 4 | 3 | 2 // the level as an alert priority (spec B)
-  due_date: string
-  due_from: string // "KEV deadline", "published + 90 days", "added to KEV + 7 days"
+  priority_rule: number | null // the rule table's row that matched
+  alert_priority: 5 | 4 | 3 | 2 // the rules' level as an alert priority (spec B), closed CVEs too
+  due_date: string | null
+  due_from: string | null // "KEV deadline", "published + 90 days", "added to KEV + 7 days"
   overdue: boolean // open, a fix exists, and past the due date at the as-of date (A16b)
   // Your decision (A16b). `open`: status open, or accepted with its review due. "No fix yet": OSV lists no fixed
   // version, so it can't be overdue; the due date is the "decide by" date.

@@ -10,9 +10,16 @@ import pytest
 from app.priority import LEVELS
 
 
+def _rows(client, product):
+    """Every row of the product's view, all statuses, page by page (closed CVEs sort last, B33)."""
+    rows, offset = [], 0
+    while page := client.get(f"/cves?status=all&product={product}&limit=200&offset={offset}").json()["rows"]:
+        rows, offset = rows + page, offset + 200
+    return rows
+
+
 def _row(client, cve_id, product):
-    rows = client.get(f"/cves?status=all&product={product}&limit=200").json()["rows"]
-    return next(r for r in rows if r["id"] == cve_id)
+    return next(r for r in _rows(client, product) if r["id"] == cve_id)
 
 
 def _policy(client, **changes):
@@ -155,3 +162,45 @@ def test_a16_8_test_alert_uses_the_top_priority_cve(client):
     top = client.get("/cves?limit=1").json()["rows"][0]
     alert = client.post("/alerts/test", json={"channel": "preview"}).json()["alert"]
     assert top["id"] in alert["body"]
+
+
+# --- B33: a closed CVE (fixed, not affected, accepted before its review) has no priority or due date -------------
+
+CLOSED = {
+    "fixed": {"status": "fixed"},
+    "not affected": {"status": "not_affected", "justification": "component_not_present"},
+    "accepted, review not due": {"status": "accepted", "reason": "behind our VPN", "review_date": "2027-01-11"},
+}
+
+
+@pytest.mark.parametrize("mark", CLOSED)
+def test_b33_2_a_closed_cve_has_no_priority_or_due_date_anywhere(client, deps, mark):
+    from tests.test_affected import call
+
+    kev_overdue = client.get("/dashboard").json()["kpis"]["kev_overdue"]
+    assert client.patch("/cves/CVE-2025-3248", json=CLOSED[mark]).status_code == 200  # urgent, overdue when open
+    row = _row(client, "CVE-2025-3248", "langflow")
+    assert (row["priority"], row["priority_reasons"], row["priority_rule"]) == (None, [], None)
+    assert (row["due_date"], row["due_from"], row["overdue"]) == (None, None, False)
+    assert row["kev_deadline"] == "2025-05-26"  # CISA's date stays: a fact, not your due date
+    assert row["alert_priority"] == 5  # an alert on a closed CVE (kev_recheck) keeps the rules' urgency
+    res =call(deps, "lookup_cve", cve_id="CVE-2025-3248").result
+    assert res["priority"] is None and res["kev"]["deadline"] == "2025-05-26"
+    k = client.get("/dashboard").json()["kpis"]  # not overdue anywhere: the KEV tile and the overdue count
+    assert k["kev_overdue"] == kev_overdue - 1 and k["kev_next_due"]["cve"] != "CVE-2025-3248"
+    top5 = client.get("/cves?limit=5").json()["rows"]  # the dashboard's Top 5 is this view
+    assert "CVE-2025-3248" not in [r["id"] for r in top5]
+
+
+def test_b33_3_closed_cves_sort_after_every_open_one(client):
+    client.patch("/cves/CVE-2025-3248", json={"status": "fixed"})
+    rows = _rows(client, "langflow")
+    closed =[r["priority"] is None for r in rows]
+    assert closed == sorted(closed) and closed[-1] and not closed[0]
+
+
+def test_b33_4_reopening_brings_the_priority_and_due_date_back(client):
+    client.patch("/cves/CVE-2025-3248", json={"status": "fixed"})
+    client.patch("/cves/CVE-2025-3248", json={"status": "open"})
+    row = _row(client, "CVE-2025-3248", "langflow")
+    assert (row["priority"], row["due_date"], row["overdue"]) == ("urgent", "2025-05-26", True)

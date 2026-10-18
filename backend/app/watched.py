@@ -5,6 +5,7 @@ and the merged settings) and the as-of date. It answers three questions:
 
 - assess(cve_id): one CVE's assessment: the verdict (A15), your decision record (A16b), its priority and due date
   (A16). A CVE whose product isn't on your watchlist is a normal answer: watched False, no status, no priority.
+  A closed CVE (app.status.is_closed: fixed, not affected, accepted before its review) has no priority either (B33).
 - rows(...): the CVEs page's rows for a view (its filters), sorted by priority.
 - most_urgent(): the open CVE at the top of the priority order, or None.
 
@@ -15,9 +16,9 @@ import datetime as dt
 from dataclasses import dataclass
 
 from app.knowledge import SEVERITY_ORDER
-from app.priority import CveFacts, Priority, priority, sort_key
+from app.priority import LEVELS, CveFacts, Priority, priority, sort_key
 from app.state import ProductFields, State
-from app.status import is_open, review_due
+from app.status import is_closed, is_open, review_due
 from app.verdict import Verdict, no_fix, verdict
 
 
@@ -38,7 +39,9 @@ class Assessment:
     open: bool  # open, or accepted with its review due
     review_due: bool
     open_days: int  # days since publication, at the as-of date
-    priority: Priority | None  # the rules' level, reasons and your due date; None off the watchlist
+    priority: Priority | None  # the rules' level, reasons and your due date; None off the watchlist or closed (B33)
+    alert_priority: int | None  # the rules' level as an alert priority (5/4/3/2), closed too: kev_recheck alerts a
+    # fixed CVE (B04). None off the watchlist
 
 
 class WatchedCves:
@@ -120,8 +123,10 @@ class WatchedCves:
             "internet_facing": a.internet_facing, "no_fix": a.no_fix,
             "open": a.open, "review_due": a.review_due, "review_date": a.review_date, "decision": a.decision,
             "history": a.history, "open_days": a.open_days,
-            "priority": p.level, "priority_reasons": list(p.reasons), "priority_rule": p.rule,
-            "alert_priority": p.alert_priority, "due_date": p.due_date, "due_from": p.due_from, "overdue": p.overdue,
+            # B33: a closed CVE has no priority or due date (None, never overdue); the KEV deadline above stays
+            "priority": p and p.level, "priority_reasons": list(p.reasons) if p else [],
+            "priority_rule": p and p.rule, "alert_priority": a.alert_priority, "due_date": p and p.due_date,
+            "due_from": p and p.due_from, "overdue": bool(p and p.overdue),
         }
 
     def _assess(self, cve: dict) -> Assessment:
@@ -151,10 +156,12 @@ class WatchedCves:
             open=watched and is_open(status, review_date, as_of),
             review_due=watched and review_due(status, review_date, as_of),
             open_days=(dt.date.fromisoformat(as_of) - dt.date.fromisoformat(cve["published"])).days,
-            priority=p)
+            priority=None if is_closed(status, review_date, as_of) else p,
+            alert_priority=p and p.alert_priority)
 
 
 def _sort_key(r: dict):
-    # By priority (A16): most urgent first, then the earliest due date, then the highest CVSS, then newest
-    return (*sort_key(r["priority"], r["due_date"]), -(r["cvss"] or 0),
+    # By priority (A16): most urgent first, then the earliest due date, then the highest CVSS, then newest. Closed
+    # CVEs (no priority, B33) come after every open one
+    return (*(sort_key(r["priority"], r["due_date"]) if r["priority"] else (len(LEVELS), "")), -(r["cvss"] or 0),
             -dt.date.fromisoformat(r["published"]).toordinal())
