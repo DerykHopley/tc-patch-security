@@ -207,7 +207,7 @@ def test_b04_3_quiet_hours(start, end, at, expected):
 
 def msg(cve_id, reason, priority=3):
     return {"cve": cve_id, "reason": reason, "title": f"{reason}: Langflow", "body": cve_id, "priority": priority,
-            "tags": [reason, "langflow"], "click": f"http://app/#cve={cve_id}"}
+            "tags": [reason, "langflow"], "click": f"http://app/cves/{cve_id}"}
 
 
 def test_b04_3_up_to_the_limit_each_alert_is_its_own_message():

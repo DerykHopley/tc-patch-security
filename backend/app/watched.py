@@ -7,6 +7,8 @@ and the merged settings) and the as-of date. It answers three questions:
   (A16). A CVE whose product isn't on your watchlist is a normal answer: watched False, no status, no priority.
 - rows(...): the CVEs page's rows for a view (its filters), sorted by priority.
 - most_urgent(): the open CVE at the top of the priority order, or None.
+- page(cve_id): the page for one CVE (B35): the full facts, the affected versions, the links out, and its row from
+  the CVEs page when it's watched (so the two pages never disagree).
 
 The steps (verdict, then decision, then priority, which needs the decision's review date) and the policy merge stay
 inside: callers never compose them.
@@ -19,6 +21,12 @@ from app.priority import CveFacts, Priority, priority, sort_key
 from app.state import ProductFields, State
 from app.status import is_open, review_due
 from app.verdict import Verdict, no_fix, verdict
+
+# The list an OWASP category belongs to, by its kind in owasp.json. The page names it, since "A05" alone doesn't say
+# which Top 10 it comes from (#25: both lists are called "Top 10").
+OWASP_LISTS = {"owasp_web": "OWASP Top 10 2025 (web applications)",
+               "owasp_llm": "OWASP Top 10 for LLM Applications 2025"}
+OSV_URL = "https://osv.dev/vulnerability/{}"  # OSV.dev's page for a CVE id
 
 
 @dataclass(frozen=True)
@@ -102,6 +110,31 @@ class WatchedCves:
     def most_urgent(self) -> dict | None:
         """The open CVE at the top of the priority order: the CVEs page's first row (with its due date)."""
         return next(iter(self.rows()), None)
+
+    def page(self, cve_id: str) -> dict:
+        """The page for one CVE (B35). KeyError when the CVE isn't in the snapshot. `row` is the CVEs page's row
+        (status, decision, history, priority, due date), or None off the watchlist; the rest is there either way."""
+        a = self.assess(cve_id)
+        k, cve, v = self.k, a.cve, a.verdict
+        kev = k.cves.kev.get(cve["id"])
+        cat = k.category(cve["owasp"])
+        kind = k.owasp["categories"][cve["owasp"]].get("kind", "") if cat else ""
+        return {
+            "id": cve["id"], "product": cve["product"], "product_name": k.products[cve["product"]],
+            "severity": cve["severity"], "cvss": cve["cvss"], "published": cve["published"], "cwes": cve["cwes"],
+            "description": cve["description"],  # in full: the list cuts it to 220 characters
+            "owasp": {**cat, "list": OWASP_LISTS.get(kind)} if cat else None,
+            "kev": {"date_added": kev["dateAdded"], "deadline": kev["dueDate"], "required_action": kev["requiredAction"],
+                    "ransomware": kev["knownRansomwareCampaignUse"]} if kev else None,
+            "epss": k.epss_of(cve["id"]), "possible_match": k.possible_match(cve["id"]),
+            "affected": [{"package": e["package"], "ecosystem": e["ecosystem"], "advisory": e["advisory"],
+                          "ranges": e["ranges"]}
+                         for e in k.osv["cves"].get(cve["id"], []) if e["product"] == cve["product"]],
+            "verdict": v.verdict, "verdict_reason": v.reason, "fixed_version": v.fixed_version, "who_acts": v.who_acts,
+            "no_fix": a.no_fix, "usage": a.usage, "version": a.version, "internet_facing": a.internet_facing,
+            "url": cve["url"], "osv_url": OSV_URL.format(cve["id"]),
+            "watched": a.watched, "row": self._row(a) if a.watched else None,
+        }
 
     def _row(self, a: Assessment) -> dict:
         k, cve, p = self.k, a.cve, a.priority

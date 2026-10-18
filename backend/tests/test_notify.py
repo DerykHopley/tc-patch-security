@@ -9,7 +9,7 @@ from app.notify import DesktopNotifier, EmailNotifier, NotifyError, NtfyNotifier
 
 # The link's address is one a phone can reach: the links of an app on localhost are left out (B26, test_b26_5)
 MSG = {"title": "In CISA KEV: Langflow", "body": "CVE-2025-3248 · critical 9.8 · due 2025-05-26",
-       "priority": 5, "tags": ["kev", "langflow"], "click": "https://patch.example.test/#cve=CVE-2025-3248"}
+       "priority": 5, "tags": ["kev", "langflow"], "click": "https://patch.example.test/cves/CVE-2025-3248"}
 
 
 def test_a13_3_ntfy_posts_json_to_the_server_root():
