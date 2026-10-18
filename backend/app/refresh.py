@@ -30,6 +30,7 @@ from typing import Literal
 from pydantic import BaseModel, model_validator
 
 from app import cve_build
+from app.alerts import alert_counts
 from app.config import DEFAULT_USER  # the alerts map is keyed by user id (B09)
 from app.config import FIXTURES, Settings
 from app.feeds import FeedError, Feeds, make_feeds
@@ -108,6 +109,8 @@ class CheckReply(BaseModel):
     ran: bool
     result: RefreshResult | None
     refusal: Refusal | None = None
+    # B34: the caller's alerts from this run by what happened (sent, recorded, failed, held); Check now's reply only
+    alerts_for_you: dict[str, int] | None = None
 
 
 # --- Step 2: build the new version on top of the previous one (pure) ------------------------------------------------
@@ -371,20 +374,19 @@ class Refresher:
 
 
 _EMPTY_ROW = {"finished": None, "duration_s": None, "counts": None, "new_cves": [], "version": None, "feeds": [],
-              "errors": [], "alerts_sent": 0, "alerts_held": 0, "reason": None, "next_allowed": None, "times": 1}
+              "errors": [], "alerts_sent": 0, "alerts_recorded": 0, "alerts_failed": 0, "alerts_held": 0,
+              "reason": None, "next_allowed": None, "times": 1}
 
 
 def _run_row(r: RefreshResult, user_id: str) -> dict:
-    """One run as a history row (B19): its result (ok, partial, failed), how long it took, and the alerts it sent
-    `user_id` (each alert in a digest counts) or held for quiet hours."""
-    entries = r.alerts.get(user_id, [])
-    sent = sum(len(e["alerts"]) for e in entries if e["kind"] in ("alert", "digest"))
+    """One run as a history row (B19): its result (ok, partial, failed), how long it took, and `user_id`'s alerts
+    by what happened (B34, app.alerts.alert_counts): sent, recorded only, failed, held for quiet hours."""
+    counts = alert_counts(r.alerts.get(user_id, []))
     seconds = (dt.datetime.fromisoformat(r.finished) - dt.datetime.fromisoformat(r.started)).total_seconds()
     return {**_EMPTY_ROW, "trigger": r.trigger, "started": r.started, "finished": r.finished, "result": r.status,
             "duration_s": round(seconds, 1), "counts": r.counts.model_dump(), "new_cves": r.new_cves,
             "version": r.version, "feeds": [f.model_dump() for f in r.feeds],
-            "errors": [e.model_dump() for e in r.errors], "alerts_sent": sent,
-            "alerts_held": sum(e["kind"] == "held" for e in entries)}
+            "errors": [e.model_dump() for e in r.errors], **{f"alerts_{k}": n for k, n in counts.items()}}
 
 
 def _took(result: RefreshResult) -> str:

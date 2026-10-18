@@ -92,7 +92,8 @@ def test_b19_2_the_history_lists_runs_newest_first_with_trigger_duration_counts_
     assert [(f["source"], f["ok"]) for f in partial["feeds"]] == [("nvd", False), ("kev", True), ("osv", True),
                                                                   ("epss", True)]
     assert partial["feeds"][0]["message"] == "The fake nvd feed is set to fail."
-    assert partial["counts"]["kev_added"] == 1 and partial["alerts_sent"] == 2  # KEV, and one CVE now overdue
+    assert partial["counts"]["kev_added"] == 1  # and two alerts: KEV, and one CVE now overdue. No channel is set up
+    assert (partial["alerts_sent"], partial["alerts_failed"]) == (0, 2)  # here, so they failed (B34: not "sent")
     assert skipped["reason"] == "too_soon" and skipped["times"] == 2 and skipped["duration_s"] is None
     assert skipped["started"] == f"{DAY1}T09:01:00+00:00" and skipped["next_allowed"] == f"{DAY1}T09:05:00+00:00"
     assert skipped["counts"] is None and skipped["feeds"] == []
@@ -126,12 +127,14 @@ def test_b19_2_the_history_keeps_the_last_20(refresher):
 
 
 def test_b19_2_the_history_counts_digest_alerts_and_skips_by_patch(live):  # noqa: F811
-    live.check_now()
+    live.check_now()  # the first check: one new CVE, no reminders (B34)
+    live.clock.advance(60 * 24 * 7)
+    live.check_now()  # a week later: the overdue reminders, as one digest
     live.clock.advance(2)
     assert not live.deps.refresher.run("chat").ran  # check_updates, too soon
     runs = live.client.get("/refresh/runs").json()["runs"]
-    assert [(r["trigger"], r["result"]) for r in runs] == [("chat", "skipped"), ("button", "ok")]
-    assert runs[1]["alerts_sent"] > 5  # day 1's digest: every alert in it counts, not the one message
+    assert [(r["trigger"], r["result"]) for r in runs] == [("chat", "skipped"), ("button", "ok"), ("button", "ok")]
+    assert runs[1]["alerts_failed"] > 5  # the digest (no channel set up here): every alert in it counts
 
 
 # --- B19.3: pausing is a setting; the schedule's state reaches the dashboard and the history ------------------------
