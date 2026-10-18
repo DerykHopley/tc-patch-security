@@ -8,6 +8,7 @@ import { epssPercentile, epssScore, PossibleMatch } from '../components/Snapshot
 import { VERDICT_LABEL, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
 import { ExternalLink as External } from '../components/ExternalLink.tsx'
+import { CveLink } from '../components/CveLink.tsx'
 import type {
   AffectedOne,
   AffectedProduct,
@@ -37,7 +38,7 @@ function CveCard({ r }: { r: CveResult }) {
   return (
     <div className="result-card cve-card">
       <p className="result-title">
-        <External href={r.url}>{r.id}</External> · {r.product}
+        <CveLink id={r.id} /> · {r.product} · <External href={r.url}>NVD</External>
       </p>
       <div className="chips">
         <SeverityBadge severity={r.severity} cvss={r.cvss} />
@@ -99,7 +100,7 @@ function AffectedCard({ r }: { r: AffectedOne | AffectedProduct }) {
         <ul className="affected-list">
           {r.cves.map((c) => (
             <li key={c.id}>
-              {c.id} <VerdictChip verdict={c.verdict} /> <span className="meta">{c.reason}</span>
+              <CveLink id={c.id} /> <VerdictChip verdict={c.verdict} /> <span className="meta">{c.reason}</span>
             </li>
           ))}
         </ul>
@@ -110,7 +111,7 @@ function AffectedCard({ r }: { r: AffectedOne | AffectedProduct }) {
   return (
     <div className="result-card affected-card">
       <p className="result-title">
-        {r.id} · {r.product} · {r.usage}
+        <CveLink id={r.id} /> · {r.product} · {r.usage}
         {r.version ? ` ${r.version}` : ''}
       </p>
       <div className="chips">
@@ -192,7 +193,9 @@ function FixFirstCard({ r, page }: { r: FixFirstResult; page: PageContext }) {
           {r.cves.map((c) => (
             <li key={c.id}>
               <span className="fix-head">
-                <strong>{c.id}</strong>
+                <strong>
+                  <CveLink id={c.id} />
+                </strong>
                 <PriorityChip level={c.priority} />
                 <SeverityBadge severity={c.severity} cvss={null} />
                 {c.kev && <span className="chip kev">KEV</span>}
@@ -333,7 +336,9 @@ function UpdatesCard({ r }: { r: UpdatesResult }) {
             {r.new_cves.map((v) => (
               <li key={v.id}>
                 {v.n && <span className="source-n">{v.n}</span>}
-                <strong>{v.id}</strong>
+                <strong>
+                  <CveLink id={v.id} />
+                </strong>
                 <span className="meta">{v.product}</span>
                 <SeverityBadge severity={v.severity} cvss={null} />
                 {v.kev && <span className="chip kev">KEV</span>}
@@ -352,7 +357,9 @@ function UpdatesCard({ r }: { r: UpdatesResult }) {
             {r.alerts.map((a) => (
               <li key={`${a.cve} ${a.reason}`}>
                 {a.n && <span className="source-n">{a.n}</span>}
-                <strong>{a.cve}</strong>
+                <strong>
+                  <CveLink id={a.cve} />
+                </strong>
                 <span className="chip">{REASON_LABEL[a.reason] ?? a.reason}</span>
                 {a.held && <span className="meta">held for quiet hours</span>}
               </li>

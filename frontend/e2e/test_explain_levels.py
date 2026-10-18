@@ -1,4 +1,4 @@
-"""Browser check (seam 3) for explain levels: Settings, the chat header's switch, "Explain it". Check ids: A19.n, #21.
+"""Browser check (seam 3) for explain levels: Settings, the chat header's switch, "Ask Patch" on a CVE's page. Check ids: A19.n, #21.
 
 Runs in Firefox and Chromium against run.sh's throwaway servers, on FakeLLM. Each test starts from the defaults
 (reset through the API). Expected values come from the ticket and docs/design/DESIGN.md (§5.3, §6.2, §7, §10).
@@ -106,26 +106,31 @@ def test_a19_2_the_switch_follows_a_level_saved_on_the_settings_page(open_app):
     expect(switch(page).get_by_role("radio", name="Simple")).to_be_checked()
 
 
-# --- A19.4: "Explain it" on the alert banner uses the saved level -----------------------------------------------
+# --- A19.4: "Ask Patch" on an alert's CVE page uses the saved level ---------------------------------------------
+# (the alert banner's "Explain it" until B35, #85: an alert now opens the CVE's page)
 
-def test_a19_4_explain_it_uses_the_saved_level(open_app, api_url):
+def ask_on_cve_page(page: Page) -> None:
+    page.get_by_role("button", name=f"Ask Patch about {ALERT_CVE}").click()
+
+
+def test_a19_4_ask_patch_uses_the_saved_level(open_app, api_url):
     save_level(api_url, "deep_dive")
-    page = open_app(query=f"#cve={ALERT_CVE}")
+    page = open_app(query=f"#cve={ALERT_CVE}")  # an alert's link: the CVE's page
     bodies = chat_bodies(page)
-    page.get_by_role("region", name="Alert", exact=True).get_by_role("button", name="Explain it").click()
+    ask_on_cve_page(page)
     answer = window(page).locator(".message.assistant").first
     expect(answer).to_be_visible(timeout=10_000)
     assert bodies[-1].get("explain_level") is None
     expect(level_note(answer)).to_contain_text("Deep dive")
 
 
-def test_a19_4_explain_it_ignores_a_level_picked_for_the_next_question(open_app, api_url):
+def test_a19_4_ask_patch_ignores_a_level_picked_for_the_next_question(open_app, api_url):
     save_level(api_url, "deep_dive")
     page = open_app()
     open_chat(page)
     switch(page).get_by_role("radio", name="Simple").check()
     page.evaluate(f"location.hash = 'cve={ALERT_CVE}'")
-    page.get_by_role("region", name="Alert", exact=True).get_by_role("button", name="Explain it").click()
+    ask_on_cve_page(page)
     answer = window(page).locator(".message.assistant").first
     expect(answer).to_be_visible(timeout=10_000)
     expect(level_note(answer)).to_contain_text("Deep dive")

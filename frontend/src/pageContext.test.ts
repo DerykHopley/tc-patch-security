@@ -82,3 +82,16 @@ test('the same filters reported again (the product names loaded, a re-render) ke
   assert.equal(s.selected, 'CVE-2025-3248')
   assert.deepEqual(chipWords(s), ['Langflow', 'High or worse', 'CVE-2025-3248'])
 })
+
+test('B35.6 on one CVE\'s page Patch is told that CVE, and only that: the list\'s filters don\'t apply there', () => {
+  let s = after('cves', { type: 'view', visit: 0, view: langflowHigh })
+  s = reducePageContext(s, { type: 'visit', page: 'cves', visit: 1, cve: 'CVE-2025-3248' })
+  assert.deepEqual(currentContext(s), { page: 'cves', cve: 'CVE-2025-3248' })
+  assert.deepEqual(chipWords(s), ['CVE-2025-3248'])
+  // "Ask Patch" on the page asks about the same CVE: it stays the one Patch is told
+  s = reducePageContext(s, { type: 'select', cve: 'CVE-2025-3248', pending: false })
+  assert.deepEqual(currentContext(s), { page: 'cves', cve: 'CVE-2025-3248' })
+  // Back to the list: no CVE, as on any new visit
+  s = reducePageContext(s, { type: 'visit', page: 'cves', visit: 2 })
+  assert.deepEqual(currentContext(s), { page: 'cves' })
+})

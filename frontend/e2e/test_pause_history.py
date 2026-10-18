@@ -100,7 +100,7 @@ def test_b19_7_the_history_lists_the_runs_and_a_run_opens_to_each_feed(open_live
     details = ok.locator(".run-details")
     expect(details.get_by_role("list", name="Sources")).to_have_text(re.compile(
         "NVD: answered.*CISA KEV: answered.*OSV: answered.*EPSS: answered", re.S))
-    expect(details.get_by_role("link", name="CVE-2026-99102")).to_have_attribute("href", "#cve=CVE-2026-99102")
+    expect(details.get_by_role("link", name="CVE-2026-99102")).to_have_attribute("href", "/cves/CVE-2026-99102")  # its page (B35)
 
 
 @pytest.mark.parametrize("scheme", ["light", "dark"])
