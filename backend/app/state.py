@@ -380,6 +380,11 @@ class State:
                                        {**saved, "pending": pending})
         self._update(change)
 
+    def checked_before(self) -> bool:
+        """B34: whether a refresh run has reached this user before (it noted its new CVEs, B05). False until the
+        first one, and again after the fake feeds' reset."""
+        return "new_since_check" in self._load()
+
     def clear_alerts(self) -> None:
         """No alerts sent, held or logged, and nothing new (the fake feeds' reset, for the browser check)."""
 

@@ -143,7 +143,7 @@ def test_b04_4_the_alerts_route_returns_the_log_newest_first_with_results_per_ch
     assert log[:len(sent)] == sent  # one run on top in the order sent: KEV and new CVEs above the reminders
     assert log[0]["reason"] == "kev"
     assert {"at", "kind", "reason", "cve", "title", "body", "priority", "click", "alerts", "channels"} <= set(log[0])
-    assert log[-1]["kind"] == "digest" and log[-1]["at"] == f"{DAY1}T09:00:00+00:00"  # day 1's digest, oldest
+    assert (log[-1]["cve"], log[-1]["reason"], log[-1]["at"]) == (NEW_DAY1, "new", f"{DAY1}T09:00:00+00:00")  # oldest
 
 
 # --- B04.5: once per CVE and reason: a rerun or a restart sends nothing new -----------------------------------------
@@ -169,11 +169,97 @@ def test_b04_5_a_restart_sends_nothing_new(app):
 
 def test_b04_5_overdue_comes_again_the_next_week(app):
     app.check_now()
+    app.next_day()  # day 2: a CVE falls overdue (the first check sends no reminders, B34)
     first = {a["cve"] for e in app.sent() for a in e["alerts"] if a["reason"] == "overdue"}
     app.clock.advance(60 * 24 * 7)  # a week later; nothing else changed
     again = {a["cve"] for e in app.check_now()["result"]["alerts"]["default"] for a in e["alerts"]
              if a["reason"] == "overdue"}
     assert first and first <= again
+
+
+# --- B34.1: a first check alerts only what it found new; reminders start with the next weekly digest -----------------
+
+REMINDERS = {"overdue", "due_soon"}
+FALLS_OVERDUE_DAY2 = "CVE-2026-12944"  # due on day 1 (the snapshot's due dates), so overdue from day 2
+
+
+def reasons(entries: list[dict]) -> set[str]:
+    return {r for _, r in pairs(entries)}
+
+
+def test_b34_1_the_first_check_sends_no_reminders(app):
+    (entry,) = app.check_now()["result"]["alerts"]["default"]
+    assert pairs([entry]) == {(NEW_DAY1, "new")}  # the snapshot's overdue and due-soon CVEs wait
+
+
+def test_b34_1_a_second_check_soon_after_sends_no_reminders_either(app):
+    app.check_now()
+    app.clock.advance(10)  # past the 5 minutes, the same day and week; the feeds still say day 1
+    assert app.check_now()["result"]["alerts"] == {"default": []}  # the first check noted them, unsent
+
+
+def test_b34_1_the_next_weekly_digest_brings_the_overdue_reminders(app):
+    app.check_now()
+    app.clock.advance(60 * 24 * 7)  # a week later; nothing else changed
+    (entry,) = app.check_now()["result"]["alerts"]["default"]
+    assert entry["kind"] == "digest" and "overdue" in reasons([entry]) and NEW_DAY1 not in {c for c, _ in
+                                                                                             pairs([entry])}
+
+
+def test_b34_1_a_cve_that_falls_overdue_after_the_first_check_is_reminded(app):
+    app.check_now()
+    sent = app.next_day()["result"]["alerts"]["default"]
+    assert (FALLS_OVERDUE_DAY2, "overdue") in pairs(sent)
+    assert "due_soon" not in reasons(sent)  # those were due soon on day 1 already
+
+
+def test_b34_1_after_the_reset_the_next_check_is_a_first_check_again(app):
+    app.check_now()
+    app.clock.advance(60 * 24 * 7)
+    assert app.client.post("/refresh/reset", json={"confirm": "reset"}).status_code == 200
+    assert pairs(app.check_now()["result"]["alerts"]["default"]) == {(NEW_DAY1, "new")}
+
+
+# --- B34.2: the run line and the refresh runs count alerts by what happened ------------------------------------------
+
+COUNT_KEYS = ("alerts_sent", "alerts_recorded", "alerts_failed", "alerts_held")
+
+
+def run_counts(app) -> tuple[int, ...]:
+    """The last run's alert counts, from Settings' refresh runs list."""
+    run = app.client.get("/refresh/runs").json()["runs"][0]
+    return tuple(run[k] for k in COUNT_KEYS)
+
+
+def test_b34_2_sent_alerts_count_as_sent(app):
+    reply = app.check_now()
+    assert run_counts(app) == (1, 0, 0, 0)
+    assert reply["alerts_for_you"] == {"sent": 1, "recorded": 0, "failed": 0, "held": 0}  # the dashboard's line
+
+
+def test_b34_2_a_dry_run_counts_as_recorded_only_never_sent(tmp_path, index_dir, index):
+    app = LiveAlerts(tmp_path, index_dir, notify_dry_run=True)
+    app.check_now()
+    app.clock.advance(60 * 24 * 7)  # the weekly digest: many alerts in one message
+    reply = app.check_now()
+    sent, recorded, failed, held = run_counts(app)
+    assert (sent, failed, held) == (0, 0, 0) and recorded > 5
+    assert reply["alerts_for_you"]["recorded"] == recorded
+    assert app.channels.ntfy == [] and app.channels.desktop == []
+
+
+def test_b34_2_failed_alerts_count_as_failed(app):
+    app.channels.ntfy_fails = True
+    app.settings_with(channels=["ntfy"])
+    app.check_now()
+    assert run_counts(app) == (0, 0, 1, 0)
+
+
+def test_b34_2_held_alerts_count_as_held(app):
+    app.check_now()
+    app.settings_with(quiet_start="08:00", quiet_end="10:00")
+    held = app.next_day()["alerts_for_you"]["held"]
+    assert held > 0 and run_counts(app) == (0, 0, 0, held)
 
 
 # --- B04.6: a failed channel is logged; the others still send -------------------------------------------------------
@@ -200,10 +286,13 @@ def test_b04_6_a_channel_that_isnt_set_up_is_logged_as_such(app):
 # --- B04.7: more than digest_over alerts in one run become one digest -------------------------------------------------
 
 def test_b04_7_a_busy_run_is_one_digest(app):
-    reply = app.check_now()  # day 1: the new Langflow CVE, plus the snapshot's overdue and due-soon CVEs
-    (entry,) = reply["result"]["alerts"]["default"]
+    app.check_now()  # the first check: the new Langflow CVE only (B34)
+    app.channels.ntfy.clear()
+    app.channels.desktop.clear()
+    app.clock.advance(60 * 24 * 7)  # a week later: the snapshot's overdue CVEs, reminded
+    (entry,) = app.check_now()["result"]["alerts"]["default"]
     assert entry["kind"] == "digest" and entry["reason"] is None and entry["cve"] is None
-    assert (NEW_DAY1, "new") in pairs([entry]) and len(entry["alerts"]) > 5
+    assert len(entry["alerts"]) > 5
     assert entry["title"] == f"{len(entry['alerts'])} alerts for your watchlist"
     assert entry["click"] == "http://app.test/cves"
     assert len(app.channels.ntfy) == len(app.channels.desktop) == 1

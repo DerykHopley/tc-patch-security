@@ -42,11 +42,18 @@ def check_now(page: Page) -> None:
     expect(line(page)).to_contain_text("Done:")
 
 
+def save_alerts(live_api_url: str, **alerts) -> None:
+    body = api(live_api_url, "/settings")["settings"]
+    body["alerts"] |= alerts
+    api(live_api_url, "/settings", "PUT", body)
+
+
 def test_b04_12_the_panel_shows_a_busy_check_as_one_digest(live_state, open_live):  # noqa: F811
+    # The first check sends only what it found (B34): KEV and the new CVEs. A limit of 1 makes that a digest.
+    save_alerts(live_state, digest_over=1)
     page = open_live()
     expect(panel(page)).to_contain_text("No alerts yet.")
     check_now(page)
-    # the snapshot's overdue and due-soon CVEs plus the new ones: more than 5, so one digest
     expect(entries(page)).to_have_count(1)
     first = entries(page).first
     expect(first).to_contain_text("alerts for your watchlist")
@@ -57,9 +64,7 @@ def test_b04_12_the_panel_shows_a_busy_check_as_one_digest(live_state, open_live
 
 def test_b04_12_one_alert_links_to_its_cve_like_the_notification(live_state, open_live):  # noqa: F811
     api(live_state, "/watchlist", "PUT", {"products": ["ollama"]})
-    body = api(live_state, "/settings")["settings"]
-    body["alerts"]["digest_over"] = 50
-    api(live_state, "/settings", "PUT", body)
+    save_alerts(live_state, digest_over=50)
     page = open_live()
     check_now(page)
     first = entries(page).first
@@ -74,6 +79,7 @@ def test_b04_12_one_alert_links_to_its_cve_like_the_notification(live_state, ope
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 @pytest.mark.parametrize("width", [DESKTOP, PHONE])
 def test_b04_12_the_panel_in_both_themes_on_a_phone_and_by_keyboard(live_state, open_live, scheme, width):  # noqa: F811
+    save_alerts(live_state, digest_over=1)  # a digest, as the Settings list's check below expects
     page = open_live(width=width, scheme=scheme)
     button(page).focus()
     page.keyboard.press("Enter")
@@ -92,3 +98,26 @@ def test_b04_12_the_panel_in_both_themes_on_a_phone_and_by_keyboard(live_state, 
     page.keyboard.press("Enter")  # keyboard: the link opens Settings, where the same log is listed
     expect(page).to_have_url(re.compile(r"/settings$"))
     expect(page.get_by_role("list", name="Recent alerts").get_by_role("listitem").first).to_contain_text("Digest · ")
+
+
+# --- B34.5: the first check alerts only what it found; the line counts alerts by what happened ---------------------
+
+RECORDED = re.compile(r"(\d+) alerts? recorded only \(not sent\)")
+
+
+def test_b34_5_the_first_check_sends_no_reminders_and_counts_alerts_as_recorded_only(live_state, open_live):  # noqa: F811
+    save_alerts(live_state, channels=[])  # no channel picked: recorded only, on any machine
+    page = open_live()
+    check_now(page)
+    expect(line(page)).to_have_text(re.compile(r"^Done: [^.]+\. \d+ alerts? recorded only \(not sent\)\.$"))
+    n = int(RECORDED.search(line(page).inner_text()).group(1))
+    expect(entries(page).first).to_be_visible()
+    for text in entries(page).all_inner_texts():  # KEV and the new CVEs; the overdue reminders start next week
+        assert "Overdue" not in text and "Due in 3 days" not in text and "reminder" not in text, text
+
+    # Settings' refresh runs list says the same count, never "sent"
+    page.get_by_role("link", name=re.compile("Schedule and refresh runs")).click()
+    counts = page.locator("section.card", has=page.get_by_role("heading", name="Refresh runs", exact=True)) \
+        .locator(".run-list > li").first.locator(".run-counts")
+    expect(counts).to_contain_text(f"{n} alert{'' if n == 1 else 's'} recorded only (not sent)")
+    expect(counts).not_to_contain_text(re.compile(r"\d+ alerts? sent"))

@@ -175,8 +175,15 @@ Where alerts are delivered: desktop, email or ntfy.
 _Avoid_: notifier (that's the code), sink
 
 **Digest**:
-One message for many alerts: more than the digest limit in one check (default 5), or what quiet hours held. It gives counts by alert reason, never the CVE ids.
+One message for many alerts: more than the digest limit in one check (default 5), or what quiet hours held. It gives counts by alert reason, never the CVE ids. When it mixes what the check found with reminders, the reminders are one count ("1 new · 272 reminders").
 _Avoid_: summary, batch
+
+**Reminder**:
+An alert about a due date, not about something a check found: due soon or overdue. A user's first check sends none (B34); overdue repeats weekly.
+_Avoid_: nag, follow-up
+
+**First check**:
+A user's first refresh run that writes data, with no earlier run in their state. It alerts only what it found, never reminders.
 
 **Quiet hours**:
 A daily time window in which alerts are held, then sent as one digest when it ends.
