@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { examples as fetchExamples, health, type Example, type Health } from './api.ts'
-import { AlertBanner, useAlertLink } from './chat/AlertBanner.tsx'
 import { ChatDivider } from './chat/ChatDivider.tsx'
 import { ChatWindow } from './chat/ChatWindow.tsx'
 import { PatchButton } from './chat/PatchButton.tsx'
@@ -11,6 +10,7 @@ import { Brand } from './components/Brand.tsx'
 import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, ListIcon, MoonIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
 import { UserMenu, type Account } from './components/UserMenu.tsx'
+import { CvePage } from './pages/CvePage.tsx'
 import { CvesPage } from './pages/CvesPage.tsx'
 import { DashboardPage } from './pages/Dashboard.tsx'
 import { DevPage } from './pages/DevPage.tsx'
@@ -50,7 +50,6 @@ export default function App({ account }: { account?: Account } = {}) {
   const pageContext = usePageContext(route)
   const chat = useChat(pageContext.current)
   const layout = useChatLayout()
-  const [alertCve, alertDone] = useAlertLink()
   const chatOpen = layout.open
   const [examples, setExamples] = useState<Example[]>([])
   const patch = usePatch(chat, chatOpen) // one mood and one animation for the button and the chat header
@@ -72,14 +71,15 @@ export default function App({ account }: { account?: Account } = {}) {
     else layout.setOpen(true)
   }
 
-  // "Ask about this" and an alert's "Explain it": open the chat where it is and ask about one CVE (DESIGN.md §6.4).
+  // "Ask about this" and a CVE page's "Ask Patch": open the chat where it is and ask about one CVE (DESIGN.md §6.4).
   function askAbout(cveId: string) {
     openChat()
     void chat.send(`Explain ${cveId} and how to defend against it.`, { savedLevel: true }) // A19: the saved level
   }
 
   // "Ask about this" on the CVEs page also selects the row: Patch knows which CVE "this" is (A18). While a reply is
-  // still coming the chat takes no new question, so the click only opens the chat and selects nothing.
+  // still coming the chat takes no new question, so the click only opens the chat and selects nothing. On a CVE's own
+  // page (B35) Patch is told that CVE already.
   function askAboutRow(cveId: string) {
     pageContext.select(cveId, chat.pending)
     askAbout(cveId)
@@ -182,7 +182,8 @@ export default function App({ account }: { account?: Account } = {}) {
         <header className="topbar">
           <div className="crumbs">
             <span className="crumb-path">Pages / {current.title}</span>
-            <h1>{current.title}</h1>
+            {/* One CVE's page (B35) is under CVEs: its id is the title */}
+            <h1>{route.cve ?? current.title}</h1>
           </div>
           {account && <UserMenu account={account} />}
           <button
@@ -195,16 +196,6 @@ export default function App({ account }: { account?: Account } = {}) {
             {dark ? <SunIcon /> : <MoonIcon />}
           </button>
         </header>
-        {alertCve && (
-          <AlertBanner
-            cve={alertCve}
-            onExplain={() => {
-              alertDone()
-              askAbout(alertCve)
-            }}
-            onDismiss={alertDone}
-          />
-        )}
         <main>
           {page === 'dashboard' ? (
             // keyed by the visit, like the CVEs page: a link followed again with another filter starts from it
@@ -215,6 +206,15 @@ export default function App({ account }: { account?: Account } = {}) {
               onAskPatch={openChat}
               onView={pageContext.reportView}
               patchVariant={patch.restVariant}
+            />
+          ) : page === 'cves' && route.cve ? (
+            // keyed by the visit: Back and forward between two CVEs' pages start each from its own data
+            <CvePage
+              key={route.visit}
+              id={route.cve}
+              asOf={status?.as_of ?? null}
+              onAsk={askAboutRow}
+              onNavigate={navigate}
             />
           ) : page === 'cves' ? (
             // keyed by the visit: a link followed again with other filters starts from them

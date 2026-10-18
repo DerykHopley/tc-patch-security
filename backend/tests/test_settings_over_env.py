@@ -245,11 +245,11 @@ def test_b26_5_a_tap_opens_the_cve_only_when_the_address_is_reachable_from_a_pho
     r = app.owner.put("/settings/server", json=change | ({"app_url": address} if address else {}))
     assert r.json()["server"]["app_url_reachable"] is link
     reply = app.owner.post("/alerts/test", json={"channel": "ntfy"}).json()
-    cve = reply["alert"]["click"].rsplit("=", 1)[1]
+    cve = reply["alert"]["click"].rsplit("/", 1)[1]
     app.owner.post("/alerts/test", json={"channel": "email"})
     if link:
-        assert app.ntfy[-1]["click"] == f"{address}/#cve={cve}" == reply["tap_link"]  # Explain it one tap away (B04)
-        assert f"Open it in the app: {address}/#cve={cve}" in app.emails[-1]
+        assert app.ntfy[-1]["click"] == f"{address}/cves/{cve}" == reply["tap_link"]  # Explain it one tap away (B04)
+        assert f"Open it in the app: {address}/cves/{cve}" in app.emails[-1]
         assert reply["tap"] == f"Tapping it opens Patch at {cve}."
     else:
         assert "click" not in app.ntfy[-1] and reply["tap_link"] is None

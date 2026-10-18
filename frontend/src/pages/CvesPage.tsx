@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   cves as fetchCves,
   dashboard as fetchDashboard,
   setStatus,
   type CvePage,
-  type CveRow,
   type DecisionInput,
   type Product,
   type Severity,
@@ -20,6 +19,8 @@ import {
   type DecisionRequest,
 } from '../components/Decision.tsx'
 import { VERDICT_LABEL, VERDICTS, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
+import { StatusActions, SuggestNotAffected } from '../components/CveActions.tsx'
+import { CveLink } from '../components/CveLink.tsx'
 import { SEVERITIES, sevLabel } from '../severity.ts'
 import {
   STATUS_FILTERS,
@@ -41,6 +42,24 @@ import '../styles/cves.css'
 // it) the rows become stacked cards: the row actions never need sideways scrolling.
 
 const PAGE_SIZE = 25
+
+// The list's place, kept in its history entry when a CVE's page opens (B35), so Back returns to the same page of rows
+// and the same scroll. The filters are in the URL already. A new visit (the sidebar, a link) starts at the top.
+interface ListPlace {
+  offset: number
+  scrollY: number
+}
+
+function keepPlace(offset: number): void {
+  const place: ListPlace = { offset, scrollY: window.scrollY }
+  history.replaceState({ ...(history.state as object | null), cvesList: place }, '', window.location.href)
+}
+
+function placeKept(): ListPlace | null {
+  const kept = (history.state as { cvesList?: ListPlace } | null)?.cvesList
+  return kept && Number.isFinite(kept.offset) && Number.isFinite(kept.scrollY) ? kept : null
+}
+
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
 
 // onAsk: "Ask about this" opens Patch over this page and asks about that CVE (DESIGN.md §6.4); that row becomes the
@@ -52,7 +71,8 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
   onView?: (view: ShownView) => void
 }) {
   const [filters, setFilters] = useState<CveView>(() => viewFromSearch(search))
-  const [offset, setOffset] = useState(0)
+  const [place] = useState(placeKept) // where Back to this list returns to (B35): its page of rows and scroll
+  const [offset, setOffset] = useState(place?.offset ?? 0)
   const [page, setPage] = useState<CvePage | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -81,6 +101,13 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
       (e: unknown) => setError(message(e)),
     )
   }, [loadRows])
+  // Back from a CVE's page: once the rows are in, scroll to where the list was (only on that first load)
+  const restored = useRef(false)
+  useEffect(() => {
+    if (!page || !place || restored.current) return
+    restored.current = true
+    window.scrollTo(0, place.scrollY)
+  }, [page, place])
 
   // "Langflow + Ollama" for several products from a dashboard link (A15b)
   const productName = filters.product
@@ -208,7 +235,13 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
             {page ? `${page.total} CVEs · by priority, then due date` : 'Loading…'}
           </span>
         </div>
-        <CveTable page={page} onDecide={asOf ? setDeciding : undefined} onAsk={onAsk} selected={selected} />
+        <CveTable
+          page={page}
+          onDecide={asOf ? setDeciding : undefined}
+          onAsk={onAsk}
+          onOpen={() => keepPlace(offset)}
+          selected={selected}
+        />
         {deciding && asOf && (
           <DecisionDialog
             key={`${deciding.cve}-${deciding.status}`}
@@ -254,8 +287,9 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
 }
 
 // data-label names each cell when the rows are stacked cards (the header row is hidden then).
-function CveTable({ page, onDecide, onAsk, selected }: {
+function CveTable({ page, onDecide, onAsk, onOpen, selected }: {
   page: CvePage | null
+  onOpen: () => void // a CVE's page is about to open: keep this list's place for Back (B35)
   selected: string | null // the CVE Patch is told about (A18)
   onDecide?: (r: DecisionRequest) => void // undefined until the as-of date is known (the review date needs it)
   onAsk: (id: string) => void
@@ -291,9 +325,7 @@ function CveTable({ page, onDecide, onAsk, selected }: {
           {page?.rows.map((r) => (
             <tr key={r.id} className={r.id === selected ? 'selected' : undefined}>
               <td className="cve-cell">
-                <a href={r.url} target="_blank" rel="noreferrer">
-                  {r.id}
-                </a>
+                <CveLink id={r.id} fromList={onOpen} />
                 {r.id === selected && (
                   <span className="chip selected-chip" title="Patch knows this is the CVE you asked about">
                     Selected
@@ -349,23 +381,7 @@ function CveTable({ page, onDecide, onAsk, selected }: {
                 <VerdictChip verdict={r.verdict} />
                 <VerdictFacts reason={r.verdict_reason} fixed={r.fixed_version} who={r.who_acts} />
                 {/* A suggestion only: the user's click is the decision; nothing marks a CVE on its own (A15). */}
-                {r.verdict === 'not_affected' && r.status === 'open' && (
-                  <button
-                    type="button"
-                    className="suggest"
-                    disabled={!onDecide}
-                    aria-label={`Mark ${r.id} not affected? Suggested by the version check`}
-                    onClick={() =>
-                      onDecide?.({
-                        cve: r.id,
-                        status: 'not_affected',
-                        preset: { justification: 'vulnerable_code_not_present', note: r.verdict_reason },
-                      })
-                    }
-                  >
-                    Mark not affected?
-                  </button>
-                )}
+                <SuggestNotAffected row={r} onDecide={onDecide} />
               </td>
               <td data-label="Status" className="status-cell">
                 {/* Status and its actions share a column: the table stays narrow enough for the pinned chat. */}
@@ -375,7 +391,7 @@ function CveTable({ page, onDecide, onAsk, selected }: {
                 </span>
                 <DecisionSummary row={r} />
                 <div className="actions">
-                  <RowActions row={r} onDecide={onDecide} />
+                  <StatusActions row={r} onDecide={onDecide} />
                   <button type="button" aria-label={`Ask about this: ${r.id}`} onClick={() => onAsk(r.id)}>
                     Ask about this
                   </button>
@@ -395,49 +411,4 @@ function CveTable({ page, onDecide, onAsk, selected }: {
       </table>
     </div>
   )
-}
-
-/** The status actions a row offers (A16b). Open: fixed, not affected (unless the verdict suggests it), accept.
- *  Accepted with its review due: accept again, fixed, not affected, reopen. Accepted: fixed, reopen. Fixed or not
- *  affected: reopen. Each opens the decision dialog. */
-function RowActions({ row: r, onDecide }: { row: CveRow; onDecide?: (req: DecisionRequest) => void }) {
-  const action = (label: string, name: string, req: Omit<DecisionRequest, 'cve'>) => (
-    <button
-      key={name}
-      type="button"
-      disabled={!onDecide}
-      aria-label={name}
-      onClick={() => onDecide?.({ cve: r.id, ...req })}
-    >
-      {label}
-    </button>
-  )
-  const fixed = action('Mark fixed', `Mark ${r.id} fixed`, { status: 'fixed' })
-  const notAffected = action('Not affected', `Mark ${r.id} not affected`, { status: 'not_affected' })
-  const reopen = action('Reopen', `Reopen ${r.id}`, { status: 'open' })
-  if (r.status === 'open') {
-    return (
-      <>
-        {fixed}
-        {r.verdict !== 'not_affected' && notAffected}
-        {action('Accept risk', `Accept the risk of ${r.id}`, { status: 'accepted' })}
-      </>
-    )
-  }
-  if (r.status === 'accepted') {
-    return r.review_due ? (
-      <>
-        {action('Accept again', `Accept the risk of ${r.id} again`, { status: 'accepted', again: true })}
-        {fixed}
-        {notAffected}
-        {reopen}
-      </>
-    ) : (
-      <>
-        {fixed}
-        {reopen}
-      </>
-    )
-  }
-  return reopen
 }

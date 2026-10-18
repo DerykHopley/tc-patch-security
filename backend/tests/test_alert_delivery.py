@@ -121,7 +121,7 @@ def test_b04_4_day2_refresh_sends_the_new_kev_and_rescored_alerts(app):
     assert kev["title"] == "In CISA KEV: Langflow"
     assert kev["priority"] == 5  # the CVE's priority (urgent: in KEV) gives 5
     assert by[(NEW_DAY2, "new")]["priority"] == 3  # high severity, not internet-facing: normal priority
-    assert kev["click"] == f"http://app.test/#cve={OLD_TO_KEV}"
+    assert kev["click"] == f"http://app.test/cves/{OLD_TO_KEV}"
     assert kev["body"].startswith(f"{OLD_TO_KEV} · ") and " · due 2026-11-05" in kev["body"]
     assert [(c["channel"], c["sent"], c["error"]) for c in kev["channels"]] == [("desktop", True, None),
                                                                               ("ntfy", True, None)]
@@ -130,7 +130,7 @@ def test_b04_4_day2_refresh_sends_the_new_kev_and_rescored_alerts(app):
     assert len(app.channels.ntfy) == len(app.channels.desktop) == len(sent)
     ntfy = {p["title"]: p for p in app.channels.ntfy}
     assert ntfy["In CISA KEV: Langflow"]["priority"] == 5
-    assert ntfy["In CISA KEV: Langflow"]["click"] == f"http://app.test/#cve={OLD_TO_KEV}"
+    assert ntfy["In CISA KEV: Langflow"]["click"] == f"http://app.test/cves/{OLD_TO_KEV}"
     assert not any(DESCRIPTION_WORDS in json.dumps(p) for p in app.channels.ntfy)
     assert not any(DESCRIPTION_WORDS in " ".join(args) for args in app.channels.desktop)
 

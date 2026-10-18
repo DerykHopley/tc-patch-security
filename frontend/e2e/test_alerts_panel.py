@@ -72,7 +72,8 @@ def test_b04_12_one_alert_links_to_its_cve_like_the_notification(live_state, ope
     expect(link).to_be_visible()
     expect(first).to_contain_text("New CVE · ")
     link.click()
-    expect(page.get_by_role("region", name="Alert", exact=True)).to_contain_text(NEW_OLLAMA)  # the banner
+    expect(page.get_by_role("heading", level=1)).to_have_text(NEW_OLLAMA)  # the CVE's own page (B35)
+    assert page.evaluate("location.pathname") == f"/cves/{NEW_OLLAMA}"
 
 
 @pytest.mark.parametrize("scheme", ["light", "dark"])
