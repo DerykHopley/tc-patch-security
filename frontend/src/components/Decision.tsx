@@ -298,20 +298,28 @@ export function DecisionHistory({ row }: { row: CveRow }) {
       <summary aria-label={`History of ${row.id}: ${row.history.length} decisions`}>
         History ({row.history.length})
       </summary>
-      <ol>
-        {row.history.map((h, i) => (
-          <li key={i}>
-            <span className="history-when num">{when(h)}</span>
-            <strong>{STATUS_LABEL[h.status]}</strong>
-            {facts(h).length > 0 && <span> · {facts(h).join(' · ')}</span>}
-            <span className="history-who">
-              {' '}
-              · by {h.decided_by ?? 'unknown'}
-              {h.via === 'chat' ? ', in the chat' : h.via === 'page' ? ', on the CVEs page' : ''}
-            </span>
-          </li>
-        ))}
-      </ol>
+      <HistoryList history={row.history} />
     </details>
+  )
+}
+
+/** The decision records, oldest first: when (UTC), the status, its facts, and who decided where. The CVEs list shows
+ *  it behind a disclosure; the page for one CVE (B35) shows it open. */
+export function HistoryList({ history }: { history: Decision[] }) {
+  return (
+    <ol>
+      {history.map((h, i) => (
+        <li key={i}>
+          <span className="history-when num">{when(h)}</span>
+          <strong>{STATUS_LABEL[h.status]}</strong>
+          {facts(h).length > 0 && <span> · {facts(h).join(' · ')}</span>}
+          <span className="history-who">
+            {' '}
+            · by {h.decided_by ?? 'unknown'}
+            {h.via === 'chat' ? ', in the chat' : h.via === 'page' ? ', on the CVEs page' : ''}
+          </span>
+        </li>
+      ))}
+    </ol>
   )
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { refreshRuns, type RunRow, type RunsReply } from '../api.ts'
 import { utcTime } from '../freshness.ts'
 import { feedLine, runCounts, runResult, runWhen, scheduleLine, triggerName } from '../refreshRuns.ts'
+import { CveLink } from './CveLink.tsx'
 import '../styles/runs.css'
 
 // The run history (B19, DESIGN.md §5.12): the last 20 refresh runs on Settings' "Refresh runs" card, newest first.
@@ -56,7 +57,7 @@ function RunDetails({ r }: { r: RunRow }) {
           {r.new_cves.map((id, i) => (
             <span key={id}>
               {i > 0 && ', '}
-              <a href={`#cve=${id}`}>{id}</a>
+              <CveLink id={id} />
             </span>
           ))}
         </p>

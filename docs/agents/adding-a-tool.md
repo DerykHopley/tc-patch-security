@@ -19,7 +19,7 @@ Where a new tool for Patch has to be wired, so it's found once instead of redisc
    - A default route in `_default_calls` if an unscripted question should reach it.
    - A script in `backend/fixtures/fake_script.json` for the model check.
 5. **Frontend types:** run `uv run python -m app.tools.typescript` from `backend/`. It rewrites `frontend/src/toolResults.ts`, and a test fails while that file is stale.
-6. **The card:** a component in `frontend/src/chat/ToolCallCard.tsx`, picked by `call.name`. A tool that proposes a change returns a proposal (`proposal_id`), and the chat shows B21's card for it (`toolCalls.proposalOf`).
+6. **The card:** a component in `frontend/src/chat/ToolCallCard.tsx`, picked by `call.name`. A tool that proposes a change returns a proposal (`proposal_id`), and the chat shows B21's card for it (`toolCalls.proposalOf`). Show a CVE id as `<CveLink id=… />` (`components/CveLink.tsx`): it opens the CVE's page in the app (B35). Ids in the answer text link by themselves (`cveLinks.ts`).
 7. **DESIGN.md:** an entry in §6.2 (tool cards) and a line in its checklist: light and dark, 400px, keyboard, reduced motion.
 8. **Reduced motion:** if the card moves, add a scene to the shared check (`frontend/e2e/test_reduced_motion.py`).
 9. **The model check** (`app/evals/`): a question with exact checks when the tool needs proving on real models.

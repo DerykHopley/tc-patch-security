@@ -231,7 +231,7 @@ def test_a13_4_alert_text_never_contains_the_description(knowledge, cve_id):
     text = json.dumps(msg)
     for i in range(0, len(cve["description"]) - 30, 15):  # no 30-character run of the description anywhere
         assert cve["description"][i:i + 30] not in text
-    assert msg["body"].startswith(cve_id) and msg["click"] == f"http://localhost:5173/#cve={cve_id}"
+    assert msg["body"].startswith(cve_id) and msg["click"] == f"http://localhost:5173/cves/{cve_id}"
 
 
 # --- A13.5: reset ---------------------------------------------------------------------------------------------------

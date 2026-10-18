@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { cves as fetchCves, dashboard as fetchDashboard, type CveRow, type Dashboard as DashboardData } from '../api.ts'
+import { CveLink } from '../components/CveLink.tsx'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
 import { Bars, ChartCard, Columns, SeverityLegend, StackedBars, Tooltip, type Tip } from '../components/charts.tsx'
 import { AlertsCard } from '../components/AlertsLog.tsx'
@@ -286,9 +287,7 @@ function TopCves({ rows, filter, onNavigate }: {
           {rows.map((r) => (
             <li key={r.id}>
               <span className="top-id">
-                <a className="cve-id" href={r.url} target="_blank" rel="noreferrer">
-                  {r.id}
-                </a>
+                <CveLink className="cve-id" id={r.id} />
                 {r.kev && (
                   <span className="chip kev" title={`In CISA KEV: known exploited. KEV deadline ${r.kev_deadline}`}>
                     KEV

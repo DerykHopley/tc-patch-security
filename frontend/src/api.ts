@@ -422,6 +422,45 @@ export interface CvePage {
   rows: CveRow[]
 }
 
+/** One OSV package's affected versions: introduced → fixed, or up to last_affected when no fix is listed. */
+export interface AffectedPackage {
+  package: string
+  ecosystem: string
+  advisory: string
+  ranges: { introduced: string | null; fixed: string | null; last_affected: string | null }[]
+}
+
+/** The page for one CVE (B35, GET /cves/{id}): the facts in full, and its CVEs-page row when it's watched. */
+export interface CveDetail {
+  id: string
+  product: string
+  product_name: string
+  severity: Severity | null
+  cvss: number | null
+  published: string
+  cwes: string[]
+  description: string // in full: the list cuts it to 220 characters
+  owasp: { code: string; title: string; url: string; list: string | null } | null
+  kev: { date_added: string; deadline: string; required_action: string; ransomware: string } | null
+  epss: Epss | null
+  possible_match: boolean
+  affected: AffectedPackage[]
+  verdict: Verdict
+  verdict_reason: string
+  fixed_version: string | null
+  who_acts: WhoActs
+  no_fix: boolean
+  usage: ProductUsage
+  version: string | null
+  internet_facing: boolean
+  url: string // NVD
+  osv_url: string
+  watched: boolean
+  row: CveRow | null // status, decision, history, priority, due date: null off the watchlist
+}
+
+export const cve = (id: string) => request<CveDetail>(`/cves/${encodeURIComponent(id)}`)
+
 function json(method: string, body: unknown): RequestInit {
   return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
 }

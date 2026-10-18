@@ -142,6 +142,10 @@ _Avoid_: exposed, public
 Everything Patch knows about one CVE for your stack: the verdict, your decision record, the priority and the due date. A CVE whose product isn't on your watchlist still gets one: not watched, no status, no priority.
 _Avoid_: evaluation, report, row (that's the CVEs page's view of it)
 
+**CVE page**:
+The page for one CVE, `/cves/CVE-…`: its facts in full, its assessment with the actions, and its decision history. The CVEs page is the list; the CVE page is one of them.
+_Avoid_: detail panel, drawer, CVE view (that's the list's filters)
+
 ### Safety
 
 **Untrusted text**:
@@ -205,7 +209,7 @@ The product name, and the robot that is its face in the UI. The brand reads "Pat
 _Avoid_: the bot, the chatbot, the agent; "LLM Security assistant" as a name
 
 **Page context**:
-What Patch is told about the view under the chat: the page, the CVEs page's filters (product, severity, status, verdict, KEV, since) and the selected CVE. Fixed fields only, each checked against a fixed list; anything else is dropped and listed. Never free text.
+What Patch is told about the view under the chat: the page, the CVEs page's filters (product, severity, status, verdict, KEV, since) and the selected CVE; on a CVE page, that CVE. Fixed fields only, each checked against a fixed list; anything else is dropped and listed. Never free text.
 _Avoid_: page state, screen text
 
 **Selected CVE**:

@@ -281,6 +281,14 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         rows = WatchedCves.of(d).rows(**view.filters())
         return {"total": len(rows), "rows": rows[offset:offset + limit]}
 
+    @api.get("/cves/{cve_id}")
+    def get_cve(cve_id: str, d: You):
+        """The page for one CVE (B35): its facts in full and, when it's watched, its row from the CVEs page."""
+        try:
+            return WatchedCves.of(d).page(cve_id.strip().upper())
+        except KeyError:
+            return _error(404, "not_found", f"No such CVE: {cve_id[:40]} isn't in the snapshot.")
+
     @api.patch("/cves/{cve_id}")
     def patch_cve(cve_id: str, body: StatusUpdate, d: You):
         try:

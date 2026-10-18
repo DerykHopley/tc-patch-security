@@ -14,6 +14,8 @@ import remarkGfm from 'remark-gfm'
 import { EXPLAIN_LEVELS, type ChatReply, type Example, type ExplainLevel } from '../api.ts'
 import { AnswerDetails, firstTab, sourceId, type DetailTab } from './AnswerDetails.tsx'
 import { proposalOf } from '../toolCalls.ts'
+import { remarkCveLinks } from '../cveLinks.ts'
+import { followLink, openPath } from '../route.ts'
 import { ProposalCard } from './ProposalCard.tsx'
 import { ToolCallCard } from './ToolCallCard.tsx'
 import type { Message, RefinedResult } from './useChat.ts'
@@ -59,10 +61,18 @@ function CitationNote({ reply }: { reply: ChatReply }) {
 // The answer a citation belongs to: Markdown renders the links, the answer handles the click.
 const CiteContext = createContext<(n: number) => void>(() => {})
 
-// Links in an answer: a citation opens its source; anything else opens in a new tab. Raw HTML is never rendered
-// (react-markdown escapes it), so an answer can't inject markup.
+// Links in an answer: a citation opens its source; a CVE id opens its page in the app, the chat staying open (B35);
+// anything else opens in a new tab. Raw HTML is never rendered (react-markdown escapes it), so an answer can't
+// inject markup.
 function AnswerLink({ href = '', children }: { href?: string; children?: ReactNode }) {
   const cite = useContext(CiteContext)
+  if (/^\/cves\/CVE-\d{4}-\d{4,7}$/.test(href)) {
+    return (
+      <a href={href} className="cve-link" onClick={(e) => followLink(e, openPath)}>
+        {children}
+      </a>
+    )
+  }
   if (!href.startsWith('#source-')) {
     return (
       <a href={href} target="_blank" rel="noreferrer">
@@ -85,6 +95,7 @@ function AnswerLink({ href = '', children }: { href?: string; children?: ReactNo
 }
 
 const MARKDOWN_PARTS = { a: AnswerLink }
+const REMARK = [remarkGfm, remarkCveLinks]
 
 /** One answer with its inline details. A citation opens the details on Sources and scrolls to that source. */
 function Answer({ reply }: { reply: ChatReply }) {
@@ -117,7 +128,7 @@ function Answer({ reply }: { reply: ChatReply }) {
     <>
       <div className="answer-text">
         <CiteContext value={cite}>
-          <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_PARTS}>
+          <Markdown remarkPlugins={REMARK} components={MARKDOWN_PARTS}>
             {linkCitations(reply.answer, ns)}
           </Markdown>
         </CiteContext>

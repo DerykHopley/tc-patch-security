@@ -272,18 +272,11 @@ def test_a04b_5_dashboard_keeps_its_other_parts(open_dash):
     assert side == ["Watchlist", "Latest AI incidents (MITRE ATLAS)", "Recent alerts", "Data freshness"]  # B04
 
 
-# --- A04b.6: "Ask about this" over the CVEs page; the alert link still works ------------------------------------------
+# --- A04b.6: "Ask about this" over the CVEs page ---------------------------------------------------------------
 
 # "Ask about this" itself (opens the chat over the CVEs page, "on CVEs", the pinned chat) is A07.5 in
-# test_chat_layout.py, which now runs on the CVEs page.
-
-def test_a04b_6_alert_link_works_on_the_cves_page(open_cves):
-    page = open_cves("#cve=CVE-2024-8309")
-    banner = page.get_by_role("region", name="Alert", exact=True)
-    expect(banner).to_contain_text("You opened an alert for CVE-2024-8309.")
-    banner.get_by_role("button", name="Explain it").click()
-    expect(window(page).locator(".message.user")).to_have_text("Explain CVE-2024-8309 and how to defend against it.")
-    assert urlparse(page.url).path == "/cves" and "cve=" not in page.url
+# test_chat_layout.py, which now runs on the CVEs page. The alert link opens the CVE's own page since B35:
+# test_cve_page.py.
 
 
 # --- A04b.7: phone cards; A04b.8: the pinned chat -------------------------------------------------------------------

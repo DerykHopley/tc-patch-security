@@ -96,7 +96,7 @@ def format_alert(cve: dict, reason: str, knowledge, app_url: str = "", due: dict
     priority = (due or {}).get("alert_priority") or (
         PRIORITY[reason] + (1 if reason == "new" and cve["severity"] == "CRITICAL" else 0))
     return {"title": f"{TITLE[reason]}: {product}", "body": body, "priority": priority,
-            "tags": [reason, cve["product"]], "click": f"{app_url}/#cve={cve['id']}"}
+            "tags": [reason, cve["product"]], "click": f"{app_url}/cves/{cve['id']}"}
 
 
 class PreviewNotifier:
