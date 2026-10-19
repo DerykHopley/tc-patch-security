@@ -168,6 +168,8 @@ def as_another_user(context, api_url: str) -> None:
         for schedule in (body.get("schedule"), (body.get("data") or {}).get("schedule")):
             if schedule:
                 schedule["yours"] = False
+        if "owner" in body:  # /settings (B48): not the owner, so no server settings and no "This Patch"
+            body.update(owner=False, server=None)
         route.fulfill(response=response, json=body)
 
     context.route(f"{api_url}/settings", not_yours)
@@ -184,10 +186,12 @@ def test_br_9_another_user_sees_the_owners_schedule_without_pause_or_resume(brow
         as_another_user(ctx, live_state)
         page = ctx.new_page()
         page.goto(live_ui_url + "/settings")
-        expect(runs_card(page).get_by_test_id("owners-schedule")).to_have_text(
-            "The owner's schedule: every 6 hours, paused. Only the owner can change or pause it.")
-        expect(runs_card(page).get_by_label("Pause the schedule")).to_have_count(0)
-        expect(runs_card(page).get_by_label("Check for new CVEs every")).to_have_count(0)
+        # B48: one line on their Alerts card instead of the Refresh runs card, which is the owner's
+        expect(panel(page, "Alerts").get_by_test_id("owners-schedule")).to_have_text(
+            "Patch's checks for new CVEs are paused (set by the owner).")
+        expect(runs_card(page)).to_have_count(0)
+        expect(page.get_by_label("Pause the schedule")).to_have_count(0)
+        expect(page.get_by_label("Check for new CVEs every")).to_have_count(0)
 
         page.get_by_role("button", name="Dashboard", exact=True).click()
         paused = card(page).locator(".schedule-paused")

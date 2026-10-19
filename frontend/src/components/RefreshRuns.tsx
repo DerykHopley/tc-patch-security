@@ -120,7 +120,7 @@ export function RefreshRuns({ reload }: { reload: string }) {
         data-testid="schedule-line">
         {scheduleLine(reply.schedule, reply.mode)}
       </p>
-      <h3 id="runs-title">Last 20 runs</h3>
+      <h4 id="runs-title">Last 20 runs</h4>
       {reply.runs.length === 0 ? (
         <p className="meta">
           {reply.mode === 'live' ? 'No runs yet. Check now on the dashboard, the schedule or Patch starts one.'

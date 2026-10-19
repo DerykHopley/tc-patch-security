@@ -202,8 +202,12 @@ The record of every alert message: when, why, and what each channel did with it 
 _Avoid_: history (that's a CVE's decisions), notifications
 
 **Owner**:
-The one user whose alerts go to the channels, named by `OWNER` in the server's environment (locally the default user; required with sign-in on). Every other user's alerts are shown in the app only. The owner's schedule runs the shared refresh, and only the owner can change it or use the demo switches.
+The one user whose alerts go to the channels, named by `OWNER` in the server's environment (locally the default user; required with sign-in on). Every other user's alerts are shown in the app only, and their Settings have only "Yours" (B48). The owner's schedule runs the shared refresh, and only the owner can change it or use the demo switches.
 _Avoid_: admin, account holder
+
+**Profile**:
+What a user tells Patch about themselves: only an optional **display name**, empty by default (anonymous). Kept in their own state, never taken from Clerk; used in their user menu and their new decision records. Nobody else sees it, and Reset demo data keeps it (B48, #77). On Settings it is the first card of **Yours**, the part every user has; **This Patch** is the owner's part.
+_Avoid_: account (that's Clerk's), user name, nickname
 
 **Default user**:
 The one user while sign-in is off (locally and in the tests). Their state is the state file.

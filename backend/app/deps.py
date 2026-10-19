@@ -60,7 +60,6 @@ class Deps:
     fail_tools: set[str] = field(default_factory=set)  # B20: chat tools that time out in an answer (FAIL_TOOLS, dev)
     users: Users | None = None  # B09: every user's state; `state` is the one this Deps acts for
     user_id: str = DEFAULT_USER  # whose request this is (B09): `state` is theirs
-    user_name: str | None = None  # the signed-in user's name (B10); None with sign-in off or a test's fake user
     role: str = "owner"  # B45: the caller's role (for_user); the shared Deps acts for the owner (checks, refresh)
     env: Settings | None = None  # B26: the settings from the environment; `settings` adds the owner's saved ones
     people: People | None = None  # B38: names and emails from Clerk for the Requests card; None without a secret key
@@ -84,12 +83,11 @@ class Deps:
             log.warning("FAIL_TOOLS is on: %s time out in every answer (docs/failure-demo.md).",
                         ", ".join(sorted(self.fail_tools)))
 
-    def for_user(self, user_id: str, name: str | None = None) -> "Deps":
-        """The same parts, acting for one user: their state, their id for the tools' context, their name for
-        decision records (B10). Everything else (the knowledge, the index, the refresh, the model) is shared."""
+    def for_user(self, user_id: str) -> "Deps":
+        """The same parts, acting for one user: their state (with their profile, B48) and their id for the tools'
+        context. Everything else (the knowledge, the index, the refresh, the model) is shared."""
         mine = copy.copy(self)
         mine.state, mine.user_id, mine._root = self.users.state(user_id), user_id, self._root or self
-        mine.user_name = name
         # B45: the caller's role, read once per request (a change applies on their next one). A reviewer's chat asks
         # the model their own copy names: the router reads this Deps's `dev`, not the shared one's
         mine.role = self.users.access.role(user_id)
@@ -99,9 +97,9 @@ class Deps:
 
     @property
     def decided_by(self) -> str:
-        """Who a decision record names (B10): the signed-in user's name; with sign-in off the one local user is
-        "owner", as before; a user without a name (a test's fake user) by their id."""
-        return self.user_name or (DECIDED_BY if self.user_id == DEFAULT_USER else self.user_id)
+        """Who a new decision record names (B48, #77): the display name in the user's profile at this moment, else
+        "you". Never the session token's claims. A record keeps what it said when it was made."""
+        return self.state.profile_name() or DECIDED_BY
 
     @property
     def owner_state(self) -> State:

@@ -185,19 +185,17 @@ def test_b10_10_signed_out_nothing_reaches_web_research(auth_settings, knowledge
 
 # --- B10.7: a decision record names who decided ---------------------------------------------------------------------
 
-def test_b10_7_decision_records_name_the_signed_in_user(signed, client):
+def test_b10_7_decision_records_name_the_profile_never_the_token(signed, client):
+    """Changed by B48 (#77): a record names the user's own display name, else "you"; the token's claims never."""
     cve = "CVE-2024-8309"
     named = bearer(token("user_alice", name="Alice Example", email="alice@example.com"))
     rec = signed.patch(f"/cves/{cve}", json={"status": "fixed"}, headers=named).json()["decision"]
-    assert rec["decided_by"] == "Alice Example"
-    no_name = bearer(token("user_bob", name="", email="bob@example.com"))  # full_name empty: the email
-    assert signed.patch(f"/cves/{cve}", json={"status": "fixed"}, headers=no_name).json()["decision"][
-        "decided_by"] == "bob@example.com"
-    bare = bearer(token("user_carol"))  # no custom claims: the user id
-    assert signed.patch(f"/cves/{cve}", json={"status": "fixed"}, headers=bare).json()["decision"][
-        "decided_by"] == "user_carol"
-    # sign-in off: the one local user is still "owner"
-    assert client.patch(f"/cves/{cve}", json={"status": "fixed"}).json()["decision"]["decided_by"] == "owner"
+    assert rec["decided_by"] == "you"
+    signed.put("/profile", json={"name": "Alice"}, headers=named)
+    assert signed.patch(f"/cves/{cve}", json={"status": "open"}, headers=named).json()["decision"][
+        "decided_by"] == "Alice"
+    # sign-in off: the one local user has no name either
+    assert client.patch(f"/cves/{cve}", json={"status": "fixed"}).json()["decision"]["decided_by"] == "you"
 
 
 # --- B10.8: the browser may send the token across origins ------------------------------------------------------------
