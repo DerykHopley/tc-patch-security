@@ -75,7 +75,7 @@ Fixed colours (same in both modes):
 - **Purple shadow** used everywhere: `rgba(108, 76, 245, α)`, α between 0.09 and 0.4 (values per component below).
 - **Patch's colours** (§8.1): body `#9483FF`, visor `#2A2457`, eyes `#7FF0DD`, antenna light `#FFC94D`, and the cheeks and extras listed there.
 
-Contrast (*checked*: WCAG 2 formula, 2026-10-14, after the fixes; the browser check A02.3 re-measures muted and the gradient). Since B49 (#96) the browser check B49.20 (`frontend/e2e/test_contrast.py`) also measures **every text on every page** as drawn (and the chat with an answer), light and dark, 390px and 1440px, on what is really behind it (a linear gradient worked out where the text is), against 4.5:1, or 3:1 for large text (24px, or 18.66px bold). Pending, the owner's call: the candy tiles' text where it reaches the gradient's bright end (§5.1).
+Contrast (*checked*: WCAG 2 formula, 2026-10-14, after the fixes; the browser check A02.3 re-measures muted and the gradient). Since B49 (#96) the browser check B49.20 (`frontend/e2e/test_contrast.py`) also measures **every text on every page** as drawn (and the chat with an answer), light and dark, 390px and 1440px, on what is really behind it (a linear gradient worked out where the text is), against 4.5:1, or 3:1 for large text (24px, or 18.66px bold). One exception, **accepted by the owner on 2026-10-19** ("reads clear enough"): the candy tiles' text where it reaches the gradient's bright end (§5.1), measured 2.3–4.3:1 in light mode; the check keeps it as a strict xfail, so it shows if the tiles ever change.
 
 | Pair | Light | Dark |
 |---|---|---|
