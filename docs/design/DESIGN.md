@@ -284,6 +284,13 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - **Model** and **Agent and search** cards: a `<dl>` instead of the form, one row per choice with the form's labels (`dev/ownersChoices.ts`): label in `--muted` on the left, value in `--text`, weight 600, on the right, a 1px `--border` line under each row; on a phone a long value wraps under its label. Not a disabled form: a disabled fieldset is drawn at 55% and its text drops under 4.5:1.
 - No save bar, no Reset, no Find models. The playground, the model check and the retrieval check each say in one `.meta` line that only the owner can run them, and why; the saved runs, the index, the map and the report stay. Nothing animates. *Checked* by the browser check B29.5 (both themes, 400px and 1400px, Firefox and Chromium) and the words by `npm test` B29.4.
 
+#### 5.6.3 Dev page layout (B39, 2026-10-19)
+
+- Over 900px, two columns: **Model** then **Index** stacked on the left, **Agent and search** on the right, spanning both rows. The cards above the playground used to sit in grid rows, so Index started under the taller Agent and search card and left a large hole under the short Model card (the owner's report, 2026-10-19). Settings had the same hole (DECISIONS.md, 2026-10-16).
+- The DOM order stays Model, Agent and search, Index: Tab order and the one-column order don't change. That is why it is a span in the grid (`.span-rows`, `grid-template-rows: auto 1fr`), not two column containers as on Settings: those would put Index before Agent and search in the DOM.
+- The second row is `1fr`: when Agent and search is taller than Model and Index together, its extra height goes to that row only, so Index still starts one gap under Model (*checked*: with `auto auto` a 90px hole opened). When Model is the tallest (a local model picked), Agent and search simply ends higher.
+- At ≤ 900px one column in DOM order, the span off, one 1.2rem gap between cards. The same for the owner and the read-only page (§5.6.2). *Checked* by B39.1 (1400px, light and dark, a local model, the read-only page) and B39.2 (400px, light and dark, owner and read-only, no sideways scroll).
+
 ### 5.7 Settings parts
 
 ![Settings](img/settings-light.png)
@@ -463,6 +470,7 @@ Everything Patch knows about one CVE, on its own page: `/cves/CVE-2025-3248` (`f
 - [ ] Dashboard product filter (A15b): toggle pills with `aria-pressed`, a tick as well as colour, in the URL only, carried by the tile links and "See all CVEs"; the watchlist is edited on Settings, in a card that shares the save bar.
 - [ ] CVEs page: full width; filters in the URL survive a reload; stacked cards when narrow; row actions always in view.
 - [ ] Short CVE rows (B36): one main action and More per row; More opens in place by Enter or Space, its summary at least 4.5:1; each date once in the Due cell; at least twice the rows of before at 1440×900 (12+ per 900px); one phone card fits 390×844 above the tab bar; light and dark; nothing moves with reduced motion.
+- [ ] Dev page layout (§5.6.3, B39): over 900px Model and Index on the left with Index one gap under Model, Agent and search on the right; DOM and Tab order Model, Agent and search, Index; one column in that order at ≤ 900px, no sideways scroll at 400px; light and dark, owner and read-only.
 - [ ] Dev page for anyone but the owner (B29): the owner's choices as a read-only list with the note line; no save bar, Reset, Find models or Run buttons, each run's card says why; text 4.5:1; fits at 400px.
 - [ ] Dev page OpenRouter model (A11.10): a native select with price, score and "(default)" per option; the picked model in full under it; "Other…" opens a focused text field; a saved id not listed shows as Other, unchanged; a loading state; no list = the text field and the reason; never wider than its card at 400px.
 - [ ] Data freshness (B02): Live or Snapshot chip; the last-checked line in UTC; Check now only in live mode, "Checking…" with the spinner while it runs (readable, `aria-busy`); one result line in a status region with its edge colour; the NVD notice and attributions in both modes.
