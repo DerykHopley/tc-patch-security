@@ -125,7 +125,7 @@ export function Landing(props: Props) {
           )}
         </div>
         <div className="landing-art">
-          <Robot size={150} variant={pose.variant} />
+          <Robot size={150} pose={pose} />
           <div className="landing-alert">
             <span className="landing-alert-app">
               <span className="visually-hidden">An example alert on your phone: </span>Patch · now
@@ -196,7 +196,7 @@ export function Landing(props: Props) {
       </section>
 
       <section className="landing-end" aria-labelledby="landing-end-title">
-        <Robot size={96} variant={endPose.variant} />
+        <Robot size={96} pose={endPose} />
         <h2 id="landing-end-title">{front ? 'Ready to look at your own stack?' : "That's Patch."}</h2>
         <p>{front ? 'Sign in, or ask the owner for access.' : 'Your watchlist is on the dashboard.'}</p>
         <div className="landing-next">{next}</div>

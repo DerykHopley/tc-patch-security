@@ -21,7 +21,7 @@ export function PatchButton({ open, mood, variant, unread, onClick, ref }: {
       aria-describedby={unread ? 'patch-unread' : undefined}
       onClick={onClick}
     >
-      {!open && <Robot size={68} mood={mood} variant={variant} />}
+      {!open && <Robot size={68} pose={{ mood, variant }} />}
       <span className="patch-pill" aria-hidden="true">
         {open && '✕'}
       </span>
