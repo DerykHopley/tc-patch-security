@@ -345,7 +345,7 @@ write_env PROJECT_NUMBER "$PROJECT_NUMBER"
 pause
 
 # ── 5 ─────────────────────────────────────────────────────────────────────
-stage "Turn on the services, and a \$1 budget alert"
+stage "Turn on the services, and a budget alert of 1 (dollar or euro)"
 say "Cloud Run, the image registry, Secret Manager, Scheduler, Storage and Budgets. This can take a minute."
 run "Enable the services" gcloud services enable run.googleapis.com artifactregistry.googleapis.com \
   secretmanager.googleapis.com cloudscheduler.googleapis.com storage.googleapis.com billingbudgets.googleapis.com
@@ -353,9 +353,13 @@ if gcloud billing budgets list --billing-account="$BILLING_ACCOUNT" --format='va
     | grep -qx "Patch"; then
   say "The \"Patch\" budget alert already exists."
 else
-  say "The budget emails you at 50 cents and at \$1. It only alerts; it never stops anything."
-  run "Create the budget alert" gcloud billing budgets create --billing-account="$BILLING_ACCOUNT" \
-    --display-name="Patch" --budget-amount=1USD --threshold-rule=percent=0.5 --threshold-rule=percent=1.0
+  # The budget's currency must be the billing account's own (an account opened in Germany bills in EUR)
+  CURRENCY=$(gcloud billing accounts describe "$BILLING_ACCOUNT" --format='value(currencyCode)' 2>/dev/null || true)
+  CURRENCY="${CURRENCY:-USD}"
+  say "The budget emails you at half and at all of 1 $CURRENCY. It only alerts; it never stops anything."
+  note "If it fails, set it in the console instead: Billing → Budgets & alerts → Create budget (1, alerts at 50% and 100%)."
+  run "Create the budget alert (1 $CURRENCY)" gcloud billing budgets create --billing-account="$BILLING_ACCOUNT" \
+    --display-name="Patch" --budget-amount="1$CURRENCY" --threshold-rule=percent=0.5 --threshold-rule=percent=1.0
 fi
 pause
 
