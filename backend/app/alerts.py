@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.knowledge import load_knowledge
-from app.notify import Transports, format_alert, send_on
+from app.notify import RUN_WAIT, Transports, WaitBudget, format_alert, send_on
 from app.times import iso_utc
 from app.watched import WatchedCves
 
@@ -197,7 +197,8 @@ class Alerter:
     `reason`) or "digest" (several, `cve` and `reason` None), `alerts` [{cve, reason, priority}], the message
     (`title`, `body`, `priority`, `tags`, `click`), `at`, `id` (B41), and `channels`: per channel, sent or failed
     with its error. A failed send is tried again at the next check (B41, `_retry`), and its channel's result in the
-    entry says `tries`, `retry` (another try is due) and `dropped`.
+    entry says `tries`, `retry` (another try is due) and `dropped`. An ntfy 429 is tried again inside the send first
+    (B55), within one wait budget (RUN_WAIT) shared by the whole run.
     Alerts held in quiet hours come back in the run's result as kind "held", with no channels, and are logged when
     they are sent. Test alerts from Settings share the log as kind "test". Another user's entries have no channels
     and `in_app_only` true: nothing was sent, and quiet hours hold nothing for them.
@@ -213,11 +214,12 @@ class Alerter:
         partial run (B20), which doesn't count as a check for "new since last check". Per user id."""
         knowledge = load_knowledge(folder) if folder is not None else None
         changes = diff(previous, current) if current is not None and previous is not None else None
-        return {user: self._for_user(user, self.users.state(user), changes, knowledge, now, complete)
+        wait = WaitBudget(RUN_WAIT, self.transports().sleep)  # B55: one budget for the run's waits after a 429
+        return {user: self._for_user(user, self.users.state(user), changes, knowledge, now, complete, wait)
                 for user in self.users.ids()}
 
     def _for_user(self, user, state, changes: Diff | None, knowledge, now: dt.datetime,
-                  complete: bool = True) -> list[dict]:
+                  complete: bool = True, wait: WaitBudget | None = None) -> list[dict]:
         at = iso_utc(now)
         first = changes is not None and not state.checked_before()  # B34: before this run notes it
         if changes is not None:  # B05: the CVEs page's "new since last check", alerts on or off
@@ -230,13 +232,13 @@ class Alerter:
         quiet = owner and in_quiet_hours(local, s.quiet_start, s.quiet_end)
         out = []
         if not quiet and (held := state.take_held_alerts()):
-            out += self._send(state, [held], s, at, owner)  # quiet hours are over: what they held, as one message
+            out += self._send(state, [held], s, at, owner, wait)  # quiet hours are over: what they held, as one message
         if changes is None or knowledge is None:
             return out
         as_of = now.astimezone(dt.UTC).date().isoformat()
         rows = {r["id"]: r for r in WatchedCves(knowledge, state, as_of).rows(status="all")}
         if not quiet:  # B41: quiet hours hold retries too
-            out += self._retry(state, rows, s, as_of, at)
+            out += self._retry(state, rows, s, as_of, at, wait)
         alerts = rules(changes, rows, s, as_of)
         if first:
             alerts, noted = first_check(alerts)
@@ -251,15 +253,16 @@ class Alerter:
         if quiet:
             state.hold_alerts(messages)
             return out + [_entry("held", [m], m, at, []) for m in messages]
-        return out + self._send(state, batch(messages, s.digest_over), s, at, owner)
+        return out + self._send(state, batch(messages, s.digest_over), s, at, owner, wait)
 
-    def _send(self, state, groups: list[list[dict]], s, at: str, owner: bool) -> list[dict]:
+    def _send(self, state, groups: list[list[dict]], s, at: str, owner: bool,
+              wait: WaitBudget | None = None) -> list[dict]:
         transports, out, retries = self.transports(), [], []
         for group in groups:
             one = len(group) == 1
             message = group[0] if one else digest(group, self.settings.app_url)
             if owner:
-                channels = [_tried(send_on(c, message, self.settings, transports), 1) for c in s.channels]
+                channels = [_tried(send_on(c, message, self.settings, transports, wait), 1) for c in s.channels]
                 entry = _entry("alert" if one else "digest", group, message, at, channels) | {"id": uuid.uuid4().hex}
                 if failed := [c["channel"] for c in channels if c.get("retry")]:
                     retries.append({"id": entry["id"], "kind": entry["kind"], "channels": failed, "tries": 1,
@@ -272,7 +275,8 @@ class Alerter:
             state.save_retries(state.retries() + retries)
         return out
 
-    def _retry(self, state, rows: dict[str, dict], s, as_of: str, at: str) -> list[dict]:
+    def _retry(self, state, rows: dict[str, dict], s, as_of: str, at: str,
+               wait: WaitBudget | None = None) -> list[dict]:
         """B41: try each failed send again, on the channels that failed only, up to MAX_TRIES tries in all. An
         alert no longer true (`still_true`) is dropped from it; with none left, or none of its channels still
         picked, the retry is dropped. Each try updates its alerts-log entry in place, and comes back as this run's
@@ -289,7 +293,7 @@ class Alerter:
                 continue
             message = alerts[0] if len(alerts) == 1 else digest(alerts, self.settings.app_url)
             tries = r["tries"] + 1
-            results = [_tried(send_on(c, message, self.settings, transports), tries) for c in channels]
+            results = [_tried(send_on(c, message, self.settings, transports, wait), tries) for c in channels]
             state.update_alert_channels(r["id"], results)
             out.append(_entry("alert" if len(alerts) == 1 else "digest", alerts, message, at, results)
                        | {"retry": True})

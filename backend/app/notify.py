@@ -9,10 +9,13 @@ carries the link back to the CVE only when a phone can open it (`tap_link`, B26)
 import datetime as dt
 import ipaddress
 import json
+import logging
 import platform
 import shutil
 import smtplib
 import subprocess
+import time
+import urllib.error
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -21,6 +24,8 @@ from typing import Any, Protocol
 from urllib.parse import urlsplit
 
 from app.errors import AppError
+
+log = logging.getLogger(__name__)
 
 # Without the CVE's priority (the message on its own), the reason's priority. The refresh's alerts (B04) always pass
 # the CVE's row, whose priority gives 5/4/3/2 (urgent, high, normal, low).
@@ -70,6 +75,7 @@ class Transports:
     runner: Callable[..., Any] = subprocess.run  # for the desktop command
     # looked up when called, so the tests' guard (conftest.py) can turn the real desktop command off everywhere
     desktop_command: Callable[[], str | None] = lambda: desktop_command()  # noqa: E731
+    sleep: Callable[[float], None] = time.sleep  # B55: the wait between ntfy's tries; tests record it instead
 
 
 class Notifier(Protocol):
@@ -107,27 +113,100 @@ class PreviewNotifier:
         pass
 
 
+class WaitBudget:
+    """B55 (#101): how long sends may wait between tries, in all. One budget is shared by every send it is given to,
+    so a run of many messages can't wait many times over."""
+
+    def __init__(self, seconds: float, sleep: Callable[[float], None] = time.sleep):
+        self.left, self.sleep = seconds, sleep
+
+    def wait(self, seconds: float) -> bool:
+        """Wait `seconds`, or what is left if that is less. False, without waiting: nothing is left."""
+        seconds = min(seconds, self.left)
+        if seconds <= 0:
+            return False
+        self.left -= seconds
+        self.sleep(seconds)
+        return True
+
+
+TEST_SEND_WAIT = 4.0  # B55: a test send (a web request someone waits on) waits at most this, in all
+RUN_WAIT = 60.0  # B55: a refresh, or an access request's alert, waits at most this in all (one budget per run)
+NTFY_TRIES = 3  # B55: a 429 is tried again inside the same send, at most 3 tries in all
+NTFY_BACKOFF = (10.0, 30.0)  # the waits after the first and second 429 when ntfy sends no Retry-After
+NTFY_MAX_WAIT = 30.0  # ntfy's Retry-After is honoured up to this
+REPLY_MAX = 200  # ntfy's reply in an error is cut to this many characters
+
+
+def retry_after(e: urllib.error.HTTPError) -> float | None:
+    """The reply's Retry-After in seconds; None without one, or when it's a date (ntfy sends seconds, if anything)."""
+    try:
+        seconds = float((e.headers or {}).get("Retry-After", ""))
+    except (TypeError, ValueError):
+        return None
+    return seconds if seconds > 0 else None
+
+
 class NtfyNotifier:
-    """Phone push via ntfy: one JSON POST to the server root (checked in ntfy's docs, 2026-10-13)."""
+    """Phone push via ntfy: one JSON POST to the server root (checked in ntfy's docs, 2026-10-13). A 429 (ntfy.sh
+    limits each IP address, and a shared one like Cloud Run's may be used up by others) is tried again after a short
+    wait, within `wait` (B55); every other error fails at once."""
     name = "ntfy"
 
-    def __init__(self, url: str, topic: str, token: str = "", opener=urllib.request.urlopen):
+    def __init__(self, url: str, topic: str, token: str = "", opener=urllib.request.urlopen,
+                 wait: WaitBudget | None = None):
         self.url, self.topic, self.token, self.opener = url, topic, token, opener
+        self.wait = wait or WaitBudget(0)
 
     def send(self, title, body, priority, tags, click) -> None:
         payload = {"topic": self.topic, "title": title, "message": body, "priority": priority, "tags": tags}
         if link := tap_link(click):
             payload["click"] = link
+        for attempt in range(1, NTFY_TRIES + 1):
+            try:
+                self._post(payload)
+                return
+            except urllib.error.HTTPError as e:
+                if e.code != 429 or attempt == NTFY_TRIES or not self.wait.wait(
+                        min(retry_after(e) or NTFY_BACKOFF[attempt - 1], NTFY_MAX_WAIT)):
+                    raise NotifyError(self._refused(e)) from e
+            except OSError as e:
+                raise NotifyError(f"Couldn't reach ntfy at {self.url}: {e}") from e
+
+    def _refused(self, e: urllib.error.HTTPError) -> str:
+        """The error, with ntfy's own reply (its code and error text, or the start of a reply that isn't its JSON),
+        which tells a rate limit from a ban: a 429 in plain words first. No try count: B41's pill counts the
+        next-check tries, and a second count beside it would muddle it."""
+        reply = self._reply(e)
+        if e.code == 429:
+            host = urlsplit(self.url).hostname or self.url
+            return f"{host} is limiting this server's address: try again later. ntfy said: {reply}"
+        return f"ntfy at {self.url} replied with HTTP {e.code}. ntfy said: {reply}"
+
+    def _reply(self, e: urllib.error.HTTPError) -> str:
+        """ntfy's reply, cut to REPLY_MAX characters, with the topic and token blanked out: never in a log line."""
+        try:
+            raw = e.read().decode("utf-8", "replace").strip()
+        except (OSError, AttributeError):
+            raw = ""
+        try:
+            data = json.loads(raw)
+            text = f"{data.get('code', e.code)}: {data.get('error', '')}".rstrip(": ")
+        except (ValueError, AttributeError):
+            text = " ".join(raw.split()) or "nothing"
+        for secret in (self.topic, self.token):
+            if secret:
+                text = text.replace(secret, "…")
+        return text if len(text) <= REPLY_MAX else text[:REPLY_MAX - 1] + "…"
+
+    def _post(self, payload: dict) -> None:
         req = urllib.request.Request(self.url + "/", data=json.dumps(payload).encode(), method="POST",
                                      headers={"Content-Type": "application/json"})
         if self.token:
             req.add_header("Authorization", f"Bearer {self.token}")
-        try:
-            with self.opener(req, timeout=10) as r:
-                if r.status >= 300:
-                    raise NotifyError(f"ntfy replied with HTTP {r.status}.")
-        except OSError as e:
-            raise NotifyError(f"Couldn't reach ntfy at {self.url}: {e}") from e
+        with self.opener(req, timeout=10) as r:
+            if r.status >= 300:
+                raise NotifyError(f"ntfy replied with HTTP {r.status}.")
 
 
 class EmailNotifier:
@@ -216,8 +295,9 @@ def channel_status(s, transports: Transports) -> dict:
     }
 
 
-def notifier_for(channel: str, s, transports: Transports) -> Notifier:
-    """The channel's sender. With NOTIFY_DRY_RUN on (the browser check), a set-up channel records only."""
+def notifier_for(channel: str, s, transports: Transports, wait: WaitBudget | None = None) -> Notifier:
+    """The channel's sender. With NOTIFY_DRY_RUN on (the browser check), a set-up channel records only. `wait`: how
+    long ntfy may wait between tries after a 429 (B55); none, no second try."""
     if channel == "preview":
         return PreviewNotifier()
     status = channel_status(s, transports)[channel]
@@ -226,21 +306,24 @@ def notifier_for(channel: str, s, transports: Transports) -> Notifier:
     if s.notify_dry_run:
         return PreviewNotifier()
     if channel == "ntfy":
-        return NtfyNotifier(s.ntfy_url, s.ntfy_topic, s.ntfy_token, opener=transports.opener)
+        return NtfyNotifier(s.ntfy_url, s.ntfy_topic, s.ntfy_token, opener=transports.opener, wait=wait)
     if channel == "email":
         return EmailNotifier(s, smtp_factory=transports.smtp_factory)
     return DesktopNotifier(transports.desktop_command() or "", runner=transports.runner)
 
 
-def send_on(channel: str, msg: dict, s, transports: Transports) -> dict:
+def send_on(channel: str, msg: dict, s, transports: Transports, wait: WaitBudget | None = None) -> dict:
     """Send one message on one channel. The result, never raised: sent, recorded only (not sent, no error), not
-    set up, or failed with its error."""
+    set up, or failed with its error. A failed send is a warning in the server's log, with the error (B55: ntfy's
+    own reply is in it; never the topic or a token)."""
     result = {"channel": channel, "sent": False, "error": None, "error_code": None}
     try:
-        notifier = notifier_for(channel, s, transports)
+        notifier = notifier_for(channel, s, transports, wait)
         notifier.send(**{k: msg[k] for k in ("title", "body", "priority", "tags", "click")})
     except NotifyError as e:
         result["error"], result["error_code"] = e.message, e.code
+        if e.code == "notify_failed":
+            log.warning("Sending %r on %s failed: %s", msg["title"], channel, e.message)
     else:
         result["sent"] = notifier.name != "preview"
     return result
@@ -248,8 +331,9 @@ def send_on(channel: str, msg: dict, s, transports: Transports) -> dict:
 
 def deliver(channel: str, msg: dict, s, transports: Transports, state) -> dict:
     """A test alert (Settings): send on one channel and log the attempt either way, in the alerts log's shape
-    (app.alerts) plus this channel's own fields, which the Settings page reads. Re-raises a failure once logged."""
-    result = send_on(channel, msg, s, transports)
+    (app.alerts) plus this channel's own fields, which the Settings page reads. Re-raises a failure once logged.
+    A web request waits for it, so ntfy waits at most TEST_SEND_WAIT in all after a 429 (B55)."""
+    result = send_on(channel, msg, s, transports, WaitBudget(TEST_SEND_WAIT, transports.sleep))
     entry = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "kind": "test", "cve": None,
              "reason": None, **msg, "alerts": [], "channels": [result], **result}
     state.log_alert(entry)

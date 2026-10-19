@@ -21,14 +21,20 @@ DESCRIPTION_WORDS = "symbolic links"  # from the day-2 Ollama CVE's description:
 
 
 class Channels:
-    """Fake ntfy and desktop senders. `ntfy_fails`: ntfy's server can't be reached."""
+    """Fake ntfy and desktop senders. `ntfy_fails`: ntfy's server can't be reached. `ntfy_429s`: how many of the next
+    POSTs ntfy answers 429 (B55); `waits`: what the sends waited, by a fake sleep, so nothing really waits."""
 
     def __init__(self):
         self.ntfy: list[dict] = []
         self.desktop: list[list[str]] = []
         self.ntfy_fails = False
+        self.ntfy_429s = 0
+        self.waits: list[float] = []
 
     def transports(self):
+        import io
+        import urllib.error
+
         from app.notify import Transports
 
         channels = self
@@ -45,11 +51,15 @@ class Channels:
         def opener(req, timeout):
             if channels.ntfy_fails:
                 raise OSError("network down")
+            if channels.ntfy_429s:
+                channels.ntfy_429s -= 1
+                body = json.dumps({"code": 42901, "http": 429, "error": "limit reached: too many requests"})
+                raise urllib.error.HTTPError(req.full_url, 429, "Too Many Requests", {}, io.BytesIO(body.encode()))
             channels.ntfy.append(json.loads(req.data))
             return Resp()
 
         return Transports(opener=opener, runner=lambda args, **kw: channels.desktop.append(args),
-                          desktop_command=lambda: "/usr/bin/notify-send")
+                          desktop_command=lambda: "/usr/bin/notify-send", sleep=channels.waits.append)
 
 
 class LiveAlerts:

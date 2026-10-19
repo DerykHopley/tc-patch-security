@@ -6,7 +6,7 @@ import datetime as dt
 import hmac
 import logging
 
-from fastapi import APIRouter, Depends, FastAPI, Header, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,7 +24,7 @@ from app.cve_filters import CveView, InvalidFilter
 from app.deps import Deps, build_deps
 from app.dev import dev_router
 from app.errors import InputError, LLMError, NotAllowed, NotApproved, NotOwner, RateLimited
-from app.notify import NotifyError, channel_status, deliver, format_alert, send_on, tap_link
+from app.notify import RUN_WAIT, NotifyError, WaitBudget, channel_status, deliver, format_alert, send_on, tap_link
 from app.live_data import MixedFeeds
 from app.server_settings import ServerUpdate, effective as server_effective, status as server_status
 from app.server_settings import updated as server_updated
@@ -246,10 +246,12 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return own_access(user)
 
     @asking.post("/access/request")
-    def request_access(body: AccessRequest, user: Annotated[str, Depends(current_user)]):
+    def request_access(body: AccessRequest, user: Annotated[str, Depends(current_user)], later: BackgroundTasks):
         """Ask the owner to be let in. A new request alerts the owner once, on their channels; the alert says only
         that a note is there, never its text (a stranger's words stay off the owner's lock screen). Asking again
-        changes nothing: a waiting request stays as it was, a refused one stays refused, with no new alert."""
+        changes nothing: a waiting request stays as it was, a refused one stays refused, with no new alert.
+        B55: the alert goes after the reply (a background task), so its waits after an ntfy 429 never hold up the
+        requester's page."""
         note = access.clean_note(body.note)
         if note and len(note) > access.NOTE_MAX:
             raise InputError(f"The note can be at most {access.NOTE_MAX} characters.", "note_too_long")
@@ -257,9 +259,12 @@ def create_app(deps: Deps | None = None) -> FastAPI:
             return own_access(user)
         entry, new = deps.users.access.request(user, note)
         if new:
-            alert_owner(requester_name(user), bool(entry["note"]))
-            deps.users.access.mark_alerted(user)
+            later.add_task(alert_and_mark, user, bool(entry["note"]))
         return own_access(user)
+
+    def alert_and_mark(user: str, with_note: bool) -> None:
+        alert_owner(requester_name(user), with_note)
+        deps.users.access.mark_alerted(user)
 
     def requester_name(user: str) -> str:
         """The name in a request's alert (B48): Clerk's, looked up as the Requests card does (CLERK_SECRET_KEY), else
@@ -275,13 +280,13 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     def alert_owner(name: str, with_note: bool) -> None:
         """One alert per request, on the owner's ticked channels, sent at once (quiet hours hold CVE alerts only).
-        A failed channel is logged, never retried: the request still waits on the Requests card."""
+        B55: an ntfy 429 is tried again inside the send, within RUN_WAIT in all; any other failure is logged (by
+        send_on) and not tried again: the request still waits on the Requests card."""
         msg = {"title": "New access request", "body": f"From {name[:60]}" + (" (with a note)" if with_note else ""),
                "priority": 4, "tags": ["access_request"], "click": f"{deps.settings.app_url}/settings#requests"}
+        wait = WaitBudget(RUN_WAIT, deps.transports.sleep)
         for channel in deps.owner_state.settings().alerts.channels:
-            result = send_on(channel, msg, deps.settings, deps.transports)
-            if result["error"]:
-                log.warning("Access request alert on %s failed: %s", channel, result["error"])
+            send_on(channel, msg, deps.settings, deps.transports, wait)
 
     @api.get("/access/requests", dependencies=[Depends(owner_only)])
     def list_requests():
