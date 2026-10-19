@@ -17,7 +17,8 @@ import './styles/loading.css'
 
 // Sign-in (B10): /health says whether it's on. Off (locally, the tests): the app as before. On: Clerk's code, a
 // separate chunk loaded only then, decides between the sign-in screen and the app. A /health that
-// fails outright shows the app, which says the backend is offline. Signed out, the landing page (B42), which needs
+// fails outright retries on the loading screen like one that hangs (B46): without it nobody knows whether sign-in is
+// on, so the app (its shell) never shows on a guess. Signed out, the landing page (B42), which needs
 // nothing but /health. Until it answers, the loading screen (#69): a
 // /health that doesn't answer in 15 s (a cold start, a hung server) shows "Patch's server isn't answering yet." there.
 const ClerkApp = lazy(() => import('./auth/ClerkApp.tsx'))
@@ -31,7 +32,7 @@ function Root() {
     const w = waitForHealth({
       fetchHealth: health,
       onChange: setWait,
-      onDone: (r) => setAuth(r.ok ? (r.health.auth ?? OFF) : OFF),
+      onDone: (r) => setAuth(r.health.auth ?? OFF),
     })
     retry.current = w.retryNow
     return w.stop // StrictMode's second run, or unmount: the first wait asks and reports nothing more

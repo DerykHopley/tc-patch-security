@@ -1,7 +1,23 @@
-import { createContext, useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
 import { accessScreen, noteLeft, NOTE_MAX, type Access } from '../access.ts'
-import { getAccess, requestAccess } from '../api.ts'
+import { getAccess, onNotApproved, requestAccess } from '../api.ts'
+import { clearChat, tabStorage } from '../chat/chatStore.ts'
+import { Landing } from '../landing/Landing.tsx'
+import { followLink, openPath, PATHS } from '../route.ts'
 import { ScreenCard } from './SignInScreen.tsx'
+import { subscribeToAddress } from './useFrontDoor.ts'
+
+const ABOUT_PATH = PATHS.about
 
 // Sign-up requests (B38, #81, DESIGN.md §5.13): a signed-in person sees the app only once the owner approved them.
 // Until then, one card on the sign-in screen's frame: ask (with an optional note), waiting, or refused. With sign-in
@@ -25,10 +41,40 @@ export function AccessGate({ signIn, onSignOut, children }: {
   useEffect(() => {
     getAccess().then(setAccess, (e: Error) => setFailed(e.message))
   }, [])
+  // B46 (#81): the owner can remove or refuse someone while their tab shows the app. Two ways the tab learns it:
+  // any call the backend refuses with 403 not_approved swaps the app for the access card at once (then /access fills
+  // in the rest, such as their note), and coming back to the tab (focus, or the tab shown again) asks /access again,
+  // which also moves a waiting screen on by itself. A failed quiet check changes nothing.
+  useEffect(() => {
+    const quiet = () => void getAccess().then(setAccess, () => {})
+    onNotApproved((status) => {
+      setAccess((a) => (a ? { ...a, status } : { status, owner: false, role: 'viewer', sign_in: true, note: null, at: null }))
+      quiet()
+    })
+    const back = () => {
+      if (document.visibilityState !== 'hidden') quiet()
+    }
+    window.addEventListener('focus', back)
+    document.addEventListener('visibilitychange', back)
+    return () => {
+      onNotApproved(null)
+      window.removeEventListener('focus', back)
+      document.removeEventListener('visibilitychange', back)
+    }
+  }, [])
+  const path = useSyncExternalStore(subscribeToAddress, () => window.location.pathname)
+  // B46: the chat kept for the tab (B49, chatStore.ts) goes with their access, as it does on sign-out
+  const shut = access !== null && access.status !== 'approved'
+  useEffect(() => {
+    if (shut) clearChat(tabStorage())
+  }, [shut])
 
   if (access?.status === 'approved' || (!signIn && (access === null || failed))) {
     return <AccessContext.Provider value={access}>{children}</AccessContext.Provider>
   }
+  // Not approved: nothing of the app (no shell, no page names), at any address. The landing page's content stays
+  // theirs at /about (DESIGN.md §5.13, §5.16), its next step back to their request.
+  if (access !== null && path.replace(/\/+$/, '') === ABOUT_PATH) return <Landing place="access" />
   if (access === null) {
     return (
       <ScreenCard title="Opening Patch" lead="Checking that this account may use Patch.">
@@ -145,6 +191,8 @@ export function AccessScreen({ access, onChange, onCheck, onSignOut }: {
             </div>
           </>
         )}
+        {/* B46: what Patch is, without any of the app: the landing page's content (§5.16) */}
+        <a className="access-about" href={ABOUT_PATH} onClick={(e) => followLink(e, openPath)}>What is Patch?</a>
       </div>
     </ScreenCard>
   )

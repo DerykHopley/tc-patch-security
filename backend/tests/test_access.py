@@ -301,3 +301,42 @@ def test_b38_7_sign_in_off_has_no_requests(client):
     assert client.get("/watchlist").status_code == 200
     assert client.post("/access/request", json={}).json()["status"] == "approved"
     assert client.get("/access/requests").json() == {"requests": [], "names": False, "you": "default"}
+
+
+# --- B46 (#81): the owner's sequence, 2026-10-19 -------------------------------------------------------------------
+
+def test_b46_1_approved_removed_asked_again_then_refused_reads_refused(patch):
+    """Asked with a note, approved (used the app), removed, asked again, refused: /access says refused and every app
+    route is a 403, never the app."""
+    patch.request(note="hi")
+    patch.owner_sets(ALICE, "approved")
+    assert patch.c.get("/watchlist", headers=patch.as_(ALICE)).status_code == 200  # the app, as an approved user
+    assert patch.status()["status"] == "approved"
+    assert patch.c.post(f"/access/requests/{ALICE}/remove", headers=patch.as_(OWNER)).status_code == 200
+    assert patch.c.get("/watchlist", headers=patch.as_(ALICE)).json()["error"]["status"] == "none"
+    assert patch.status()["status"] == "none"
+    assert patch.request(note="again").json()["status"] == "waiting"
+    assert patch.c.get("/watchlist", headers=patch.as_(ALICE)).json()["error"]["status"] == "waiting"
+    assert patch.owner_sets(ALICE, "refused").status_code == 200
+    assert patch.status()["status"] == "refused"
+    assert patch.c.get("/watchlist", headers=patch.as_(ALICE)).json()["error"]["status"] == "refused"
+
+
+def test_b46_2_a_read_that_crosses_a_removal_does_not_cache_the_old_approval(patch):
+    """One request reads the record (approved) while the owner's removal lands: its answer may be the old one, but
+    the cache must not keep it, or the removed person stays approved until the next change."""
+    access = patch.deps.users.access
+    patch.request()
+    patch.owner_sets(ALICE, "approved")
+    read = access.entry
+
+    def crossing(user):
+        found = read(user)  # approved
+        access.remove(user)  # the owner removes them meanwhile (another thread)
+        return found
+
+    access.entry = crossing
+    access.status(ALICE)
+    access.entry = read
+    assert access.status(ALICE) == "none"
+    assert patch.c.get("/watchlist", headers=patch.as_(ALICE)).status_code == 403

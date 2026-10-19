@@ -17,7 +17,7 @@ export function LoadingScreen({ wait, onRetry }: { wait: HealthWait | null; onRe
   return (
     <div className="loading-page">
       <main className="loading-card" aria-labelledby="loading-status">
-        <Robot size={110} variant={pose.variant} />
+        <Robot size={110} pose={pose} />
         <Brand className="loading-brand" />
         <output id="loading-status" className="loading-status">
           {wait ? OFFLINE : 'Waking Patch up…'}

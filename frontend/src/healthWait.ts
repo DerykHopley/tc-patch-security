@@ -14,8 +14,8 @@ export const RETRY_DELAYS_MS = [2_000, 4_000, 8_000, 16_000, 30_000]
  * state: the screen just says Patch is starting. */
 export type HealthWait = { state: 'retrying'; trying: boolean; nextTryAt: number | null }
 
-/** How the wait ended: /health answered, or failed outright (the app then says "Backend offline"). */
-export type HealthResult = { ok: true; health: Health } | { ok: false }
+/** How the wait ended: /health answered. (Until B46 it could also fail outright, `ok: false`; now that retries.) */
+export type HealthResult = { ok: true; health: Health }
 
 export interface WaitOptions {
   fetchHealth: (signal: AbortSignal) => Promise<Health>
@@ -53,12 +53,10 @@ export function waitForHealth({ fetchHealth, onChange, onDone }: WaitOptions): {
         onDone({ ok: true, health })
       },
       () => {
-        if (controller.signal.aborted) return
-        if (failures === 0) {
-          clearTimeout(timer)
-          controller.abort() // settled: Retry is free again (not that the app shows it now)
-          onDone({ ok: false }) // an outright failure: the app says "Backend offline", as before #69
-        } else miss(controller)
+        // An outright failure (refused, an error status) is a miss like a timeout (B46, #81). It used to end the
+        // wait and show the app saying "Backend offline"; but without /health nobody knows whether sign-in is on,
+        // so that showed the app's shell to anyone, signed out or not approved.
+        if (!controller.signal.aborted) miss(controller)
       },
     )
   }

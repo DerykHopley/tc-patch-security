@@ -207,7 +207,7 @@ docker run --rm -p 8080:8080 --env-file backend/.env patch   # with your setting
 
 ### On Google Cloud Run
 
-One container on Cloud Run, users' state and the live data in Cloud Storage, keys in Secret Manager, an hourly Cloud Scheduler job, Clerk sign-in, at no cost at this use (B13, [#44](https://github.com/DerykHopley/tc-patch-security/issues/44)). Every step, copy-pasteable, with the costs against the free tiers: [DEPLOY.md](./DEPLOY.md). *Unverified:* written without a Google Cloud account, so none of its `gcloud` commands has run yet; the first deploy ([#45](https://github.com/DerykHopley/tc-patch-security/issues/45)) checks them.
+One container on Cloud Run, users' state and the live data in Cloud Storage, keys in Secret Manager, an hourly Cloud Scheduler job, Clerk sign-in, at no cost at this use (B13, [#44](https://github.com/DerykHopley/tc-patch-security/issues/44)). Every step, copy-pasteable, with the costs against the free tiers: [DEPLOY.md](./DEPLOY.md). Or run `scripts/deploy-wizard.sh`: it walks through the same steps one at a time. *Unverified:* written without a Google Cloud account, so none of its `gcloud` commands has run yet; the first deploy ([#45](https://github.com/DerykHopley/tc-patch-security/issues/45)) checks them.
 
 ### As an MCP server for other assistants
 

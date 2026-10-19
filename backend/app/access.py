@@ -52,6 +52,7 @@ class Access:
         self.store, self.owner, self.clock = store, owner, clock
         self.enabled = False  # sign-in on: only then does anyone need approving (build_deps turns it on)
         self._approved: set[str] = set()  # approved users this process has seen: no store read per request
+        self._changes = 0  # counts this process's changes, so a read that crossed one isn't cached (B46)
         self._lock = threading.Lock()
 
     def _now(self) -> str:
@@ -69,10 +70,14 @@ class Access:
             return "approved"
         if user in self._approved:
             return "approved"
+        changes = self._changes
         found = self.entry(user)
         status = found["status"] if found else "none"
-        if status == "approved":
-            self._approved.add(user)
+        with self._lock:
+            # B46: a change (a removal, a refusal) that landed while this read ran may have made it stale. Caching it
+            # then would keep the person approved until the next change.
+            if status == "approved" and changes == self._changes:
+                self._approved.add(user)
         return status
 
     def role(self, user: str) -> str:
@@ -96,6 +101,7 @@ class Access:
             except Conflict:
                 continue
             with self._lock:
+                self._changes += 1
                 self._approved = {u for u in self._approved if data.get(u, {}).get("status") == "approved"}
             return result
 

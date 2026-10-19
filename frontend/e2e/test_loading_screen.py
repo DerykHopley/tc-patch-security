@@ -147,12 +147,19 @@ def test_b69_8_retry_by_keyboard_tries_at_once(open_loading):
     expect(page.get_by_role("heading", level=1, name="Dashboard")).to_be_visible()
 
 
-# --- B69.9: an outright failure is "Backend offline", as before -----------------------------------------------------
+# --- B69.9: an outright failure is the offline screen too (B46): never the app's shell --------------------------
 
-def test_b69_9_a_failing_health_shows_the_app_saying_backend_offline(open_loading):
-    page, _ = open_loading(fail=True)
-    expect(page.locator(".side-card").get_by_text("Backend offline")).to_be_visible()
-    expect(card(page)).to_have_count(0)
+def test_b69_9_a_failing_health_shows_the_offline_screen_not_the_app(open_loading):
+    """Without /health nobody knows whether sign-in is on: showing the app (as before B46) showed its shell to anyone
+    (#81)."""
+    page, health = open_loading(fail=True)
+    expect(status(page, "Patch's server isn't answering yet. Trying again…")).to_be_visible()
+    expect(page.get_by_role("navigation")).to_have_count(0)
+    expect(page.locator("aside, .topbar")).to_have_count(0)
+    health.fail = False
+    health.answer()
+    page.get_by_role("button", name="Retry").click()
+    expect(page.get_by_role("heading", level=1, name="Dashboard")).to_be_visible()
 
 
 # --- B69.10: light and dark, phone and desktop, with screenshots ----------------------------------------------------

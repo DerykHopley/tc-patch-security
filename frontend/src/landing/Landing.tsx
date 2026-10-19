@@ -29,6 +29,12 @@ import captions from './video/patch.vtt?url'
 // before sign-in). The screenshots are taken by scripts/landing-shots.sh, light and dark; the page shows the pair
 // that matches the theme. The launch video (B47, #99) too: a light and a dark version, never autoplayed.
 
+const END_LINE: Record<Props['place'], string> = {
+  'front-door': 'Sign in, or ask the owner for access.',
+  access: 'The owner decides who gets in.',
+  about: 'Your watchlist is on the dashboard.',
+}
+
 type Shot = 'dashboard' | 'cves' | 'chat'
 
 const SHOTS: Record<Shot, Record<Theme, string>> = {
@@ -85,21 +91,26 @@ const TILES: { name: string; text: string; tone: string }[] = [
   { name: 'Ask', text: 'Questions about a risk, an attack or a CVE, answered with sources.', tone: 'new' },
 ]
 
-type Props = { place: 'front-door' } | { place: 'about'; onNavigate: (href: string) => void }
+// `access` (B46, #81): signed in but not approved (asked, waiting, refused, removed), at /about: the front door's
+// frame and page, its next step back to their request (`/`, the access card). Nothing of the app.
+type Props = { place: 'front-door' | 'access' } | { place: 'about'; onNavigate: (href: string) => void }
 
 export function Landing(props: Props) {
   const theme = usePageTheme()
   const [pose] = useState(() => pickPose('idle', Math.random)) // no mood here: idle, picked once (DESIGN.md §8.3)
   const [endPose] = useState(() => pickPose('happy', Math.random))
-  const front = props.place === 'front-door'
+  const front = props.place !== 'about' // its own page and top bar
+  const signedOut = props.place === 'front-door'
   const Title = front ? 'h1' : 'h2' // in the app the top bar's "About" is the page's h1
   const go = (e: MouseEvent<HTMLAnchorElement>) => followLink(e, front ? openPath : props.onNavigate)
 
-  const next = front ? (
+  const next = signedOut ? (
     <>
       <a className="pill-link primary" href={SIGN_IN_PATH} onClick={go}>Sign in</a>
       <a className="pill-link" href={REQUEST_ACCESS_PATH} onClick={go}>Request access</a>
     </>
+  ) : props.place === 'access' ? (
+    <a className="pill-link primary" href="/" onClick={go}>Back to your request</a>
   ) : (
     <a className="pill-link primary" href="/" onClick={go}>Open the dashboard</a>
   )
@@ -120,12 +131,12 @@ export function Landing(props: Props) {
             affect you and what to fix first, and answers your questions with sources.
           </p>
           <div className="landing-next">{next}</div>
-          {front && (
+          {signedOut && (
             <p className="landing-note">New here? Request access: make an account, then the owner lets you in.</p>
           )}
         </div>
         <div className="landing-art">
-          <Robot size={150} variant={pose.variant} />
+          <Robot size={150} pose={pose} />
           <div className="landing-alert">
             <span className="landing-alert-app">
               <span className="visually-hidden">An example alert on your phone: </span>Patch · now
@@ -196,9 +207,9 @@ export function Landing(props: Props) {
       </section>
 
       <section className="landing-end" aria-labelledby="landing-end-title">
-        <Robot size={96} variant={endPose.variant} />
-        <h2 id="landing-end-title">{front ? 'Ready to look at your own stack?' : "That's Patch."}</h2>
-        <p>{front ? 'Sign in, or ask the owner for access.' : 'Your watchlist is on the dashboard.'}</p>
+        <Robot size={96} pose={endPose} />
+        <h2 id="landing-end-title">{signedOut ? 'Ready to look at your own stack?' : "That's Patch."}</h2>
+        <p>{END_LINE[props.place]}</p>
         <div className="landing-next">{next}</div>
       </section>
 

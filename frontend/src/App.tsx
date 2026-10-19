@@ -192,7 +192,7 @@ export default function App({ account }: { account?: Account } = {}) {
           </button>
         </nav>
         <div className="side-card">
-          <Robot size={64} variant={patch.restVariant} />
+          <Robot size={64} pose={{ mood: 'idle', variant: patch.restVariant }} />
           <strong>{status?.mode === 'live' ? 'Live data' : 'Snapshot'}</strong>
           <span>{status ? `Data as of ${status.as_of}` : offline ? 'Backend offline' : 'Loading…'}</span>
           <span className="side-model">{status?.model ?? '—'}</span>

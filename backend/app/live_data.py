@@ -94,7 +94,8 @@ class LiveData:
         name = f"v{self.version() if version is None else version:06d}"
         return {file: self.store.read(f"{name}/{file}")[0] for file in FILES}
 
-    def _versions(self) -> list[int]:
+    def versions(self) -> list[int]:
+        """The kept versions, oldest first (the current one and up to KEEP - 1 before it)."""
         return sorted({int(m.group(1)) for k in self.store.keys("v") if (m := _VERSION.match(k.split("/")[0]))})
 
     def write(self, files: dict[str, object], feeds: str | None = None) -> int:
@@ -102,12 +103,12 @@ class LiveData:
         and current.json last, so a reader sees the old version or the new one, never half of one. `feeds`: the kind
         that fetched them (B28), recorded in current.json; None keeps what is recorded."""
         assert set(files) == set(FILES), sorted(files)
-        number = max(self._versions(), default=0) + 1
+        number = max(self.versions(), default=0) + 1
         for name, data in files.items():
             self.store.write(f"v{number:06d}/{name}", data)
         kind = feeds or self.feeds()
         self.store.write("current.json", {"version": number, **({"feeds": kind} if kind else {})})
-        for old in self._versions()[:-KEEP]:
+        for old in self.versions()[:-KEEP]:
             for name in FILES:
                 self.store.delete(f"v{old:06d}/{name}")
             if not self._local:

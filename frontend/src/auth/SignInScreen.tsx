@@ -53,7 +53,7 @@ export function ScreenCard({ title, lead, children }: { title: string; lead: str
         {dark ? <SunIcon /> : <MoonIcon />}
       </button>
       <main className="signin-card" aria-labelledby="signin-title">
-        <Robot size={110} variant={pose.variant} />
+        <Robot size={110} pose={pose} />
         <Brand className="signin-brand" />
         <h1 id="signin-title" tabIndex={-1}>{title}</h1>
         <p className="signin-lead">{lead}</p>

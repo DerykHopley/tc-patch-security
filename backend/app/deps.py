@@ -202,29 +202,42 @@ class Deps:
         return {"vector": self.index, "keyword": self.keyword}
 
 
-def load_index(settings: Settings, knowledge: Knowledge) -> ChromaIndex:
-    """`load_snapshot_index`, and in live mode (B02) an index of the snapshot or of an older live version is brought
-    up to the live data by embedding only the chunks that differ (a real embedder's baked index stays usable)."""
-    if settings.data_mode != "live":
+def load_index(settings: Settings, knowledge: Knowledge, live: LiveData | None = None) -> ChromaIndex:
+    """`load_snapshot_index`, and in live mode (B02) an index of an older live version or of the snapshot is brought
+    up to the live data by embedding only the chunks that differ (a real embedder's index stays usable).
+
+    B53 (#88): which data the index was built from is found by its fingerprint: the current version first, then the
+    older kept live versions newest first (a refresh ran while the backend was off), then the snapshot (a cold start
+    on Cloud Run, B13: the image's index is the snapshot's, the live data comes from the bucket)."""
+    if settings.data_mode != "live" or not settings.index_path.exists():
         return load_snapshot_index(settings, knowledge)
-    chunks = build_chunks(knowledge)
-    if not settings.index_path.exists():
-        return load_snapshot_index(settings, knowledge)
+    embedder, chunks = make_embedder(settings), build_chunks(knowledge)
     try:
-        return open_index(settings.index_path, make_embedder(settings), chunks, settings.search_min_score)
+        return open_index(settings.index_path, embedder, chunks, settings.search_min_score)
     except IndexMismatch:
         pass
-    try:  # built from the snapshot (or rebuilt below): embed only what the live data changed
-        index = open_index(settings.index_path, make_embedder(settings), build_chunks(load_knowledge()),
-                           settings.search_min_score)
-    except IndexMismatch:
-        return load_snapshot_index(settings, knowledge)
-    began = time.monotonic()
-    index, embedded = sync_index(index, chunks)
-    # A cold start on Cloud Run (B13): the image's index is the snapshot's, the live data comes from the bucket
-    log.info("Search index caught up with the live data: %d chunks embedded in %.1f s", embedded,
-             time.monotonic() - began)
-    return index
+    for source, older in _older_data(live):
+        try:
+            index = open_index(settings.index_path, embedder, build_chunks(older()), settings.search_min_score)
+        except IndexMismatch:
+            continue
+        began = time.monotonic()
+        index, embedded = sync_index(index, chunks)
+        log.info("Search index caught up with the live data from %s: %d chunks embedded in %.1f s", source,
+                 embedded, time.monotonic() - began)
+        return index
+    return load_snapshot_index(settings, knowledge)  # none matched: a stale hash index is rebuilt, a paid one raises
+
+
+def _older_data(live: LiveData | None) -> list[tuple[str, Callable[[], Knowledge]]]:
+    """The data an index may have been built from, newest first, each loaded only when tried: the kept live versions
+    before the current one, then the snapshot."""
+    older: list[tuple[str, Callable[[], Knowledge]]] = []
+    if live is not None:
+        current = live.version()
+        older += [(f"live version {v}", lambda v=v: load_knowledge(live.folder(v)))
+                  for v in reversed(live.versions()) if v != current]
+    return older + [("the snapshot", load_knowledge)]
 
 
 def load_snapshot_index(settings: Settings, knowledge: Knowledge) -> ChromaIndex:
@@ -283,7 +296,7 @@ def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge 
         llm=llm,  # type: ignore[arg-type]  # set just below when not given: the router needs deps.dev
         knowledge=knowledge,
         state=state,
-        index=index or load_index(settings, knowledge),
+        index=index or load_index(settings, knowledge, refresher.live if refresher else None),
         http_client=http_client,
         web=WebResearch(settings) if settings.tavily_api_key else None,
         clock=clock,
