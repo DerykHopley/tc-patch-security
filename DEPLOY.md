@@ -2,6 +2,8 @@
 
 How to put Patch on a public URL, open only to the people the owner approves (B38), at no cost at this use. Written for the owner's first deploy (B14, [#45](https://github.com/DerykHopley/tc-patch-security/issues/45)) and any redeploy after it. Built in B13 ([#44](https://github.com/DerykHopley/tc-patch-security/issues/44)); why it's built this way: [DECISIONS.md](./DECISIONS.md) (2026-10-14 "Where it runs", the B13 rows).
 
+> **Easiest: run `scripts/deploy-wizard.sh`** from the repo root. It walks through every step below, one at a time: it explains each, shows the command and asks before running it, skips what already exists (so you can stop and re-run), reuses the Clerk keys, user id and keys from `backend/.env`, and never writes a secret to a file. Its plain answers (project id, billing account, image tag, time zone) are kept in `deploy/cloudrun/wizard.env` (git-ignored). Running it inside Claude Code as `! scripts/deploy-wizard.sh` puts its output in the chat. The steps below are the same commands by hand.
+
 > **Unverified:** no Google Cloud account existed while this was written, so **not one `gcloud` command below has been run.** The app's side is tested (against a fake bucket, `backend/tests/test_deploy.py`, and the container smoke test). Commands are from Google's documented CLI as of 2026. Where a step fails, fix it here as part of #45.
 
 ## What runs where
@@ -11,7 +13,7 @@ How to put Patch on a public URL, open only to the people the owner approves (B3
 - **Secret Manager**: the OpenRouter key, the scheduler secret, and the optional Tavily key and ntfy topic. Cloud Run passes them in as environment variables. They are never in the image, the repo or `env.yaml`.
 - **Cloud Scheduler**: one job calls `POST /api/refresh/scheduled` every hour with the scheduler secret in the `X-Scheduler-Secret` header. The route runs the refresh only when your Settings schedule (every 1 to 24 hours) is due and not paused, exactly like the local systemd timer.
 - **A cold start catches up:** the image's index is the snapshot's. On start, the server reads the live version from the bucket and embeds only the CVEs that differ (log line `Search index caught up with the live data: N chunks embedded in T s`).
-- **The Dev page** is off (`DEV_PANEL: "false"` in `env.yaml`). Not for safety: only the owner can change its choices, run its checks or use the playground (B29), and anyone else sees them read-only. Off, it hides the internals (the index, the embedding map, the saved checks) and the env's model settings apply. Turn it on to change the model without a redeploy.
+- **The Dev page** is on (`DEV_PANEL: "true"` in `env.yaml`, since B45 roles, 2026-10-19). Who sees what is set by role, not by the switch: a Viewer (everyone you approve, by default) has no Dev page at all; Trusted sees it read-only with the playground; a Reviewer changes their own copy only; only the owner changes the shared settings and runs the model check. On, you can change the model without a redeploy. `"false"` still hides it from everyone, the owner included.
 - **Clerk** (development instance, [#65](https://github.com/DerykHopley/tc-patch-security/issues/65)) signs users in. Every route except `/health` and the scheduled route needs a signed-in user.
 
 ## What it costs
@@ -32,9 +34,9 @@ Expected: **$0 a month**, or a few cents for image storage. Set the budget alert
 
 ## Before you start
 
-- The Google Cloud CLI (`gcloud`), signed in: `gcloud auth login`. Docker, as for `frontend/e2e/container.sh`.
+- The Google Cloud CLI (`gcloud`), signed in: `gcloud auth login`. On a system with a read-only `/usr` (Fedora Atomic, Silverblue), install it in your home folder with Google's script (`curl https://sdk.cloud.google.com | bash`, [Google's guide](https://cloud.google.com/sdk/docs/install#linux)), then open a new terminal. Docker, as for `frontend/e2e/container.sh`.
 - A billing account in Google Cloud (free-tier use still needs one linked).
-- The Clerk instance and its keys from [#65](https://github.com/DerykHopley/tc-patch-security/issues/65): the publishable key, the JWT public key (PEM) and your user id.
+- The Clerk instance and its keys from [#65](https://github.com/DerykHopley/tc-patch-security/issues/65): the publishable key, the JWT public key (PEM) and your user id, plus the **secret key** (B38/B48: the Requests card's names and emails, and the name in an access-request alert; without it, user ids). The development instance is fine: a production instance needs a domain you own, which `run.app` isn't.
 - An OpenRouter key **with a spending cap** set in OpenRouter's settings. Optional: a Tavily key (web research), an ntfy topic (alerts on your phone).
 - A checkout of the branch to deploy (spec B is on `spec-b` until it's merged), with `uv sync` done in `backend/`.
 
@@ -103,8 +105,10 @@ add_secret openrouter-api-key          # sk-or-...
 openssl rand -hex 32 | tr -d '\n' | gcloud secrets create scheduler-secret --replication-policy=automatic --data-file=-
 gcloud secrets add-iam-policy-binding scheduler-secret --member=serviceAccount:$SA \
   --role=roles/secretmanager.secretAccessor
+add_secret clerk-secret-key            # sk_test_... (names on the Requests card and in request alerts)
 add_secret tavily-api-key              # optional: tvly-... (web research)
 add_secret ntfy-topic                  # optional: your ntfy topic (alerts on your phone)
+add_secret ntfy-token                  # optional: only if your ntfy topic needs an access token
 ```
 
 - Skip the optional ones you don't use, and leave their line out of `--set-secrets` in step 6.
@@ -144,10 +148,12 @@ Fill in every `<...>` in `deploy/cloudrun/env.yaml`: the bucket name, the Clerk 
 gcloud run deploy $SERVICE --image=$IMAGE:v1 --region=$REGION --service-account=$SA \
   --allow-unauthenticated --min-instances=0 --max-instances=1 --memory=1Gi --cpu=1 --cpu-boost --timeout=900 \
   --env-vars-file=deploy/cloudrun/env.yaml \
-  --set-secrets=OPENROUTER_API_KEY=openrouter-api-key:latest,SCHEDULER_SECRET=scheduler-secret:latest,TAVILY_API_KEY=tavily-api-key:latest,NTFY_TOPIC=ntfy-topic:latest
+  --set-secrets=OPENROUTER_API_KEY=openrouter-api-key:latest,SCHEDULER_SECRET=scheduler-secret:latest,CLERK_SECRET_KEY=clerk-secret-key:latest,TAVILY_API_KEY=tavily-api-key:latest,NTFY_TOPIC=ntfy-topic:latest,NTFY_TOKEN=ntfy-token:latest
 gcloud run services describe $SERVICE --region=$REGION --format='value(status.url)'
 ```
 
+- List only the secrets you created in step 4: a missing one fails the deploy.
+- Check it answers: `curl -fsS https://$SERVICE-$PROJECT_NUMBER.$REGION.run.app/api/health` (the first answer starts the container, 10-30 s). *Unverified:* that Cloud Run serves this `patch-<project number>` address; `describe` may print an older-style address, which works too. If yours doesn't answer, use the `describe` one in `env.yaml`.
 - `--allow-unauthenticated` lets the public reach the app; Clerk sign-in then guards every route.
 - `--max-instances=1` is required, not a cost setting (see "What runs where").
 - If the `describe` address differs from the one in `env.yaml`, put it in `AUTH_ALLOWED_ORIGINS`, `APP_URL` and `CORS_ORIGINS` (comma-separate both addresses in the first) and run the same deploy again.
@@ -157,7 +163,7 @@ gcloud run services describe $SERVICE --region=$REGION --format='value(status.ur
 ## 7. Clerk: allow the address
 
 1. In `deploy/cloudrun/env.yaml`, `AUTH_ALLOWED_ORIGINS` is the address (done in step 6): the app refuses a session token made on any other page.
-2. Open the address. You should see Patch's sign-in screen. Sign in.
+2. Open the address. You should see Patch's landing page (B42). Press Sign in and sign in: "Opening Patch", then the dashboard.
 3. *Unverified:* whether a Clerk development instance needs the address added on its side (docs/SOURCE-CHECKS.md, Clerk: "likely yes, it works"). If the sign-in form refuses the origin, add it with Clerk's Backend API (the secret key is used here only, never by the app):
 
    ```bash
@@ -166,7 +172,7 @@ gcloud run services describe $SERVICE --region=$REGION --format='value(status.ur
      -H "Content-Type: application/json" -d "{\"allowed_origins\": [\"https://$SERVICE-$PROJECT_NUMBER.$REGION.run.app\"]}"
    unset CLERK_SECRET_KEY
    ```
-4. **Optional (B38): names on the Requests card.** Sign-up is open and you approve each new account on Settings (README "Sign-in"). The card shows names and emails only when the app has the Clerk secret key; without it, user ids. To give it the key, add it as a secret (`printf %s "$KEY" | gcloud secrets create clerk-secret-key --data-file=-`, with the service account allowed to read it as in step 4) and add `CLERK_SECRET_KEY=clerk-secret-key:latest` to `--set-secrets` in step 6. *Unverified:* not run on Google Cloud.
+4. **Sign-up is open; you approve each account** (B38, README "Sign-in"): set Clerk's sign-up mode to Public and turn on "Challenge suspicious sign-ups" (Clerk dashboard), as for the local app. Names on the Requests card come from the `clerk-secret-key` secret (step 4). *Checked* locally on 2026-10-19 against the dev instance; *unverified* on Google Cloud.
 
 ## 8. The hourly schedule
 
@@ -186,7 +192,7 @@ gcloud scheduler jobs run patch-refresh --location=$REGION     # one tick now, t
 
 The checks for #45:
 
-1. Sign in, set your watchlist. Invite a second user (Clerk: Users → Invitations), sign in as them in a private window: they see the default watchlist, not yours.
+1. Sign in, set your watchlist. In a private window, a second account asks for access (B38): you get the alert (if ntfy is set), approve it on Settings → Requests with a role (B45), and they see the default watchlist, not yours, and only their "Yours" part of Settings (B48).
 2. Dashboard → **Check now**: it runs and says what it found.
 3. Ask Patch "Who's talking about CVE-2025-3248?" (needs the Tavily secret): an answer with web sources.
 4. After the next hourly tick: `gcloud scheduler jobs describe patch-refresh --location=$REGION` (last attempt) and Settings → Refresh runs (trigger "schedule").

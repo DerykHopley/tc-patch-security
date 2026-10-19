@@ -21,7 +21,7 @@ export function WelcomeBanner({ onAsk, variant }: { onAsk: () => void; variant: 
       <button type="button" className="hello-close" onClick={close} aria-label="Close Patch's welcome" title="Close">
         <span aria-hidden="true">✕</span>
       </button>
-      <Robot size={110} variant={variant} />
+      <Robot size={110} pose={{ mood: 'idle', variant }} />
       <div className="hello-body">
         <h2 id="hello-title">{TITLE}</h2>
         <p>I watch the CVEs on your watchlist and can explain any of them, or how to defend against them. Just ask.</p>

@@ -15,7 +15,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
-from app import access, agent, card_actions, chat_turn, dashboard, page_context, proposals, refresh
+from app import access, agent, card_actions, chat_turn, dashboard, page_context, proposals, refresh, server_log
 from app.alerts import alert_counts
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
 from app.auth import SIGNED_OUT, SignedOut, Verifier, current_user, is_owner, owner_only
@@ -647,6 +647,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 def __getattr__(name: str):
     # `uvicorn app.main:app` builds the app on first access, so importing this module in tests is free.
     if name == "app":
+        server_log.setup()  # B54: the app's own log lines, before building it logs any
         globals()["app"] = create_app()
         return globals()["app"]
     raise AttributeError(name)

@@ -47,7 +47,7 @@ export function ChatWindow({
       <div className="greeting-bubble">
         {/* The chat button's Patch, on the bubble's top-left corner; the first line wraps beside him (§8.2) */}
         <span className="robot-slot">
-          <Robot size={58} variant={restVariant} />
+          <Robot size={58} pose={{ mood: 'idle', variant: restVariant }} />
         </span>
         <p>
           Hi, I'm <strong>Patch</strong>! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs on your watchlist.
@@ -64,7 +64,7 @@ export function ChatWindow({
     >
       <header className="chat-head">
         <div className="chat-title">
-          <Robot mood={mood} variant={variant} size={34} />
+          <Robot pose={{ mood, variant }} size={34} />
           <strong>Patch</strong>
           <span
             className="context-chip"

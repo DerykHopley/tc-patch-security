@@ -125,6 +125,22 @@ def test_b42_9_fits_a_phone_and_a_desktop_in_light_and_dark(open_signed_out):
             assert tile.bounding_box()["x"] + tile.bounding_box()["width"] <= width
 
 
+# --- B52.1 (#98): Patch is idle in the hero and happy on the end card, in one of that mood's variants -------------
+
+HAPPY = {"bounce", "spin", "dance", "hearts"}  # DESIGN.md §8.3, happy's options A to D
+IDLE = {"float", "breathe", "look", "hop"}
+
+
+def test_b52_1_the_end_card_shows_patch_happy(open_signed_out):
+    page, _ = landing(open_signed_out)
+    end = page.locator(".landing-end svg.robot")
+    expect(end).to_have_attribute("data-mood", "happy")
+    assert end.get_attribute("data-variant") in HAPPY
+    hero = page.locator(".landing-art svg.robot")
+    expect(hero).to_have_attribute("data-mood", "idle")
+    assert hero.get_attribute("data-variant") in IDLE
+
+
 # --- B42.10: a browser that was signed in waits for Clerk, then the landing page if Clerk can't load ---------------
 
 def test_b42_10_a_browser_signed_in_before_waits_for_clerk(browser: Browser, ui_url, api_url):

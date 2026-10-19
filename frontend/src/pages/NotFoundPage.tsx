@@ -18,7 +18,7 @@ export function NotFoundPage({ path, variant, onNavigate }: {
   return (
     <div className="page">
       <section className="not-found" aria-labelledby="not-found-title">
-        <Robot size={110} variant={variant} />
+        <Robot size={110} pose={{ mood: 'idle', variant }} />
         <div className="not-found-body">
           <h2 id="not-found-title">Patch has no page here</h2>
           <p>
