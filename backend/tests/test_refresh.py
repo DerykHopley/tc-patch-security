@@ -170,6 +170,32 @@ def test_b02_3_live_mode_brings_a_snapshot_index_up_to_the_live_data(live, tmp_p
     assert NEW_DAY1 in [s["doc_id"] for s in found["final"]]
 
 
+def test_b53_a_start_after_a_refresh_it_did_not_see_catches_the_index_up_from_the_version_it_was_built_from(
+        live, monkeypatch, caplog):
+    """#88: the running backend caught the index up to version N; a refresh wrote N+1 while it was off. A real (paid)
+    embedder's index is never rebuilt, so start-up must find N's data and embed only what N+1 changed."""
+    from app.deps import build_deps
+    from app.main import create_app
+    from test_vector import CountingEmbedder
+
+    live.check_now()
+    live.client.get("/health")  # the running backend brings the index up to version 2
+    live.clock.advance(60 * 24)
+    live.feeds.day = 2
+    assert live.deps.refresher.run("schedule").ran  # the timer's refresh (no request) writes version 3 ...
+    assert live.deps.refresher.live.version() == 3 and live.deps.version == 2  # ... and nothing loads it
+
+    embedder = CountingEmbedder()  # hash vectors, but the settings name a paid model: no free rebuild
+    monkeypatch.setattr("app.deps.make_embedder", lambda settings: embedder)
+    settings = dataclasses.replace(live.deps.settings, embedder="ollama")
+    with caplog.at_level("INFO", logger="app.deps"):
+        again = TestClient(create_app(build_deps(settings, feeds=live.feeds, clock=live.clock)))
+    assert "live version 2" in caplog.text  # it says which data the index was built from
+    assert 0 < embedder.texts < 50  # the day's few changed chunks, not the snapshot's 1,680
+    found = again.post("/dev/search", json={"query": "symbolic links in a pulled model blob"}).json()
+    assert NEW_DAY2 in [s["doc_id"] for s in found["final"]]
+
+
 # --- B02.5: one lock, at most one run per 5 minutes -----------------------------------------------------------
 
 def test_b02_5_a_second_check_within_5_minutes_is_refused_with_the_next_allowed_time(live):
