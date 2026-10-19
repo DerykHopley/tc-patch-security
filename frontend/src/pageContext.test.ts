@@ -95,3 +95,8 @@ test('B35.6 on one CVE\'s page Patch is told that CVE, and only that: the list\'
   s = reducePageContext(s, { type: 'visit', page: 'cves', visit: 2 })
   assert.deepEqual(currentContext(s), { page: 'cves' })
 })
+
+test('B49.6 on "Page not found" Patch is told no page: it is no page of the app', () => {
+  assert.deepEqual(currentContext(after('notFound')), {})
+  assert.deepEqual(chipWords(after('notFound')), [])
+})

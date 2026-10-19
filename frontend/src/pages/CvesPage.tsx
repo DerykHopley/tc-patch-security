@@ -41,6 +41,7 @@ import {
 } from '../cveView.ts'
 import type { ShownView } from '../pageContext.ts'
 import '../styles/cves.css'
+import { count } from '../plural.ts'
 
 // The CVEs page (A04b, DESIGN.md §5.9): the CVE table at the page's full width, the work list beside the dashboard's
 // "how exposed am I?". Filters live in the URL, under the CVE view's names (cveView.ts:
@@ -262,7 +263,7 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
                 type="button"
                 className="mark-seen"
                 disabled={marking}
-                title={`${page.new_total} new CVE${page.new_total === 1 ? '' : 's'} you haven't opened`}
+                title={`${count(page.new_total, 'new CVE')} you haven't opened`}
                 onClick={() => void markAll()}
               >
                 Mark all as seen
@@ -378,20 +379,20 @@ function CveTable({ page, onDecide, onAsk, onOpen, selected }: {
               <td className="cve-cell">
                 <CveLink id={r.id} fromList={onOpen} />
                 {r.id === selected && (
-                  <span className="chip selected-chip" title="Patch knows this is the CVE you asked about">
+                  <Tip text="Patch knows this is the CVE you asked about" className="chip selected-chip" plain>
                     Selected
-                  </span>
+                  </Tip>
                 )}
                 {r.kev && (
                   // B44 L3: the KEV deadline shows once, in the Due cell, where every date of the row is read
-                  <span className="chip kev" title="In CISA KEV: known to be exploited">
+                  <Tip text="In CISA KEV: known to be exploited" className="chip kev" plain>
                     KEV
-                  </span>
+                  </Tip>
                 )}
                 {r.new && (
-                  <span className="chip new-chip" title={NEW_TITLE}>
+                  <Tip text={NEW_TITLE} className="chip new-chip" plain>
                     New
-                  </span>
+                  </Tip>
                 )}
                 {r.possible_match && <PossibleMatch />}
                 <div className="summary">{r.summary}</div>

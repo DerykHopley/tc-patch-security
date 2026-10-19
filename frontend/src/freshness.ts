@@ -2,6 +2,7 @@
 // leaves behind. Plain functions, so `npm test` checks the words without a browser.
 import type { AlertCounts, CheckReply, DataStatus, Feeds, RefreshCounts, RefreshResult } from './api.ts'
 import { viewToSearch } from './cveView.ts'
+import { count } from './plural.ts'
 
 const two = (n: number) => String(n).padStart(2, '0')
 
@@ -22,7 +23,7 @@ export function checkedLine(data: DataStatus, asOf: string): string {
 
 // The counts in the order they are said; a zero is left out ("2 new CVEs, 1 added to KEV").
 const COUNT_WORDS: [keyof RefreshCounts, (n: number) => string][] = [
-  ['new', (n) => `${n} new CVE${n === 1 ? '' : 's'}`],
+  ['new', (n) => count(n, 'new CVE')],
   ['updated', (n) => `${n} updated`],
   ['kev_added', (n) => `${n} added to KEV`],
   ['rescored', (n) => `${n} rescored`],
@@ -31,8 +32,6 @@ const COUNT_WORDS: [keyof RefreshCounts, (n: number) => string][] = [
 export const SOURCE_NAME: Record<string, string> = { nvd: 'NVD', kev: 'CISA KEV', epss: 'EPSS', osv: 'OSV' }
 
 export type Tone = 'ok' | 'warn' | 'error'
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 // B34: what happened to the alerts, in this order. "Recorded only" says "not sent", so a dry run (NOTIFY_DRY_RUN)
 // never reads as alerts that went out.
@@ -48,7 +47,7 @@ const ALERT_WORDS: [keyof AlertCounts, string][] = [
  *  "recorded only (not sent)" would read as a fault: theirs say "3 alerts in Patch". */
 export function alertWords(c: AlertCounts, owner = true): string[] {
   return ALERT_WORDS.filter(([k]) => c[k] > 0).map(([k, words]) =>
-    `${plural(c[k], 'alert')} ${!owner && k === 'recorded' ? 'in Patch' : words}`)
+    `${count(c[k], 'alert')} ${!owner && k === 'recorded' ? 'in Patch' : words}`)
 }
 
 /** The line after Check now: what the run found, why it failed, or when the next check is allowed. */
@@ -131,8 +130,8 @@ export function freshnessFeedsWarning(data: DataStatus): string | null {
 /** B43: "See the 2 new CVEs" → the CVEs list of the new CVEs you haven't seen yet (B40), any status, so the list
  *  shows the same number even after you closed one from the list; with the dashboard's product filter, as the tiles.
  *  Null when nothing is new. */
-export function newCvesLink(count: number, filter: string[]): { text: string; href: string } | null {
-  if (count <= 0) return null
+export function newCvesLink(n: number, filter: string[]): { text: string; href: string } | null {
+  if (n <= 0) return null
   const href = `/cves${viewToSearch({ status: 'all', new: true, product: filter.join(',') || undefined })}`
-  return { text: count === 1 ? 'See the new CVE' : `See the ${count} new CVEs`, href }
+  return { text: n === 1 ? 'See the new CVE' : `See the ${count(n, 'new CVE')}`, href }
 }

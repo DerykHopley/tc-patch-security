@@ -19,7 +19,7 @@ import './styles/loading.css'
 // separate chunk loaded only then, decides between the sign-in screen and the app. A /health that
 // fails outright shows the app, which says the backend is offline. Signed out, the landing page (B42), which needs
 // nothing but /health. Until it answers, the loading screen (#69): a
-// /health that doesn't answer in 15 s (a cold start, a hung server) shows "Backend offline — retrying" there.
+// /health that doesn't answer in 15 s (a cold start, a hung server) shows "Patch's server isn't answering yet." there.
 const ClerkApp = lazy(() => import('./auth/ClerkApp.tsx'))
 const OFF: AuthConfig = { on: false, publishable_key: null }
 

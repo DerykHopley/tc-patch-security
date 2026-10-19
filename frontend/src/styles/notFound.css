@@ -1,0 +1,79 @@
+/* "Page not found" (B49, #96 O1; DESIGN.md §5.19): the welcome banner's look (§5.8): white to soft purple, radius 28px,
+   Patch at 110px with his head over the top edge, the title in Fredoka purple. Tokens only. Fades up once like the
+   cards (§7.1); the global reduced-motion rule stops it. */
+
+.not-found {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  margin-top: 2.2rem; /* room for Patch's head above the card */
+  padding: 0.9rem 1.4rem 1.1rem;
+  border-radius: var(--radius-banner);
+  background: linear-gradient(120deg, var(--surface) 40%, var(--accent-soft));
+  box-shadow: var(--shadow-banner);
+  animation: fade-up 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.not-found .robot {
+  flex: none;
+  align-self: flex-start;
+  margin: -2.4rem 0 -0.6rem; /* his head rises over the card's top edge */
+}
+
+.not-found-body {
+  min-width: 0;
+}
+
+.not-found h2 {
+  margin: 0 0 0.3rem;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.not-found p {
+  margin: 0 0 0.8rem;
+  max-width: 48rem;
+  color: var(--text);
+}
+
+.not-found-path {
+  overflow-wrap: anywhere; /* a long address wraps inside the card */
+}
+
+/* Phones: as the banner (B43), a 64px Patch beside the title, the line and the link under both. */
+@media (max-width: 640px) {
+  .not-found {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.5rem 0.7rem;
+    margin-top: 1.6rem;
+    padding: 0.8rem 1rem 0.9rem;
+  }
+
+  .not-found-body {
+    display: contents;
+  }
+
+  .not-found .robot {
+    grid-area: 1 / 1;
+    align-self: start;
+    width: 64px;
+    height: auto;
+    margin: -1.6rem 0 -0.3rem;
+  }
+
+  .not-found h2 {
+    grid-area: 1 / 2;
+    align-self: center;
+    margin: 0;
+  }
+
+  .not-found p,
+  .not-found .pill-link {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin: 0;
+  }
+}

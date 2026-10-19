@@ -74,7 +74,7 @@ def test_b21_9_edit_uses_the_decision_fields_and_approve_records_them(open_app, 
     form.get_by_role("textbox", name="Note (optional)").fill("We never call the SQL agent.")
     form.get_by_role("button", name="Save changes").click()
     expect(card.locator(".result-title")).to_have_text(f"Mark {CVE} not affected")
-    expect(card.locator(".before-after .after")).to_have_text("After: Not affected (vulnerable code not in execute path)")
+    expect(card.locator(".before-after .after")).to_have_text("After: Not affected, vulnerable code not in execute path")
     expect(card.get_by_role("button", name="Approve", exact=True)).to_be_focused()
     assert status(api_url) == "open"
     page.keyboard.press("Enter")  # Approve, by keyboard

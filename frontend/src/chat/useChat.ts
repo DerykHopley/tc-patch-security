@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ApiError,
   chat,
@@ -7,9 +7,10 @@ import {
   type PageContext,
   type RefineFilter,
   type Refined,
-  type Turn,
 } from '../api.ts'
 import { announceWatchlistChanged, checkedFromChat } from '../watchlistEvents.ts'
+import { loadChat, saveChat, tabStorage } from './chatStore.ts'
+import { asked, refused, toHistory } from './messages.ts'
 
 /** A refine button's result (B24): the card's tool run again with a filter, the filters it had, and its page. */
 export type RefinedResult = Refined & { filters: RefineFilter[]; page: PageContext }
@@ -22,29 +23,36 @@ export interface Message {
   error?: string // set when the request failed; never sent back as history
   quiet?: boolean // B11: the error is a limit or the spending cap, shown as a quiet note, not an error bubble
   refined?: RefinedResult // B24: no question and no model text, so never sent back as history
+  restored?: boolean // B49: read back from the tab's storage after a reload (chatStore.ts), not new
 }
 
 // B11: refusals that aren't faults: a chat limit (429, the retry time in its message) and the spending cap (402).
 const QUIET = new Set(['rate_limited', 'spending_cap'])
 
-// The backend accepts at most 10 history turns of 2000 characters each (the guard's limits).
-const MAX_TURNS = 10
-const MAX_TURN_CHARS = 2000
-
 let nextId = 1
 
-// The last 10 turns that really happened: a failed request and the question that caused it are left out.
-function toHistory(messages: Message[]): Turn[] {
-  return messages
-    .filter((m, i) => !m.error && !m.refined && !messages[i + 1]?.error)
-    .slice(-MAX_TURNS)
-    .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_TURN_CHARS) }))
+/** The user's conversation from this tab's storage; nothing while who it is isn't known yet. */
+function restore(user: string | null): Message[] {
+  const restored = user === null ? [] : loadChat(tabStorage(), user)
+  nextId = Math.max(nextId, ...restored.map((m) => m.id + 1)) // a new message never reuses a restored id
+  return restored
 }
 
 /** One conversation for the whole app, so moving between pages never loses it. `pageContext`: what the user is
- *  looking at at the moment of asking (A18, usePageContext's `current`), sent with each message. */
-export function useChat(pageContext: () => PageContext) {
-  const [messages, setMessages] = useState<Message[]>([])
+ *  looking at at the moment of asking (A18, usePageContext's `current`), sent with each message. `user`: whose
+ *  conversation it is: kept for the tab's life under that user (B49 C5, chatStore.ts), so a reload keeps it. null:
+ *  not known yet (Clerk's user still loading): nothing is read or written, so the stored conversation isn't lost. */
+export function useChat(pageContext: () => PageContext, user: string | null) {
+  const [messages, setMessages] = useState<Message[]>(() => restore(user))
+  const [owner, setOwner] = useState(user)
+  if (owner !== user) {
+    // Another user (or the user now known): their own conversation, never the one on screen
+    setOwner(user)
+    setMessages(restore(user))
+  }
+  useEffect(() => {
+    if (user !== null) saveChat(tabStorage(), user, messages)
+  }, [user, messages])
   const [pending, setPending] = useState(false)
   // A level picked in the chat header for the next question only (A19); null = the saved level.
   const [nextLevel, setNextLevel] = useState<ExplainLevel | null>(null)
@@ -62,7 +70,7 @@ export function useChat(pageContext: () => PageContext) {
     const level = savedLevel ? undefined : (nextLevel ?? undefined)
     page ??= pageContext()
     if (!savedLevel) setNextLevel(null)
-    setMessages((ms) => [...ms, { id: nextId++, role: 'user', content: text }])
+    setMessages((ms) => asked(ms, { id: nextId++, role: 'user', content: text }))
     setPending(true)
     try {
       const reply = await chat(text, history, level, page)
@@ -72,7 +80,9 @@ export function useChat(pageContext: () => PageContext) {
     } catch (e) {
       const error = e instanceof Error ? e.message : 'Something went wrong. Try again.'
       const quiet = e instanceof ApiError && QUIET.has(e.code ?? '')
-      setMessages((ms) => [...ms, { id: nextId++, role: 'assistant', content: '', error, quiet }])
+      const note: Message = { id: nextId++, role: 'assistant', content: '', error, quiet }
+      // B49 C4: a refused question leaves the conversation (the box has it back, B20), its note shows once
+      setMessages((ms) => (quiet ? refused(ms, note) : [...ms, note]))
       return false
     } finally {
       setPending(false)

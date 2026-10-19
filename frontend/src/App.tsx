@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
-import { roleOf, seesDev } from './access.ts'
+import { roleOf, seesDev, seesUsage } from './access.ts'
 import { examples as fetchExamples, health, type Example, type Health } from './api.ts'
 import { AccessContext } from './auth/AccessGate.tsx'
 import { ChatDivider } from './chat/ChatDivider.tsx'
@@ -19,7 +19,8 @@ import { CvesPage } from './pages/CvesPage.tsx'
 import { DashboardPage } from './pages/Dashboard.tsx'
 import { DevPage } from './pages/DevPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
-import { PATHS, useRoute, type Page } from './route.ts'
+import { NotFoundPage } from './pages/NotFoundPage.tsx'
+import { PATHS, useRoute, type NavPage, type Page } from './route.ts'
 import { store } from './storage.ts'
 import { useTheme } from './theme.ts'
 import { usePageContext } from './usePageContext.ts'
@@ -33,6 +34,7 @@ const PAGES: Record<Page, { title: string; nav: string; Icon: () => JSX.Element 
   settings: { title: 'Settings', nav: 'Settings', Icon: BellIcon },
   dev: { title: 'Dev', nav: 'Dev', Icon: CodeIcon }, // one name everywhere (B50: the title said "Dev panel")
   about: { title: 'About', nav: 'About', Icon: InfoIcon }, // the landing page inside the app (B42)
+  notFound: { title: 'Page not found', nav: '', Icon: InfoIcon }, // B49: any other address; no sidebar item
 }
 
 // Questions that fit the page under the chat (1–2, DESIGN.md §6.2). FakeLLM answers each one.
@@ -42,6 +44,7 @@ const SUGGESTIONS: Record<Page, string[]> = {
   settings: ['How do I protect a RAG app from indirect prompt injection?'],
   dev: ['What does an "ignore previous instructions" attack look like?'],
   about: ['What should I fix first?'],
+  notFound: ['What should I fix first?'],
 }
 
 // `account`: the signed-in user, with sign-in on (B10, auth/ClerkApp.tsx): the top bar shows the user menu.
@@ -55,7 +58,8 @@ export default function App({ account }: { account?: Account } = {}) {
   const page = route.page
   // Page context (A18): what Patch is told about the page; its rules live in pageContext.ts.
   const pageContext = usePageContext(route)
-  const chat = useChat(pageContext.current)
+  // B49 C5: the conversation is kept for the tab's life per user (sign-in off: the one local user)
+  const chat = useChat(pageContext.current, account ? (account.id ?? null) : 'local')
   const layout = useChatLayout()
   const chatOpen = layout.open
   const [examples, setExamples] = useState<Example[]>([])
@@ -124,7 +128,7 @@ export default function App({ account }: { account?: Account } = {}) {
   // Dev only when the backend allows the dev panel (it exposes internals), and (B45) not for a Viewer. The role comes
   // from /access on each page load, so the owner's change shows on the next one.
   const devShown = seesDev(roleOf(access))
-  const pages: Page[] = status?.dev_panel && devShown
+  const pages: NavPage[] = status?.dev_panel && devShown
     ? ['dashboard', 'cves', 'settings', 'dev'] : ['dashboard', 'cves', 'settings']
   const current = PAGES[page]
   const dark = theme === 'dark'
@@ -251,6 +255,14 @@ export default function App({ account }: { account?: Account } = {}) {
               selected={pageContext.selected}
               onView={pageContext.reportView}
             />
+          ) : page === 'notFound' ? (
+            // B49 (#96 O1): an address the app has no page for. Keyed by the visit: another bad address starts fresh
+            <NotFoundPage
+              key={route.visit}
+              path={window.location.pathname}
+              variant={patch.restVariant}
+              onNavigate={navigate}
+            />
           ) : page === 'about' ? (
             <Landing place="about" onNavigate={navigate} />
           ) : page === 'settings' ? (
@@ -283,6 +295,7 @@ export default function App({ account }: { account?: Account } = {}) {
           layout={layout}
           asOf={status?.as_of ?? null}
           onClose={closeChat}
+          showUsage={seesUsage(roleOf(access))}
         />
       )}
       {/* Hidden while the chat is pinned beside the page (DESIGN.md §6.3). */}

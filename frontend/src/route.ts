@@ -5,10 +5,16 @@ import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 // One CVE has its own page under CVEs (B35): `/cves/CVE-2025-3248`, so a link to it can be shared, Back works, and
 // alerts and the chat link straight to it.
 // No router library: a handful of paths and the browser's history are all the app needs.
+// Any other address is "Page not found" (B49, #96 O1), with a link to the dashboard: it used to show the dashboard
+// under the bad address, so a mistyped link looked like it worked. Signed out with sign-in on, the front door shows
+// the landing page instead (auth/signInView.ts `frontDoor`): this is the signed-in (or sign-in off) side.
+import { SIGN_IN_PATH } from './auth/signInView.ts'
 
-export type Page = 'dashboard' | 'cves' | 'settings' | 'dev' | 'about'
+/** A page with its own path: the sidebar's and the tab bar's. */
+export type NavPage = 'dashboard' | 'cves' | 'settings' | 'dev' | 'about'
+export type Page = NavPage | 'notFound'
 
-export const PATHS: Record<Page, string> = {
+export const PATHS: Record<NavPage, string> = {
   dashboard: '/',
   cves: '/cves',
   settings: '/settings',
@@ -32,7 +38,9 @@ export function locate(pathname: string): { page: Page; cve: string | null } {
   const path = pathname.replace(/\/+$/, '') || '/'
   const one = path.match(/^\/cves\/([^/]+)$/)
   if (one) return { page: 'cves', cve: decoded(one[1]).toUpperCase().slice(0, SHOWN) }
-  const page = (Object.keys(PATHS) as Page[]).find((p) => PATHS[p] === path) ?? 'dashboard'
+  // Signed in at the sign-in form's address (Clerk may land you there once you're in): the app opens as at `/`
+  if (path === SIGN_IN_PATH) return { page: 'dashboard', cve: null }
+  const page = (Object.keys(PATHS) as NavPage[]).find((p) => PATHS[p] === path) ?? 'notFound'
   return { page, cve: null }
 }
 

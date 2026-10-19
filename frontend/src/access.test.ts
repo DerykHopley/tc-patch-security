@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
   accessScreen, devView, noteLeft, NOTE_MAX, requestActions, requestLine, ROLE_CHOICES, roleDone, roleHint, roleOf,
-  seesDev, type RequestRow,
+  seesDev, seesUsage, type RequestRow,
 } from './access.ts'
 
 const row = (over: Partial<RequestRow>): RequestRow => ({
@@ -84,4 +84,12 @@ test('B45.23: the Dev page by role: who changes what, who runs the checks, and t
   assert.equal(devView('reviewer', true).note,
     "Your settings apply only to you: your chat and the playground use them, everyone else keeps the owner's. " +
     "You've changed them.")
+})
+
+test('B49.2 the usage line under an answer (tokens, cost) is for the people who change models: owner and Reviewers', () => {
+  assert.equal(seesUsage('owner'), true)
+  assert.equal(seesUsage('reviewer'), true)
+  assert.equal(seesUsage('trusted'), false)
+  assert.equal(seesUsage('viewer'), false)
+  assert.equal(seesUsage(roleOf(null)), true) // sign-in off: the one local user is the owner
 })

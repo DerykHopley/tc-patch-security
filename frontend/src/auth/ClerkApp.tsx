@@ -102,8 +102,9 @@ function SignedInApp() {
     })),
     createExternalAccount: (params) => createExternalAccount(params),
   } : null, [user, createExternalAccount, destroy])
-  // B48 (#77): no name or email from Clerk: the menu shows the user's own display name from their profile, if any
-  const account = { onSignOut: () => signOut() }
+  // B48 (#77): no name or email from Clerk: the menu shows the user's own display name from their profile, if any.
+  // B49: Clerk's user id says whose chat this tab keeps (never shown)
+  const account = { id: user?.id, onSignOut: () => signOut() }
   return (
     <LinkedAccountsContext.Provider value={linked}>
       <AccessGate signIn onSignOut={() => signOut()}>
