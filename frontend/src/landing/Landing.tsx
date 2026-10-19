@@ -13,6 +13,11 @@ import cvesDark from './shots/cves-dark.webp'
 import cvesLight from './shots/cves-light.webp'
 import dashboardDark from './shots/dashboard-dark.webp'
 import dashboardLight from './shots/dashboard-light.webp'
+import posterDark from './video/patch-dark.webp'
+import posterLight from './video/patch-light.webp'
+import videoDark from './video/patch-dark.mp4'
+import videoLight from './video/patch-light.mp4'
+import captions from './video/patch.vtt?url'
 
 // The landing page (B42, #80; DESIGN.md §5.16). Two places, one page:
 // - the front door: what a signed-out visitor sees with sign-in on, at any address but the sign-in form's
@@ -22,7 +27,7 @@ import dashboardLight from './shots/dashboard-light.webp'
 //   the dashboard.
 // Fixed text and fixed example screenshots only: no API call, no live data, nobody's watchlist (the page shows
 // before sign-in). The screenshots are taken by scripts/landing-shots.sh, light and dark; the page shows the pair
-// that matches the theme.
+// that matches the theme. The launch video (B47, #99) too: a light and a dark version, never autoplayed.
 
 type Shot = 'dashboard' | 'cves' | 'chat'
 
@@ -56,6 +61,21 @@ const SHOWCASE: { shot: Shot; title: string; text: string; alt: string }[] = [
     alt: 'Patch answering "Am I affected by CVE-2025-3248?" beside that CVE\'s page: affected, because 1.2.0 is '
       + 'before the fixed version 1.3.0, with the cited source open under the answer.',
   },
+]
+
+const VIDEO: Record<Theme, { src: string; poster: string }> = {
+  light: { src: videoLight, poster: posterLight },
+  dark: { src: videoDark, poster: posterDark },
+}
+
+/** What the video says, scene by scene: its text version, under it and for screen readers. */
+const VIDEO_LINES = [
+  'Every week, LLM software ships new CVEs.',
+  "Someone has to read all of it: NVD, CISA KEV, EPSS, OSV.dev, each project's advisories.",
+  'That someone is now a purple robot.',
+  'Affected. For your version.',
+  'It cites its sources.',
+  'Patch. Watch. Judge. Alert. Ask. github.com/DerykHopley/tc-patch-security',
 ]
 
 const TILES: { name: string; text: string; tone: string }[] = [
@@ -124,6 +144,35 @@ export function Landing(props: Props) {
             <p>{t.text}</p>
           </div>
         ))}
+      </section>
+
+      <section className="landing-video" aria-labelledby="landing-video-title">
+        <h2 id="landing-video-title">Patch in 20 seconds</h2>
+        <div className="shot-frame">
+          <span className="shot-dots" aria-hidden="true"><i /><i /><i /></span>
+          {/* keyed by theme: the switch swaps the file (and starts it over) like the screenshots */}
+          <video
+            key={theme}
+            controls
+            playsInline
+            preload="none"
+            poster={VIDEO[theme].poster}
+            width={1920}
+            height={1080}
+            aria-label="Patch's launch video, 20 seconds, with music"
+            aria-describedby="landing-video-lines"
+          >
+            <source src={VIDEO[theme].src} type="video/mp4" />
+            {/* no speech: the captions say what the sound is; the words on screen are in the text version below */}
+            <track kind="captions" src={captions} srcLang="en" label="English" />
+          </video>
+        </div>
+        <details className="landing-video-text">
+          <summary>The video as text</summary>
+          <ol id="landing-video-lines">
+            {VIDEO_LINES.map((line) => <li key={line}>{line}</li>)}
+          </ol>
+        </details>
       </section>
 
       <section className="landing-showcase" aria-labelledby="landing-showcase-title">
