@@ -1,7 +1,7 @@
 // The backend's HTTP API. Every call goes through request(), so a server that isn't
 // running gives one plain message instead of a raw network error.
 
-import type { Access, RequestsReply } from './access.ts'
+import type { Access, AccessStatus, RequestsReply } from './access.ts'
 import { cvesQuery, type CveView } from './cveView.ts'
 import type { NamedResult, Proposal, ProposalSource } from './toolResults.ts'
 
@@ -47,6 +47,13 @@ export function setSessionToken(getter: TokenGetter | null): void {
   sessionToken = getter
 }
 
+// B46 (#81): any call the backend refuses with 403 not_approved (the owner removed or refused this account while the
+// app was open) tells the access gate at once, so it swaps the app for the access card. Set by auth/AccessGate.tsx.
+let notApproved: ((status: AccessStatus) => void) | null = null
+export function onNotApproved(listener: ((status: AccessStatus) => void) | null): void {
+  notApproved = listener
+}
+
 /** The backend's refusal or failure: its plain message, its error code, and (B11) when to try again. */
 export class ApiError extends Error {
   readonly status: number
@@ -79,6 +86,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   const body: unknown = await res.json().catch(() => null)
   if (!res.ok) {
+    const error = (body as { error?: { code?: string; status?: string } } | null)?.error
+    if (res.status === 403 && error?.code === 'not_approved') notApproved?.((error.status ?? 'none') as AccessStatus)
     const message = (body as { error?: { message?: string } } | null)?.error?.message
     throw new ApiError(message ?? `The backend answered ${res.status}.`, res.status, body)
   }

@@ -241,3 +241,17 @@
   margin-top: 0.8rem;
   text-align: center;
 }
+
+/* B46: what Patch is (the landing page's content at /about), under the card's actions. --text, underlined: a plain
+   link on --surface, at least 4.5:1 in both themes */
+.access-about {
+  display: block;
+  width: fit-content;
+  margin: 1rem auto 0;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}

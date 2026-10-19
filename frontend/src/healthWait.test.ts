@@ -92,15 +92,17 @@ test('B69.4 Retry tries at once instead of waiting; pressed while a try is on it
   assert.equal(states.at(-1)!.nextTryAt! - Date.now(), 4_000)
 })
 
-test('B69.5 an outright failure at first ends the wait: the app says "Backend offline", as before #69', async () => {
+test('B69.5 an outright failure at first is a miss too (B46): the offline screen and its backoff, never the app', async () => {
+  // Before B46 the wait ended and the app showed "Backend offline". Without /health nobody knows whether sign-in is
+  // on, so the app showed its shell to anyone, signed out or not approved (#81).
   const api = fakeHealth()
   const { states, results } = start(api.fetchHealth)
   api.calls[0].fail(new Error("Can't reach the backend"))
   await flush()
-  assert.deepEqual(results, [{ ok: false }])
-  assert.deepEqual(states, [])
-  mock.timers.tick(60_000)
-  assert.equal(api.calls.length, 1) // and nothing more
+  assert.deepEqual(results, [])
+  assert.equal(states.at(-1)!.nextTryAt! - Date.now(), 2_000)
+  mock.timers.tick(2_000)
+  assert.equal(api.calls.length, 2)
 })
 
 test('B69.5 a failure while already retrying is one more miss: the backoff goes on, the screen stays', async () => {
