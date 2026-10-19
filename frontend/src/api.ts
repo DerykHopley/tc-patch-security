@@ -1,7 +1,7 @@
 // The backend's HTTP API. Every call goes through request(), so a server that isn't
 // running gives one plain message instead of a raw network error.
 
-import type { Access, RequestsReply } from './access.ts'
+import type { Access, RequestsReply, StoredRole, UserRole } from './access.ts'
 import { cvesQuery, type CveView } from './cveView.ts'
 import type { NamedResult, Proposal, ProposalSource } from './toolResults.ts'
 
@@ -773,7 +773,9 @@ export interface DevSettingsReply {
   settings: DevSettings
   defaults: DevSettings // from the backend's .env
   openrouter_key: boolean // whether OPENROUTER_API_KEY is set; the key itself never leaves the server
-  yours?: boolean // false: the caller isn't the owner, so sees the owner's choices read-only (B29)
+  yours?: boolean // false: the caller may not change them, so sees the owner's choices read-only (B29)
+  role?: UserRole // B45: the caller's role; settings are their effective ones (a reviewer's copy, else the owner's)
+  own_copy?: boolean // B45: a reviewer saved their own copy ("Back to the owner's settings" drops it)
 }
 
 export interface DevInfo {
@@ -824,7 +826,9 @@ export interface EmbeddingMapData {
 }
 
 export const getDevSettings = () => request<DevSettingsReply>('/dev/settings')
-export const saveDevSettings = (s: DevSettings) => request<{ settings: DevSettings }>('/dev/settings', json('PUT', s))
+export const saveDevSettings = (s: DevSettings) => request<DevSettingsReply>('/dev/settings', json('PUT', s))
+/** B45: a reviewer drops their own copy; the owner's settings apply to them again. */
+export const backToOwnersDevSettings = () => request<DevSettingsReply>('/dev/settings/owners', { method: 'POST' })
 export const devInfo = () => request<DevInfo>('/dev/info')
 export const devModels = (url: string) => request<{ models: string[] }>(`/dev/models?${new URLSearchParams({ url })}`)
 
@@ -950,7 +954,8 @@ export const getAccess = () => request<Access>('/access')
 export const requestAccess = (note: string) =>
   request<Access>('/access/request', json('POST', note.trim() ? { note } : {}))
 export const accessRequests = () => request<RequestsReply>('/access/requests')
-export const changeAccess = (userId: string, status: 'waiting' | 'approved' | 'refused') =>
-  request<unknown>(`/access/requests/${encodeURIComponent(userId)}`, json('PUT', { status }))
+/** B38: approve, refuse or undo a refusal; B45: and the role (when approving, or alone to change it later). */
+export const changeAccess = (userId: string, change: { status?: 'waiting' | 'approved' | 'refused'; role?: StoredRole }) =>
+  request<unknown>(`/access/requests/${encodeURIComponent(userId)}`, json('PUT', change))
 export const removeAccess = (userId: string) =>
   request<unknown>(`/access/requests/${encodeURIComponent(userId)}/remove`, { method: 'POST' })

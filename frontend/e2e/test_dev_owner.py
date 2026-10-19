@@ -1,8 +1,10 @@
-"""Browser check (seam 3): anyone but the owner sees the Dev page's choices read-only (B29, #76). Check ids: B29.n.
+"""Browser check (seam 3): a Trusted user sees the Dev page's choices read-only (B29, #76). Check ids: B29.n.
 
-The throwaway backend has sign-in off, so the browser is the owner. As test_pause_history does with `yours: false`,
-the browser fakes another signed-in user by changing one answer: GET /dev/settings says `yours: false` (the backend
-test B29.1 checks the server side). Expected looks come from DESIGN.md §5.5 and §5.3, not from the CSS.
+Since B45 (#90) this read-only page is a Trusted person's, and it has the search playground (a Viewer sees no Dev
+page: test_roles.py). The throwaway backend has sign-in off, so the browser is the owner. As test_pause_history does
+with `yours: false`, the browser fakes a Trusted user by changing one answer: GET /dev/settings says `yours: false,
+role: trusted` (the backend tests B29.1 and B45.2 check the server side). Expected looks come from DESIGN.md §5.5 and
+§5.3, not from the CSS.
 """
 import pytest
 from playwright.sync_api import Page, expect
@@ -19,7 +21,7 @@ def as_another_user(context) -> None:
             route.continue_()
             return
         response = route.fetch()
-        route.fulfill(response=response, json=response.json() | {"yours": False})
+        route.fulfill(response=response, json=response.json() | {"yours": False, "role": "trusted", "own_copy": False})
 
     context.route("**/dev/settings", not_yours)
 
@@ -49,13 +51,14 @@ def test_b29_5_another_user_sees_the_owners_choices_read_only(dev_page, browser_
     expect(search.locator("dt").first).to_have_text("Max agent steps")
     expect(search.locator("dd")).to_have_count(8)
 
-    # Nothing to change: no radio, slider, switch, text box or select, and no Save, Find models or runs. (The saved
-    # checks' "compare" boxes stay: they only pick runs for the report.)
-    expect(main.locator(".settings-grid, .playground").locator("input, select")).to_have_count(0)
-    for name in ("Save changes", "Discard", "Reset to the defaults", "Run search", "Run model check",
+    # Nothing to change: no radio, slider, switch, text box or select, and no Save, Find models or checks. (The saved
+    # checks' "compare" boxes stay: they only pick runs for the report.) B45: the playground runs for a Trusted user.
+    expect(main.locator(".settings-grid").locator("input, select")).to_have_count(0)
+    for name in ("Save changes", "Discard", "Reset to the defaults", "Run model check",
                  "Run retrieval check", "Find models"):
         expect(main.get_by_role("button", name=name)).to_have_count(0)
-    expect(main.get_by_test_id("owner-runs")).to_have_count(3)  # the playground and the two checks say why
+    expect(main.get_by_test_id("owner-runs")).to_have_count(2)  # the two checks say why
+    expect(main.get_by_role("button", name="Run search")).to_have_count(1)
 
     # What stays: the index facts, the map, the saved runs and the report
     expect(main.get_by_role("heading", name="Index", exact=True)).to_be_visible()

@@ -97,7 +97,7 @@ def test_b38_1_a_new_account_gets_403_everywhere_except_the_access_routes(auth_s
         if r.status_code != 403 or r.json()["error"]["code"] != "not_approved":
             let_through.append((method, path, r.status_code))
     assert let_through == []
-    assert p.status() == {"status": "none", "owner": False, "sign_in": True, "note": None, "at": None}
+    assert p.status() == {"status": "none", "owner": False, "role": "viewer", "sign_in": True, "note": None, "at": None}
 
 
 def test_b38_1_the_403_says_why_in_plain_words(patch):
@@ -111,7 +111,7 @@ def test_b38_1_the_403_says_why_in_plain_words(patch):
 
 def test_b38_1_the_owner_is_always_approved(patch):
     assert patch.c.get("/watchlist", headers=patch.as_(OWNER)).status_code == 200
-    assert patch.status(OWNER) == {"status": "approved", "owner": True, "sign_in": True, "note": None, "at": None}
+    assert patch.status(OWNER) == {"status": "approved", "owner": True, "role": "owner", "sign_in": True, "note": None, "at": None}
     assert patch.request(OWNER).json()["status"] == "approved"  # nothing to ask
     assert patch.alerts() == []
 
@@ -180,7 +180,7 @@ def test_b38_3_removing_forgets_the_request_and_its_note(patch, auth_settings):
     patch.owner_sets(ALICE, "approved")
     r = patch.c.post(f"/access/requests/{ALICE}/remove", headers=patch.as_(OWNER))
     assert r.status_code == 200
-    assert patch.status() == {"status": "none", "owner": False, "sign_in": True, "note": None, "at": None}
+    assert patch.status() == {"status": "none", "owner": False, "role": "viewer", "sign_in": True, "note": None, "at": None}
     assert "hello" not in (auth_settings.users_path / "access.users.json").read_text()
     assert patch.c.get("/watchlist", headers=patch.as_(ALICE)).status_code == 403
     assert ALICE not in patch.deps.users.ids()
@@ -227,7 +227,7 @@ def test_b38_5_the_owner_lists_requests_with_names_from_clerk(patch):
     assert set(rows) == {ALICE, "user_bob"}
     assert rows[ALICE] | {"at": None, "requested_at": None} == {
         "user_id": ALICE, "status": "waiting", "note": "I run Ollama", "by": None, "at": None, "requested_at": None,
-        "name": "Alice", "email": "alice@example.com", "migrated": False}
+        "name": "Alice", "email": "alice@example.com", "migrated": False, "role": "viewer"}
     assert rows["user_bob"]["status"] == "refused" and rows["user_bob"]["by"] == OWNER
     assert patch.looked_up == [[ALICE, "user_bob"]]  # one call to Clerk when the card opens
     assert r.json()["names"] is True
@@ -294,7 +294,7 @@ def test_b38_6_requests_live_in_the_bucket_when_deployed(auth_settings, knowledg
 # --- B38.7: sign-in off is unchanged ----------------------------------------------------------------------------------
 
 def test_b38_7_sign_in_off_has_no_requests(client):
-    assert client.get("/access").json() == {"status": "approved", "owner": True, "sign_in": False, "note": None,
+    assert client.get("/access").json() == {"status": "approved", "owner": True, "role": "owner", "sign_in": False, "note": None,
                                             "at": None}
     assert client.get("/watchlist").status_code == 200
     assert client.post("/access/request", json={}).json()["status"] == "approved"

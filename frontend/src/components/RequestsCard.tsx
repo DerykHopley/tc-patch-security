@@ -1,5 +1,8 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { requestActions, requestLine, type RequestAction, type RequestRow, type RequestsReply } from '../access.ts'
+import {
+  requestActions, requestLine, ROLE_CHOICES, roleDone, roleHint, type RequestAction, type RequestRow, type RequestsReply,
+  type StoredRole,
+} from '../access.ts'
 import { accessRequests, changeAccess, removeAccess } from '../api.ts'
 import { AccessContext } from '../auth/AccessGate.tsx'
 import { Card } from './StatusCard.tsx'
@@ -8,6 +11,7 @@ import { Card } from './StatusCard.tsx'
 // use Patch, newest first: waiting, approved and refused, with Approve, Refuse, Undo refusal and Remove. Names and
 // emails come from Clerk when the card opens (Patch keeps neither); the note, a stranger's words, shows as plain
 // text and only here. An alert about a new request opens /settings#requests: the card scrolls into view.
+// B45 (#90): a role per person (Viewer, Trusted, Reviewer), picked before Approve or changed later with Save role.
 
 /** Scroll to `el`, and again while the cards above it finish loading (they grow and push it down), until the person
  * scrolls or types themselves, or 3 s pass. Returns the clean-up. */
@@ -40,6 +44,7 @@ export function RequestsCard() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  const [picks, setPicks] = useState<Record<string, StoredRole>>({})
   const scrolled = useRef(false)
 
   const load = useCallback(() => accessRequests().then((r) => {
@@ -56,23 +61,42 @@ export function RequestsCard() {
 
   if (!show) return null
 
-  async function act(r: RequestRow, a: RequestAction) {
-    const who = r.name ?? r.user_id
+  /** B45: the role picked in a person's select (their saved one until changed). */
+  const pick = (r: RequestRow): StoredRole => picks[r.user_id] ?? r.role
+
+  async function run(r: RequestRow, call: () => Promise<unknown>, message: string) {
     setBusy(r.user_id)
     setError(null)
     setDone(null)
     try {
-      if (a.to === 'remove') await removeAccess(r.user_id)
-      else await changeAccess(r.user_id, a.to)
-      setDone(a.to === 'remove' ? `${who} removed: they can ask again.`
-        : a.to === 'approved' ? `${who} approved: Patch opens for them on their next visit.`
-          : a.to === 'refused' ? `${who} refused.` : `${who} is waiting again.`)
+      await call()
+      setDone(message)
       await load()
+      setPicks((p) => {
+        const next = { ...p }
+        delete next[r.user_id] // the select shows the saved role again
+        return next
+      })
     } catch (e) {
       setError((e as Error).message)
     } finally {
       setBusy(null)
     }
+  }
+
+  function act(r: RequestRow, a: RequestAction) {
+    const who = r.name ?? r.user_id
+    // Approving a waiting person gives them the role picked next to the button (B45); Viewer unless changed
+    const role = a.to === 'approved' && r.status === 'waiting' ? pick(r) : undefined
+    return run(r, () => (a.to === 'remove' ? removeAccess(r.user_id) : changeAccess(r.user_id, { status: a.to, role })),
+      a.to === 'remove' ? `${who} removed: they can ask again.`
+        : a.to === 'approved' ? `${who} approved: Patch opens for them on their next visit.`
+          : a.to === 'refused' ? `${who} refused.` : `${who} is waiting again.`)
+  }
+
+  function saveRole(r: RequestRow) {
+    const role = pick(r)
+    return run(r, () => changeAccess(r.user_id, { role }), roleDone(r.name ?? r.user_id, role))
   }
 
   const people = reply?.requests ?? []
@@ -102,7 +126,24 @@ export function RequestsCard() {
               {r.note && (
                 <blockquote className="request-note" aria-label={`Note from ${r.name ?? r.user_id}`}>{r.note}</blockquote>
               )}
+              {r.status !== 'refused' && (
+                <div className="request-role">
+                  <label htmlFor={`role-${r.user_id}`}>Role</label>
+                  <select id={`role-${r.user_id}`} value={pick(r)} disabled={busy !== null}
+                    aria-label={`Role for ${r.name ?? r.user_id}`} aria-describedby={`role-${r.user_id}-hint`}
+                    onChange={(e) => setPicks((p) => ({ ...p, [r.user_id]: e.target.value as StoredRole }))}>
+                    {ROLE_CHOICES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                  <span id={`role-${r.user_id}-hint`} className="request-role-hint">{roleHint(pick(r))}</span>
+                </div>
+              )}
               <div className="request-actions">
+                {r.status === 'approved' && pick(r) !== r.role && (
+                  <button type="button" className="primary" disabled={busy !== null} onClick={() => void saveRole(r)}
+                    aria-label={`Save role: ${r.name ?? r.user_id}`}>
+                    {busy === r.user_id ? '…' : 'Save role'}
+                  </button>
+                )}
                 {requestActions(r.status).map((a) => (
                   <button key={a.to} type="button" className={a.primary ? 'primary' : undefined}
                     disabled={busy !== null} onClick={() => void act(r, a)}

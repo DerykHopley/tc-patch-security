@@ -19,14 +19,14 @@ from test_shell import no_sideways_scroll, settled
 PHONE, DESKTOP = 390, 1440
 SIZES = [(PHONE, "light"), (PHONE, "dark"), (DESKTOP, "light"), (DESKTOP, "dark")]
 
-OWNER = {"status": "approved", "owner": True, "sign_in": True, "note": None, "at": None}
-NEW = {"status": "none", "owner": False, "sign_in": True, "note": None, "at": None}
+OWNER = {"status": "approved", "owner": True, "role": "owner", "sign_in": True, "note": None, "at": None}
+NEW = {"status": "none", "owner": False, "role": "viewer", "sign_in": True, "note": None, "at": None}
 
 
 def person(user_id: str, status: str, name: str | None, **over) -> dict:
     return {"user_id": user_id, "status": status, "note": None, "by": None, "at": "2026-10-19T08:00:00+00:00",
             "requested_at": "2026-10-19T08:00:00+00:00", "migrated": False, "name": name,
-            "email": f"{user_id.removeprefix('user_')}@example.com" if name else None, **over}
+            "email": f"{user_id.removeprefix('user_')}@example.com" if name else None, "role": "viewer", **over}
 
 
 class FakeAccess:
@@ -57,8 +57,10 @@ class FakeAccess:
             self.people = [p for p in self.people if p["user_id"] != uid]
         else:
             for p in self.people:
-                if p["user_id"] == uid:
+                if p["user_id"] == uid and "status" in body:
                     p.update(status=body["status"], by="user_owner", at="2026-10-19T09:30:00+00:00")
+                if p["user_id"] == uid and "role" in body:  # B45
+                    p.update(role=body["role"])
         return self.json(route, {})
 
     @staticmethod
@@ -233,7 +235,7 @@ def test_b38_43_approve_by_keyboard_then_undo_a_refusal(open_as):
     page.keyboard.press("Enter")
     expect(card.get_by_role("status")).to_contain_text("Alice Example approved")
     expect(card.locator(".request-row").nth(0).locator(".request-status")).to_have_text("Approved")
-    assert ("PUT", "/requests/user_alice", {"status": "approved"}) in fake.sent
+    assert ("PUT", "/requests/user_alice", {"status": "approved", "role": "viewer"}) in fake.sent  # B45: the default
     card.get_by_role("button", name="Undo refusal: user_carol").click()
     expect(card.locator(".request-row").nth(2).locator(".request-status")).to_have_text("Waiting")
     card.get_by_role("button", name="Remove: Bob").click()
