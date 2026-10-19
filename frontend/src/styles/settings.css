@@ -500,3 +500,120 @@
   background: var(--warn-soft);
   font-weight: 600;
 }
+
+/* ---------- B38: the Requests card (the owner's) and Connected accounts. One nested card per person or method,
+   as the delivery channels (§5.7); the status as a word in a pill with an edge colour, never colour alone ---------- */
+
+/* A link to a card (/settings#requests) leaves a little room above it */
+.settings-card[id] {
+  scroll-margin-top: 1rem;
+}
+
+.request-list,
+.linked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+
+.request-row,
+.linked-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-nested);
+  background: var(--nested-fill);
+  font-size: 0.9rem;
+  min-width: 0;
+}
+
+.request-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.request-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.6rem;
+  min-width: 0;
+}
+
+.request-name,
+.linked-name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.request-email,
+.linked-detail {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.linked-detail {
+  flex: 1 1 8rem;
+}
+
+.request-status {
+  margin-left: auto;
+  padding: 0 0.5rem;
+  border-left: 3px solid var(--warn);
+  border-radius: 4px; /* a bar for the edge: a pill's round end bent it into a crescent */
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.request-status.approved {
+  border-left-color: var(--ok);
+}
+
+.request-status.refused {
+  border-left-color: var(--error);
+}
+
+.card .request-line {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+/* The note: a stranger's words, shown as plain text, kept apart from Patch's own words */
+.request-note {
+  margin: 0.1rem 0;
+  padding: 0.4rem 0.7rem;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.request-actions,
+.linked-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.linked-error,
+.linked-last {
+  flex-basis: 100%;
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--warn);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.linked-error {
+  border-left-color: var(--error);
+}

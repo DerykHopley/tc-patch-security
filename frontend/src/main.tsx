@@ -2,6 +2,7 @@ import { lazy, StrictMode, Suspense, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { health, type AuthConfig } from './api.ts'
 import App from './App.tsx'
+import { AccessGate } from './auth/AccessGate.tsx'
 import { SignInLoading, SignInScreen } from './auth/SignInScreen.tsx'
 import { LoadingScreen } from './components/LoadingScreen.tsx'
 import { waitForHealth, type HealthWait } from './healthWait.ts'
@@ -33,7 +34,13 @@ function Root() {
     return w.stop // StrictMode's second run, or unmount: the first wait asks and reports nothing more
   }, [])
   if (auth === null) return <LoadingScreen wait={wait} onRetry={() => retry.current()} />
-  if (!auth.on || !auth.publishable_key) return <App />
+  if (!auth.on || !auth.publishable_key) {
+    return (
+      <AccessGate signIn={false}>
+        <App />
+      </AccessGate>
+    )
+  }
   return (
     <Suspense
       fallback={

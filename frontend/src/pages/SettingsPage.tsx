@@ -13,7 +13,9 @@ import {
   type TestAlertReply,
 } from '../api.ts'
 import { AlertList } from '../components/AlertsLog.tsx'
+import { ConnectedAccountsCard } from '../auth/ConnectedAccounts.tsx'
 import { RefreshRuns } from '../components/RefreshRuns.tsx'
+import { RequestsCard } from '../components/RequestsCard.tsx'
 import { ownersSchedule as ownersScheduleLine } from '../refreshRuns.ts'
 import { followLink, openPath } from '../route.ts'
 import { SaveBar } from '../components/SaveBar.tsx'
@@ -383,6 +385,8 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
             )}
             <NotSaved error={s.error} show={s.changed('alerts', { only: ['channels'] })} />
           </Card>
+
+          <RequestsCard />
         </div>
 
         <div className="settings-column">
@@ -495,6 +499,8 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
               )}
             </div>
           </Card>
+
+          <ConnectedAccountsCard />
         </div>
       </div>
 

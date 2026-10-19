@@ -47,13 +47,24 @@ def auth_settings(settings):
                                clerk_jwt_key=PUBLIC, auth_allowed_origins=[ORIGIN])
 
 
+TEST_USERS = ("user_alice", "user_bob", "user_carol")
+
+
+def approved(deps, *users: str):
+    """B38: these users asked and the owner approved them, so they may use Patch (sign-in on)."""
+    for user in users or TEST_USERS:
+        deps.users.access.request(user, None)
+        deps.users.access.set(user, "approved", by=deps.settings.owner)
+    return deps
+
+
 @pytest.fixture
 def signed(auth_settings, knowledge, index):
-    """An app with sign-in on."""
+    """An app with sign-in on; the test users are approved (B38)."""
     from app.deps import build_deps
     from app.main import create_app
 
-    return TestClient(create_app(build_deps(auth_settings, knowledge=knowledge, index=index)),
+    return TestClient(create_app(approved(build_deps(auth_settings, knowledge=knowledge, index=index))),
                       raise_server_exceptions=False)
 
 
@@ -142,8 +153,8 @@ def test_b10_6_on_one_port_the_api_needs_a_user_and_the_pages_do_not(auth_settin
     dist = tmp_path / "dist"
     dist.mkdir()
     (dist / "index.html").write_text("<!doctype html><div id=root></div>")
-    app = create_app(build_deps(dataclasses.replace(auth_settings, frontend_dir=dist), knowledge=knowledge,
-                                index=index))
+    app = create_app(approved(build_deps(dataclasses.replace(auth_settings, frontend_dir=dist), knowledge=knowledge,
+                                         index=index)))
     c = TestClient(app, raise_server_exceptions=False)
     assert c.get("/api/watchlist").status_code == 401
     assert c.get("/api/watchlist", headers=bearer(token())).status_code == 200
@@ -159,7 +170,8 @@ def test_b10_10_signed_out_nothing_reaches_web_research(auth_settings, knowledge
     from app.deps import build_deps
     from app.main import create_app
 
-    deps = build_deps(dataclasses.replace(auth_settings, tavily_api_key="tvly-test"), knowledge=knowledge, index=index)
+    deps = approved(build_deps(dataclasses.replace(auth_settings, tavily_api_key="tvly-test"), knowledge=knowledge,
+                               index=index))
     searched = []
     deps.web.search = lambda q: searched.append(q) or ([], "api")
     c = TestClient(create_app(deps), raise_server_exceptions=False)

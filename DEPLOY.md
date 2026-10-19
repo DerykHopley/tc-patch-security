@@ -1,6 +1,6 @@
 # Deploy Patch to Google Cloud Run
 
-How to put Patch on a public URL, invite-only, at no cost at this use. Written for the owner's first deploy (B14, [#45](https://github.com/DerykHopley/tc-patch-security/issues/45)) and any redeploy after it. Built in B13 ([#44](https://github.com/DerykHopley/tc-patch-security/issues/44)); why it's built this way: [DECISIONS.md](./DECISIONS.md) (2026-10-14 "Where it runs", the B13 rows).
+How to put Patch on a public URL, open only to the people the owner approves (B38), at no cost at this use. Written for the owner's first deploy (B14, [#45](https://github.com/DerykHopley/tc-patch-security/issues/45)) and any redeploy after it. Built in B13 ([#44](https://github.com/DerykHopley/tc-patch-security/issues/44)); why it's built this way: [DECISIONS.md](./DECISIONS.md) (2026-10-14 "Where it runs", the B13 rows).
 
 > **Unverified:** no Google Cloud account existed while this was written, so **not one `gcloud` command below has been run.** The app's side is tested (against a fake bucket, `backend/tests/test_deploy.py`, and the container smoke test). Commands are from Google's documented CLI as of 2026. Where a step fails, fix it here as part of #45.
 
@@ -28,7 +28,7 @@ Expected: **$0 a month**, or a few cents for image storage. Set the budget alert
 | Artifact Registry | 0.5 GB storage (from memory) | one image: 1.7 GB uncompressed (`frontend/e2e/container.sh` prints it, 2026-10-16), less compressed in the registry. At about $0.10 per GB-month over the free amount, at most about 12 cents a month. Delete old tags (step 9) | *unverified* |
 | OpenRouter | none (pay per use) | capped by the key's spending cap | *checked* (SOURCE-CHECKS) |
 | Tavily | 1,000 credits | at most 30 searches a day (B08's cap) | *checked* |
-| Clerk | development instance: 100 users | a few invited users | *checked* |
+| Clerk | development instance: 100 users | a few approved users (open sign-up counts every account made, approved or not) | *checked* |
 
 ## Before you start
 
@@ -166,6 +166,7 @@ gcloud run services describe $SERVICE --region=$REGION --format='value(status.ur
      -H "Content-Type: application/json" -d "{\"allowed_origins\": [\"https://$SERVICE-$PROJECT_NUMBER.$REGION.run.app\"]}"
    unset CLERK_SECRET_KEY
    ```
+4. **Optional (B38): names on the Requests card.** Sign-up is open and you approve each new account on Settings (README "Sign-in"). The card shows names and emails only when the app has the Clerk secret key; without it, user ids. To give it the key, add it as a secret (`printf %s "$KEY" | gcloud secrets create clerk-secret-key --data-file=-`, with the service account allowed to read it as in step 4) and add `CLERK_SECRET_KEY=clerk-secret-key:latest` to `--set-secrets` in step 6. *Unverified:* not run on Google Cloud.
 
 ## 8. The hourly schedule
 

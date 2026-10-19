@@ -161,3 +161,83 @@
     transform: translateY(8px) scale(0.98);
   }
 }
+
+/* ---------- The access screens (B38, §5.13): ask with a note, waiting, refused. The sign-in card's frame ---------- */
+
+.signin-card h1:focus {
+  outline: none; /* focused by the page when the step changes, never by Tab */
+}
+
+.access-step {
+  text-align: left;
+}
+
+.access-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.access-form label {
+  font-weight: 700;
+}
+
+.access-optional {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.access-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 5rem;
+}
+
+.access-count {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Over the limit: --text on the soft error fill with its edge (§5.7), never red text alone */
+.access-count.over {
+  padding: 0.2rem 0.6rem;
+  border-left: 3px solid var(--error);
+  border-radius: var(--radius-input);
+  background: var(--error-soft);
+  color: var(--text);
+}
+
+.access-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+
+/* Their own note, read back: a nested card (§3.5) */
+.access-mine {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-nested);
+  background: var(--nested-fill);
+}
+
+.access-mine-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.access-mine p {
+  margin: 0.2rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.access-step > .signin-note {
+  margin-top: 0.8rem;
+  text-align: center;
+}

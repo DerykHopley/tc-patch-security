@@ -4,35 +4,30 @@ import {
   ClerkLoading,
   ClerkProvider,
   SignIn,
-  SignUp,
   useAuth,
   useClerk,
+  useReverification,
   useUser,
 } from '@clerk/react'
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { setSessionToken } from '../api.ts'
 import App from '../App.tsx'
-import { SignInFailed, SignInLoading, SignInScreen, useSignInView } from './SignInScreen.tsx'
-import { CLERK_URLS, NOT_INVITED } from './signInView.ts'
+import { AccessGate } from './AccessGate.tsx'
+import { LinkedAccountsContext } from './ConnectedAccounts.tsx'
+import type { ClerkAccount, ClerkUserLike } from './linkedAccounts.ts'
+import { SignInFailed, SignInLoading, SignInScreen } from './SignInScreen.tsx'
+import { CLERK_URLS } from './signInView.ts'
 
 // Sign-in on (B10): Clerk's React package around the app. Loaded only when /health says sign-in is on (main.tsx),
-// so with sign-in off nothing of Clerk's is fetched. Signed out: the sign-in screen. Signed in: the app, every API
-// call with a fresh session token, and the user menu.
+// so with sign-in off nothing of Clerk's is fetched. Signed out: the sign-in screen. Signed in: the access gate
+// (B38: the app only once the owner approved this account), every API call with a fresh session token, the user
+// menu, and Clerk's user for the Connected accounts card.
 // B31 (#78): every URL Clerk gets is on this page, so no step (an SSO sign-up included) falls back to Clerk's hosted
-// Account Portal. Email and password or an SSO provider, invite-only: docs/SOURCE-CHECKS.md (Clerk, B31).
-
-// Clerk's own words where it refuses a sign-up, in case one shows inside its form: the same sentence as Patch's
-// screen. Clerk looks up `unstable__errors.<error code>` for any code (checked in @clerk/ui's code);
-// `sign_up_mode_restricted` isn't in its types, hence the plain record.
-const REFUSED: Record<string, string> = { sign_up_mode_restricted: NOT_INVITED, not_allowed_access: NOT_INVITED }
-const LOCALIZATION = {
-  signUp: { restrictedAccess: { title: 'Not invited', subtitle: NOT_INVITED } },
-  unstable__errors: { ...REFUSED },
-}
+// Account Portal. B38 (#81): sign-up is open (Clerk's Public mode); its steps run inside <SignIn withSignUp>.
 
 export default function ClerkApp({ publishableKey }: { publishableKey: string }) {
   return (
-    <ClerkProvider publishableKey={publishableKey} {...CLERK_URLS} localization={LOCALIZATION}>
+    <ClerkProvider publishableKey={publishableKey} {...CLERK_URLS}>
       <Gate />
     </ClerkProvider>
   )
@@ -40,7 +35,6 @@ export default function ClerkApp({ publishableKey }: { publishableKey: string })
 
 function Gate() {
   const { isSignedIn } = useAuth()
-  const view = useSignInView()
   const appearance = useTokenAppearance()
   if (isSignedIn) return <SignedInApp />
   return (
@@ -52,13 +46,9 @@ function Gate() {
         <SignInFailed />
       </ClerkFailed>
       <ClerkLoaded>
-        {/* Hash routing: the app's own paths stay the app's. An invitation link: Clerk's sign-up form reads its
-            ticket. Otherwise sign-in, with the sign-up steps an SSO sign-in can need (withSignUp) kept inside it. */}
-        {view === 'invitation' ? (
-          <SignUp routing="hash" signInUrl={CLERK_URLS.signInUrl} appearance={appearance} />
-        ) : (
-          <SignIn routing="hash" withSignUp appearance={appearance} />
-        )}
+        {/* Hash routing: the app's own paths stay the app's. Sign-in, with the sign-up steps (open sign-up, B38, and
+            those an SSO sign-in can need) kept inside it under #/create. */}
+        <SignIn routing="hash" withSignUp appearance={appearance} />
       </ClerkLoaded>
     </SignInScreen>
   )
@@ -73,14 +63,37 @@ function SignedInApp() {
     setSessionToken(() => getToken())
     return () => setSessionToken(null)
   }, [getToken])
-  useLayoutEffect(dropInvitationTicket, [])
+  useLayoutEffect(dropClerkParams, [])
+  // Clerk asks the user to confirm who they are again before a sensitive change, when the instance requires it
+  // (its "reverification", in a dialog on this page): linking and unlinking go through it, as in Clerk's own profile.
+  const createExternalAccount = useReverification(
+    (params: Parameters<ClerkUserLike['createExternalAccount']>[0]) =>
+      user!.createExternalAccount(params as Parameters<NonNullable<typeof user>['createExternalAccount']>[0]),
+  )
+  const destroy = useReverification((account: { destroy: () => Promise<void> }) => account.destroy())
+  const linked = useMemo<ClerkUserLike | null>(() => user ? {
+    passwordEnabled: user.passwordEnabled,
+    externalAccounts: user.externalAccounts.map((a): ClerkAccount => ({
+      id: a.id, provider: a.provider, emailAddress: a.emailAddress, username: a.username,
+      verification: a.verification ? { status: a.verification.status, error: a.verification.error } : null,
+      destroy: () => destroy(a).then(() => undefined),
+    })),
+    createExternalAccount: (params) => createExternalAccount(params),
+  } : null, [user, createExternalAccount, destroy])
   const email = user?.primaryEmailAddress?.emailAddress ?? null
   const account = { name: user?.fullName?.trim() || email || user?.id || 'Signed in', email, onSignOut: () => signOut() }
-  return <App account={account} />
+  return (
+    <LinkedAccountsContext.Provider value={linked}>
+      <AccessGate signIn onSignOut={() => signOut()}>
+        <App account={account} />
+      </AccessGate>
+    </LinkedAccountsContext.Provider>
+  )
 }
 
-/** Signed in from an invitation link: the used ticket leaves the address bar (and so bookmarks and history). */
-function dropInvitationTicket() {
+/** Back from Clerk (an old invitation link, an SSO or linking round trip): its query parameters leave the address bar
+ * (and so bookmarks and history). */
+function dropClerkParams() {
   const url = new URL(window.location.href)
   if (!url.searchParams.has('__clerk_ticket') && !url.searchParams.has('__clerk_status')) return
   url.searchParams.delete('__clerk_ticket')

@@ -127,23 +127,23 @@ Since B26 ([#70](https://github.com/DerykHopley/tc-patch-security/issues/70)), w
 
 ### Sign-in (Clerk)
 
-Off locally and in the tests (`AUTH=off`): one default user, no sign-in. On (`AUTH=on`, the Clerk keys in `backend/.env`: [#65](https://github.com/DerykHopley/tc-patch-security/issues/65)), Patch is **invite-only**, with email and password or an SSO provider such as Google or Discord (B31, [#78](https://github.com/DerykHopley/tc-patch-security/issues/78)). Every sign-in and sign-up step stays on Patch's page, never Clerk's hosted pages. Why, and what's checked: [DECISIONS.md](./DECISIONS.md) (B31), [docs/SOURCE-CHECKS.md](./docs/SOURCE-CHECKS.md) (Clerk, B31).
+Off locally and in the tests (`AUTH=off`): one default user, no sign-in, no requests. On (`AUTH=on`, the Clerk keys in `backend/.env`: [#65](https://github.com/DerykHopley/tc-patch-security/issues/65)), anyone can make an account (email and password, or an SSO provider such as Google or Discord), and **the owner approves each new account in Patch** before it can use the app (B38, [#81](https://github.com/DerykHopley/tc-patch-security/issues/81)). Every sign-in and sign-up step stays on Patch's page, never Clerk's hosted pages. Why, and what's checked: [DECISIONS.md](./DECISIONS.md) (B31, B38), [docs/SOURCE-CHECKS.md](./docs/SOURCE-CHECKS.md) (Clerk, B31 and B38).
 
-- **Your state comes along.** On the first start with sign-in on, the owner (`OWNER`) gets a copy of what you set up with sign-in off (live mode, Settings, the watchlist, alerts), if the owner has nothing saved yet. The log says "the owner (…) adopted the default user's state, once". It never runs again and never overwrites; the default user's state stays as it was.
-- **Someone not invited** sees "This account isn't invited to Patch. Ask the owner for an invitation." on Patch's sign-in screen.
+- **A new account asks.** After signing up, a person sees only "Ask to join Patch", with an optional note for you (at most 280 characters). Then "Your request is waiting for the owner". The API refuses them everything else (403) until you approve.
+- **You get one alert per request** on the channels you ticked on Settings (e.g. ntfy): "New access request", "From <name>", and "(with a note)" if there is one. The note's text never goes in the alert: a stranger's words stay off your lock screen. Tapping it opens Settings at the Requests card (when the app address is reachable from your phone).
+- **The Requests card on Settings** (only you see it): everyone who asked, with Approve, Refuse, Undo refusal and Remove. A refusal is final until you undo it: that person can't ask again, so you get at most one alert per account. Remove forgets the request and its note; they can ask again. Approved people get the app the next time they load Patch; Patch sends them no email.
+- **What Patch stores:** each person's Clerk user id, their status, when and by whom it changed, and the note. No names or emails: the card asks Clerk for those when it opens, with the Clerk secret key (`CLERK_SECRET_KEY` in `backend/.env`, optional; without it the card shows user ids). The key stays on the server.
+- **People already using Patch** (signed in before, or with saved settings) were approved once, on the first start with this version: they were invited under the old invite-only setup.
+- **Connected accounts on Settings** (everyone signed in): link Google or Discord to the account you're in, so signing in with them lands in the same account even when their email differs. You can unlink one, never the last way to sign in.
+- **Your state comes along.** On the first start with sign-in on, the owner (`OWNER`) gets a copy of what you set up with sign-in off (live mode, Settings, the watchlist, alerts), if the owner has nothing saved yet. It never runs again and never overwrites; the default user's state stays as it was.
 
-**The owner's Clerk dashboard steps** (https://dashboard.clerk.com, the Patch application):
+**The owner's Clerk dashboard steps** (https://dashboard.clerk.com, the Patch application; menu names *unverified* where marked):
 
-1. **SSO connections** (under User & authentication; menu names *unverified*): add the providers you want (the free plan allows 3), e.g. Google and Discord. On a development instance Clerk offers its own shared credentials for them (*unverified* for each provider).
-2. **Restrictions → Sign-up mode: Restricted.** Leave the allowlist off: it only works in Open mode and is paid in production.
-3. **Invite with Patch's address as the redirect**, so the invitation opens Patch, not Clerk's page. The dashboard can't set a redirect, so use the Backend API once per person, with the secret key from **API keys** in your shell (never in `.env` or the repo):
-   ```bash
-   curl https://api.clerk.com/v1/invitations -X POST \
-     -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
-     -d '{"email_address": "friend@example.com", "redirect_url": "http://localhost:5173/"}'
-   ```
-   Use the address people open Patch at (your Cloud Run URL once deployed). The link opens "Join Patch", where they choose a password or an SSO provider.
-4. **Your own account and SSO:** signing in with Google or Discord links to your existing Clerk account only when that provider's *verified* email is the one on your account. If it differs, sign in with your password and add the other email under your profile first.
+1. **SSO connections** (under User & authentication; *unverified*): add the providers you want (the free plan allows 3), e.g. Google and Discord. On a development instance Clerk offers its own shared credentials for them (*unverified* for each provider).
+2. **Restrictions → Sign-up mode: Public** (it was Restricted for invitations). Leave the allowlist off.
+3. **Protect → Protections → "Challenge suspicious sign-ups": Enabled.** Clerk's bot protection, on every plan, the free one too; on by default for new applications. Patch's sign-up form shows its challenge when Clerk asks for one. If the row says "Setup required", follow it.
+4. **Optional: the secret key** (API keys) as `CLERK_SECRET_KEY` in `backend/.env`, for names and emails on the Requests card.
+5. **Your own SSO login:** sign in as you, then Settings → Connected accounts → Link Discord (or Google). Afterwards signing in with Discord lands in your own account, as `OWNER`. If Discord was already used to make a separate Clerk account, delete that account in the dashboard's Users page first (*unverified* what Clerk says otherwise).
 
 ### Optional: local models through Ollama
 
