@@ -319,9 +319,23 @@ if [[ -z "$ACCOUNTS" ]]; then
   pause "Press Enter once the billing account exists"
   ACCOUNTS=$(gcloud billing accounts list --format='value(name,displayName)' --filter=open=true 2>/dev/null || true)
 fi
-say "Your billing accounts:"
-printf '%s\n' "$ACCOUNTS" | sed 's/^/    /'
-ask BILLING_ACCOUNT "Billing account id (the first column, like 0X0X0X-0X0X0X-0X0X0X):"
+if [[ -n "$ACCOUNTS" ]]; then
+  say "Your open billing accounts (the ID first, then its name):"
+  printf '%s\n' "$ACCOUNTS" | sed 's#^billingAccounts/##; s/^/    /'
+else
+  warn "No open billing account found yet. Its ID is also on https://console.cloud.google.com/billing"
+fi
+note "The ID looks like 01A2B3-C4D5E6-F7G8H9: three groups of six, not the account's name."
+if [[ "$(printf '%s\n' "$ACCOUNTS" | grep -c .)" == 1 && -z "$(_existing BILLING_ACCOUNT || true)" ]]; then
+  write_env BILLING_ACCOUNT "$(printf '%s' "$ACCOUNTS" | cut -f1 | sed 's#^billingAccounts/##')"
+  say "You have one billing account: press Enter to use it."
+fi
+while true; do
+  ask BILLING_ACCOUNT "Billing account ID:"
+  BILLING_ACCOUNT="${BILLING_ACCOUNT#billingAccounts/}"
+  [[ "$BILLING_ACCOUNT" =~ ^[A-Z0-9]{6}-[A-Z0-9]{6}-[A-Z0-9]{6}$ ]] && break
+  warn "That isn't a billing account ID (like 01A2B3-C4D5E6-F7G8H9). Try again."
+done
 write_env BILLING_ACCOUNT "$BILLING_ACCOUNT"
 LINKED=$(gcloud billing projects describe "$PROJECT_ID" --format='value(billingEnabled)' 2>/dev/null || true)
 if [[ "$LINKED" == "True" ]]; then say "Billing is already linked."
