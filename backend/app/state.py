@@ -320,6 +320,24 @@ class State:
         self._update(lambda data: data.update(dev=new.model_dump()))
         return new
 
+    # --- A reviewer's own copy of the Dev choices (B45): their own part ("dev_copy", not "dev"), so a "dev" part an
+    # older state holds never turns into a copy. Only Deps.dev reads it, and only for a reviewer
+
+    def dev_copy(self) -> DevSettings | None:
+        saved = self._load().get("dev_copy")
+        return None if saved is None else DevSettings.model_validate(self.dev_defaults.model_dump() | saved)
+
+    def save_dev_copy(self, new: DevSettings) -> DevSettings:
+        self._update(lambda data: data.update(dev_copy=new.model_dump()))
+        return new
+
+    def drop_dev_copy(self) -> None:
+        def change(data):
+            if "dev_copy" not in data:
+                return Keep(None)
+            del data["dev_copy"]
+        self._update(change)
+
     # --- The owner's server settings (B26): what Settings sets instead of .env, secrets included. Their own part, so
     # a reset of the demo data keeps them
 

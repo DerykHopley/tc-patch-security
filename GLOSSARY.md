@@ -225,6 +225,22 @@ _Avoid_: invitation (Patch sends none any more), waitlist (Clerk's own feature, 
 An account the owner let in: it may use Patch. The owner is always approved, and so is everyone while sign-in is off.
 _Avoid_: whitelisted, allowed, invited
 
+**Role**:
+What the owner lets an approved person do, set on the Requests card (when approving, or later). One of **Viewer**, **Trusted** or **Reviewer**; Viewer by default, and for everyone approved before roles. The owner is `OWNER` from the server's environment, never a stored role (B45).
+_Avoid_: permission level, group, admin
+
+**Viewer**:
+The default role: the dashboard, the CVEs, the chat and their own watchlist. No Dev page; the server refuses them its routes too.
+_Avoid_: read-only user, guest
+
+**Trusted**:
+A role that also sees the Dev page read-only (the owner's choices, the index, the map, the saved runs) and may use the search playground. Can't change the Dev settings: one change would alter everyone's chat.
+_Avoid_: power user, insider
+
+**Reviewer**:
+A role that may also change the Dev settings, but only their own copy: their chat and playground use it, everyone else keeps the owner's. The copy starts from the owner's; "Back to the owner's settings" drops it. Can't run the model check (it spends the owner's key).
+_Avoid_: tester, editor, admin
+
 **Connected account**:
 Another sign-in method (Google, Discord) linked to the account you're signed in with, on Settings, so it signs in as the same user even when its email differs.
 _Avoid_: social login, linked identity

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getDevSettings, saveDevSettings, type DevSettings, type DevSettingsReply } from '../api.ts'
+import {
+  backToOwnersDevSettings, getDevSettings, saveDevSettings, type DevSettings, type DevSettingsReply,
+} from '../api.ts'
 
 // The Dev page's choices: load, edit a draft, then save or discard (the same flow as useSettings, for /dev/settings).
 // The chat and the playground read the saved values on the backend, so a save applies on the next call.
@@ -35,7 +37,7 @@ export function useDevSettings(onSaved?: () => void) {
     setError(null)
     try {
       const r = await saveDevSettings(draft)
-      setReply({ ...reply, settings: r.settings })
+      setReply({ ...reply, ...r }) // B45: a reviewer's first save makes their own copy (own_copy)
       setDraft(r.settings)
       setSaved(true)
       onSaved?.()
@@ -56,5 +58,22 @@ export function useDevSettings(onSaved?: () => void) {
     setError(null)
   }
 
-  return { reply, draft, dirty, saving, saved, error, save, discard, set }
+  /** B45: a reviewer drops their own copy; the form shows the owner's settings again, saved. */
+  const backToOwners = useCallback(async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      const r = await backToOwnersDevSettings()
+      setReply(r)
+      setDraft(r.settings)
+      setSaved(true)
+      onSaved?.()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }, [onSaved])
+
+  return { reply, draft, dirty, saving, saved, error, save, discard, set, backToOwners }
 }

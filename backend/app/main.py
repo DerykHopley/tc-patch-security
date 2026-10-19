@@ -23,7 +23,7 @@ from app.config import Settings
 from app.cve_filters import CveView, InvalidFilter
 from app.deps import Deps, build_deps
 from app.dev import dev_router
-from app.errors import InputError, LLMError, NotApproved, NotOwner, RateLimited
+from app.errors import InputError, LLMError, NotAllowed, NotApproved, NotOwner, RateLimited
 from app.notify import NotifyError, channel_status, deliver, format_alert, send_on, tap_link
 from app.live_data import MixedFeeds
 from app.server_settings import ServerUpdate, effective as server_effective, status as server_status
@@ -82,9 +82,11 @@ class AccessRequest(BaseModel):
 
 
 class AccessChange(BaseModel):
-    """B38: the owner approves, refuses, or undoes a refusal (back to waiting or straight to approved)."""
+    """B38: the owner approves, refuses, or undoes a refusal (back to waiting or straight to approved). B45: and sets
+    the person's role, when approving or later. At least one of the two."""
     model_config = ConfigDict(extra="forbid")
-    status: Literal["waiting", "approved", "refused"]
+    status: Literal["waiting", "approved", "refused"] | None = None
+    role: Literal["viewer", "trusted", "reviewer"] | None = None
 
 
 class FakeFeedsRequest(BaseModel):
@@ -120,6 +122,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     # B13: the scheduled refresh route (Cloud Scheduler) is on `app` too, with its own secret header instead of a user.
     app.state.verify = Verifier(deps.settings) if deps.settings.auth else None
     app.state.owner = deps.settings.owner  # app.auth.owner_only
+    app.state.role = deps.users.access.role  # app.auth.allowed (B45): read on every check, so a change applies next
 
     def known(user: Annotated[str, Depends(current_user)]) -> str:
         """Every request on `api` has a user, and that user counts for the refresh from now on (story 61): their
@@ -163,8 +166,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     async def proposal_error(request: Request, exc: ProposalError):
         return _error(exc.status, exc.code, exc.message)
 
-    @app.exception_handler(NotOwner)
-    async def not_owner(request: Request, exc: NotOwner):
+    @app.exception_handler(NotAllowed)  # B45: a role's route group; NotOwner is one of them
+    async def not_allowed(request: Request, exc: NotAllowed):
         return _error(403, exc.code, exc.message)
 
     @app.exception_handler(NotApproved)
@@ -231,6 +234,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def own_access(user: str) -> dict:
         entry = deps.users.access.entry(user) if deps.settings.auth else None
         return {"status": deps.users.access.status(user), "owner": user == deps.settings.owner,
+                "role": deps.users.access.role(user),  # B45: read on each page load, so a change shows next load
                 "sign_in": deps.settings.auth, "note": entry["note"] if entry else None,
                 "at": entry["at"] if entry else None}
 
@@ -260,7 +264,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         """One alert per request, on the owner's ticked channels, sent at once (quiet hours hold CVE alerts only).
         A failed channel is logged, never retried: the request still waits on the Requests card."""
         msg = {"title": "New access request", "body": f"From {name[:60]}" + (" (with a note)" if with_note else ""),
-               "priority": 3, "tags": ["access_request"], "click": f"{deps.settings.app_url}/settings#requests"}
+               "priority": 4, "tags": ["access_request"], "click": f"{deps.settings.app_url}/settings#requests"}
         for channel in deps.owner_state.settings().alerts.channels:
             result = send_on(channel, msg, deps.settings, deps.transports)
             if result["error"]:
@@ -279,6 +283,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
                 log.exception("Looking up the requests' names in Clerk failed")
         rows = [{"user_id": uid, "status": e["status"], "note": e.get("note"), "by": e.get("by"), "at": e.get("at"),
                  "requested_at": e.get("requested_at"), "migrated": bool(e.get("migrated")),
+                 "role": e.get("role") or access.DEFAULT_ROLE,
                  "name": people.get(uid, {}).get("name"), "email": people.get(uid, {}).get("email")}
                 for uid, e in entries.items()]
         rows.sort(key=lambda r: r["requested_at"] or r["at"] or "", reverse=True)
@@ -289,8 +294,10 @@ def create_app(deps: Deps | None = None) -> FastAPI:
                        owner: Annotated[str, Depends(owner_only)]):
         if is_owner(request, uid):
             raise InputError("The owner is always approved.", "owner")
+        if body.status is None and body.role is None:
+            raise InputError("Say what to change: the status, the role, or both.", "nothing_to_change")
         try:
-            entry = deps.users.access.set(uid, body.status, by=owner)
+            entry = deps.users.access.set(uid, body.status, by=owner, role=body.role)
         except KeyError:
             return _error(404, "not_found", "There's no request from that user.")
         return {"user_id": uid, **entry}

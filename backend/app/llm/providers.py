@@ -3,6 +3,7 @@
 `make_llm` builds the model the env names. `LLMRouter` (A11) picks one on every call from the dev panel's saved
 choices, so switching models needs no restart. Local URLs are limited to this machine (the SSRF guard, app.llm.urls).
 """
+import copy
 from collections.abc import Callable
 
 from app.config import Settings
@@ -55,6 +56,13 @@ class LLMRouter:
         self.http_client = http_client
         self.fake = FakeLLM()
         self._clients: dict[tuple, ChatModelLLM] = {}
+
+    def reading(self, dev: Callable) -> "LLMRouter":
+        """The same router reading other choices (B45: a reviewer's own copy). The clients are shared, so a local
+        server's discoveries are kept for everyone."""
+        other = copy.copy(self)
+        other.dev = dev
+        return other
 
     @property
     def name(self) -> str:
