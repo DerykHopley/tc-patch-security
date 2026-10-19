@@ -8,6 +8,9 @@ kept, so its locks (the in-process writer lock, the proposals' approvals lock) a
 import logging
 import threading
 
+import datetime as dt
+
+from app.access import Access
 from app.config import DEFAULT_USER, USER_ID, Settings
 from app.state import State
 from app.store import USERS_PREFIX, Conflict, GcsStore, LocalStore, Store, open_bucket
@@ -35,6 +38,8 @@ class Users:
         if default is not None:
             self._states[DEFAULT_USER] = default
         self._lock = threading.Lock()
+        # B38: who may use Patch with sign-in on (approved sign-up requests), next to the users' state
+        self.access = Access(store, owner, lambda: dt.datetime.now(dt.UTC))
 
     @classmethod
     def local(cls, settings: Settings, knowledge, defaults, dev_defaults) -> "Users":
@@ -108,7 +113,15 @@ class Users:
     def ids(self) -> list[str]:
         """The users the refresh alerts: the owner (whose default state still alerts, as the one local user's did
         before B09), everyone with saved state, and everyone who signed in (KNOWN), with the default watchlist
-        until they save one. The owner first."""
+        until they save one. The owner first. With sign-in on (B38), only approved users: someone waiting, refused or
+        removed gets nothing computed for them."""
+        everyone = self.all_ids()
+        if not self.access.enabled:
+            return everyone
+        return [u for u in everyone if self.access.status(u) == "approved"]
+
+    def all_ids(self) -> list[str]:
+        """The owner, everyone with saved state and everyone who signed in, approved or not."""
         saved = [k.removesuffix(".json") for k in self.store.keys() if k.endswith(".json")]
         known = self.store.read(KNOWN)[0] or []
         return list(dict.fromkeys(u for u in [self.owner, *saved, *known] if USER_ID.fullmatch(u)))

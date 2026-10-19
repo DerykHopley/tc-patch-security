@@ -90,7 +90,7 @@ def test_b10_13_a_signed_out_visitor_sees_the_sign_in_screen_and_no_data(open_si
     brand = card.locator(".brand")  # B32.2: the same name as the app
     expect(brand.get_by_text("Patch", exact=True)).to_be_visible()
     expect(brand.get_by_text("LLM-security assistant", exact=True)).to_be_visible()
-    expect(card).to_contain_text("Patch is invite-only. Sign in with the email address your invitation went to.")
+    expect(card).to_contain_text("Sign in, or make an account and ask the owner for access.")  # B38: open sign-up
     expect(loading_note(page)).to_be_visible()
     # nothing of the app: no navigation, no dashboard, and no API call but /health
     expect(page.get_by_role("navigation")).to_have_count(0)
@@ -176,9 +176,17 @@ def test_b10_16_sign_in_use_the_app_and_sign_out(browser: Browser):
         page.get_by_role("button", name=re.compile("^Continue", re.I)).click()
         page.get_by_label(re.compile("^Password", re.I)).fill(PASSWORD)
         page.get_by_role("button", name=re.compile("^Continue", re.I)).click()
-        expect(page.get_by_role("heading", level=1, name="Dashboard")).to_be_visible(timeout=20000)
-        expect(page.locator(".tile").first).to_be_visible()
+        # B38: the test user sees the app only when it's the owner (E2E_CLERK_OWNER) or approved; otherwise the
+        # request screen, which signs out too
+        app = page.get_by_role("heading", level=1, name="Dashboard")
+        ask = page.get_by_role("heading", level=1, name=re.compile("Ask to join Patch|Your request"))
+        expect(app.or_(ask)).to_be_visible(timeout=20000)
         assert authorised and all(authorised)  # every API call carried the session token
+        if ask.is_visible():
+            page.get_by_role("button", name="Sign out").click()
+            expect(page.get_by_role("heading", level=1, name="Sign in to Patch")).to_be_visible(timeout=20000)
+            return
+        expect(page.locator(".tile").first).to_be_visible()
         menu = page.locator(".user-btn")
         menu.click()
         expect(page.locator(".user-card")).to_contain_text(USER)

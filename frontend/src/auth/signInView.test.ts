@@ -1,8 +1,8 @@
-// Sign-in setup (B31, #78): Clerk's URLs stay inside Patch, and which view the sign-in screen shows for the page's
-// address. `npm test`.
+// Sign-in setup (B31, #78; open sign-up B38, #81): Clerk's URLs stay inside Patch, and which view the sign-in screen
+// shows for the page's address. `npm test`.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { CLERK_URLS, NOT_INVITED, signInView } from './signInView.ts'
+import { CLERK_URLS, signInView } from './signInView.ts'
 
 const at = (search: string, hash: string) => ({ search, hash })
 
@@ -19,24 +19,16 @@ test('B31.7: the sign-in form by default and on its own steps', () => {
     ['', ''],
     ['', '#/'],
     ['', '#/factor-one'],
-    ['', '#/create/sso-callback?redirect_url=x'], // an SSO round trip finishing: Clerk's own step
-    ['', '#/create/verify-email-address'],
-    ['?__clerk_ticket=t&__clerk_status=sign_in', ''], // an invitation for an existing account: sign in
+    ['', '#/sso-callback'],
+    ['?__clerk_ticket=t', ''], // an old invitation link: no invitations any more (B38), so plain sign-in
   ]) {
     assert.equal(signInView(at(search, hash)), 'sign-in', `${search}${hash}`)
   }
 })
 
-test('B31.7: an invitation link (a ticket in the address) opens the sign-up form', () => {
-  assert.equal(signInView(at('?__clerk_ticket=t', '')), 'invitation')
-  assert.equal(signInView(at('?__clerk_ticket=t&__clerk_status=sign_up', '')), 'invitation')
-  assert.equal(signInView(at('?__clerk_ticket=t', '#/sso-callback')), 'invitation') // its SSO round trip
-})
-
-test('B31.8: a sign-up without an invitation is the not-invited message', () => {
-  assert.equal(signInView(at('', '#/create')), 'not-invited')
-  assert.equal(signInView(at('', '#/create/')), 'not-invited')
-  assert.equal(signInView(at('', '#/create?redirect_url=x')), 'not-invited')
-  assert.equal(signInView(at('', '#/create?__clerk_ticket=t')), 'sign-in') // Clerk carrying a ticket: its step
-  assert.equal(NOT_INVITED, "This account isn't invited to Patch. Ask the owner for an invitation.")
+test("B38.24: Clerk's sign-up steps (open sign-up) are the request-access view, never a refusal", () => {
+  for (const hash of ['#/create', '#/create/', '#/create?redirect_url=x', '#/create/sso-callback',
+    '#/create/verify-email-address', '#/create/continue']) {
+    assert.equal(signInView(at('', hash)), 'sign-up', hash)
+  }
 })

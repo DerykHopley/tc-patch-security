@@ -146,11 +146,14 @@ class Settings:
     owner: str = DEFAULT_USER
     # Sign-in (B10). Off locally and in the tests: every request is the default user. On, every route but /health
     # needs a Clerk session token, verified with the instance's JWT public key (no network call), whose `azp` (the
-    # page's origin) is one of AUTH_ALLOWED_ORIGINS. None of these is a secret: the secret key isn't needed here.
+    # page's origin) is one of AUTH_ALLOWED_ORIGINS. None of these is a secret.
     auth: bool = False
     clerk_publishable_key: str = ""  # pk_test_...: the frontend reads it from /health, so one image fits any instance
     clerk_jwt_key: str = ""  # the PEM public key from the Clerk dashboard's API keys page
     auth_allowed_origins: list[str] = field(default_factory=list)  # e.g. https://patch-xyz.a.run.app
+    # B38: the Clerk secret key (sk_...), a secret: .env or Secret Manager only, never sent to a page. Optional: the
+    # owner's Requests card uses it to look up names and emails in Clerk's Backend API; without it, user ids only.
+    clerk_secret_key: str = ""
     # B11: chat messages per user, per minute and per UTC day (counted in memory: one instance). OpenRouter's spending
     # cap on the key stays the backstop.
     chat_per_minute: int = 10
@@ -220,6 +223,7 @@ class Settings:
             clerk_publishable_key=_env("CLERK_PUBLISHABLE_KEY"),
             clerk_jwt_key=_env("CLERK_JWT_KEY").replace("\\n", "\n"),  # one line in .env: \n for the line breaks
             auth_allowed_origins=[o.rstrip("/") for o in _list(_env("AUTH_ALLOWED_ORIGINS"))],
+            clerk_secret_key=_env("CLERK_SECRET_KEY"),
             chat_per_minute=_int("CHAT_PER_MINUTE", cls.chat_per_minute),
             chat_per_day=_int("CHAT_PER_DAY", cls.chat_per_day),
             store=_env("STORE", cls.store).lower(),

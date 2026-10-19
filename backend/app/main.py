@@ -15,16 +15,16 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 
-from app import agent, card_actions, chat_turn, dashboard, page_context, proposals, refresh
+from app import access, agent, card_actions, chat_turn, dashboard, page_context, proposals, refresh
 from app.alerts import alert_counts
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
-from app.auth import SIGNED_OUT, SignedOut, Verifier, current_user, owner_only, user_name
+from app.auth import SIGNED_OUT, SignedOut, Verifier, current_user, is_owner, owner_only, user_name
 from app.config import Settings
 from app.cve_filters import CveView, InvalidFilter
 from app.deps import Deps, build_deps
 from app.dev import dev_router
-from app.errors import InputError, LLMError, NotOwner, RateLimited
-from app.notify import NotifyError, channel_status, deliver, format_alert, tap_link
+from app.errors import InputError, LLMError, NotApproved, NotOwner, RateLimited
+from app.notify import NotifyError, channel_status, deliver, format_alert, send_on, tap_link
 from app.live_data import MixedFeeds
 from app.server_settings import ServerUpdate, effective as server_effective, status as server_status
 from app.server_settings import updated as server_updated
@@ -74,6 +74,19 @@ class ToolRetry(BaseModel):
     page: dict | None = None  # the answer's page context; checked again, as for /chat
 
 
+class AccessRequest(BaseModel):
+    """B38: a request to use Patch, with an optional note for the owner (plain text, at most 280 characters once
+    trimmed). The length is checked after `access.clean_note`."""
+    model_config = ConfigDict(extra="forbid")
+    note: Annotated[str, StringConstraints(max_length=2000)] | None = None
+
+
+class AccessChange(BaseModel):
+    """B38: the owner approves, refuses, or undoes a refusal (back to waiting or straight to approved)."""
+    model_config = ConfigDict(extra="forbid")
+    status: Literal["waiting", "approved", "refused"]
+
+
 class FakeFeedsRequest(BaseModel):
     """The fake feeds that fail from now on (B20). The fake feeds only."""
     fail: list[Literal["nvd", "kev", "osv", "epss"]]
@@ -110,11 +123,17 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     def known(user: Annotated[str, Depends(current_user)]) -> str:
         """Every request on `api` has a user, and that user counts for the refresh from now on (story 61): their
-        alerts and "new since last check" come even before they save anything, and after a reset."""
+        alerts and "new since last check" come even before they save anything, and after a reset. With sign-in on,
+        only an approved user (B38): anyone else gets a 403 with their status, and doesn't count."""
+        status = deps.users.access.status(user)
+        if status != "approved":
+            raise NotApproved(status)
         deps.users.seen(user)
         return user
 
     api = APIRouter(dependencies=[Depends(known)])
+    # B38: the routes a signed-in user who isn't approved yet may use: their status and their request
+    asking = APIRouter(dependencies=[Depends(current_user)])
 
     @app.exception_handler(SignedOut)
     async def signed_out(request: Request, exc: SignedOut):
@@ -147,6 +166,11 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.exception_handler(NotOwner)
     async def not_owner(request: Request, exc: NotOwner):
         return _error(403, exc.code, exc.message)
+
+    @app.exception_handler(NotApproved)
+    async def not_approved(request: Request, exc: NotApproved):
+        return JSONResponse(status_code=403, content={"error": {"code": exc.code, "status": exc.status,
+                                                                "message": exc.message}})
 
     @app.exception_handler(NotifyError)
     async def notify_error(request: Request, exc: NotifyError):
@@ -201,6 +225,84 @@ def create_app(deps: Deps | None = None) -> FastAPI:
                 # time, so one built frontend (the container's) fits any Clerk instance
                 "auth": {"on": deps.settings.auth,
                          "publishable_key": deps.settings.clerk_publishable_key if deps.settings.auth else None}}
+
+    # --- Sign-up requests (B38, #81): sign-up is open in Clerk; the owner lets each new account in
+
+    def own_access(user: str) -> dict:
+        entry = deps.users.access.entry(user) if deps.settings.auth else None
+        return {"status": deps.users.access.status(user), "owner": user == deps.settings.owner,
+                "sign_in": deps.settings.auth, "note": entry["note"] if entry else None,
+                "at": entry["at"] if entry else None}
+
+    @asking.get("/access")
+    def get_access(user: Annotated[str, Depends(current_user)]):
+        """The caller's own status: approved (the owner always; everyone with sign-in off), waiting, refused, or
+        none (hasn't asked yet), with their own note."""
+        return own_access(user)
+
+    @asking.post("/access/request")
+    def request_access(body: AccessRequest, request: Request, user: Annotated[str, Depends(current_user)]):
+        """Ask the owner to be let in. A new request alerts the owner once, on their channels; the alert says only
+        that a note is there, never its text (a stranger's words stay off the owner's lock screen). Asking again
+        changes nothing: a waiting request stays as it was, a refused one stays refused, with no new alert."""
+        note = access.clean_note(body.note)
+        if note and len(note) > access.NOTE_MAX:
+            raise InputError(f"The note can be at most {access.NOTE_MAX} characters.", "note_too_long")
+        if deps.users.access.status(user) in ("approved", "refused"):
+            return own_access(user)
+        entry, new = deps.users.access.request(user, note)
+        if new:
+            alert_owner(user_name(request) or user, bool(entry["note"]))
+            deps.users.access.mark_alerted(user)
+        return own_access(user)
+
+    def alert_owner(name: str, with_note: bool) -> None:
+        """One alert per request, on the owner's ticked channels, sent at once (quiet hours hold CVE alerts only).
+        A failed channel is logged, never retried: the request still waits on the Requests card."""
+        msg = {"title": "New access request", "body": f"From {name[:60]}" + (" (with a note)" if with_note else ""),
+               "priority": 3, "tags": ["access_request"], "click": f"{deps.settings.app_url}/settings#requests"}
+        for channel in deps.owner_state.settings().alerts.channels:
+            result = send_on(channel, msg, deps.settings, deps.transports)
+            if result["error"]:
+                log.warning("Access request alert on %s failed: %s", channel, result["error"])
+
+    @api.get("/access/requests", dependencies=[Depends(owner_only)])
+    def list_requests():
+        """The owner's Requests card: every request, newest first, with names and emails asked from Clerk now (one
+        call). Patch keeps none of those. Without the secret key, or with Clerk unreachable, user ids only."""
+        entries = deps.users.access.all() if deps.settings.auth else {}
+        people: dict[str, dict] = {}
+        if entries and deps.people is not None:
+            try:
+                people = deps.people(sorted(entries))
+            except Exception:
+                log.exception("Looking up the requests' names in Clerk failed")
+        rows = [{"user_id": uid, "status": e["status"], "note": e.get("note"), "by": e.get("by"), "at": e.get("at"),
+                 "requested_at": e.get("requested_at"), "migrated": bool(e.get("migrated")),
+                 "name": people.get(uid, {}).get("name"), "email": people.get(uid, {}).get("email")}
+                for uid, e in entries.items()]
+        rows.sort(key=lambda r: r["requested_at"] or r["at"] or "", reverse=True)
+        return {"requests": rows, "names": bool(people), "you": deps.settings.owner}
+
+    @api.put("/access/requests/{uid}")
+    def change_request(uid: str, body: AccessChange, request: Request,
+                       owner: Annotated[str, Depends(owner_only)]):
+        if is_owner(request, uid):
+            raise InputError("The owner is always approved.", "owner")
+        try:
+            entry = deps.users.access.set(uid, body.status, by=owner)
+        except KeyError:
+            return _error(404, "not_found", "There's no request from that user.")
+        return {"user_id": uid, **entry}
+
+    @api.post("/access/requests/{uid}/remove", dependencies=[Depends(owner_only)])
+    def remove_request(uid: str, request: Request):
+        """Remove the person: their request and note go; they can ask again (one more alert). Their saved state
+        stays, so approving them again brings their watchlist back."""
+        if is_owner(request, uid):
+            raise InputError("The owner is always approved.", "owner")
+        deps.users.access.remove(uid)
+        return {"removed": uid}
 
     # --- Chat (A06)
 
@@ -478,6 +580,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     # --- Dev panel (A11): only when DEV_PANEL is on, because it shows internals. Off, every /dev route is a 404.
     if deps.settings.dev_panel:
         api.include_router(dev_router(deps))
+    app.include_router(asking)
     app.include_router(api)
 
     # --- One port (B12): with FRONTEND_DIR set (the container), the built frontend too, and the API under /api

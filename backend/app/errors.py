@@ -20,6 +20,22 @@ class NotOwner(AppError):
     code = "not_owner"
 
 
+class NotApproved(AppError):
+    """Sign-in on (B38): a user the owner hasn't approved (yet). main.py answers 403 with their status."""
+    code = "not_approved"
+
+    def __init__(self, status: str):
+        super().__init__(NOT_APPROVED[status])
+        self.status = status
+
+
+NOT_APPROVED = {
+    "none": "Ask the owner for access first: Patch opens once they approve you.",
+    "waiting": "Your request is waiting for the owner: Patch opens once they approve it.",
+    "refused": "Your request wasn't approved.",
+}
+
+
 class LLMError(AppError):
     """`public` is safe to show; without it, callers show GENERIC."""
     code = "llm_error"

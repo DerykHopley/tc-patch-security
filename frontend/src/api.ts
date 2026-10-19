@@ -1,6 +1,7 @@
 // The backend's HTTP API. Every call goes through request(), so a server that isn't
 // running gives one plain message instead of a raw network error.
 
+import type { Access, RequestsReply } from './access.ts'
 import { cvesQuery, type CveView } from './cveView.ts'
 import type { NamedResult, Proposal, ProposalSource } from './toolResults.ts'
 
@@ -930,3 +931,13 @@ export function reportUrl(models: string[], retrieval: string[]): string {
   const s = q.toString()
   return `${API_URL}/dev/report${s ? `?${s}` : ''}`
 }
+
+// --- Sign-up requests (B38, #81): the caller's own status and request; the owner's Requests card
+export const getAccess = () => request<Access>('/access')
+export const requestAccess = (note: string) =>
+  request<Access>('/access/request', json('POST', note.trim() ? { note } : {}))
+export const accessRequests = () => request<RequestsReply>('/access/requests')
+export const changeAccess = (userId: string, status: 'waiting' | 'approved' | 'refused') =>
+  request<unknown>(`/access/requests/${encodeURIComponent(userId)}`, json('PUT', { status }))
+export const removeAccess = (userId: string) =>
+  request<unknown>(`/access/requests/${encodeURIComponent(userId)}/remove`, { method: 'POST' })

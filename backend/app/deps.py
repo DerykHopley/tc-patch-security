@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 
 from app.alerts import Alerter
 from app.app_settings import DevSettings, default_dev_settings, default_settings
+from app.clerk_people import People, clerk_people
 from app.config import DEFAULT_USER, Settings
 from app.status import DECIDED_BY
 from app.feeds import Feeds, make_feeds
@@ -61,6 +62,7 @@ class Deps:
     user_id: str = DEFAULT_USER  # whose request this is (B09): `state` is theirs
     user_name: str | None = None  # the signed-in user's name (B10); None with sign-in off or a test's fake user
     env: Settings | None = None  # B26: the settings from the environment; `settings` adds the owner's saved ones
+    people: People | None = None  # B38: names and emails from Clerk for the Requests card; None without a secret key
     searches: SearchMemory = field(default_factory=SearchMemory)  # #51: each user's last search; shared by for_user
     _feeds: Feeds | None = None  # the feeds a test passed; None: the settings' (made again when the NVD key changes)
     _live_refused: str | None = None  # B28: why live mode couldn't be switched on (logged once)
@@ -247,6 +249,9 @@ def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge 
     users = Users.for_settings(env, knowledge, default_settings(env), default_dev_settings(env), bucket)
     if env.auth:  # B31: before the owner's saved server settings are read, so live mode comes along
         users.adopt_default()
+        # B38: sign-up requests. Everyone Patch knew before them was invited, so is approved (once)
+        users.access.enabled = True
+        users.access.adopt_existing(users.all_ids())
     settings = effective(env, users.state(env.owner).server_settings())  # B26: the owner's saved server settings
     snapshot = knowledge
     refresher = version = None
@@ -274,6 +279,7 @@ def build_deps(settings: Settings, llm: LLM | None = None, knowledge: Knowledge 
         refresher=refresher,
         version=version,
         users=users,
+        people=clerk_people(env.clerk_secret_key) if env.auth else None,
     )
     if llm is None:
         deps.llm = LLMRouter(settings, deps.dev, http_client)

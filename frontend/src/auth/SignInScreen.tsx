@@ -4,22 +4,23 @@ import { MoonIcon, SunIcon } from '../components/Icons.tsx'
 import { Robot } from '../components/Robot.tsx'
 import { pickPose } from '../components/patchPose.ts'
 import { useTheme } from '../theme.ts'
-import { NOT_INVITED, signInView, type SignInView } from './signInView.ts'
+import { signInView, type SignInView } from './signInView.ts'
 
 // The sign-in screen (B10, DESIGN.md §5.13): what a signed-out visitor sees with sign-in on. One Playful card on the
 // page background, Patch rising over its top edge, the brand, a heading and one line, then Clerk's sign-in form
 // (`children`), styled from our tokens. While Clerk loads, SignInLoading says so; if Clerk can't load, SignInFailed
-// says what to do. B31: the view follows the address Clerk sends to (signInView.ts). An invitation link: "Join Patch"
-// and Clerk's sign-up form. A sign-up without an invitation: Patch's own message in place of the form.
+// says what to do. B38: sign-up is open, so Clerk's sign-up steps (`#/create`) are headed "Request access to Patch".
+// `ScreenCard` is the same frame for the access screens (AccessScreen.tsx).
 
-const SIGN_IN = {
-  title: 'Sign in to Patch',
-  lead: 'Patch is invite-only. Sign in with the email address your invitation went to.',
-}
 const TEXT: Record<SignInView, { title: string; lead: string }> = {
-  'sign-in': SIGN_IN,
-  invitation: { title: 'Join Patch', lead: "You're invited. Finish signing up below." },
-  'not-invited': SIGN_IN,
+  'sign-in': {
+    title: 'Sign in to Patch',
+    lead: 'Sign in, or make an account and ask the owner for access.',
+  },
+  'sign-up': {
+    title: 'Request access to Patch',
+    lead: 'Make an account first. Then you ask the owner to let you in.',
+  },
 }
 
 function subscribe(onChange: () => void) {
@@ -37,8 +38,13 @@ export function useSignInView(): SignInView {
 }
 
 export function SignInScreen({ children }: { children: ReactNode }) {
-  const view = useSignInView()
-  const { title, lead } = TEXT[view]
+  const { title, lead } = TEXT[useSignInView()]
+  return <ScreenCard title={title} lead={lead}>{children}</ScreenCard>
+}
+
+/** The one-card screen (§5.13): the theme switch, Patch over the card's edge, the brand, a heading, a line, then
+ * `children`. */
+export function ScreenCard({ title, lead, children }: { title: string; lead: string; children: ReactNode }) {
   const [theme, toggleTheme] = useTheme()
   const [pose] = useState(() => pickPose('idle', Math.random)) // no mood here: idle, picked once (DESIGN.md §8.3)
   const dark = theme === 'dark'
@@ -56,23 +62,10 @@ export function SignInScreen({ children }: { children: ReactNode }) {
       <main className="signin-card" aria-labelledby="signin-title">
         <Robot size={110} variant={pose.variant} />
         <Brand className="signin-brand" />
-        <h1 id="signin-title">{title}</h1>
+        <h1 id="signin-title" tabIndex={-1}>{title}</h1>
         <p className="signin-lead">{lead}</p>
-        <div className="signin-form">{view === 'not-invited' ? <NotInvited /> : children}</div>
+        <div className="signin-form">{children}</div>
       </main>
-    </div>
-  )
-}
-
-/** A sign-up without an invitation (B31): said plainly on Patch's screen, never on Clerk's hosted page. */
-function NotInvited() {
-  return (
-    <div className="signin-note signin-failed" role="alert">
-      <p>{NOT_INVITED}</p>
-      {/* `#/`: the first step of Clerk's sign-in form */}
-      <button type="button" onClick={() => (window.location.hash = '/')}>
-        Back to sign-in
-      </button>
     </div>
   )
 }

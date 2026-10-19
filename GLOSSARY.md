@@ -202,8 +202,20 @@ The one user while sign-in is off (locally and in the tests). Their state is the
 _Avoid_: local user, guest
 
 **Sign-in**:
-Clerk, invite-only, switched by `AUTH` (off locally and in the tests). On, every API route but `/health` needs a signed-in user; a signed-out visitor sees the sign-in screen.
+Clerk, switched by `AUTH` (off locally and in the tests). On, every API route but `/health` needs a signed-in user; a signed-out visitor sees the sign-in screen. Sign-up is open; using Patch needs the owner's approval (B38).
 _Avoid_: login, auth (except the setting's name)
+
+**Access request**:
+A new account's request to use Patch, with an optional note for the owner (at most 280 characters). It is waiting until the owner approves or refuses it on the Requests card. A refusal is final until the owner undoes it. Patch keeps only the Clerk user id, the status, when and by whom, and the note (B38).
+_Avoid_: invitation (Patch sends none any more), waitlist (Clerk's own feature, not used), application
+
+**Approved**:
+An account the owner let in: it may use Patch. The owner is always approved, and so is everyone while sign-in is off.
+_Avoid_: whitelisted, allowed, invited
+
+**Connected account**:
+Another sign-in method (Google, Discord) linked to the account you're signed in with, on Settings, so it signs in as the same user even when its email differs.
+_Avoid_: social login, linked identity
 
 **Session token**:
 The short-lived (60 s) token Clerk gives the signed-in browser. The frontend sends a fresh one with every API call; the backend checks it with the instance's JWT public key.

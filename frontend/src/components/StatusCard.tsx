@@ -14,16 +14,18 @@ function Status({ kind, why }: { kind: Kind; why: string }) {
   )
 }
 
-export function Card({ title, kind, why, className = '', children }: {
+// `anchor`: the section's id, for a link to the card (B38: an alert opens /settings#requests)
+export function Card({ title, kind, why, className = '', anchor, children }: {
   title: string
   kind: Kind
   why: string
   className?: string
+  anchor?: string
   children: ReactNode
 }) {
   const id = `card-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
   return (
-    <section className={`card settings-card ${className}`} aria-labelledby={id}>
+    <section id={anchor} className={`card settings-card ${className}`} aria-labelledby={id}>
       <div className="card-head">
         <h2 id={id}>{title}</h2>
         <Status kind={kind} why={why} />
