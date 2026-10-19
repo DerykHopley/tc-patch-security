@@ -3,6 +3,7 @@ import { alertsLog, type AlertLogEntry, type DataStatus } from '../api.ts'
 import { channelResult, emptyAlerts, entryReason, noChannels } from '../alertsLog.ts'
 import { utcTime } from '../freshness.ts'
 import { cvePath, followLink, openPath } from '../route.ts'
+import { keepInView } from '../keepInView.ts'
 import { useWatchlistChanged } from '../watchlistEvents.ts'
 import '../styles/settings.css' // .alert-log, shared with the Settings page
 import '../styles/alerts.css'
@@ -70,10 +71,11 @@ export function AlertsCard({ data, onNavigate }: { data: DataStatus; onNavigate:
   }, [load])
   useWatchlistChanged(load)
   // B50 (#95): Settings' Delivery card shows the last 3 and links here, /#recent-alerts: once the list is in, bring
-  // the card into view (the cards above it have their size by then)
+  // the card into view, and keep it there while the cards above it load (as the Requests card does, B38)
   const loaded = entries !== null
   useEffect(() => {
-    if (loaded && window.location.hash === '#recent-alerts') document.getElementById('recent-alerts')?.scrollIntoView()
+    if (!loaded || window.location.hash !== '#recent-alerts') return
+    return keepInView(document.getElementById('recent-alerts'), () => undefined)
   }, [loaded])
   const owner = data.schedule?.yours !== false // anyone else's alerts are in Patch only (B48, B50)
 

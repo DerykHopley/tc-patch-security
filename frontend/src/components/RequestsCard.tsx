@@ -5,6 +5,7 @@ import {
 } from '../access.ts'
 import { accessRequests, changeAccess, removeAccess } from '../api.ts'
 import { AccessContext } from '../auth/AccessGate.tsx'
+import { keepInView } from '../keepInView.ts'
 import { Card } from './StatusCard.tsx'
 
 // The Requests card on Settings (B38, #81, DESIGN.md §5.7): the owner's only, with sign-in on. Everyone who asked to
@@ -12,28 +13,6 @@ import { Card } from './StatusCard.tsx'
 // emails come from Clerk when the card opens (Patch keeps neither); the note, a stranger's words, shows as plain
 // text and only here. An alert about a new request opens /settings#requests: the card scrolls into view.
 // B45 (#90): a role per person (Viewer, Trusted, Reviewer), picked before Approve or changed later with Save role.
-
-/** Scroll to `el`, and again while the cards above it finish loading (they grow and push it down), until the person
- * scrolls or types themselves, or 3 s pass. Returns the clean-up. */
-function keepInView(el: HTMLElement | null, onDone: () => void): (() => void) | undefined {
-  if (!el) return undefined
-  const go = () => el.scrollIntoView({ block: 'start' })
-  go()
-  const watch = new ResizeObserver(go)
-  watch.observe(document.body)
-  const stop = () => {
-    watch.disconnect()
-    clearTimeout(timer)
-    for (const e of ['wheel', 'touchstart', 'keydown', 'pointerdown']) window.removeEventListener(e, done)
-  }
-  const done = () => {
-    stop()
-    onDone()
-  }
-  const timer = setTimeout(done, 3000)
-  for (const e of ['wheel', 'touchstart', 'keydown', 'pointerdown']) window.addEventListener(e, done, { once: true })
-  return stop
-}
 
 const STATUS_WORD: Record<RequestRow['status'], string> = { waiting: 'Waiting', approved: 'Approved', refused: 'Refused' }
 

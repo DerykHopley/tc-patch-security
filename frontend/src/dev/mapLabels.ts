@@ -12,8 +12,8 @@ export interface MapLabel {
 
 /** The label font: 12px bold (dev.css .emap-label). A generous average width per character, so the box is never
  *  smaller than the text; measured text would need a render first. */
-export const CHAR_PX = 7.5
-export const LINE_PX = 16 // a label's box height: 12px text with its 4px halo
+export const CHAR_PX = 8
+export const LINE_PX = 22 // a label's box: Firefox measures 12px text with its halo 22px high (the font's line box)
 const EDGE = 4 // room kept to the map's edge
 
 const halfWidth = (l: MapLabel) => (l.text.length * CHAR_PX) / 2 + 2 // + the halo

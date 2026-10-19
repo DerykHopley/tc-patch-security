@@ -41,7 +41,7 @@ test('B50.6 three labels on one spot: each a line apart', () => {
   const out = placeLabels([label('a', 'OWASP pages', 150, 150), label('b', 'MITRE ATLAS', 150, 150),
     label('c', 'CVEs', 150, 150)], 300, 300)
   const ys = out.map((l) => l.y).toSorted((p, q) => p - q)
-  assert.deepEqual(ys, [134, 150, 166])
+  assert.deepEqual(ys, [128, 150, 172])
 })
 
 test('B50.6 a label at the edge moves inside the map', () => {
