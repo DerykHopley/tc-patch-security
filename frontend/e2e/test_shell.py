@@ -4,6 +4,7 @@ Runs in Firefox and Chromium (run.sh). Expected values come from docs/design/DES
 """
 import pathlib
 import re
+import time
 from collections.abc import Callable
 
 import pytest
@@ -75,8 +76,19 @@ SETTLED = ("el => el.getAnimations({ subtree: true }).every(a => a.playState !==
 
 def settled(loc: Locator, timeout: float = 5000) -> None:
     """Wait until the element's finite animations and transitions (its own and its children's) have finished.
-    Endless ones (Patch idling, the KEV tile's wiggle) don't count."""
-    loc.page.wait_for_function(SETTLED, arg=loc.element_handle(), timeout=timeout)
+    Endless ones (Patch idling, the KEV tile's wiggle) don't count.
+
+    The element can be replaced while it animates (the signed-out front door remounts `.landing`, #100). A detached
+    element has no animations, so a wait on it alone would pass at once. The browser polls the element found; when
+    that one leaves the page, the locator finds the new one and the wait goes on. It ends only on the element the
+    locator still points at."""
+    end = time.monotonic() + timeout / 1000
+    while True:
+        left = max(1.0, (end - time.monotonic()) * 1000)
+        el = loc.element_handle(timeout=left)
+        loc.page.wait_for_function(f"el => !el.isConnected || ({SETTLED})(el)", arg=el, timeout=left)
+        if loc.evaluate("(now, found) => now === found", el, timeout=left):
+            return
 
 
 def eventually(page: Page, check: Callable[[], bool], timeout: float = 5000, step: float = 50) -> None:
