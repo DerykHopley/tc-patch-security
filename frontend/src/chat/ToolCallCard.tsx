@@ -24,10 +24,11 @@ import type {
   WatchlistResult,
 } from '../toolResults.ts'
 import { utcTime } from '../freshness.ts'
-import { proposalOf } from '../toolCalls.ts'
+import { proposalAfter, proposalOf } from '../toolCalls.ts'
 import { scheduleLine } from '../refreshRuns.ts'
 import { followLink, openPath } from '../route.ts'
 import { AskButton, ChangeActions, RefineActions } from './CardActions.tsx'
+import { count } from '../plural.ts'
 
 // One card per tool call: name, arguments, status, time, and the result drawn for its tool. Errors in red.
 // Result types come from the tools' declared result models (toolResults.ts, generated from backend/app/tools/).
@@ -231,7 +232,7 @@ function ProposedCard({ p }: { p: Proposal }) {
     <div className="result-card watchlist-card">
       <p className="result-title">Proposed: {p.title}</p>
       <p className="meta">
-        {p.before} → {p.after} · approve, edit or cancel it in the card under the answer
+        {p.before} → {proposalAfter(p).after} · approve, edit or cancel it in the card under the answer
       </p>
     </div>
   )
@@ -278,7 +279,7 @@ function ResearchCard({ r }: { r: ResearchResult }) {
     <div className="result-card research-card">
       <p className="result-title">Web search: “{r.query}”</p>
       <p className="meta">
-        {r.results.length} {r.results.length === 1 ? 'result' : 'results'} · via {VIA[r.via]}
+        {count(r.results.length, 'result')} · via {VIA[r.via]}
         {r.flagged > 0 && ` · ${r.flagged} flagged`} · {r.searches_left} searches left today
       </p>
       {r.results.length > 0 && (
@@ -325,8 +326,7 @@ function UpdatesCard({ r }: { r: UpdatesResult }) {
       {r.status === 'partial' && <p className="meta">Partial: {r.problems.join('; ')}. The rest was written.</p>}
       {r.ok && (
         <p className="meta">
-          {c.new} new · {c.updated} updated · {c.kev_added} added to KEV · {c.rescored} rescored · {r.alerts_total}{' '}
-          {r.alerts_total === 1 ? 'alert' : 'alerts'} for you
+          {c.new} new · {c.updated} updated · {c.kev_added} added to KEV · {c.rescored} rescored · {count(r.alerts_total, 'alert')} for you
         </p>
       )}
       {r.new_cves.length > 0 && (
@@ -402,7 +402,7 @@ function SearchCard({ r, query, applied, page }: {
   return (
     <div className="result-card search-card">
       <p className="result-title">
-        {r.sources.length} {r.sources.length === 1 ? 'source' : 'sources'} for “{query}”
+        {count(r.sources.length, 'source')} for “{query}”
       </p>
       {r.sources.length === 0 ? (
         <p className="meta">Nothing matches this filter.</p>

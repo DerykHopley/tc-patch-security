@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react
 import { cves as fetchCves, dashboard as fetchDashboard, type CveRow, type Dashboard as DashboardData } from '../api.ts'
 import { CveLink } from '../components/CveLink.tsx'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
+import { Tip as HelpTip } from '../components/Tip.tsx'
 import { Bars, ChartCard, Columns, SeverityLegend, StackedBars, Tooltip, type Tip } from '../components/charts.tsx'
 import { AlertsCard } from '../components/AlertsLog.tsx'
 import { FreshnessCard } from '../components/Freshness.tsx'
@@ -305,9 +306,9 @@ function TopCves({ rows, filter, onNavigate }: {
               <span className="top-id">
                 <CveLink className="cve-id" id={r.id} />
                 {r.kev && (
-                  <span className="chip kev" title={`In CISA KEV: known exploited. KEV deadline ${r.kev_deadline}`}>
+                  <HelpTip text={`In CISA KEV: known exploited. KEV deadline ${r.kev_deadline}`} className="chip kev" plain>
                     KEV
-                  </span>
+                  </HelpTip>
                 )}
                 {r.possible_match && <PossibleMatch />}
               </span>

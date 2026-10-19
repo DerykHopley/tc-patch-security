@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import type { CveRow, CveStatus, Decision, DecisionInput, Justification } from '../api.ts'
-import { STATUS_LABEL } from '../cveView.ts'
+import { JUSTIFICATION_LABEL, STATUS_LABEL } from '../cveView.ts'
 import type { DecisionRequest } from '../cveActions.ts'
 import { whoDecided } from '../decisionWho.ts'
 
@@ -15,13 +15,6 @@ export const JUSTIFICATIONS: Justification[] = [
   'vulnerable_code_cannot_be_controlled_by_adversary',
   'inline_mitigations_already_exist',
 ]
-export const JUSTIFICATION_LABEL: Record<Justification, string> = {
-  component_not_present: 'Component not present',
-  vulnerable_code_not_present: 'Vulnerable code not present',
-  vulnerable_code_not_in_execute_path: 'Vulnerable code not in execute path',
-  vulnerable_code_cannot_be_controlled_by_adversary: 'Vulnerable code cannot be controlled by adversary',
-  inline_mitigations_already_exist: 'Inline mitigations already exist',
-}
 
 const REVIEW_DAYS = 90 // the default review date: the as-of date + 90 days
 

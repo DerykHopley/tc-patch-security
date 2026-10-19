@@ -34,4 +34,4 @@ def test_b12_6_the_chat_answers_with_a_tool_call(page: Page, ui_url: str):
     open_chat(page)
     answer = ask(page, "Explain CVE-2024-8309 and how to prevent that kind of bug")
     expect(answer).to_contain_text("CVE-2024-8309")
-    expect(answer.get_by_role("button", name=re.compile(r"Show \d+ sources · 2 tool calls"))).to_be_visible()
+    expect(answer.get_by_role("button", name=re.compile(r"Show \d+ sources? · 2 tool calls"))).to_be_visible()

@@ -341,7 +341,7 @@
 
 .landing-shot figcaption h3 {
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: 700; /* B49.20: 18.75px bold is large text, so --accent on the page background (4.2:1) passes 3:1 */
   color: var(--accent);
 }
 
@@ -389,6 +389,13 @@
   font-size: 0.82rem;
   color: var(--muted);
   text-align: center;
+}
+
+/* B49.20: the source link sits on the page background, where --accent is 4.2:1 in light mode: --text, underlined
+   (the CVE page's back link does the same, §5.15) */
+.landing-foot a {
+  color: var(--text);
+  text-decoration: underline;
 }
 
 /* ---------- Narrower windows ---------- */

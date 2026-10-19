@@ -125,7 +125,13 @@ export function seesDev(role: UserRole): boolean {
   return role !== 'viewer'
 }
 
-const OWNERS_CHOICES = "These are the owner's choices: the chat and search use them for everyone. Only the owner can change them."
+/** B49 (#96 C1): the usage line under each answer (tokens, calls, cost) is for the people who change models, the owner
+ * and Reviewers (their own Dev copy, B45). For everyone else it was noise about a bill they don't pay. */
+export function seesUsage(role: UserRole): boolean {
+  return role === 'owner' || role === 'reviewer'
+}
+
+const OWNERS_CHOICES ="These are the owner's choices: the chat and search use them for everyone. Only the owner can change them."
 const REVIEWERS = "Your settings apply only to you: your chat and the playground use them, everyone else keeps the owner's."
 
 /** The Dev page by role: whether the form shows (the owner's are everyone's, a reviewer's their own copy), whether

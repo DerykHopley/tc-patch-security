@@ -13,6 +13,7 @@ import { ExternalLink } from '../components/ExternalLink.tsx'
 import { USAGE_LABEL, USAGES } from '../components/Verdict.tsx'
 import { STATUS_LABEL } from '../cveView.ts'
 import { openPath } from '../route.ts'
+import { proposalAfter } from '../toolCalls.ts'
 import type { Proposal } from '../toolResults.ts'
 import { announceWatchlistChanged } from '../watchlistEvents.ts'
 import '../styles/proposals.css'
@@ -188,7 +189,9 @@ function ProposalSources({ p }: { p: Proposal }) {
   )
 }
 
-export function ProposalCard({ proposal }: { proposal: Proposal }) {
+/** `restored`: the answer was read back after a reload (B49 C5): the proposal may have been approved, cancelled or
+ *  expired since, so the card asks the server once for its state. */
+export function ProposalCard({ proposal, restored = false }: { proposal: Proposal; restored?: boolean }) {
   const titleId = useId()
   const [p, setP] = useState<Proposal>(() => latest.get(proposal.proposal_id) ?? proposal)
   const [busy, setBusy] = useState<'approve' | 'cancel' | 'save' | null>(null)
@@ -196,6 +199,12 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
   const [error, setError] = useState<string | null>(null)
   const approveRef = useRef<HTMLButtonElement>(null)
   const id = p.proposal_id
+
+  useEffect(() => {
+    if (!restored || latest.has(id)) return
+    // Only while nothing was done on this card meanwhile: an older answer never undoes a newer state
+    getProposal(id).then((next) => latest.has(id) || keep(next), () => {})
+  }, [restored, id])
 
   function keep(next: Proposal) {
     latest.set(next.proposal_id, next)
@@ -229,6 +238,7 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
   const open = p.state === 'proposed'
   const editable = p.editable.length > 0
   const link = doneLink(p)
+  const after = proposalAfter(p) // B49 C3: "Accepted, review 2026-11-17", the reason on its own line
   return (
     <section className={`proposal-card ${p.state}`} aria-labelledby={titleId}>
       <p className="proposal-kicker">
@@ -251,9 +261,14 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
         </span>
         <span className="after">
           <span className="visually-hidden">After: </span>
-          {p.after}
+          {after.after}
         </span>
       </p>
+      {after.lines.map((line) => (
+        <p key={line} className="after-line">
+          {line}
+        </p>
+      ))}
       <ProposalSources p={p} />
       {open && !editing && (
         <p className="meta">Nothing has changed yet. Approve it by {utcTime(p.expires_at)}, or ask Patch again later.</p>

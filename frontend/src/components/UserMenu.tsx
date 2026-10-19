@@ -6,6 +6,7 @@ import { initials } from '../userMenu.ts'
 // back to the button. Not shown with sign-in off.
 
 export interface Account {
+  id?: string // Clerk's user id (B49: whose chat this tab keeps); undefined while Clerk's user loads
   name: string
   email: string | null
   onSignOut: () => Promise<void> | void

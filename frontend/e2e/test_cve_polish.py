@@ -233,7 +233,8 @@ def test_b44_10_the_kev_deadline_once_per_row(open_page):
     row = page.locator("table.cves tbody tr").filter(has=page.get_by_role("link", name=KEV_CVE, exact=True))
     expect(row.locator(".due-cell")).to_contain_text("2025-05-26")
     expect(row.locator(".due-cell")).to_contain_text("KEV deadline")
-    assert "2025-05-26" not in (row.locator(".chip.kev").get_attribute("title") or "")
+    # B49: the chip explains itself as a tip (mouse, keyboard, touch), without the date
+    expect(row.locator(".chip.kev")).to_have_accessible_description("In CISA KEV: known to be exploited")
     html = row.evaluate("el => el.outerHTML")
     assert html.count("2025-05-26") == 1, "the KEV date shows once, in the Due cell"
 

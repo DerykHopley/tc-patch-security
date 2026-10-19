@@ -103,7 +103,7 @@ function SignedInApp() {
     createExternalAccount: (params) => createExternalAccount(params),
   } : null, [user, createExternalAccount, destroy])
   const email = user?.primaryEmailAddress?.emailAddress ?? null
-  const account = { name: user?.fullName?.trim() || email || user?.id || 'Signed in', email, onSignOut: () => signOut() }
+  const account = { id: user?.id, name: user?.fullName?.trim() || email || user?.id || 'Signed in', email, onSignOut: () => signOut() }
   return (
     <LinkedAccountsContext.Provider value={linked}>
       <AccessGate signIn onSignOut={() => signOut()}>

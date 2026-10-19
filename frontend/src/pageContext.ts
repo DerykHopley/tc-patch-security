@@ -70,6 +70,7 @@ function filtersKey(view: ShownView): string {
 /** The context sent with a message. Filters and the selected CVE only on the CVEs page; the dashboard sends its
  *  product filter (several products: `langflow,ollama`), and nothing more, since its tiles mix statuses. */
 function pageContext(page: Page, view: ShownView | null, selected: string | null): PageContext {
+  if (page === 'notFound') return {} // B49: no page of the app, so no page to tell
   if (page === 'dashboard' && view?.filters.product) return { page, product: view.filters.product }
   if (page !== 'cves' || !view) return { page }
   return { page, ...viewToContext(view.filters), ...(selected && { cve: selected }) }
