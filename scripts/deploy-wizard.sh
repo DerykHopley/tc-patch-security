@@ -194,7 +194,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 ENV_FILE="deploy/cloudrun/wizard.env"
 LOCAL_ENV="backend/.env"
-REGION=us-central1
+REGION=$(grep -E "^REGION=" "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2)
+REGION="${REGION:-us-central1}"  # saved in wizard.env; the owner moved Patch to europe-west1 on 2026-10-19
 SERVICE=patch
 
 # local_value KEY: KEY's value in backend/.env (empty if unset). Read here, never printed.
@@ -299,7 +300,7 @@ while true; do
 done
 write_env PROJECT_ID "$PROJECT_ID"
 SA="patch-run@$PROJECT_ID.iam.gserviceaccount.com"
-BUCKET="$PROJECT_ID-state"
+BUCKET=$(_existing BUCKET || true); BUCKET="${BUCKET:-$PROJECT_ID-state}"
 IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/patch/patch"
 pause
 

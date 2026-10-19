@@ -193,7 +193,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 ENV_FILE="deploy/cloudrun/wizard.env"
 LOCAL_ENV="backend/.env"
-REGION=us-central1
+REGION=$(grep -E "^REGION=" "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2)
+REGION="${REGION:-us-central1}"  # saved in wizard.env; the owner moved Patch to europe-west1 on 2026-10-19
 SERVICE=patch
 
 local_value() {
