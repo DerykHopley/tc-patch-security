@@ -61,6 +61,7 @@ class Deps:
     users: Users | None = None  # B09: every user's state; `state` is the one this Deps acts for
     user_id: str = DEFAULT_USER  # whose request this is (B09): `state` is theirs
     user_name: str | None = None  # the signed-in user's name (B10); None with sign-in off or a test's fake user
+    role: str = "owner"  # B45: the caller's role (for_user); the shared Deps acts for the owner (checks, refresh)
     env: Settings | None = None  # B26: the settings from the environment; `settings` adds the owner's saved ones
     people: People | None = None  # B38: names and emails from Clerk for the Requests card; None without a secret key
     searches: SearchMemory = field(default_factory=SearchMemory)  # #51: each user's last search; shared by for_user
@@ -89,6 +90,11 @@ class Deps:
         mine = copy.copy(self)
         mine.state, mine.user_id, mine._root = self.users.state(user_id), user_id, self._root or self
         mine.user_name = name
+        # B45: the caller's role, read once per request (a change applies on their next one). A reviewer's chat asks
+        # the model their own copy names: the router reads this Deps's `dev`, not the shared one's
+        mine.role = self.users.access.role(user_id)
+        if mine.role == "reviewer" and isinstance(self.llm, LLMRouter):
+            mine.llm = self.llm.reading(mine.dev)
         return mine
 
     @property
@@ -177,8 +183,13 @@ class Deps:
             live_data(settings, self._bucket).check_feeds(self._feeds.kind if self._feeds else settings.feeds)
 
     def dev(self) -> DevSettings:
-        """The dev panel's saved choices while it's on; the env defaults when it's off (A11)."""
-        return self.owner_state.dev_settings() if self.settings.dev_panel else self.state.dev_defaults
+        """The dev panel's saved choices while it's on; the env defaults when it's off (A11). B45: the caller's
+        effective choices: a reviewer's own copy when they saved one, else the owner's (everyone else's)."""
+        if not self.settings.dev_panel:
+            return self.state.dev_defaults
+        if self.role == "reviewer" and (mine := self.state.dev_copy()) is not None:
+            return mine
+        return self.owner_state.dev_settings()
 
     def search_options(self) -> SearchOptions:
         d = self.dev()

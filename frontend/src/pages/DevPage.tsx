@@ -12,6 +12,7 @@ import {
   type Hit,
   type SearchOptions,
 } from '../api.ts'
+import { devView, type UserRole } from '../access.ts'
 import { SaveBar } from '../components/SaveBar.tsx'
 import { Card } from '../components/StatusCard.tsx'
 import { useDevSettings } from '../components/useDevSettings.ts'
@@ -257,7 +258,12 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
   const d = s.draft
   const set = s.set
   const hasKey = s.reply.openrouter_key
-  const yours = s.reply.yours !== false // B29: anyone but the owner reads the owner's choices, read-only
+  // B45: the role decides the page. The owner's choices are everyone's; a reviewer changes their own copy; a Trusted
+  // person reads the owner's (B29's read-only page) and may use the playground. Viewers never get here (no menu
+  // item, and the server refuses them).
+  const role: UserRole = s.reply.role ?? (s.reply.yours === false ? 'trusted' : 'owner')
+  const view = devView(role, !!s.reply.own_copy)
+  const yours = view.change
 
   async function findModels() {
     setFinding(true)
@@ -299,15 +305,22 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
 
   return (
     <div className="page dev-page">
-      {yours ? (
+      {role === 'owner' ? (
         <p className="page-intro">
           Tune the model, the agent and search, then try a query to see each step. Turn this page off with{' '}
           <code>DEV_PANEL=false</code>: it shows internals.
         </p>
+      ) : role === 'reviewer' ? (
+        <div className="reviewer-note" role="note" data-testid="reviewer-note">
+          <p>{view.note}</p>
+          {s.reply.own_copy && (
+            <button type="button" onClick={() => void s.backToOwners()} disabled={s.saving}>
+              Back to the owner's settings
+            </button>
+          )}
+        </div>
       ) : (
-        <p className="page-intro" role="note" data-testid="owners-choices">
-          These are the owner's choices: the chat and search use them for everyone. Only the owner can change them.
-        </p>
+        <p className="page-intro" role="note" data-testid="owners-choices">{view.note}</p>
       )}
       {s.dirty && (
         <p className="callout" role="note">
@@ -462,34 +475,27 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
       </div>
 
       <Card title="Search playground" kind="live" why="Runs search_security with the saved settings" className="playground">
-        {yours ? (
-          <>
-            <form className="play-form" onSubmit={run}>
-              <input aria-label="Search query" value={query} maxLength={500} onChange={(e) => setQuery(e.target.value)} />
-              <button type="submit" disabled={running || !query.trim()}>
-                {running ? 'Running…' : 'Run search'}
-              </button>
-            </form>
-            <fieldset className="plain play-examples">
-              <legend className="visually-hidden">Example queries</legend>
-              {EXAMPLES.map((q) => (
-                <button key={q} type="button" onClick={() => {
-                  setQuery(q)
-                  void run(undefined, q)
-                }}>
-                  {q}
-                </button>
-              ))}
-            </fieldset>
-            {runError && (
-              <p role="alert" className="form-error">
-                {runError}
-              </p>
-            )}
-          </>
-        ) : (
-          <p className="meta" data-testid="owner-runs">
-            Only the owner can run searches here: each one asks the owner's model.
+        {/* B45: everyone who sees this page may run it (Trusted too), with their own effective settings */}
+        <form className="play-form" onSubmit={run}>
+          <input aria-label="Search query" value={query} maxLength={500} onChange={(e) => setQuery(e.target.value)} />
+          <button type="submit" disabled={running || !query.trim()}>
+            {running ? 'Running…' : 'Run search'}
+          </button>
+        </form>
+        <fieldset className="plain play-examples">
+          <legend className="visually-hidden">Example queries</legend>
+          {EXAMPLES.map((q) => (
+            <button key={q} type="button" onClick={() => {
+              setQuery(q)
+              void run(undefined, q)
+            }}>
+              {q}
+            </button>
+          ))}
+        </fieldset>
+        {runError && (
+          <p role="alert" className="form-error">
+            {runError}
           </p>
         )}
         {result && <Playground result={result} rrfK={result.options.rrf_k} />}
@@ -503,10 +509,11 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
         )}
       </Card>
 
-      <ModelCheck modelLabel={savedModel(s.reply.settings)} dirty={s.dirty} canRun={yours} compared={comparedModels}
-        onCompare={setComparedModels} />
+      <ModelCheck modelLabel={savedModel(s.reply.settings)} dirty={s.dirty} canRun={view.runChecks}
+        compared={comparedModels} onCompare={setComparedModels} />
 
-      <RetrievalCheck embedder={info?.embedder ?? 'the loaded embedder'} canRun={yours} compared={comparedEmbedders}
+      <RetrievalCheck embedder={info?.embedder ?? 'the loaded embedder'} canRun={view.runChecks}
+        compared={comparedEmbedders}
         onCompare={setComparedEmbedders} />
 
       <Card title="Evaluation report" kind="live" why="One self-contained HTML page from the saved runs">

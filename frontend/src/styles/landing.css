@@ -248,6 +248,39 @@
   --tile-shadow: rgba(38, 38, 95, 0.3);
 }
 
+/* ---------- The launch video (B47, #99): in the screenshots' window frame, its text version under it ---------- */
+
+.landing-video {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.landing-video video {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--bg); /* behind the poster until it loads */
+}
+
+.landing-video-text {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.landing-video-text summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.landing-video-text ol {
+  margin: 0.5rem 0 0;
+  padding-left: 1.4rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+
 /* ---------- See it working: three screenshots, each with its caption, sides alternating ---------- */
 
 .landing-showcase {

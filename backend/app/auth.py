@@ -20,7 +20,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 
 from app.config import DEFAULT_USER, USER_ID, Settings
-from app.errors import NotOwner
+from app.errors import NotAllowed, NotOwner
 
 log = logging.getLogger(__name__)
 
@@ -95,3 +95,37 @@ def owner_only(request: Request, user: Annotated[str, Depends(current_user)]) ->
     if not is_owner(request, user):
         raise NotOwner("Only the app's owner can do this: it changes the app for every user.")
     return user
+
+
+# B45 (#90): the route groups and who may use each, with the plain reason a 403 gives. One check per group, so a route
+# joins a group by its dependency and never checks a role itself. "owner" is OWNER (never stored); the rest are the
+# roles the owner gives on the Requests card (app.access).
+INTERNALS = "the owner trusts with Patch's internals. Ask the owner if you need it."
+GROUPS: dict[str, tuple[frozenset[str], type[NotAllowed], str]] = {
+    "dev_read": (frozenset({"trusted", "reviewer", "owner"}), NotAllowed,
+                 f"The Dev page is for people {INTERNALS}"),
+    "playground": (frozenset({"trusted", "reviewer", "owner"}), NotAllowed,
+                   f"The search playground is for people {INTERNALS}"),
+    "dev_write": (frozenset({"reviewer", "owner"}), NotAllowed,
+                  "Only reviewers and the owner can change the Dev settings (a reviewer's apply only to them)."),
+    "model_check": (frozenset({"owner"}), NotOwner,
+                    "Only the owner can run the checks: they spend the owner's model and key, and every user sees "
+                    "the runs."),
+}
+
+
+def role_of(request: Request, user: str) -> str:
+    """The caller's role: owner, reviewer, trusted or viewer (`app.state.role`, the access record's)."""
+    return "owner" if is_owner(request, user) else request.app.state.role(user)
+
+
+def allowed(group: str):
+    """The dependency for one route group (GROUPS): the user, or NotAllowed / NotOwner (403) with the reason."""
+    roles, error, reason = GROUPS[group]
+
+    def check(request: Request, user: Annotated[str, Depends(current_user)]) -> str:
+        if role_of(request, user) not in roles:
+            raise error(reason)
+        return user
+    check.__name__ = f"allowed_{group}"
+    return check

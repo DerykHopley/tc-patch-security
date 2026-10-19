@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
+import { roleOf, seesDev } from './access.ts'
 import { examples as fetchExamples, health, type Example, type Health } from './api.ts'
+import { AccessContext } from './auth/AccessGate.tsx'
 import { ChatDivider } from './chat/ChatDivider.tsx'
 import { ChatWindow } from './chat/ChatWindow.tsx'
 import { PatchButton } from './chat/PatchButton.tsx'
@@ -44,6 +46,7 @@ const SUGGESTIONS: Record<Page, string[]> = {
 // `account`: the signed-in user, with sign-in on (B10, auth/ClerkApp.tsx): the top bar shows the user menu.
 export default function App({ account }: { account?: Account } = {}) {
   const [status, setStatus] = useState<Health | null>(null)
+  const access = useContext(AccessContext) // B45: the caller's role
   const [offline, setOffline] = useState(false)
   const [theme, toggleTheme] = useTheme()
   const [collapsed, setCollapsed] = useState(() => store.get('sidenavCollapsed') === '1')
@@ -116,8 +119,11 @@ export default function App({ account }: { account?: Account } = {}) {
     setCollapsed(next)
   }
 
-  // Dev only when the backend allows the dev panel (it exposes internals).
-  const pages: Page[] = status?.dev_panel ? ['dashboard', 'cves', 'settings', 'dev'] : ['dashboard', 'cves', 'settings']
+  // Dev only when the backend allows the dev panel (it exposes internals), and (B45) not for a Viewer. The role comes
+  // from /access on each page load, so the owner's change shows on the next one.
+  const devShown = seesDev(roleOf(access))
+  const pages: Page[] = status?.dev_panel && devShown
+    ? ['dashboard', 'cves', 'settings', 'dev'] : ['dashboard', 'cves', 'settings']
   const current = PAGES[page]
   const dark = theme === 'dark'
 
@@ -246,8 +252,15 @@ export default function App({ account }: { account?: Account } = {}) {
             <Landing place="about" onNavigate={navigate} />
           ) : page === 'settings' ? (
             <SettingsPage asOf={status?.as_of ?? null} mode={status?.mode} onServerSaved={refreshHealth} />
-          ) : status?.dev_panel ? (
+          ) : status?.dev_panel && devShown ? (
             <DevPage onSaved={refreshHealth} />
+          ) : status?.dev_panel ? (
+            // B45: a Viewer who types /dev: one line, no internals (the server refuses its routes too)
+            <div className="page">
+              <p className="muted" data-testid="dev-not-yours">
+                The Dev page is for people the owner trusts with Patch's internals. Ask the owner if you need it.
+              </p>
+            </div>
           ) : null}
         </main>
       </div>

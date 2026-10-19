@@ -66,6 +66,18 @@ def test_b46_1_removed_shows_the_ask_screen(open_as, api_url):
     none_of_the_app(page)
 
 
+def test_b46_1_a_role_refusal_keeps_the_app(open_as, api_url):
+    """B45's 403 `not_allowed` (a Viewer on a Dev route) is about one route, not access: the app stays."""
+    page = open_as(FakeAccess(APPROVED))
+    expect(heading(page, "Dashboard")).to_be_visible()
+    body = json.dumps({"error": {"code": "not_allowed", "message": "Your role can't use this."}})
+    page.context.route(re.compile(re.escape(api_url) + r"/(?!access|health)[^?]*(\?.*)?$"),
+                       lambda route: route.fulfill(status=403, content_type="application/json", body=body))
+    go_to_cves(page)
+    expect(heading(page, "CVEs")).to_be_visible()
+    expect(page.locator("aside nav")).to_be_visible()
+
+
 # --- B46.2: coming back to the tab asks /access again -------------------------------------------------------------
 
 def test_b46_2_back_to_the_tab_checks_access_again(open_as):

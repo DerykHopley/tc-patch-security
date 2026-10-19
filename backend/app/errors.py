@@ -15,7 +15,12 @@ class InputError(AppError):
     code = "invalid_input"
 
 
-class NotOwner(AppError):
+class NotAllowed(AppError):
+    """B45: the caller's role doesn't allow this route group (main.py answers 403 with the reason)."""
+    code = "not_allowed"
+
+
+class NotOwner(NotAllowed):
     """Something only the owner (OWNER) may do (main.py answers 403): the shared schedule, the demo switches."""
     code = "not_owner"
 

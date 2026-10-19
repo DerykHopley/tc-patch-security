@@ -6,7 +6,8 @@ once the owner approves it. Each person's request is one entry in ACCESS, a smal
 
     {"<clerk user id>": {"status": "waiting" | "approved" | "refused", "at": <when it last changed>,
                          "by": <the owner's id, or None for the person's own request>, "requested_at": ...,
-                         "note": <optional, at most 280 characters>, "alerted": <the alert was sent: once>}}
+                         "note": <optional, at most 280 characters>, "alerted": <the alert was sent: once>,
+                         "role": "viewer" | "trusted" | "reviewer" (B45; missing: viewer)}}
 
 No name, no email: the Requests card asks Clerk's Backend API for those when it opens (`clerk_people.py`).
 
@@ -15,6 +16,11 @@ No name, no email: the Requests card asks Clerk's Backend API for those when it 
 - The owner is always approved and has no entry.
 - `adopt_existing` (once, on the first start with this record): everyone Patch already knew (signed in before, or
   saved state) is approved, since in Restricted mode they were invited by the owner.
+
+Roles (B45, #90): the owner gives each approved person a role, kept in their entry. A missing role is a Viewer (so
+everyone approved before roles is one). The owner is OWNER from the environment, never a stored role: nobody can make
+themselves owner, or lock the owner out, from inside the app. `role` reads the record on every call (no cache), so a
+change takes effect on the person's next request, on any instance.
 
 Writes use the store's version check, so two requests (or two instances) never lose each other's change.
 """
@@ -28,6 +34,8 @@ from app.store import Conflict, Store
 
 ACCESS = "access.users.json"  # the dot keeps it from being read as a user's state (a user id has none)
 STATUSES = ("waiting", "approved", "refused")
+ROLES = ("viewer", "trusted", "reviewer")  # B45: the stored roles; "owner" is OWNER, never stored
+DEFAULT_ROLE = "viewer"
 NOTE_MAX = 280
 _CONTROL = re.compile(r"[\x00-\x09\x0b-\x1f\x7f]")  # control characters but the line break
 
@@ -72,6 +80,16 @@ class Access:
                 self._approved.add(user)
         return status
 
+    def role(self, user: str) -> str:
+        """owner (OWNER; with sign-in off, the one local user), else an approved person's stored role: viewer, trusted
+        or reviewer. Anyone else (waiting, refused, no entry) counts as a viewer; the API refuses them anyway."""
+        if user == self.owner:
+            return "owner"
+        found = self.entry(user)
+        if not found or found["status"] != "approved":
+            return DEFAULT_ROLE
+        return found.get("role") or DEFAULT_ROLE
+
     def _change(self, change: Callable[[dict], object]):
         """Read, change, write with the version check; on a conflict read again and redo the change."""
         while True:
@@ -104,15 +122,20 @@ class Access:
                 data[user]["alerted"] = True
         self._change(change)
 
-    def set(self, user: str, status: str, by: str) -> dict:
-        """The owner approves, refuses, or undoes a refusal. KeyError: no request from this user."""
-        if status not in STATUSES:
+    def set(self, user: str, status: str | None, by: str, role: str | None = None) -> dict:
+        """The owner approves, refuses, or undoes a refusal, and (B45) sets the role: either or both. KeyError: no
+        request from this user."""
+        if status is not None and status not in STATUSES:
             raise ValueError(status)
+        if role is not None and role not in ROLES:
+            raise ValueError(role)
 
         def change(data: dict):
             entry = data[user]  # KeyError: nobody to change
-            if entry["status"] != status:
+            if status is not None and entry["status"] != status:
                 entry.update(status=status, at=self._now(), by=by)
+            if role is not None:
+                entry["role"] = role
             return entry
         return self._change(change)
 

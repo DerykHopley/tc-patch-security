@@ -2,6 +2,26 @@
    Cards, fieldsets, the save bar and the sliders come from settings.css and controls.css. Tokens only; nothing
    here animates. */
 
+/* B45: a reviewer's note (their settings apply only to them) and "Back to the owner's settings": the §5.7 edge rule,
+   `--text` on the surface with a 3px `--accent` edge; the button wraps under the text on a phone */
+.reviewer-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.55rem 0.9rem;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.reviewer-note p {
+  flex: 1 1 18rem;
+  margin: 0;
+  min-width: 0;
+}
+
 .dev-page .mono-input {
   font-family: var(--font-mono);
   flex: 1 1 12rem;

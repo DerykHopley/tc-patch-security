@@ -47,7 +47,7 @@ export function AccessGate({ signIn, onSignOut, children }: {
   useEffect(() => {
     const quiet = () => void getAccess().then(setAccess, () => {})
     onNotApproved((status) => {
-      setAccess((a) => (a ? { ...a, status } : { status, owner: false, sign_in: true, note: null, at: null }))
+      setAccess((a) => (a ? { ...a, status } : { status, owner: false, role: 'viewer', sign_in: true, note: null, at: null }))
       quiet()
     })
     const back = () => {

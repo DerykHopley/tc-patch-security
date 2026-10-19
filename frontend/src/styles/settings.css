@@ -598,6 +598,31 @@
   overflow-wrap: anywhere;
 }
 
+/* B45: the role choice: label, a native select, and what the picked role allows; wraps under the label on a phone */
+.request-role {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+  min-width: 0;
+}
+
+.request-role label {
+  font-weight: 700;
+}
+
+.request-role select {
+  flex: 0 1 10rem;
+  min-width: 0;
+}
+
+.request-role-hint {
+  flex: 1 1 14rem;
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
 .request-actions,
 .linked-add {
   display: flex;
