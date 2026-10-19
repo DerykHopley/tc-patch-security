@@ -144,10 +144,10 @@ The owner deployed `spec-b` with `scripts/deploy-wizard.sh`. *Checked* by the ow
 
 | | |
 |---|---|
-| Address | https://patch-976248543439.us-central1.run.app (project `tc-patch-security`, us-central1) |
+| Address | **https://patch-976248543439.europe-west1.run.app** (project `tc-patch-security`, **europe-west1, Belgium**). First deployed in us-central1, moved the same day at the owner's request: data copied to the EU bucket `tc-patch-security-state-eu` (17 of 17 objects checked), the US service, bucket, registry and job deleted |
 | Health | `status: ok`, live mode, OpenRouter (Claude Haiku 5.5), sign-in on, Dev page on |
 | Sign-in | landing page → Sign in → dashboard, with the Clerk development instance (no extra origin setting needed) |
-| Refresh | a Cloud Scheduler job, **daily** (the owner's choice, instead of hourly); its first run at 18:00 showed in Settings → Refresh runs |
+| Refresh | a Cloud Scheduler job, **daily at 08:00 Europe/Berlin** (the owner's choice, instead of hourly), in europe-west1; its first run showed in Settings → Refresh runs, and the EU job's test tick answered 200 |
 | Budget | 1 EUR alert (a German billing account bills in EUR: `1USD` failed with `INVALID_ARGUMENT`) |
 
 - Fixed on the way, in the wizard and DEPLOY.md: the billing account ID shown plainly, the budget in the account's currency, an empty time zone (YAML read it as null and `gcloud run deploy` refused it).
