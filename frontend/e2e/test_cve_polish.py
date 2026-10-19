@@ -11,6 +11,7 @@ import re
 import pytest
 from playwright.sync_api import Browser, Locator, Page, expect
 
+from test_cves_page import pin
 from test_dashboard import SHOTS, api, clean_state  # noqa: F401 (fixture)
 from test_shell import contrast, no_sideways_scroll
 
@@ -220,6 +221,9 @@ def test_b44_9_desktop_filters_unchanged(open_page):
     # one row, as before B44: the controls and the count share the filter line
     tops = page.locator(".filters select").evaluate_all("els => els.map(e => Math.round(e.getBoundingClientRect().top))")
     assert len(set(tops)) == 1, tops
+    pin(page)  # beside the pinned chat a desktop keeps its filters open (the fold goes by the window's width)
+    expect(toggle(page)).to_be_hidden()
+    expect(page.get_by_role("combobox", name="Status")).to_be_visible()
 
 
 # --- B44.10: the KEV deadline shows once in a row --------------------------------------------------------------------

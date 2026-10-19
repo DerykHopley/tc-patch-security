@@ -47,7 +47,7 @@ def open_cves(browser: Browser, ui_url: str, clean_state):
 
 
 def open_filters(page: Page) -> None:
-    """B44: on a phone (or beside the pinned chat) the filters fold behind "Filters (n on)": open them when folded.
+    """B44: on a phone the filters fold behind "Filters (n on)": open them when folded.
     On a desktop the button is hidden and the filters are always there."""
     toggle = page.get_by_role("button", name=re.compile(r"^Filters \(\d+ on\)$"))
     if toggle.is_visible() and toggle.get_attribute("aria-expanded") == "false":

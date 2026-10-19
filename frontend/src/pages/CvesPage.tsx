@@ -177,7 +177,7 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
       <section className="card cves-card" aria-labelledby="cve-table-title">
         <h2 id="cve-table-title">CVEs on your watchlist</h2>
         <div className="filters">
-          {/* B44 L4: on a phone (or beside the pinned chat) the filters fold behind one button that says how many
+          {/* B44 L4: on a phone the filters fold behind one button that says how many
               are on; the count line stays in view. On a desktop the button is hidden and the controls show as before. */}
           <button
             type="button"

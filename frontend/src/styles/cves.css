@@ -43,8 +43,10 @@
   font-weight: 700;
 }
 
-/* The phone's fold (B44): over a phone-sized card the controls hide behind "Filters (n on)"; wider, the button is
-   hidden and the controls sit in the filter row as before (display: contents keeps them in its flex row). */
+/* The phone's fold (B44): on a phone (the tab-bar layout, <= 800px) the controls hide behind "Filters (n on)"; wider,
+   the button is hidden and the controls sit in the filter row as before (display: contents keeps them in its flex
+   row). The window's width, not the card's: beside the pinned chat a desktop keeps its filters open, and pinning
+   doesn't change the height above the rows (the page keeps its place, A07.2). */
 .filters-toggle {
   display: none;
 }
@@ -53,7 +55,7 @@
   display: contents;
 }
 
-@container (max-width: 760px) {
+@media (max-width: 800px) {
   .filters-toggle {
     display: inline-flex;
     align-items: center;
