@@ -119,8 +119,8 @@ def test_br_10_a_signed_in_user_who_saved_nothing_gets_alerts_and_new_since_chec
     assert carol.get("/dashboard").status_code == 200  # a read only: nothing saved
     assert not [k for k in app.live.deps.users.store.keys() if k.startswith("carol")]
     app.live.check_now()
-    result = app.live.next_day()["result"]
-    assert "carol" in result["alerts"] and result["alerts"]["carol"]
+    app.live.next_day()
+    assert app.alerts("carol")["carol"]
     assert NEW_DAY2 in {r["id"] for r in carol.get("/cves", params={"status": "all", "new": "1"}).json()["rows"]}
 
 

@@ -497,7 +497,7 @@ export interface RefreshResult {
   new_cves: string[]
   version: number | null
   errors: { source: string; message: string }[] // the feeds that failed, and failed alerts (source "alerts")
-  alerts?: Record<string, AlertLogEntry[]> // per user id, this run's alerts (B04)
+  alerts?: Record<string, AlertLogEntry[]> // this run's alerts (B04), under your own user id only (B37)
   status: 'ok' | 'partial' | 'failed' // B20: every feed answered, some did (and were written), or none did
   feeds: FeedResult[] // B20: each feed's step, in the order asked; empty in runs logged before B20
 }

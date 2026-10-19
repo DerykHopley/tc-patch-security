@@ -200,6 +200,11 @@ class LiveUsers:
     def __call__(self, user: str) -> TestClient:
         return TestClient(self.live.client.app, raise_server_exceptions=False, headers={"x-test-user": user})
 
+    def alerts(self, *users: str) -> dict[str, list[dict]]:
+        """The last run's alerts per user, each from that user's own GET /refresh (B37: a reply holds only the
+        caller's alerts, so no one reply shows them all)."""
+        return {u: self(u).get("/refresh").json()["last_result"]["alerts"].get(u, []) for u in users}
+
 
 def pairs(entries: list[dict]) -> set[tuple[str, str]]:
     return {(a["cve"], a["reason"]) for e in entries for a in e["alerts"]}
@@ -215,9 +220,10 @@ def test_b09_9_each_user_gets_alerts_for_their_own_watchlist_and_only_the_owner_
     bob.put("/watchlist", json={"products": ["langflow"]})  # not Ollama
     app.live.check_now()
     app.live.channels.ntfy.clear()
-    alerts = app.live.next_day()["result"]["alerts"]
+    app.live.next_day()
+    alerts = app.alerts("default", "alice", "bob")  # the owner (here the default user) and everyone saved
 
-    assert set(alerts) == {"default", "alice", "bob"}  # the owner (here the default user) and everyone saved
+    assert all(alerts.values())
     assert (NEW_DAY2, "new") in pairs(alerts["alice"]) and (OLD_TO_KEV, "kev") not in pairs(alerts["alice"])
     assert (OLD_TO_KEV, "kev") in pairs(alerts["bob"]) and (NEW_DAY2, "new") not in pairs(alerts["bob"])
     # only the owner's went out; the others are recorded, with no channel, and shown in their own app
@@ -228,8 +234,8 @@ def test_b09_9_each_user_gets_alerts_for_their_own_watchlist_and_only_the_owner_
     assert not pairs(alice.get("/alerts").json()["alerts"]) & {(OLD_TO_KEV, "kev")}
     # once per CVE and reason, per user
     app.live.clock.advance(10)
-    again = app.live.check_now()["result"]["alerts"]
-    assert again == {"default": [], "alice": [], "bob": []}
+    app.live.check_now()
+    assert app.alerts("default", "alice", "bob") == {"default": [], "alice": [], "bob": []}
 
 
 def test_b09_9_new_since_last_check_is_kept_per_user(tmp_path, index_dir, index):
@@ -270,7 +276,8 @@ def test_b09_9_the_owner_comes_from_the_environment(tmp_path, index_dir, index):
     app.live.client.put("/watchlist", json={"products": ["langflow"]})  # the default user, not the owner here
     app.live.check_now()
     app.live.channels.ntfy.clear()
-    alerts = app.live.next_day()["result"]["alerts"]
+    app.live.next_day()
+    alerts = app.alerts("alice", "default")
     assert alerts["alice"] and all(e["channels"] for e in alerts["alice"])
     assert alerts["default"] and all(e["in_app_only"] for e in alerts["default"])
     assert len(app.live.channels.ntfy) == len(alerts["alice"])
@@ -293,7 +300,8 @@ def test_b09_9_quiet_hours_hold_only_what_would_be_sent(tmp_path, index_dir, ind
         body = c.get("/settings").json()["settings"]
         body["alerts"] |= {"quiet_start": "08:00", "quiet_end": "10:00"}  # the check runs at 09:00
         c.put("/settings", json=body)
-    alerts = app.live.check_now()["result"]["alerts"]
+    app.live.check_now()
+    alerts = app.alerts("default", "bob")
     assert all(e["kind"] == "held" for e in alerts["default"])
     assert alerts["bob"] and all(e["kind"] != "held" and e["in_app_only"] for e in alerts["bob"])
 
@@ -317,3 +325,33 @@ def test_b09_10_check_updates_lists_the_callers_alerts(tmp_path, index_dir, inde
               if t["name"] == "check_updates"]
     assert not mine["result"]["ran"] and (OLD_TO_KEV, "kev") in {(a["cve"], a["reason"])
                                                                  for a in mine["result"]["alerts"]}
+
+
+# --- B37 (#87): a refresh reply holds the caller's own alerts only ---------------------------------------------------
+
+def test_b37_check_now_and_the_refresh_status_hold_only_the_callers_alerts(tmp_path, index_dir, index):
+    from test_refresh import NEW_DAY2, OLD_TO_KEV
+
+    app = LiveUsers(tmp_path, index_dir)
+    alice, bob = app("alice"), app("bob")
+    alice.put("/watchlist", json={"products": ["ollama"]})  # not Langflow
+    bob.put("/watchlist", json={"products": ["langflow"]})  # not Ollama
+    app.live.check_now()
+    app.live.clock.advance(60 * 24)
+    app.live.feeds.day = 2
+
+    ran = bob.post("/refresh")  # bob's Check now runs the refresh for every user
+    refused = alice.post("/refresh")  # too soon: the 429 still carries the last run's result
+    assert (ran.status_code, refused.status_code) == (200, 429)
+    replies = {"bob's Check now": ran.json()["result"], "alice's refused Check now": refused.json()["result"],
+               "bob's GET /refresh": bob.get("/refresh").json()["last_result"],
+               "alice's GET /refresh": alice.get("/refresh").json()["last_result"],
+               "bob's dashboard": bob.get("/dashboard").json()["data"]["last_result"]}
+    for where, result in replies.items():
+        caller = where.split("'")[0]
+        assert set(result["alerts"]) == {caller}, where  # no other user's alerts
+        assert all(f'"{u}"' not in json.dumps(result) for u in {"default", "alice", "bob"} - {caller}), where  # or ids
+    # the caller's own alerts are still there
+    assert (OLD_TO_KEV, "kev") in pairs(replies["bob's Check now"]["alerts"]["bob"])
+    assert (NEW_DAY2, "new") in pairs(replies["alice's GET /refresh"]["alerts"]["alice"])
+    assert sum(ran.json()["alerts_for_you"].values()) > 0

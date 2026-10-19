@@ -264,8 +264,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         summary = dashboard.summary(d.knowledge, watched, dashboard.applied_filter(d.knowledge, watched, product))
         # The freshness panel: Live or Snapshot, last checked (B02), and the last run for its partial or failed
         # banner (B20). The next try is the run's start + 5 minutes, the one rule for every trigger.
-        last = deps.refresher.last_result() if deps.refresher else None
-        return summary | {"data": {**data_status(), "last_result": last.model_dump() if last else None,
+        last = deps.refresher.last_result() if deps.refresher else None  # B37: with the caller's own alerts only
+        return summary | {"data": {**data_status(), "last_result": last.for_user(d.user_id).model_dump() if last else None,
                                     "schedule": schedule_status(d.user_id),  # B19: "Schedule paused"
                                     # B28: the owner is told when live mode reads the made-up test data
                                     "feeds": deps.settings.feeds if d.user_id == deps.settings.owner else None}}
@@ -411,8 +411,11 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @api.post("/refresh", response_model=CheckReply)
     def check_now(user: Annotated[str, Depends(current_user)]):
         """Check now: run the refresh (or be refused: one at a time, at most one per 5 minutes). A refusal is the
-        429 form (B11), still carrying the reply: the refusal and the last run's result, for the freshness card."""
+        429 form (B11), still carrying the reply: the refusal and the last run's result, for the freshness card.
+        Either way the result holds the caller's own alerts only (B37, #87): the run alerts every user."""
         reply = live_only().run("button")
+        if reply.result is not None:
+            reply = reply.model_copy(update={"result": reply.result.for_user(user)})
         if reply.ran:
             deps.sync()  # load the new version now, so the reply comes when the new CVEs can be found
             assert reply.result is not None  # B34: the dashboard's line counts the caller's own alerts
@@ -443,8 +446,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
             return JSONResponse(status_code=502 if failed else 200, content=body)
 
     @api.get("/refresh")
-    def refresh_status():
-        return {**data_status(), **(deps.refresher.status() if deps.refresher else
+    def refresh_status(user: Annotated[str, Depends(current_user)]):
+        return {**data_status(), **(deps.refresher.status(user) if deps.refresher else
                                     {"running": False, "next_allowed": None, "last_result": None})}
 
     @api.get("/refresh/runs")

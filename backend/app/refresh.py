@@ -97,6 +97,11 @@ class RefreshResult(BaseModel):
             data = data | {"status": "ok" if data.get("ok") else "failed"}
         return data
 
+    def for_user(self, user_id: str) -> "RefreshResult":
+        """B37 (#87): the run as one user may see it: their own alerts only, so no other user's alerts or id.
+        Every route that answers a user sends this; the run log on disk keeps every user's."""
+        return self.model_copy(update={"alerts": {user_id: self.alerts[user_id]} if user_id in self.alerts else {}})
+
 
 class Refusal(BaseModel):
     reason: Literal["too_soon", "running"]
@@ -257,11 +262,13 @@ class Refresher:
         with self._lock() as held:
             return not held
 
-    def status(self) -> dict:
+    def status(self, user_id: str) -> dict:
+        """GET /refresh: the last run with `user_id`'s own alerts only (B37)."""
         nxt = self.next_allowed()
         last = self.last_result()
         return {"last_checked": self.last_checked(), "running": self.running(),
-                "next_allowed": iso_utc(nxt) if nxt else None, "last_result": last.model_dump() if last else None}
+                "next_allowed": iso_utc(nxt) if nxt else None,
+                "last_result": last.for_user(user_id).model_dump() if last else None}
 
     def _refuse(self, trigger: str, reason: str, now: dt.datetime, next_allowed: dt.datetime,
                 log_data: dict | None) -> CheckReply:
