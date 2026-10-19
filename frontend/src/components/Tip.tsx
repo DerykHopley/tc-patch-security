@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { placeTip } from '../tips.ts'
 import '../styles/tip.css'
 
-// A tooltip by mouse, keyboard and touch (B44, #94; DESIGN.md §5.16). A native `title` shows on mouse hover only: a
+// A tooltip by mouse, keyboard and touch (B44, #94; DESIGN.md §5.17). A native `title` shows on mouse hover only: a
 // keyboard or a phone never sees it. Here the anchor is a Tab stop and its words are its description
 // (aria-describedby), and the bubble shows on:
 //   - mouse: hover (it stays while the pointer moves onto the bubble, so it can be read and selected);

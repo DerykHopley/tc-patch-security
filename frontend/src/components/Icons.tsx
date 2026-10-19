@@ -36,6 +36,10 @@ export const MoonIcon = () => (
 export const ListIcon = () => (
   <svg {...base}><path d="M9 6h12M9 12h12M9 18h12" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></svg>
 );
+// An "i" in a circle: the About page (B42).
+export const InfoIcon = () => (
+  <svg {...base}><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>
+);
 // A drawing pin (filled); the chat header tilts it 35° until the chat is pinned (DESIGN.md §7.1).
 export const PinIcon = () => (
   <svg width={14} height={14} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">

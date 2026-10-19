@@ -5,6 +5,7 @@ import { Robot } from '../components/Robot.tsx'
 import { pickPose } from '../components/patchPose.ts'
 import { useTheme } from '../theme.ts'
 import { signInView, type SignInView } from './signInView.ts'
+import { subscribeToAddress } from './useFrontDoor.ts'
 
 // The sign-in screen (B10, DESIGN.md §5.13): what a signed-out visitor sees with sign-in on. One Playful card on the
 // page background, Patch rising over its top edge, the brand, a heading and one line, then Clerk's sign-in form
@@ -23,18 +24,9 @@ const TEXT: Record<SignInView, { title: string; lead: string }> = {
   },
 }
 
-function subscribe(onChange: () => void) {
-  window.addEventListener('hashchange', onChange) // Clerk's hash routing moves by setting location.hash
-  window.addEventListener('popstate', onChange)
-  return () => {
-    window.removeEventListener('hashchange', onChange)
-    window.removeEventListener('popstate', onChange)
-  }
-}
-
 /** The sign-in screen's view for the page's current address; follows Clerk's steps. */
 export function useSignInView(): SignInView {
-  return useSyncExternalStore(subscribe, () => signInView(window.location))
+  return useSyncExternalStore(subscribeToAddress, () => signInView(window.location))
 }
 
 export function SignInScreen({ children }: { children: ReactNode }) {
@@ -67,6 +59,15 @@ export function ScreenCard({ title, lead, children }: { title: string; lead: str
         <div className="signin-form">{children}</div>
       </main>
     </div>
+  )
+}
+
+/** While Clerk loads, for a browser that was signed in last time (B42): no landing page flashing before the app. */
+export function OpeningPatch() {
+  return (
+    <ScreenCard title="Opening Patch" lead="Checking that you're still signed in.">
+      <output className="signin-note">Loading…</output>
+    </ScreenCard>
   )
 }
 

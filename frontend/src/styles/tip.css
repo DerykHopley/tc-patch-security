@@ -1,4 +1,4 @@
-/* Tooltips by mouse, keyboard and touch (B44, DESIGN.md §5.16). The bubble is the charts' tooltip (§5.4): --text
+/* Tooltips by mouse, keyboard and touch (B44, DESIGN.md §5.17). The bubble is the charts' tooltip (§5.4): --text
    fill, --surface text, 4px radius; it wraps at 18rem instead of one line, since these tips are sentences. Tokens only.
    Nothing moves: no fade, so nothing for reduced motion to stop. */
 

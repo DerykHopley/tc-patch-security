@@ -1,4 +1,4 @@
-// Tooltips by mouse, keyboard and touch (B44, #94; DESIGN.md §5.16): the bubble's place and the CVE list's tip texts,
+// Tooltips by mouse, keyboard and touch (B44, #94; DESIGN.md §5.17): the bubble's place and the CVE list's tip texts,
 // kept apart from components/Tip.tsx so `npm test` checks them.
 
 export interface Box {

@@ -7,10 +7,11 @@
 // Sign-up is open (Clerk's Public mode, B38): anyone can make an account there, then asks the owner for access
 // (access.ts). No invitations any more.
 
-/** The URLs ClerkProvider gets: all on this page, so no step ever leaves Patch for Clerk's hosted page. */
+/** The URLs ClerkProvider gets: all on this page, so no step ever leaves Patch for Clerk's hosted page. Since B42
+ * (#80) the landing page is the front door, so the form has its own path; signed in or out, Clerk sends to `/`. */
 export const CLERK_URLS = {
-  signInUrl: '/',
-  signUpUrl: '/#/create',
+  signInUrl: '/sign-in',
+  signUpUrl: '/sign-in#/create',
   signInFallbackRedirectUrl: '/',
   signUpFallbackRedirectUrl: '/',
   afterSignOutUrl: '/',
@@ -23,4 +24,27 @@ export type SignInView = 'sign-in' | 'sign-up'
 export function signInView({ hash }: { search: string; hash: string }): SignInView {
   const path = hash.replace(/^#/, '').split('?', 1)[0].replace(/\/$/, '')
   return path === '/create' || path.startsWith('/create/') ? 'sign-up' : 'sign-in'
+}
+
+/** What a signed-out visitor sees (B42, #80): `landing`, the `sign-in` screen, or `wait` (the "Opening Patch" card
+ * while Clerk loads). */
+export type FrontDoor = 'landing' | 'sign-in' | 'wait'
+
+export const SIGN_IN_PATH = CLERK_URLS.signInUrl
+export const REQUEST_ACCESS_PATH = CLERK_URLS.signUpUrl
+
+/** The screen for a signed-out (or not yet known) visitor at this address. The sign-in form lives at /sign-in, on
+ * Clerk's own steps (hash routes, `#/…`, which Clerk may append to any path) and on an old invitation link; every
+ * other address, an unknown one too (#96), is the landing page. While Clerk still loads, a browser that was signed
+ * in last time waits (`wait`), so a returning user isn't shown the landing page for a moment before the app. */
+export function frontDoor(
+  { pathname, search, hash }: { pathname: string; search: string; hash: string },
+  clerk: { loaded: boolean; wasSignedIn: boolean },
+): FrontDoor {
+  const path = pathname.replace(/\/+$/, '') || '/'
+  const params = new URLSearchParams(search)
+  if (path === SIGN_IN_PATH || hash.startsWith('#/') || params.has('__clerk_ticket') || params.has('__clerk_status')) {
+    return 'sign-in'
+  }
+  return !clerk.loaded && clerk.wasSignedIn ? 'wait' : 'landing'
 }

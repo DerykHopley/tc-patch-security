@@ -22,6 +22,11 @@ test('B35.4 a malformed id still opens the CVE page, which says there is no such
   assert.deepEqual(locate('/cves/%E0%A4%A'), { page: 'cves', cve: '%E0%A4%A' }) // not decodable: kept as typed
 })
 
+test('B42.1 /about is the About page (the landing page inside the app)', () => {
+  assert.deepEqual(locate('/about'), { page: 'about', cve: null })
+  assert.deepEqual(locate('/about/'), { page: 'about', cve: null })
+})
+
 test('B35.4 cvePath links to the CVE page', () => {
   assert.equal(cvePath('CVE-2025-3248'), '/cves/CVE-2025-3248')
   assert.equal(cvePath('cve-2025-3248'), '/cves/CVE-2025-3248')
