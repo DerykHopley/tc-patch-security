@@ -6,13 +6,25 @@
   color: var(--muted);
 }
 
-/* Dev: a grid of cards in rows. */
 .settings-grid,
 .settings-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.2rem;
   align-items: start;
+}
+
+/* Dev (DESIGN.md §5.6.3): Model and Index stacked on the left, Agent and search on the right spanning both rows, so
+   a short Model card never leaves a hole above Index (B39). DOM order stays Model, Agent and search, Index: Tab
+   order and the one-column order don't change. The second row is `1fr`, not `auto`: when Agent and search is taller
+   than Model and Index together, a spanning card's extra height goes to the flexible row only, so Model's row stays
+   Model's height (with `auto auto` the extra is split over both rows and a smaller hole opens under Model). */
+.settings-grid {
+  grid-template-rows: auto 1fr;
+}
+
+.settings-grid > .span-rows {
+  grid-row: span 2;
 }
 
 /* Settings: the Watchlist across the top, then two packed columns (DESIGN.md §5.7). Each column stacks its own
@@ -30,6 +42,15 @@
   .settings-grid,
   .settings-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* One column: no span and no fixed rows, so no empty row or extra gap. */
+  .settings-grid {
+    grid-template-rows: none;
+  }
+
+  .settings-grid > .span-rows {
+    grid-row: auto;
   }
 }
 

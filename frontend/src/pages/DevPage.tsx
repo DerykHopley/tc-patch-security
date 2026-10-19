@@ -398,7 +398,8 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
           )}
         </Card>
 
-        <Card title="Agent and search" kind="live" why="The chat and the playground read the saved values">
+        <Card title="Agent and search" kind="live" why="The chat and the playground read the saved values"
+          className="span-rows">
           {yours ? (
             <>
               <Slider id="dev-steps" label="Max agent steps" hint="tool rounds before it stops" value={d.max_steps} min={1}
