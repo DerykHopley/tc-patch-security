@@ -5,11 +5,13 @@ import { DecisionSummary, HistoryList } from '../components/Decision.tsx'
 import { ExternalLink as External } from '../components/ExternalLink.tsx'
 import { DueFacts, PriorityChip, PriorityReasons } from '../components/Priority.tsx'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
+import { Tip } from '../components/Tip.tsx'
 import { EPSS_URL, epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { USAGE_LABEL, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
 import { NEW_TITLE, STATUS_LABEL } from '../cveView.ts'
 import { marksSeen, rangeWords, showsPriority } from '../cvePage.ts'
 import { followLink, openedFromList, PATHS } from '../route.ts'
+import { HEADER_TIPS } from '../tips.ts'
 import '../styles/cves.css'
 import '../styles/cvePage.css'
 
@@ -222,7 +224,7 @@ function CveDetails({ detail: d, asOf, onDecide, onAsk, onNavigate }: {
               <SeverityBadge severity={d.severity} cvss={d.cvss} />
             </dd>
             <dt>
-              <abbr title="Exploit Prediction Scoring System: the chance of exploitation in the next 30 days">EPSS</abbr>
+              <Tip text={HEADER_TIPS.epss}>EPSS</Tip>
             </dt>
             <dd>
               {d.epss ? (

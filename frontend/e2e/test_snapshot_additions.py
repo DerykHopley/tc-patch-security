@@ -11,7 +11,7 @@ import pytest
 from playwright.sync_api import Page, Route, expect
 
 from test_chat import Q2, ask, open_chat
-from test_cves_page import open_cves  # noqa: F401 (fixture)
+from test_cves_page import open_cves, open_filters  # noqa: F401 (fixture)
 from test_dashboard import DESKTOP, PHONE, SHOTS, api, clean_state, contrast, open_dash, rgb_list  # noqa: F401 (fixtures)
 from reduced_motion import scene, still
 
@@ -64,7 +64,8 @@ def test_a14_10_possible_match_badge_only_on_unconfirmed_guesses(open_cves, api_
     expect(badges).to_have_count(len(flagged))
     badge = row(page, flagged[0]).locator(".chip.possible")
     expect(badge).to_have_text("Possible match")
-    assert "guessed from the description" in (badge.get_attribute("title") or "")
+    # its tooltip (B44: mouse, keyboard and touch) is its description: matched on text, not a CPE
+    expect(badge).to_have_accessible_description(re.compile(r"matched the product on the description's text"))
 
 
 def test_a14_10_lookup_cve_card_shows_epss_and_possible_match(open_dash, api_url):
@@ -118,6 +119,7 @@ def test_a14_11_freshness_lists_every_licence_attribution_and_the_nvd_notice(ope
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 def test_a14_13_light_dark_phone_and_desktop(open_cves, browser_name, width, scheme):
     page = open_cves(RECENT, width=width, scheme=scheme, reduced=True)
+    open_filters(page)  # folded on a phone (B44)
     page.get_by_role("combobox", name="Product").select_option(label="Langflow")
     badge = table(page).locator(".chip.possible").first
     expect(badge).to_be_visible()

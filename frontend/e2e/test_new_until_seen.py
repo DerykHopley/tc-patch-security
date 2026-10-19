@@ -11,6 +11,7 @@ from playwright.sync_api import Page, expect
 
 from test_live import NEW
 from test_new_since_check import count, live_cves, new_box, rows  # noqa: F401 (live_cves is a fixture)
+from test_cves_page import open_filters
 from test_shell import contrast, no_sideways_scroll
 
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
@@ -59,6 +60,7 @@ def test_b40_9_no_button_while_nothing_is_new(live_cves):
 @pytest.mark.parametrize("width", [DESKTOP, PHONE])
 def test_b40_10_the_new_list_and_its_button_in_both_themes_and_on_a_phone(live_cves, scheme, width):
     page = live_cves("?new=1", width=width, scheme=scheme)
+    open_filters(page)  # folded on a phone (B44)
     button = mark_all(page)
     expect(button).to_be_in_viewport()
     expect(rows(page)).to_have_count(len(NEW))

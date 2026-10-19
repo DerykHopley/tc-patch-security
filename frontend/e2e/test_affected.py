@@ -13,7 +13,7 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from test_chat import ask
-from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cves, params, pin, visible_focus, window  # noqa: F401
+from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cves, open_filters, params, pin, visible_focus, window  # noqa: F401
 from test_dashboard import (  # noqa: F401 (fixtures)
     DEFAULT_WATCHLIST, DESKTOP, PHONE, SHOTS, api, clean_state, confirm, contrast, expect_rows, open_dash, rgb_list, rows,
 )
@@ -134,6 +134,7 @@ def test_a15_10_light_dark_phone_and_desktop(open_cves, api_url, browser_name, w
     page.screenshot(path=SHOTS / f"a15-{browser_name}-{width}-{scheme}-cves.png")
     assert no_sideways_scroll(page)
     actions_in_view(page)
+    open_filters(page)  # folded on a phone (B44)
     for value, name in (("affected", "Affected"), ("not_affected", "Not affected"), ("unknown", "Unknown")):
         page.get_by_role("combobox", name="Verdict").select_option(value)
         chip = page.locator("table.cves .verdict").first

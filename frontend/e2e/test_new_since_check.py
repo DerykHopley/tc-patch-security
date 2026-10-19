@@ -10,6 +10,7 @@ import re
 import pytest
 from playwright.sync_api import Browser, Locator, Page, expect
 
+from test_cves_page import open_filters
 from test_dashboard import api
 from test_live import NEW
 from test_shell import contrast, no_sideways_scroll
@@ -95,6 +96,7 @@ def test_b05_9_the_chip_in_both_themes_and_on_a_phone(live_cves, scheme, width):
     page = live_cves("?new=1", width=width, scheme=scheme)
     chip = rows(page).first.locator(".chip.new-chip")
     expect(chip).to_be_visible()
+    open_filters(page)  # folded on a phone (B44)
     colours = chip.evaluate("el => { const s = getComputedStyle(el); return [s.color, s.backgroundColor] }")
     assert contrast(*colours) >= 4.5, colours
     expect(new_box(page)).to_be_in_viewport()

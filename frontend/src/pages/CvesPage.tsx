@@ -24,8 +24,11 @@ import { VERDICT_LABEL, VERDICTS, VerdictChip, VerdictFacts } from '../component
 import { ActionButtons, SuggestNotAffected } from '../components/CveActions.tsx'
 import { rowActions } from '../cveActions.ts'
 import { CveLink } from '../components/CveLink.tsx'
+import { Tip } from '../components/Tip.tsx'
 import { SEVERITIES, sevLabel } from '../severity.ts'
+import { HEADER_TIPS, owaspTip } from '../tips.ts'
 import {
+  filtersLabel,
   NEW_LABEL,
   NEW_TITLE,
   STATUS_FILTERS,
@@ -84,6 +87,7 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
   const [asOf, setAsOf] = useState<string | null>(null)
   const [live, setLive] = useState(false) // live data (B02): checks happen, so "New" can mean something
   const [deciding, setDeciding] = useState<DecisionRequest | null>(null) // the open decision dialog (A16b)
+  const [filtersOpen, setFiltersOpen] = useState(false) // the phone's folded filters (B44); a desktop ignores it
 
   const loadRows = useCallback(
     () => fetchCves(filters, PAGE_SIZE, offset).then(setPage),
@@ -173,98 +177,111 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
       <section className="card cves-card" aria-labelledby="cve-table-title">
         <h2 id="cve-table-title">CVEs on your watchlist</h2>
         <div className="filters">
-          <label>
-            Product
-            <select value={filters.product ?? ''} onChange={(e) => filter({ product: e.target.value || undefined })}>
-              <option value="">All watched</option>
-              {options.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Severity
-            <select
-              value={filters.severity ?? ''}
-              onChange={(e) => filter({ severity: (e.target.value || undefined) as Severity | undefined })}
-            >
-              <option value="">Any</option>
-              {SEVERITIES.map((s) => (
-                <option key={s} value={s}>
-                  {sevLabel(s)} or worse
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Status
-            <select value={filters.status} onChange={(e) => filter({ status: e.target.value as StatusFilter })}>
-              {STATUS_FILTERS.map((s) => (
-                <option key={s} value={s}>
-                  {statusFilterLabel(s)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Verdict
-            <select
-              value={filters.verdict ?? ''}
-              onChange={(e) => filter({ verdict: (e.target.value || undefined) as Verdict | undefined })}
-            >
-              <option value="">Any</option>
-              {VERDICTS.map((v) => (
-                <option key={v} value={v}>
-                  {VERDICT_LABEL[v]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={filters.kev ?? false}
-              onChange={(e) => filter({ kev: e.target.checked || undefined })}
-            />
-            In CISA KEV only
-          </label>
-          {(live || filters.new) && (
+          {/* B44 L4: on a phone (or beside the pinned chat) the filters fold behind one button that says how many
+              are on; the count line stays in view. On a desktop the button is hidden and the controls show as before. */}
+          <button
+            type="button"
+            className="filters-toggle"
+            aria-expanded={filtersOpen}
+            aria-controls="cve-filter-controls"
+            onClick={() => setFiltersOpen(!filtersOpen)}
+          >
+            {filtersLabel(filters)}
+          </button>
+          <div id="cve-filter-controls" className={`filter-controls${filtersOpen ? ' open' : ''}`}>
+            <label>
+              Product
+              <select value={filters.product ?? ''} onChange={(e) => filter({ product: e.target.value || undefined })}>
+                <option value="">All watched</option>
+                {options.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Severity
+              <select
+                value={filters.severity ?? ''}
+                onChange={(e) => filter({ severity: (e.target.value || undefined) as Severity | undefined })}
+              >
+                <option value="">Any</option>
+                {SEVERITIES.map((s) => (
+                  <option key={s} value={s}>
+                    {sevLabel(s)} or worse
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Status
+              <select value={filters.status} onChange={(e) => filter({ status: e.target.value as StatusFilter })}>
+                {STATUS_FILTERS.map((s) => (
+                  <option key={s} value={s}>
+                    {statusFilterLabel(s)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Verdict
+              <select
+                value={filters.verdict ?? ''}
+                onChange={(e) => filter({ verdict: (e.target.value || undefined) as Verdict | undefined })}
+              >
+                <option value="">Any</option>
+                {VERDICTS.map((v) => (
+                  <option key={v} value={v}>
+                    {VERDICT_LABEL[v]}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label>
               <input
-                ref={newBox}
                 type="checkbox"
-                checked={filters.new ?? false}
-                onChange={(e) => filter({ new: e.target.checked || undefined })}
+                checked={filters.kev ?? false}
+                onChange={(e) => filter({ kev: e.target.checked || undefined })}
               />
-              {NEW_LABEL}
+              In CISA KEV only
             </label>
-          )}
-          {(live || filters.new) && page && page.new_total > 0 && (
-            <button
-              type="button"
-              className="mark-seen"
-              disabled={marking}
-              title={`${page.new_total} new CVE${page.new_total === 1 ? '' : 's'} you haven't opened`}
-              onClick={() => void markAll()}
-            >
-              Mark all as seen
-            </button>
-          )}
-          {filters.since && (
-            <span className="chip filter-chip">
-              Published since {filters.since}
+            {(live || filters.new) && (
+              <label>
+                <input
+                  ref={newBox}
+                  type="checkbox"
+                  checked={filters.new ?? false}
+                  onChange={(e) => filter({ new: e.target.checked || undefined })}
+                />
+                {NEW_LABEL}
+              </label>
+            )}
+            {(live || filters.new) && page && page.new_total > 0 && (
               <button
                 type="button"
-                aria-label={`Clear: published since ${filters.since}`}
-                title="Clear this filter"
-                onClick={() => filter({ since: undefined })}
+                className="mark-seen"
+                disabled={marking}
+                title={`${page.new_total} new CVE${page.new_total === 1 ? '' : 's'} you haven't opened`}
+                onClick={() => void markAll()}
               >
-                ✕
+                Mark all as seen
               </button>
-            </span>
-          )}
+            )}
+            {filters.since && (
+              <span className="chip filter-chip">
+                Published since {filters.since}
+                <button
+                  type="button"
+                  aria-label={`Clear: published since ${filters.since}`}
+                  title="Clear this filter"
+                  onClick={() => filter({ since: undefined })}
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+          </div>
           <span className="meta" aria-live="polite">
             {page ? `${page.total} CVEs · by priority, then due date` : 'Loading…'}
           </span>
@@ -335,22 +352,22 @@ function CveTable({ page, onDecide, onAsk, onOpen, selected }: {
           <tr>
             <th scope="col">CVE</th>
             <th scope="col">
-              <abbr title="Set by fixed rules from KEV, EPSS, severity, the verdict and internet-facing">Priority</abbr>
+              <Tip text={HEADER_TIPS.priority}>Priority</Tip>
             </th>
             <th scope="col">
-              <abbr title="Your due date, from your policy (Settings)">Due</abbr>
+              <Tip text={HEADER_TIPS.due}>Due</Tip>
             </th>
             <th scope="col">Product</th>
             <th scope="col">Severity</th>
             <th scope="col">Published</th>
-            <th scope="col">OWASP</th>
             <th scope="col">
-              <abbr title="Exploit Prediction Scoring System: the chance of exploitation in the next 30 days">EPSS</abbr>
+              <Tip text={HEADER_TIPS.owasp}>OWASP</Tip>
             </th>
             <th scope="col">
-              <abbr title="The version check's advice from your usage and version. Your status stays your decision.">
-                Verdict
-              </abbr>
+              <Tip text={HEADER_TIPS.epss}>EPSS</Tip>
+            </th>
+            <th scope="col">
+              <Tip text={HEADER_TIPS.verdict}>Verdict</Tip>
             </th>
             <th scope="col">Status</th>
           </tr>
@@ -366,7 +383,8 @@ function CveTable({ page, onDecide, onAsk, onOpen, selected }: {
                   </span>
                 )}
                 {r.kev && (
-                  <span className="chip kev" title={`In CISA KEV: known exploited. KEV deadline ${r.kev_deadline}`}>
+                  // B44 L3: the KEV deadline shows once, in the Due cell, where every date of the row is read
+                  <span className="chip kev" title="In CISA KEV: known to be exploited">
                     KEV
                   </span>
                 )}
@@ -398,8 +416,8 @@ function CveTable({ page, onDecide, onAsk, onOpen, selected }: {
               <td data-label="Published" className="num">
                 {r.published}
               </td>
-              <td data-label="OWASP" title={r.owasp_title ?? undefined}>
-                {r.owasp ?? '—'}
+              <td data-label="OWASP">
+                <OwaspCode code={r.owasp} tip={owaspTip(r.owasp_title, r.owasp_list)} />
               </td>
               <td data-label="EPSS" className="epss num">
                 {r.epss ? (
@@ -440,6 +458,14 @@ function CveTable({ page, onDecide, onAsk, onOpen, selected }: {
       </table>
     </div>
   )
+}
+
+// The OWASP code (B44 L5): "A05" alone says neither the category nor the list, so its tooltip names both. No
+// category: a dash, with nothing to explain.
+function OwaspCode({ code, tip }: { code: string | null; tip: string | null }) {
+  if (!code) return <>—</>
+  if (!tip) return <>{code}</>
+  return <Tip text={tip}>{code}</Tip>
 }
 
 // A row's actions (B36, #86): the one main action in view, the rest and "Ask about this" under "More", a native

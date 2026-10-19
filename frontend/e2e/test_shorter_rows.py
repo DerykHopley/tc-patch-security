@@ -9,6 +9,7 @@ import pytest
 from playwright.sync_api import Browser, Locator, Page, expect
 
 from test_dashboard import SHOTS, api, clean_state  # noqa: F401 (fixture)
+from test_cves_page import open_filters
 from test_shell import contrast, no_sideways_scroll
 from reduced_motion import scene, still
 
@@ -72,6 +73,7 @@ def test_b36_6_one_phone_card_fits_the_screen(open_list, api_url):
         {"status": "accepted", "reason": "Behind the VPN until the upgrade", "review_date": "2026-12-01",
          "compensating_control": "Only reachable over the VPN"})
     page = open_list(PHONE_VP)
+    open_filters(page)  # folded on a phone (B44)
     page.get_by_label("Status").select_option("accepted")  # closed rows sort last (B33): show the accepted ones
     expect(row(page, CVE)).to_be_visible()
     tab_bar = page.locator(".sidenav").evaluate("el => el.getBoundingClientRect().height")

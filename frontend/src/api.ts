@@ -356,6 +356,7 @@ export interface CveRow {
   published: string
   owasp: string | null
   owasp_title: string | null
+  owasp_list: string | null // "OWASP Top 10 2025 (web applications)": the code's tooltip names it (B44)
   kev: boolean
   kev_deadline: string | null // CISA's remediation date: a fact, not your due date
   new: boolean // a check found it new and the user hasn't seen it yet (B05, B40): the "New" chip

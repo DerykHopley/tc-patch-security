@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import type { CveRow, CveStatus, Decision, DecisionInput, Justification } from '../api.ts'
 import { STATUS_LABEL } from '../cveView.ts'
 import type { DecisionRequest } from '../cveActions.ts'
+import { whoDecided } from '../decisionWho.ts'
 
 // Decision records (A16b, DESIGN.md §5.9): the dialog every status change goes through, the current decision under
 // the status, the append-only history, and the "No fix yet" mark. Only the user decides: nothing here is clicked for
@@ -311,8 +312,7 @@ export function HistoryList({ history }: { history: Decision[] }) {
           {facts(h).length > 0 && <span> · {facts(h).join(' · ')}</span>}
           <span className="history-who">
             {' '}
-            · by {h.decided_by ?? 'unknown'}
-            {h.via === 'chat' ? ', in the chat' : h.via === 'page' ? ', on the CVEs page' : ''}
+            · {whoDecided(h)}
           </span>
         </li>
       ))}

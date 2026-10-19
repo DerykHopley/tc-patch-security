@@ -121,12 +121,11 @@ class WatchedCves:
         k, cve, v = self.k, a.cve, a.verdict
         kev = k.cves.kev.get(cve["id"])
         cat = k.category(cve["owasp"])
-        kind = k.owasp["categories"][cve["owasp"]].get("kind", "") if cat else ""
         return {
             "id": cve["id"], "product": cve["product"], "product_name": k.products[cve["product"]],
             "severity": cve["severity"], "cvss": cve["cvss"], "published": cve["published"], "cwes": cve["cwes"],
             "description": cve["description"],  # in full: the list cuts it to 220 characters
-            "owasp": {**cat, "list": OWASP_LISTS.get(kind)} if cat else None,
+            "owasp": {**cat, "list": self._owasp_list(cve["owasp"])} if cat else None,
             "kev": {"date_added": kev["dateAdded"], "deadline": kev["dueDate"], "required_action": kev["requiredAction"],
                     "ransomware": kev["knownRansomwareCampaignUse"]} if kev else None,
             "epss": k.epss_of(cve["id"]), "possible_match": k.possible_match(cve["id"]),
@@ -139,6 +138,12 @@ class WatchedCves:
             "watched": a.watched, "row": self._row(a) if a.watched else None,
         }
 
+    def _owasp_list(self, code: str | None) -> str | None:
+        """The OWASP list a category belongs to ("OWASP Top 10 2025 (web applications)"), or None without one."""
+        if not self.k.category(code):
+            return None
+        return OWASP_LISTS.get(self.k.owasp["categories"][code].get("kind", ""))
+
     def _row(self, a: Assessment) -> dict:
         k, cve, p = self.k, a.cve, a.priority
         kev = k.cves.kev.get(cve["id"])
@@ -147,6 +152,7 @@ class WatchedCves:
             "id": cve["id"], "product": cve["product"], "product_name": k.products[cve["product"]],
             "severity": cve["severity"], "cvss": cve["cvss"], "published": cve["published"],
             "owasp": cve["owasp"], "owasp_title": cat["title"] if cat else None,
+            "owasp_list": self._owasp_list(cve["owasp"]),  # B44: the list's OWASP tooltip names it, as the page does
             "new": cve["id"] in self._stack.new,  # B40: a check found it new and you haven't seen it yet
             "kev": bool(kev), "kev_deadline": kev["dueDate"] if kev else None,  # CISA's, a fact; not your due date
             "status": a.status, "summary": cve["description"][:220], "url": cve["url"],
