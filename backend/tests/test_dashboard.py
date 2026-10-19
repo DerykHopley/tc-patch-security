@@ -5,7 +5,7 @@ def test_a04_1_dashboard_tiles_watchlist_and_products(client):
     d = client.get("/dashboard").json()
     assert d["as_of"] == "2026-10-13"
     assert set(d["kpis"]) == {"open", "critical", "kev", "kev_next_due", "kev_overdue", "overdue", "new_30d", "new_since",
-                             "no_fix", "review_due", "accepted"}  # the last three: A16b
+                             "no_fix", "review_due", "accepted", "new_unseen"}  # A16b; new_unseen: B43
     assert d["kpis"]["open"] == sum(p["total"] for p in d["by_product"])
     assert d["kpis"]["kev"] == 9 and d["kpis"]["kev_next_due"]["due"]
     assert d["watchlist"] == ["langchain", "langflow", "litellm", "ollama", "open-webui"]
@@ -175,7 +175,9 @@ def test_a15b_3_dashboard_filtered_by_several_products(client):
     assert 0 < d["kpis"]["kev"] == sum(r["kev"] for r in open_rows)
     every = [r for p in ("langflow", "ollama") for r in _all(client, f"status=all&product={p}")]
     assert sum(m["count"] for m in d["per_month"]) == sum(r["published"] <= d["as_of"] for r in every)
-    assert sum(o["count"] for o in d["by_owasp"]) + d["owasp_unmapped"] == len(open_rows)
+    # B43 (#25): a CVE counts under each category its CWEs map to, so the bars can add up to more
+    assert sum(o["count"] for o in d["by_owasp"]) + d["owasp_unmapped"] >= len(open_rows)
+    assert d["owasp_unmapped"] == sum(r["owasp"] is None for r in open_rows)
     assert d["latest_incidents"] == whole["latest_incidents"] and d["freshness"] == whole["freshness"]
 
 
@@ -219,3 +221,24 @@ def test_a15b_4_the_filter_follows_the_watchlist(client, deps):
     deps.state.unwatch("langflow")  # what Patch's update_watchlist and the Settings card both do: one state
     d = client.get("/dashboard?product=langflow,ollama").json()
     assert d["filter"] == ["ollama"] and "langflow" not in {c["product"] for c in d["watched"]}
+
+
+# --- B43 (#93, #25): the OWASP chart counts a CVE under every web category its CWEs map to ------------------------
+
+def test_b43_1_a_cve_counts_under_every_owasp_category_its_cwes_map_to(client):
+    # CVE-2026-87995 (Open WebUI): CWE-79 maps to A05, CWE-1021 to A06. It used to count under A05 only (#25).
+    before = client.get("/dashboard?product=open-webui").json()["by_owasp"]
+    client.patch("/cves/CVE-2026-87995", json={"status": "fixed"})
+    after = {o["code"]: o["count"] for o in client.get("/dashboard?product=open-webui").json()["by_owasp"]}
+    drop = {o["code"]: o["count"] - after.get(o["code"], 0) for o in before}
+    assert {c: n for c, n in drop.items() if n} == {"A05": 1, "A06": 1}
+
+
+def test_b43_1_bars_can_add_up_to_more_than_the_open_cves(client):
+    d = client.get("/dashboard").json()
+    counts = {o["code"]: o["count"] for o in d["by_owasp"]}
+    # #25's table, "counting every category" (the snapshot of 2026-10-13, the default watchlist)
+    assert counts == {"A01": 242, "A02": 2, "A04": 5, "A05": 128, "A06": 29, "A07": 43, "A08": 19, "A10": 6}
+    assert sum(counts.values()) + d["owasp_unmapped"] > d["kpis"]["open"]
+    assert d["owasp_unmapped"] == 46
+    assert all(o["title"].startswith(o["code"]) for o in d["by_owasp"])

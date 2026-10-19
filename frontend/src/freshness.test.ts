@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { AlertCounts, CheckReply, RefreshResult } from './api.ts'
-import { alertWords, checkedLine, replyLine, runBanner, utcTime } from './freshness.ts'
+import { alertWords, checkedLine, newCvesLink, replyLine, runBanner, utcTime } from './freshness.ts'
 
 const run = (over: Partial<RefreshResult> = {}): RefreshResult => ({
   trigger: 'button',
@@ -115,4 +115,12 @@ test('B20.10 the banner for a partial or failed last run: what updated, what did
   // a failed run logged before B20 has no feed steps: its errors say which feed stopped it
   const old = run({ ok: false, status: 'failed', feeds: [], errors: [{ source: 'epss', message: 'down' }] })
   assert.equal(runBanner(old)?.text, "No source updated at 09:00 UTC · EPSS didn't answer · the data is unchanged · next try 09:05 UTC")
+})
+
+test('B43.3 "See the N new CVEs" links to the new CVEs you have not seen, with the dashboard filter', () => {
+  assert.equal(newCvesLink(0, []), null) // nothing new: no link
+  assert.deepEqual(newCvesLink(1, []), { text: 'See the new CVE', href: '/cves?status=all&new=1' })
+  assert.deepEqual(newCvesLink(2, []), { text: 'See the 2 new CVEs', href: '/cves?status=all&new=1' })
+  assert.deepEqual(newCvesLink(2, ['langflow', 'ollama']),
+    { text: 'See the 2 new CVEs', href: '/cves?product=langflow,ollama&status=all&new=1' })
 })

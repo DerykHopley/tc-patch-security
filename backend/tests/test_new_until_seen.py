@@ -101,3 +101,23 @@ def test_b40_5_a_state_saved_before_b40_loads_with_its_new_cves_unseen(app):
     saved = json.loads(app.settings.state_path.read_text())
     assert "new_since_check" not in saved and saved["new_cves"]["cves"] == [NEW_DAY1]
     assert new_ids(app.client) == {NEW_DAY1}
+
+
+# --- B43.2 (#93): the dashboard counts the new CVEs you haven't seen, for "See the N new CVEs →" -----------------
+
+def new_unseen(client, query: str = "") -> int:
+    return client.get(f"/dashboard{query}").json()["kpis"]["new_unseen"]
+
+
+def test_b43_2_the_dashboard_counts_new_cves_not_seen_within_its_product_filter(app):
+    assert new_unseen(app.client) == 0  # before any check nothing is new
+    app.check_now()
+    app.next_day()
+    assert new_unseen(app.client) == 2
+    assert new_unseen(app.client, "?product=ollama") == 1  # the dashboard's filter narrows it, as it does the tiles
+    app.client.patch(f"/cves/{NEW_DAY2}", json={"status": "fixed"})  # a closed CVE you haven't opened is still new
+    assert new_unseen(app.client) == 2
+    app.client.post(f"/cves/{NEW_DAY1}/seen")
+    assert new_unseen(app.client) == 1
+    app.client.post("/cves/seen")
+    assert new_unseen(app.client) == 0

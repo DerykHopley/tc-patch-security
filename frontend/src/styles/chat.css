@@ -6,11 +6,11 @@
 
 .patch-fab {
   position: fixed;
-  right: 1.25rem;
-  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  right: var(--fab-right); /* the footprint's values: shell.css (B43), so pages keep the same space clear */
+  bottom: var(--fab-bottom);
   z-index: 21;
-  width: 84px;
-  height: 66px;
+  width: var(--fab-width);
+  height: var(--fab-height);
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -684,10 +684,7 @@ button.try-again:disabled {
 /* ---------- Phones: Patch's button sits above the bottom tab bar (§4.2) ---------- */
 
 @media (max-width: 800px) {
-  .patch-fab {
-    bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
-  }
-
+  /* .patch-fab moves up through --fab-bottom (shell.css) */
   .chat-window {
     --chat-bottom: calc(7.35rem + env(safe-area-inset-bottom, 0px));
   }

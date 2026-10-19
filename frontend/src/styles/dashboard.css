@@ -62,16 +62,44 @@
   color: var(--text);
 }
 
+/* Phones (B43): a smaller Patch (64px) beside the title, then the help line and the button at full width. Stacked
+   with the 110px Patch, the banner took about 330px of the first screen. */
 @media (max-width: 640px) {
   .hello {
-    flex-direction: column;
-    gap: 0.4rem;
-    padding: 0.9rem 1.2rem;
-    text-align: center;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.5rem 0.7rem;
+    align-items: center;
+    margin-top: 1.6rem; /* room for his smaller head */
+    padding: 0.8rem 1rem 0.9rem;
+  }
+
+  .hello-body {
+    display: contents; /* its title, line and button join the banner's grid */
   }
 
   .hello .robot {
-    align-self: center;
+    grid-area: 1 / 1;
+    align-self: start;
+    width: 64px;
+    height: auto;
+    margin: -1.6rem 0 -0.3rem; /* his head still rises over the top edge */
+  }
+
+  .hello h2 {
+    grid-area: 1 / 2;
+    margin: 0;
+    padding-right: 2rem; /* clear of the ✕ */
+  }
+
+  .hello p {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+
+  .hello-body > button {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 }
 
@@ -172,11 +200,36 @@ a.tile {
 
 /* ---------- Columns ---------- */
 
+/* B43: the product filter comes first in the page (before the tiles it narrows), so on a phone it sits above them.
+   Over 1000px the grid puts it at the top of the side column, as before: the main column spans both side rows, and
+   the second is 1fr, so the side cards start one gap under the filter however tall the charts are (the Dev page's
+   rule, DESIGN.md §5.6.3). */
 .dash-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    'tiles tiles'
+    'main filter'
+    'main side';
   gap: 1.2rem;
   align-items: start;
+}
+
+.dash-grid > .tiles {
+  grid-area: tiles;
+}
+
+.dash-grid > .filter-card {
+  grid-area: filter;
+}
+
+.dash-main {
+  grid-area: main;
+}
+
+.dash-side {
+  grid-area: side;
 }
 
 .dash-main,
@@ -320,6 +373,11 @@ a.tile {
   white-space: nowrap;
 }
 
+/* B43: a gap between "Decide by …" and the "No fix yet" chip, as "Overdue" has */
+.top-cves .top-due .chip.no-fix {
+  margin-left: 0.4rem;
+}
+
 /* The reasons on their own line under the row's facts. */
 .top-cves .priority-reasons {
   flex: 1 0 100%;
@@ -411,6 +469,45 @@ a.tile {
 
 .freshness .checked-line {
   margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* B43: "See the N new CVEs →" and "Schedule and refresh runs →", one link a line */
+.freshness .edit-link {
+  display: block;
+  width: fit-content;
+  margin-bottom: 0.35rem;
+}
+
+/* B43: the sources and their licences, folded after the status (a native <details>: keyboard and screen readers as
+   the platform does; the marker is the browser's, as "Show as table" under the charts). */
+.freshness .sources {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.freshness .sources summary {
+  width: fit-content;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  border-radius: var(--radius-input);
+}
+
+.freshness .sources summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.freshness .sources[open] summary {
+  margin-bottom: 0.55rem;
+}
+
+/* B43: one line on what the ATLAS incidents are and why they're here */
+.incidents .intro {
+  margin: 0 0 0.6rem;
   font-size: 0.85rem;
 }
 
@@ -539,6 +636,7 @@ button.check-now:disabled {
 }
 
 .dashboard .dash-main > :nth-child(2),
+.dashboard .filter-card,
 .dashboard .dash-side > * {
   animation-delay: 0.12s;
 }
@@ -587,6 +685,14 @@ button.check-now:disabled {
 @media (max-width: 1000px) {
   .dash-grid {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas: 'filter' 'tiles' 'main' 'side';
+  }
+
+  /* B43: one column, so Patch's button floats over the cards' right edge. The charts keep that strip free, so a
+     bar's total (at the end of the longest bar) is never under him; the same footprint as the page's end. */
+  .dashboard .chart-box {
+    padding-right: var(--fab-side);
   }
 }
 
