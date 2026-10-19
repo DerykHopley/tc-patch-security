@@ -347,8 +347,14 @@ pause
 # ── 5 ─────────────────────────────────────────────────────────────────────
 stage "Turn on the services, and a budget alert of 1 (dollar or euro)"
 say "Cloud Run, the image registry, Secret Manager, Scheduler, Storage and Budgets. This can take a minute."
-run "Enable the services" gcloud services enable run.googleapis.com artifactregistry.googleapis.com \
-  secretmanager.googleapis.com cloudscheduler.googleapis.com storage.googleapis.com billingbudgets.googleapis.com
+APIS="run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com cloudscheduler.googleapis.com storage.googleapis.com billingbudgets.googleapis.com"
+ENABLED=$(gcloud services list --enabled --project="$PROJECT_ID" --format='value(config.name)' 2>/dev/null || true)
+MISSING=""; for api in $APIS; do grep -qx "$api" <<<"$ENABLED" || MISSING+=" $api"; done
+if [[ -z "$MISSING" ]]; then say "All six services are on."
+else
+  # shellcheck disable=SC2086
+  run "Enable the services" gcloud services enable $MISSING --project="$PROJECT_ID"
+fi
 if gcloud billing budgets list --billing-account="$BILLING_ACCOUNT" --format='value(displayName)' 2>/dev/null \
     | grep -qx "Patch"; then
   say "The \"Patch\" budget alert already exists."
@@ -372,8 +378,12 @@ say "The bucket holds everyone's state and the live CVE data (it replaces backen
 if exists gcloud storage buckets describe "gs://$BUCKET"; then say "Bucket gs://$BUCKET exists."
 else run "Create the bucket" gcloud storage buckets create "gs://$BUCKET" --location="$REGION" \
   --uniform-bucket-level-access --public-access-prevention; fi
-run "Let the service read and write the bucket" gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
-  --member="serviceAccount:$SA" --role=roles/storage.objectUser
+if gcloud storage buckets get-iam-policy "gs://$BUCKET" --format=json 2>/dev/null | grep -q "serviceAccount:$SA"; then
+  say "The service may already read and write the bucket."
+else
+  run "Let the service read and write the bucket" gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
+    --member="serviceAccount:$SA" --role=roles/storage.objectUser
+fi
 pause
 
 # ── 7 ─────────────────────────────────────────────────────────────────────
@@ -412,7 +422,8 @@ if ! exists gcloud artifacts repositories describe patch --location="$REGION"; t
   run "Create the image registry" gcloud artifacts repositories create patch --repository-format=docker \
     --location="$REGION"
 fi
-run "Let docker push to it" gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+if grep -q "$REGION-docker.pkg.dev" "$HOME/.docker/config.json" 2>/dev/null; then say "Docker may already push to the registry."
+else run "Let docker push to it" gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet; fi
 run "Push the image (about 1 GB the first time)" docker push "$IMAGE:$TAG"
 pause
 
@@ -510,15 +521,18 @@ pause
 
 # ── 12 ────────────────────────────────────────────────────────────────────
 stage "The hourly refresh, and the checks"
-say "Cloud Scheduler knocks every hour; Patch refreshes only when your Settings schedule is due."
+say "Cloud Scheduler knocks on Patch; Patch refreshes only when your Settings schedule is due."
 if exists gcloud scheduler jobs describe patch-refresh --location="$REGION"; then
   say "The job patch-refresh exists."
 else
-  say "Creates job patch-refresh: POST $URL/api/refresh/scheduled every hour, with the scheduler secret"
+  if confirm "Knock once a day (at 08:00 in $ALERT_TZ) instead of every hour?"; then
+    CRON="0 8 * * *"; CRON_TZ="$ALERT_TZ"; note "Then set Settings → schedule to every 24 hours in the app."
+  else CRON="0 * * * *"; CRON_TZ=UTC; fi
+  say "Creates job patch-refresh: POST $URL/api/refresh/scheduled ($CRON, $CRON_TZ), with the scheduler secret"
   say "in the X-Scheduler-Secret header (read from Secret Manager, not shown)."
   if confirm "Run it?"; then
     secret=$(gcloud secrets versions access latest --secret=scheduler-secret)
-    gcloud scheduler jobs create http patch-refresh --location="$REGION" --schedule="0 * * * *" --time-zone=UTC \
+    gcloud scheduler jobs create http patch-refresh --location="$REGION" --schedule="$CRON" --time-zone="$CRON_TZ" \
       --uri="$URL/api/refresh/scheduled" --http-method=POST --headers="X-Scheduler-Secret=$secret" \
       --attempt-deadline=600s >/dev/null && printf '  %s✓ done%s\n' "$GREEN" "$RESET" \
       || { secret=""; warn "That failed: see above. Re-run the wizard to try again."; exit 1; }

@@ -138,6 +138,22 @@ The owner's app on `spec-b`, live mode with the real feeds (`FEEDS=real`), no NV
 - Found on the way: live mode defaulted to the **fake** feeds, so the first "live" run alerted made-up CVEs (#74 makes the real feeds the default). Snapshot-mode ticks showed as failed services (also #74).
 - A real alert on the owner's phone (#75, 2026-10-19, week 2026-W43): the timer's check ran 06:57:28 to 06:59:39 UTC and sent one ntfy digest, "271 alerts for your watchlist, 271 overdue". The phone shows it at 08:59 CEST (06:59 UTC), so it arrived **under a minute** after the run finished (ntfy shows minutes only). The dashboard's Recent alerts records it with desktop and ntfy "sent". Screenshots: [phone](docs/media/live-run/phone-overdue-digest.png) (cropped: the title bar showed the ntfy topic), [dashboard](docs/media/live-run/dashboard-recent-alerts.png).
 
+## First deploy to Cloud Run (B14, #45, 2026-10-19)
+
+The owner deployed `spec-b` with `scripts/deploy-wizard.sh`. *Checked* by the owner and the health route:
+
+| | |
+|---|---|
+| Address | https://patch-976248543439.us-central1.run.app (project `tc-patch-security`, us-central1) |
+| Health | `status: ok`, live mode, OpenRouter (Claude Haiku 5.5), sign-in on, Dev page on |
+| Sign-in | landing page → Sign in → dashboard, with the Clerk development instance (no extra origin setting needed) |
+| Refresh | a Cloud Scheduler job, **daily** (the owner's choice, instead of hourly); its first run at 18:00 showed in Settings → Refresh runs |
+| Budget | 1 EUR alert (a German billing account bills in EUR: `1USD` failed with `INVALID_ARGUMENT`) |
+
+- Fixed on the way, in the wizard and DEPLOY.md: the billing account ID shown plainly, the budget in the account's currency, an empty time zone (YAML read it as null and `gcloud run deploy` refused it).
+- The live app runs the code as of the deploy; later merges need a redeploy (DEPLOY.md step 9, a new image tag).
+- Still to check (#45): a second account on the live app (ask, approve, own watchlist), Check now there, the cold-start time, and after a week the cost (expected 0).
+
 ## What's open
 
 Follow-ups from spec A, not scheduled yet (`needs-triage`):

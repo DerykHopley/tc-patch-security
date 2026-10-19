@@ -186,6 +186,7 @@ gcloud scheduler jobs run patch-refresh --location=$REGION     # one tick now, t
 ```
 
 - The tick answers 200 with the run's result, or `{"ran": false, "skipped": "not_due"}` / `"paused"`. A run where no feed answered is a 502, so it shows as a failed attempt in the job's log. A missing or wrong secret is a 401 and runs nothing.
+- **Daily instead:** `--schedule="0 8 * * *" --time-zone="Europe/Berlin"` (the owner's choice on the first deploy, 2026-10-19). Then set Settings → schedule to every 24 hours, so the app's "next check" is honest. New CVEs and KEV alerts then arrive up to a day late; Check now still works.
 - How often the refresh really runs is set in the app: Settings → schedule (every 1, 3, 6, 12 or 24 hours, default 6), or Pause. The job only knocks every hour.
 - The secret is stored in the job's settings, readable by whoever can see the project's scheduler jobs (only you). If you change the secret, update the job: `gcloud scheduler jobs update http patch-refresh --location=$REGION --update-headers=X-Scheduler-Secret=<new>`.
 
