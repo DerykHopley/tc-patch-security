@@ -7,9 +7,10 @@ import { useChat } from './chat/useChat.ts'
 import { useChatLayout } from './chat/useChatLayout.ts'
 import { usePatch } from './chat/usePatch.ts'
 import { Brand } from './components/Brand.tsx'
-import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, ListIcon, MoonIcon, SunIcon } from './components/Icons.tsx'
+import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, InfoIcon, ListIcon, MoonIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
 import { UserMenu, type Account } from './components/UserMenu.tsx'
+import { Landing } from './landing/Landing.tsx'
 import { CvePage } from './pages/CvePage.tsx'
 import { CvesPage } from './pages/CvesPage.tsx'
 import { DashboardPage } from './pages/Dashboard.tsx'
@@ -28,6 +29,7 @@ const PAGES: Record<Page, { title: string; nav: string; Icon: () => JSX.Element 
   cves: { title: 'CVEs', nav: 'CVEs', Icon: ListIcon },
   settings: { title: 'Settings', nav: 'Settings', Icon: BellIcon },
   dev: { title: 'Dev panel', nav: 'Dev', Icon: CodeIcon },
+  about: { title: 'About', nav: 'About', Icon: InfoIcon }, // the landing page inside the app (B42)
 }
 
 // Questions that fit the page under the chat (1–2, DESIGN.md §6.2). FakeLLM answers each one.
@@ -36,6 +38,7 @@ const SUGGESTIONS: Record<Page, string[]> = {
   cves: ['What should I fix first?', 'Explain CVE-2025-3248 and how to defend against it.'],
   settings: ['How do I protect a RAG app from indirect prompt injection?'],
   dev: ['What does an "ignore previous instructions" attack look like?'],
+  about: ['What should I fix first?'],
 }
 
 // `account`: the signed-in user, with sign-in on (B10, auth/ClerkApp.tsx): the top bar shows the user menu.
@@ -160,6 +163,20 @@ export default function App({ account }: { account?: Account } = {}) {
             </span>
             {patch.unread && <span className="unread-dot" aria-hidden="true" />}
           </button>
+          {/* B42: the landing page, so it isn't lost after the first visit (and the only way to it with sign-in off) */}
+          <span className="side-section">Patch</span>
+          <button
+            type="button"
+            className="side-link"
+            aria-current={page === 'about' ? 'page' : undefined}
+            onClick={() => navigate(PATHS.about)}
+            title={collapsed ? PAGES.about.nav : undefined}
+          >
+            <span className="side-icon">
+              <InfoIcon />
+            </span>
+            <span className="side-label">{PAGES.about.nav}</span>
+          </button>
         </nav>
         <div className="side-card">
           <Robot size={64} variant={patch.restVariant} />
@@ -225,6 +242,8 @@ export default function App({ account }: { account?: Account } = {}) {
               selected={pageContext.selected}
               onView={pageContext.reportView}
             />
+          ) : page === 'about' ? (
+            <Landing place="about" onNavigate={navigate} />
           ) : page === 'settings' ? (
             <SettingsPage asOf={status?.as_of ?? null} mode={status?.mode} onServerSaved={refreshHealth} />
           ) : status?.dev_panel ? (

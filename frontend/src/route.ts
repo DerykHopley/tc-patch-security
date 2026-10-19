@@ -6,9 +6,15 @@ import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 // alerts and the chat link straight to it.
 // No router library: a handful of paths and the browser's history are all the app needs.
 
-export type Page = 'dashboard' | 'cves' | 'settings' | 'dev'
+export type Page = 'dashboard' | 'cves' | 'settings' | 'dev' | 'about'
 
-export const PATHS: Record<Page, string> = { dashboard: '/', cves: '/cves', settings: '/settings', dev: '/dev' }
+export const PATHS: Record<Page, string> = {
+  dashboard: '/',
+  cves: '/cves',
+  settings: '/settings',
+  dev: '/dev',
+  about: '/about', // the landing page inside the app (B42)
+}
 
 const CVE_ID = /^CVE-\d{4}-\d{4,7}$/i
 const SHOWN = 40 // characters of a CVE path segment kept: it's only shown back ("No such CVE")

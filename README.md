@@ -20,6 +20,7 @@ Built for the Turing College sprint 2 project: a RAG assistant that rewrites que
 - **Token usage and cost** under every answer: tokens in and out, LLM calls, steps, and dollars (from OpenRouter's reported cost).
 - **Dev page:** switch the model at runtime (FakeLLM, OpenRouter, or a local OpenAI-compatible server such as Ollama), tune search, watch each retrieval step in a playground, see the index on an embedding map, and run the model check.
 - **Alert channels:** desktop, email and ntfy, with test sends. The scheduled refresh that sends real alerts is spec B.
+- **A landing page** (B42, [#80](https://github.com/DerykHopley/tc-patch-security/issues/80)): a visitor who isn't signed in first sees what Patch is, the problem it solves and three screenshots in their theme, then **Sign in** or **Request access**. Inside the app it is the **About** page (`/about`). Its screenshots are taken from the app on example data by `scripts/landing-shots.sh` ([how](./docs/design/DESIGN.md#516-the-landing-page-b42-80-2026-10-19)).
 
 | The chat, with a tool card | Settings: your watchlist |
 |---|---|
@@ -127,7 +128,7 @@ Since B26 ([#70](https://github.com/DerykHopley/tc-patch-security/issues/70)), w
 
 ### Sign-in (Clerk)
 
-Off locally and in the tests (`AUTH=off`): one default user, no sign-in, no requests. On (`AUTH=on`, the Clerk keys in `backend/.env`: [#65](https://github.com/DerykHopley/tc-patch-security/issues/65)), anyone can make an account (email and password, or an SSO provider such as Google or Discord), and **the owner approves each new account in Patch** before it can use the app (B38, [#81](https://github.com/DerykHopley/tc-patch-security/issues/81)). Every sign-in and sign-up step stays on Patch's page, never Clerk's hosted pages. Why, and what's checked: [DECISIONS.md](./DECISIONS.md) (B31, B38), [docs/SOURCE-CHECKS.md](./docs/SOURCE-CHECKS.md) (Clerk, B31 and B38).
+Off locally and in the tests (`AUTH=off`): one default user, no sign-in, no requests; the landing page is only the About page. On (`AUTH=on`, the Clerk keys in `backend/.env`: [#65](https://github.com/DerykHopley/tc-patch-security/issues/65)), a signed-out visitor first sees the landing page at any address (the form is at `/sign-in`), anyone can make an account (email and password, or an SSO provider such as Google or Discord), and **the owner approves each new account in Patch** before it can use the app (B38, [#81](https://github.com/DerykHopley/tc-patch-security/issues/81)). Every sign-in and sign-up step stays on Patch's page, never Clerk's hosted pages. Why, and what's checked: [DECISIONS.md](./DECISIONS.md) (B31, B38), [docs/SOURCE-CHECKS.md](./docs/SOURCE-CHECKS.md) (Clerk, B31 and B38).
 
 - **A new account asks.** After signing up, a person sees only "Ask to join Patch", with an optional note for you (at most 280 characters). Then "Your request is waiting for the owner". The API refuses them everything else (403) until you approve.
 - **You get one alert per request** on the channels you ticked on Settings (e.g. ntfy): "New access request", "From <name>", and "(with a note)" if there is one. The note's text never goes in the alert: a stranger's words stay off your lock screen. Tapping it opens Settings at the Requests card (when the app address is reachable from your phone).

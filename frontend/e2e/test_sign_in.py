@@ -35,10 +35,11 @@ def _signed_in_health(route: Route) -> None:
 @pytest.fixture
 def open_signed_out(browser: Browser, ui_url: str, api_url: str):
     """The app as a signed-out visitor sees it with sign-in on, Clerk unreachable, at `path` (B31: an address Clerk
-    sends to). Returns the page and the API paths the page asked for."""
+    sends to; the sign-in form by default, B42: elsewhere a signed-out visitor gets the landing page). Returns the
+    page and the API paths the page asked for."""
     contexts: list[BrowserContext] = []
 
-    def _open(width=DESKTOP, scheme="light", reduced=False, path="",
+    def _open(width=DESKTOP, scheme="light", reduced=False, path="/sign-in",
               heading="Sign in to Patch") -> tuple[Page, list[str]]:
         ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme,
                                   reduced_motion="reduce" if reduced else "no-preference")

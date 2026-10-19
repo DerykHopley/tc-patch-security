@@ -15,8 +15,10 @@ import App from '../App.tsx'
 import { AccessGate } from './AccessGate.tsx'
 import { LinkedAccountsContext } from './ConnectedAccounts.tsx'
 import type { ClerkAccount, ClerkUserLike } from './linkedAccounts.ts'
-import { SignInFailed, SignInLoading, SignInScreen } from './SignInScreen.tsx'
+import { Landing } from '../landing/Landing.tsx'
+import { OpeningPatch, SignInFailed, SignInLoading, SignInScreen } from './SignInScreen.tsx'
 import { CLERK_URLS } from './signInView.ts'
+import { rememberSignedIn, useFrontDoor } from './useFrontDoor.ts'
 
 // Sign-in on (B10): Clerk's React package around the app. Loaded only when /health says sign-in is on (main.tsx),
 // so with sign-in off nothing of Clerk's is fetched. Signed out: the sign-in screen. Signed in: the access gate
@@ -24,6 +26,7 @@ import { CLERK_URLS } from './signInView.ts'
 // menu, and Clerk's user for the Connected accounts card.
 // B31 (#78): every URL Clerk gets is on this page, so no step (an SSO sign-up included) falls back to Clerk's hosted
 // Account Portal. B38 (#81): sign-up is open (Clerk's Public mode); its steps run inside <SignIn withSignUp>.
+// B42 (#80): signed out, the landing page is the front door (useFrontDoor.ts); the form lives at /sign-in.
 
 export default function ClerkApp({ publishableKey }: { publishableKey: string }) {
   return (
@@ -34,9 +37,28 @@ export default function ClerkApp({ publishableKey }: { publishableKey: string })
 }
 
 function Gate() {
-  const { isSignedIn } = useAuth()
+  const { isSignedIn, isLoaded } = useAuth()
   const appearance = useTokenAppearance()
+  const door = useFrontDoor(isLoaded)
+  // B42: remembered, so the next visit waits for Clerk (signed in) or shows the landing page at once (signed out)
+  useEffect(() => {
+    if (isLoaded) rememberSignedIn(Boolean(isSignedIn))
+  }, [isLoaded, isSignedIn])
   if (isSignedIn) return <SignedInApp />
+  // B42 (#80): signed out, the landing page at every address but the sign-in form's
+  if (door === 'landing') return <Landing place="front-door" />
+  if (door === 'wait') {
+    return (
+      <>
+        <ClerkLoading>
+          <OpeningPatch />
+        </ClerkLoading>
+        <ClerkFailed>
+          <Landing place="front-door" />
+        </ClerkFailed>
+      </>
+    )
+  }
   return (
     <SignInScreen>
       <ClerkLoading>

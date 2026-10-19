@@ -7,7 +7,7 @@ never carry free text to Patch: an instruction can't ride in on it.
 
 | Field    | Allowed                                                       | Kept as              |
 |----------|---------------------------------------------------------------|----------------------|
-| page     | dashboard, cves, settings, dev                                | as is                |
+| page     | dashboard, cves, settings, dev, about                         | as is                |
 | product  | products I track, comma-separated (the dashboard's filter, A15b) | ids: `langflow,ollama` |
 | severity | LOW, MEDIUM, HIGH, CRITICAL (any case): "this or worse"       | upper case           |
 | status   | open, fixed, not_affected, accepted, all                      | as is                |
@@ -22,7 +22,7 @@ import re
 
 from app import cve_filters, guard
 
-PAGES = ("dashboard", "cves", "settings", "dev")
+PAGES = ("dashboard", "cves", "settings", "dev", "about")  # about: the landing page in the app (B42)
 FIELDS = ("page", "product", "severity", "status", "verdict", "kev", "since", "new", "cve")
 CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d{4,7}$", re.IGNORECASE)
 SHOWN = 40  # characters of a dropped value listed back
