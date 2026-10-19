@@ -9,13 +9,12 @@ import {
   useReverification,
   useUser,
 } from '@clerk/react'
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { setSessionToken } from '../api.ts'
 import App from '../App.tsx'
 import { AccessGate } from './AccessGate.tsx'
 import { LinkedAccountsContext } from './ConnectedAccounts.tsx'
 import type { ClerkAccount, ClerkUserLike } from './linkedAccounts.ts'
-import { Landing } from '../landing/Landing.tsx'
 import { OpeningPatch, SignInFailed, SignInLoading, SignInScreen } from './SignInScreen.tsx'
 import { CLERK_URLS } from './signInView.ts'
 import { rememberSignedIn, useFrontDoor } from './useFrontDoor.ts'
@@ -28,25 +27,35 @@ import { rememberSignedIn, useFrontDoor } from './useFrontDoor.ts'
 // Account Portal. B38 (#81): sign-up is open (Clerk's Public mode); its steps run inside <SignIn withSignUp>.
 // B42 (#80): signed out, the landing page is the front door (useFrontDoor.ts); the form lives at /sign-in.
 
-export default function ClerkApp({ publishableKey }: { publishableKey: string }) {
+// #100: the landing page itself is drawn by main.tsx, outside this chunk, so it stays one element while the chunk
+// loads. Here the Gate only says when it shows (`onLanding`).
+
+type Props = { publishableKey: string; onLanding: (landing: boolean) => void }
+
+export default function ClerkApp({ publishableKey, onLanding }: Props) {
   return (
     <ClerkProvider publishableKey={publishableKey} {...CLERK_URLS}>
-      <Gate />
+      <Gate onLanding={onLanding} />
     </ClerkProvider>
   )
 }
 
-function Gate() {
+function Gate({ onLanding }: { onLanding: Props['onLanding'] }) {
   const { isSignedIn, isLoaded } = useAuth()
   const appearance = useTokenAppearance()
   const door = useFrontDoor(isLoaded)
+  const [failed, setFailed] = useState(false) // Clerk couldn't load: a browser that was waiting gets the landing page
+  const markFailed = useCallback(() => setFailed(true), [])
+  // B42 (#80): signed out, the landing page at every address but the sign-in form's
+  const landing = !isSignedIn && (door === 'landing' || (door === 'wait' && failed))
+  // before paint, so a swap (signing in, opening the form) never shows both screens
+  useLayoutEffect(() => onLanding(landing), [onLanding, landing])
   // B42: remembered, so the next visit waits for Clerk (signed in) or shows the landing page at once (signed out)
   useEffect(() => {
     if (isLoaded) rememberSignedIn(Boolean(isSignedIn))
   }, [isLoaded, isSignedIn])
   if (isSignedIn) return <SignedInApp />
-  // B42 (#80): signed out, the landing page at every address but the sign-in form's
-  if (door === 'landing') return <Landing place="front-door" />
+  if (landing) return null // main.tsx draws it
   if (door === 'wait') {
     return (
       <>
@@ -54,7 +63,7 @@ function Gate() {
           <OpeningPatch />
         </ClerkLoading>
         <ClerkFailed>
-          <Landing place="front-door" />
+          <Failed onFailed={markFailed} />
         </ClerkFailed>
       </>
     )
@@ -112,6 +121,12 @@ function SignedInApp() {
       </AccessGate>
     </LinkedAccountsContext.Provider>
   )
+}
+
+/** Says Clerk failed to load, from inside <ClerkFailed> (which renders it only then). */
+function Failed({ onFailed }: { onFailed: () => void }) {
+  useEffect(() => onFailed(), [onFailed])
+  return null
 }
 
 /** Back from Clerk (an old invitation link, an SSO or linking round trip): its query parameters leave the address bar

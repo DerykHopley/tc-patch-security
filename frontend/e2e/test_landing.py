@@ -53,6 +53,28 @@ def test_b42_6_a_signed_out_visitor_lands_on_the_landing_page_at_any_address(ope
         assert page.url.endswith(path), path  # the address stays as typed
 
 
+# --- B100.4: the front door draws the landing page once: Clerk's chunk arriving doesn't replace it (#100) -------
+
+# Logs each new .landing element, in ms since the page started
+COUNT_LANDINGS = """
+window.__landings = []
+const t0 = performance.now()
+new MutationObserver(() => {
+  const el = document.querySelector('.landing')
+  if (el && el !== window.__lastLanding) { window.__lastLanding = el; window.__landings.push(performance.now() - t0) }
+}).observe(document, { childList: true, subtree: true })
+"""
+
+
+def test_b100_4_the_landing_page_is_drawn_once_while_clerks_chunk_loads(open_signed_out):
+    page, _ = landing(open_signed_out, init_script=COUNT_LANDINGS)
+    # Clerk's chunk (dev: /src/auth/ClerkApp.tsx; built: assets/ClerkApp-<hash>.js) has arrived and run
+    page.wait_for_function("() => performance.getEntriesByType('resource').some(r => /ClerkApp/.test(r.name))")
+    expect(page.locator(".landing-showcase")).to_have_css("opacity", "1")  # every section has faded up
+    settled(page.locator(".landing"))
+    assert len(page.evaluate("window.__landings")) == 1, page.evaluate("window.__landings")
+
+
 # --- B42.7: Sign in and Request access open the sign-in screen; Back returns ------------------------------------------
 
 def test_b42_7_sign_in_and_request_access_lead_to_the_form_and_back(open_signed_out, ui_url):

@@ -319,9 +319,23 @@ if [[ -z "$ACCOUNTS" ]]; then
   pause "Press Enter once the billing account exists"
   ACCOUNTS=$(gcloud billing accounts list --format='value(name,displayName)' --filter=open=true 2>/dev/null || true)
 fi
-say "Your billing accounts:"
-printf '%s\n' "$ACCOUNTS" | sed 's/^/    /'
-ask BILLING_ACCOUNT "Billing account id (the first column, like 0X0X0X-0X0X0X-0X0X0X):"
+if [[ -n "$ACCOUNTS" ]]; then
+  say "Your open billing accounts (the ID first, then its name):"
+  printf '%s\n' "$ACCOUNTS" | sed 's#^billingAccounts/##; s/^/    /'
+else
+  warn "No open billing account found yet. Its ID is also on https://console.cloud.google.com/billing"
+fi
+note "The ID looks like 01A2B3-C4D5E6-F7G8H9: three groups of six, not the account's name."
+if [[ "$(printf '%s\n' "$ACCOUNTS" | grep -c .)" == 1 && -z "$(_existing BILLING_ACCOUNT || true)" ]]; then
+  write_env BILLING_ACCOUNT "$(printf '%s' "$ACCOUNTS" | cut -f1 | sed 's#^billingAccounts/##')"
+  say "You have one billing account: press Enter to use it."
+fi
+while true; do
+  ask BILLING_ACCOUNT "Billing account ID:"
+  BILLING_ACCOUNT="${BILLING_ACCOUNT#billingAccounts/}"
+  [[ "$BILLING_ACCOUNT" =~ ^[A-Z0-9]{6}-[A-Z0-9]{6}-[A-Z0-9]{6}$ ]] && break
+  warn "That isn't a billing account ID (like 01A2B3-C4D5E6-F7G8H9). Try again."
+done
 write_env BILLING_ACCOUNT "$BILLING_ACCOUNT"
 LINKED=$(gcloud billing projects describe "$PROJECT_ID" --format='value(billingEnabled)' 2>/dev/null || true)
 if [[ "$LINKED" == "True" ]]; then say "Billing is already linked."
@@ -331,7 +345,7 @@ write_env PROJECT_NUMBER "$PROJECT_NUMBER"
 pause
 
 # ── 5 ─────────────────────────────────────────────────────────────────────
-stage "Turn on the services, and a \$1 budget alert"
+stage "Turn on the services, and a budget alert of 1 (dollar or euro)"
 say "Cloud Run, the image registry, Secret Manager, Scheduler, Storage and Budgets. This can take a minute."
 run "Enable the services" gcloud services enable run.googleapis.com artifactregistry.googleapis.com \
   secretmanager.googleapis.com cloudscheduler.googleapis.com storage.googleapis.com billingbudgets.googleapis.com
@@ -339,9 +353,13 @@ if gcloud billing budgets list --billing-account="$BILLING_ACCOUNT" --format='va
     | grep -qx "Patch"; then
   say "The \"Patch\" budget alert already exists."
 else
-  say "The budget emails you at 50 cents and at \$1. It only alerts; it never stops anything."
-  run "Create the budget alert" gcloud billing budgets create --billing-account="$BILLING_ACCOUNT" \
-    --display-name="Patch" --budget-amount=1USD --threshold-rule=percent=0.5 --threshold-rule=percent=1.0
+  # The budget's currency must be the billing account's own (an account opened in Germany bills in EUR)
+  CURRENCY=$(gcloud billing accounts describe "$BILLING_ACCOUNT" --format='value(currencyCode)' 2>/dev/null || true)
+  CURRENCY="${CURRENCY:-USD}"
+  say "The budget emails you at half and at all of 1 $CURRENCY. It only alerts; it never stops anything."
+  note "If it fails, set it in the console instead: Billing → Budgets & alerts → Create budget (1, alerts at 50% and 100%)."
+  run "Create the budget alert (1 $CURRENCY)" gcloud billing budgets create --billing-account="$BILLING_ACCOUNT" \
+    --display-name="Patch" --budget-amount="1$CURRENCY" --threshold-rule=percent=0.5 --threshold-rule=percent=1.0
 fi
 pause
 
@@ -402,7 +420,13 @@ pause
 stage "The service's settings (env.yaml)"
 URL="https://$SERVICE-$PROJECT_NUMBER.$REGION.run.app"
 say "Patch's address will be: $URL"
-ask ALERT_TZ "Time zone for quiet hours (e.g. Europe/Berlin):"
+HERE_TZ=$(timedatectl show -p Timezone --value 2>/dev/null || true)
+[[ -n "$(_existing ALERT_TZ || true)" || -z "$HERE_TZ" ]] || write_env ALERT_TZ "$HERE_TZ"
+while true; do
+  ask ALERT_TZ "Time zone for quiet hours (Enter keeps this computer's, e.g. Europe/Berlin):"
+  [[ "$ALERT_TZ" =~ ^[A-Za-z_]+(/[A-Za-z0-9_+-]+)*$ ]] && break
+  warn "A time zone name like Europe/Berlin or UTC, please."
+done
 write_env ALERT_TZ "$ALERT_TZ"
 PK=$(local_value CLERK_PUBLISHABLE_KEY); JWT=$(local_value CLERK_JWT_KEY); OWNER_ID=$(local_value OWNER)
 [[ -n "$PK" && -n "$JWT" && -n "$OWNER_ID" ]] || { warn "backend/.env lacks CLERK_PUBLISHABLE_KEY, CLERK_JWT_KEY or OWNER."; exit 1; }
@@ -413,22 +437,26 @@ if [[ -f deploy/cloudrun/env.yaml ]] && ! confirm "deploy/cloudrun/env.yaml exis
 else
   cat > deploy/cloudrun/env.yaml <<EOF
 # Written by scripts/deploy-wizard.sh from env.example.yaml and backend/.env. Git-ignored. Nothing here is secret.
-LLM_PROVIDER: openrouter
-OPENROUTER_MODEL: anthropic/claude-haiku-5.5
-DATA_MODE: live
-FEEDS: real
-STORE: gcs
-GCS_BUCKET: $BUCKET
+LLM_PROVIDER: "openrouter"
+OPENROUTER_MODEL: "anthropic/claude-haiku-5.5"
+DATA_MODE: "live"
+FEEDS: "real"
+STORE: "gcs"
+GCS_BUCKET: "$BUCKET"
 AUTH: "on"
-CLERK_PUBLISHABLE_KEY: $PK
+CLERK_PUBLISHABLE_KEY: "$PK"
 CLERK_JWT_KEY: "$JWT"
-OWNER: $OWNER_ID
-AUTH_ALLOWED_ORIGINS: $URL
-APP_URL: $URL
-CORS_ORIGINS: $URL
+OWNER: "$OWNER_ID"
+AUTH_ALLOWED_ORIGINS: "$URL"
+APP_URL: "$URL"
+CORS_ORIGINS: "$URL"
 DEV_PANEL: "true"
-ALERT_TZ: $ALERT_TZ
+ALERT_TZ: "$ALERT_TZ"
 EOF
+  if grep -qE '^[A-Z_]+: *("")?$' deploy/cloudrun/env.yaml; then
+    warn "These settings came out empty: $(grep -E '^[A-Z_]+: *(\"\")?$' deploy/cloudrun/env.yaml | cut -d: -f1 | tr '\n' ' ')"
+    say "Fix them in deploy/cloudrun/env.yaml (or backend/.env) and run the wizard again."; exit 1
+  fi
   printf '  %s✓ wrote%s deploy/cloudrun/env.yaml\n' "$GREEN" "$RESET"
 fi
 pause
