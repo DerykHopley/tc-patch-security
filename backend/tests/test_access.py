@@ -130,6 +130,7 @@ def test_b38_2_a_request_waits_and_alerts_the_owner_once(patch):
     assert r.json()["status"] == "waiting"
     assert [(m["title"], m["message"]) for m in patch.alerts()] == [("New access request", "From Alice Example")]
     assert patch.alerts()[0]["click"] == "http://app.test/settings#requests"
+    assert patch.alerts()[0]["priority"] == 4  # high (owner, 2026-10-19): normal priority reached the phone late
     # asking again (a reload, a double click) changes nothing and alerts nobody
     assert patch.request(note="again").json()["status"] == "waiting"
     assert len(patch.alerts()) == 1

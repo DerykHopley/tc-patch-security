@@ -264,7 +264,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         """One alert per request, on the owner's ticked channels, sent at once (quiet hours hold CVE alerts only).
         A failed channel is logged, never retried: the request still waits on the Requests card."""
         msg = {"title": "New access request", "body": f"From {name[:60]}" + (" (with a note)" if with_note else ""),
-               "priority": 3, "tags": ["access_request"], "click": f"{deps.settings.app_url}/settings#requests"}
+               "priority": 4, "tags": ["access_request"], "click": f"{deps.settings.app_url}/settings#requests"}
         for channel in deps.owner_state.settings().alerts.channels:
             result = send_on(channel, msg, deps.settings, deps.transports)
             if result["error"]:
