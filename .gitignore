@@ -30,3 +30,4 @@ test-results/
 
 # The Cloud Run settings filled in from deploy/cloudrun/env.example.yaml (DEPLOY.md)
 deploy/cloudrun/env.yaml
+deploy/cloudrun/wizard.env
