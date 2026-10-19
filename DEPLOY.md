@@ -201,7 +201,7 @@ The checks for #45:
 5. Cold-start time: after 15 idle minutes, open the app and time the first page. The log has the start-up and the `Search index caught up` line.
 6. After a week: Billing → Reports, filtered to the project. Expected $0.
 
-Redeploy after a change: build and push a new tag (step 5 with `v2`), then `gcloud run deploy $SERVICE --image=$IMAGE:v2 --region=$REGION` (the other settings stay). Delete old tags to keep storage free: `gcloud artifacts docker images delete $IMAGE:v1`.
+**Update after a change: `scripts/update-deploy.sh`.** It shows what's live and what's new, suggests the next version (`v2`, `v3`…), rebuilds the search index only when the snapshot or the chunking changed (it compares the index's fingerprint), builds, uploads and deploys the new tag, checks it answers, and offers to delete the old image. It reads the first deploy's `deploy/cloudrun/wizard.env` and `env.yaml`; the secrets stay as they are. By hand: build and push a new tag (step 5 with `v2`), then `gcloud run deploy $SERVICE --image=$IMAGE:v2 --region=$REGION` (the other settings stay). Delete old tags to keep storage free: `gcloud artifacts docker images delete $IMAGE:v1`.
 
 Roll back: `gcloud run revisions list --service=$SERVICE --region=$REGION`, then `gcloud run services update-traffic $SERVICE --region=$REGION --to-revisions=<revision>=100`.
 
