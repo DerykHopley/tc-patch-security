@@ -704,6 +704,11 @@ export interface ChannelResult {
   sent: boolean
   error: string | null
   error_code: 'not_configured' | 'notify_failed' | null
+  // B41: a failed send is tried again on the next check, at most 3 tries in all. None of these on a first try that
+  // went through, a channel not set up, or an entry saved before B41.
+  tries?: number // the tries so far
+  retry?: boolean // another try is due at the next check
+  dropped?: boolean // not tried again: the alert is no longer true, or the channel was unticked
 }
 
 /** One message in the alerts log (app/alerts.py): one alert, a digest of several, a test alert from Settings, or
@@ -716,6 +721,8 @@ export interface AlertLogEntry extends AlertMessage {
   alerts: { cve: string; reason: AlertReason; priority: number }[]
   channels: ChannelResult[]
   in_app_only?: boolean // B09: another user's alert: recorded and shown here, never sent (the channels are the owner's)
+  id?: string // B41: the entry a retry updates in place; none on entries saved before B41
+  retry?: boolean // B41, in a refresh result only: this run's try again of an earlier entry, its retried channels only
 }
 
 export interface TestAlertReply {

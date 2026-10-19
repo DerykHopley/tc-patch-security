@@ -44,3 +44,18 @@ test('B04.11 each channel says sent, recorded only, not set up or failed', () =>
   assert.deepEqual(channelResult({ channel: 'ntfy', sent: false, error: 'network down', error_code: 'notify_failed' }),
     { tone: 'error', text: 'ntfy: failed (network down)' })
 })
+
+test('B41.7 a retried channel says its tries', () => {
+  const failed = { channel: 'ntfy', sent: false, error: 'network down', error_code: 'notify_failed' } as const
+  assert.deepEqual(channelResult({ ...failed, tries: 1, retry: true }),
+    { tone: 'error', text: 'ntfy: failed (network down), trying again at the next check (1 of 3 tries)' })
+  assert.deepEqual(channelResult({ ...failed, tries: 3, retry: false }),
+    { tone: 'error', text: 'ntfy: failed (3 tries)' })
+  assert.deepEqual(channelResult({ channel: 'ntfy', sent: true, error: null, error_code: null, tries: 2, retry: false }),
+    { tone: 'ok', text: 'ntfy: sent (2 tries)' })
+  assert.deepEqual(channelResult({ ...failed, error: 'Not tried again: no longer needed.', tries: 1, retry: false,
+    dropped: true }), { tone: 'muted', text: 'ntfy: failed, not tried again: no longer needed' })
+  // a first try that went through, as before B41
+  assert.deepEqual(channelResult({ channel: 'desktop', sent: true, error: null, error_code: null }),
+    { tone: 'ok', text: 'desktop: sent' })
+})

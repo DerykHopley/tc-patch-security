@@ -10,10 +10,12 @@ Pure functions, with table tests (tests/test_alerts.py):
 - `alert_counts(entries)` (B34): one run's alerts by what happened: sent, recorded only, failed, held.
 
 `Alerter` (below the pure part) runs them after a refresh for each user (B09): rules, de-duplicate against the
-user's state, hold in quiet hours, digest above the limit, deliver and log the result per channel. Only the owner's
+user's state, hold in quiet hours, digest above the limit, deliver and log the result per channel, and try a failed
+channel again at the next check, at most 3 tries (B41, `still_true` drops what stopped being true). Only the owner's
 alerts go to the channels (theirs, from the environment); other users' are recorded and shown in the app only.
 """
 import datetime as dt
+import uuid
 import zoneinfo
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -193,7 +195,9 @@ class Alerter:
 
     The alerts log has one entry per message sent, newest first: `kind` "alert" (one alert, with its `cve` and
     `reason`) or "digest" (several, `cve` and `reason` None), `alerts` [{cve, reason, priority}], the message
-    (`title`, `body`, `priority`, `tags`, `click`), `at`, and `channels`: per channel, sent or failed with its error.
+    (`title`, `body`, `priority`, `tags`, `click`), `at`, `id` (B41), and `channels`: per channel, sent or failed
+    with its error. A failed send is tried again at the next check (B41, `_retry`), and its channel's result in the
+    entry says `tries`, `retry` (another try is due) and `dropped`.
     Alerts held in quiet hours come back in the run's result as kind "held", with no channels, and are logged when
     they are sent. Test alerts from Settings share the log as kind "test". Another user's entries have no channels
     and `in_app_only` true: nothing was sent, and quiet hours hold nothing for them.
@@ -231,12 +235,14 @@ class Alerter:
             return out
         as_of = now.astimezone(dt.UTC).date().isoformat()
         rows = {r["id"]: r for r in WatchedCves(knowledge, state, as_of).rows(status="all")}
+        if not quiet:  # B41: quiet hours hold retries too
+            out += self._retry(state, rows, s, as_of, at)
         alerts = rules(changes, rows, s, as_of)
         if first:
             alerts, noted = first_check(alerts)
             state.claim_alerts(noted, at)
         fresh = state.claim_alerts([a.key for a in alerts], at)
-        messages = [{"cve": a.cve, "reason": a.reason,
+        messages = [{"cve": a.cve, "reason": a.reason, "key": a.key,
                      **format_alert(knowledge.cves.get(a.cve), a.reason, knowledge, self.settings.app_url,
                                     due=rows[a.cve])}
                     for a in alerts if a.key in fresh]
@@ -248,16 +254,48 @@ class Alerter:
         return out + self._send(state, batch(messages, s.digest_over), s, at, owner)
 
     def _send(self, state, groups: list[list[dict]], s, at: str, owner: bool) -> list[dict]:
-        transports, out = self.transports(), []
+        transports, out, retries = self.transports(), [], []
         for group in groups:
             one = len(group) == 1
             message = group[0] if one else digest(group, self.settings.app_url)
             if owner:
-                channels = [send_on(c, message, self.settings, transports) for c in s.channels]
-                out.append(_entry("alert" if one else "digest", group, message, at, channels))
+                channels = [_tried(send_on(c, message, self.settings, transports), 1) for c in s.channels]
+                entry = _entry("alert" if one else "digest", group, message, at, channels) | {"id": uuid.uuid4().hex}
+                if failed := [c["channel"] for c in channels if c.get("retry")]:
+                    retries.append({"id": entry["id"], "kind": entry["kind"], "channels": failed, "tries": 1,
+                                    "alerts": [_with_key(m, at) for m in group]})
+                out.append(entry)
             else:  # the channels are the owner's: another user's alert stays in the app
                 out.append(_entry("alert" if one else "digest", group, message, at, []) | {"in_app_only": True})
         state.log_alerts(out)  # on top of the log in the order sent: KEV and new CVEs above the reminders
+        if retries:
+            state.save_retries(state.retries() + retries)
+        return out
+
+    def _retry(self, state, rows: dict[str, dict], s, as_of: str, at: str) -> list[dict]:
+        """B41: try each failed send again, on the channels that failed only, up to MAX_TRIES tries in all. An
+        alert no longer true (`still_true`) is dropped from it; with none left, or none of its channels still
+        picked, the retry is dropped. Each try updates its alerts-log entry in place, and comes back as this run's
+        entry (`retry` true, the retried channels only), so the run's counts say what the retry did."""
+        pending = state.retries()
+        if not pending:
+            return []
+        transports, out, kept = self.transports(), [], []
+        for r in pending:
+            alerts = still_true(r["alerts"], rows, s, as_of)
+            channels = [c for c in r["channels"] if c in s.channels]
+            if not alerts or not channels:
+                state.update_alert_channels(r["id"], [_dropped(c, r["tries"]) for c in r["channels"]])
+                continue
+            message = alerts[0] if len(alerts) == 1 else digest(alerts, self.settings.app_url)
+            tries = r["tries"] + 1
+            results = [_tried(send_on(c, message, self.settings, transports), tries) for c in channels]
+            state.update_alert_channels(r["id"], results)
+            out.append(_entry("alert" if len(alerts) == 1 else "digest", alerts, message, at, results)
+                       | {"retry": True})
+            if failed := [c["channel"] for c in results if c.get("retry")]:
+                kept.append({**r, "alerts": alerts, "channels": failed, "tries": tries})
+        state.save_retries(kept)
         return out
 
 
@@ -284,3 +322,43 @@ def _entry(kind: str, group: list[dict], message: dict, at: str, channels: list[
     return {"at": at, "kind": kind, "cve": one.get("cve"), "reason": one.get("reason"),
             "alerts": [{"cve": m["cve"], "reason": m["reason"], "priority": m["priority"]} for m in group],
             **{k: message[k] for k in ("title", "body", "priority", "tags", "click")}, "channels": channels}
+
+
+MAX_TRIES = 3  # B41: a failed send is tried again on the next checks, at most 3 tries in all
+
+
+def _tried(result: dict, tries: int) -> dict:
+    """B41: a channel's result with its try count. A failed send gets `retry` true while tries are left. A channel
+    not set up isn't retried: nothing was tried, and it fails the same way until the owner sets it up."""
+    if result["error_code"] != "notify_failed":
+        return result if tries == 1 else result | {"tries": tries, "retry": False}
+    return result | {"tries": tries, "retry": tries < MAX_TRIES}
+
+
+def _dropped(channel: str, tries: int) -> dict:
+    """B41: a retry dropped: no alert in it is still true (the CVE closed meanwhile), or the channel was unticked."""
+    return {"channel": channel, "sent": False, "error": "Not tried again: no longer needed.",
+            "error_code": "notify_failed", "tries": tries, "retry": False, "dropped": True}
+
+
+def _with_key(message: dict, at: str) -> dict:
+    """A message with its de-duplication key. Held messages saved before B41 have none: rebuilt as `rules` makes it,
+    overdue by the ISO week of the send."""
+    if "key" in message:
+        return message
+    week = f"|{_week(at[:10])}" if message["reason"] == "overdue" else ""
+    return message | {"key": f"{message['cve']}|{message['reason']}{week}"}
+
+
+def still_true(alerts: list[dict], rows: dict[str, dict], s, as_of: str) -> list[dict]:
+    """B41: the alerts (messages with their `key`) that `rules` would still give today, so a retry never sends one
+    that stopped being true: the CVE was closed (fixed, accepted, not affected; kev_recheck excepted, which is about
+    a fixed CVE), unwatched, or its reason turned off.
+    The diff that found them is gone, so each alert's own reason stands in for it; due_soon and overdue come from the
+    rows, and overdue's key has its ISO week, so last week's reminder is never sent late."""
+    found = Diff(new=tuple(a["cve"] for a in alerts if a["reason"] in ("new", "new_unscored")),
+                 kev_added={a["cve"]: "" for a in alerts if a["reason"] in ("kev", "kev_recheck")},
+                 rescored={a["cve"]: (None, "CRITICAL") for a in alerts if a["reason"] == "now_critical"})
+    keys = {a.key for a in rules(found, rows, s, as_of)
+            if a.reason == "kev_recheck" or rows[a.cve]["open"]}  # a new CVE marked fixed since: closed, not sent
+    return [a for a in alerts if a["key"] in keys]

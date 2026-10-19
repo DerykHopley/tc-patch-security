@@ -190,7 +190,7 @@ A daily time window in which alerts are held, then sent as one digest when it en
 _Avoid_: do not disturb, mute
 
 **Alerts log**:
-The record of every alert message: when, why, and what each channel did with it (sent, recorded only, not set up, failed). The dashboard's "Recent alerts" card shows the last 20.
+The record of every alert message: when, why, and what each channel did with it (sent, recorded only, not set up, failed). A failed send is tried again on the next check, at most 3 tries; its entry shows the tries. The dashboard's "Recent alerts" card shows the last 20.
 _Avoid_: history (that's a CVE's decisions), notifications
 
 **Owner**:
