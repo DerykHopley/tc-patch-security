@@ -28,7 +28,7 @@ def box(loc: Locator) -> dict:
 
 
 def patch_box(page: Page) -> dict:
-    """Patch's button with Patch himself, whose head reaches 8px above it (DESIGN.md §6.1)."""
+    """Patch's button with the robot on it, whose head reaches 8px above it (DESIGN.md §6.1)."""
     fab, bot = box(page.locator(".patch-fab")), box(page.locator(".patch-fab svg.robot"))
     top = min(fab["y"], bot["y"])
     return {"x": fab["x"], "y": top, "width": fab["width"], "height": fab["y"] + fab["height"] - top}
@@ -147,7 +147,7 @@ def test_b43_9_chart_totals_stay_clear_of_patchs_button(open_dash, width):
     fab = patch_box(page)
     for label in page.locator(".chart .value-label").all():  # the bars' totals and the columns' peaks
         b = box(label)
-        assert b["x"] + b["width"] <= fab["x"], (label.text_content(), b, fab)  # left of him at any scroll
+        assert b["x"] + b["width"] <= fab["x"], (label.text_content(), b, fab)  # left of the button at any scroll
 
 
 @pytest.mark.parametrize("width", [PHONE, DESKTOP])
@@ -185,8 +185,8 @@ def test_b43_10_the_welcome_banner_is_shorter_on_a_phone(open_dash):
     assert round(box(robot)["width"]) == 64
     assert box(hello)["height"] <= 250, box(hello)  # about 330px with the stacked 110px Patch
     r, h, t = box(robot), box(hello), box(title)
-    assert h["y"] - r["y"] >= 10  # his head still rises over the top edge
-    assert t["x"] >= r["x"] + r["width"]  # beside him, not under
+    assert h["y"] - r["y"] >= 10  # the head still rises over the top edge
+    assert t["x"] >= r["x"] + r["width"]  # beside the robot, not under it
     close = box(hello.get_by_role("button", name="Close Patch's welcome"))
     text_right = title.evaluate("""el => { const r = document.createRange(); r.selectNodeContents(el);
         return Math.max(...[...r.getClientRects()].map(c => c.right)) }""")

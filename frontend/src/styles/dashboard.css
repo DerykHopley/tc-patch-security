@@ -70,7 +70,7 @@
     grid-template-columns: auto minmax(0, 1fr);
     gap: 0.5rem 0.7rem;
     align-items: center;
-    margin-top: 1.6rem; /* room for his smaller head */
+    margin-top: 1.6rem; /* room for the smaller head */
     padding: 0.8rem 1rem 0.9rem;
   }
 
@@ -83,7 +83,7 @@
     align-self: start;
     width: 64px;
     height: auto;
-    margin: -1.6rem 0 -0.3rem; /* his head still rises over the top edge */
+    margin: -1.6rem 0 -0.3rem; /* the head still rises over the top edge */
   }
 
   .hello h2 {
@@ -690,7 +690,7 @@ button.check-now:disabled {
   }
 
   /* B43: one column, so Patch's button floats over the cards' right edge. The charts keep that strip free, so a
-     bar's total (at the end of the longest bar) is never under him; the same footprint as the page's end. */
+     bar's total (at the end of the longest bar) is never under the button; the same footprint as the page's end. */
   .dashboard .chart-box {
     padding-right: var(--fab-side);
   }
