@@ -312,7 +312,10 @@ def test_a02_5_ask_patch_is_named_and_reachable(open_app):
 
 
 def test_a02_4_snapshot_card_says_offline_without_backend(open_app):
-    page = open_app(init_script="window.fetch = () => Promise.reject(new TypeError('offline'))")
+    # /health answers, then the backend is gone. Since B46 a /health that fails outright keeps the loading screen's
+    # "Backend offline — retrying" (B69.9) instead of showing the app.
+    page = open_app(init_script="const f = window.fetch; window.fetch = (url, ...a) => String(url).endsWith('/health')"
+                                " ? f(url, ...a) : Promise.reject(new TypeError('offline'))")
     expect(page.locator(".side-card").get_by_text("Backend offline")).to_be_visible()
     expect(page.get_by_role("button", name="Dev", exact=True)).to_have_count(0)
 
