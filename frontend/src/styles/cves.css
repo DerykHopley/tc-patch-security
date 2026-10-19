@@ -43,6 +43,47 @@
   font-weight: 700;
 }
 
+/* The phone's fold (B44): on a phone (the tab-bar layout, <= 800px) the controls hide behind "Filters (n on)"; wider,
+   the button is hidden and the controls sit in the filter row as before (display: contents keeps them in its flex
+   row). The window's width, not the card's: beside the pinned chat a desktop keeps its filters open, and pinning
+   doesn't change the height above the rows (the page keeps its place, A07.2). */
+.filters-toggle {
+  display: none;
+}
+
+.filter-controls {
+  display: contents;
+}
+
+@media (max-width: 800px) {
+  .filters-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  /* A chevron that turns when open, as on the rows' More (§5.9). It turns at once: the global reduced-motion rule
+     has nothing to stop. */
+  .filters-toggle::after {
+    content: '';
+    width: 0.35rem;
+    height: 0.35rem;
+    margin-top: -0.15rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+  }
+
+  .filters-toggle[aria-expanded='true']::after {
+    margin-top: 0.15rem;
+    transform: rotate(-135deg);
+  }
+
+  .filter-controls:not(.open) {
+    display: none;
+  }
+}
+
 /* A filter with no control of its own (from a tile's link): a chip with a ✕ that clears it. */
 .filters .filter-chip {
   display: inline-flex;

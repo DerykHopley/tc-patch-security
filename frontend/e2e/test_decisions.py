@@ -11,7 +11,7 @@ import re
 import pytest
 from playwright.sync_api import Page, Route, expect
 
-from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cves, pin, visible_focus, window  # noqa: F401
+from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cves, open_filters, pin, visible_focus, window  # noqa: F401
 from test_dashboard import (  # noqa: F401 (fixtures)
     DESKTOP, PHONE, SHOTS, api, clean_state, confirm, cve_row, more_actions, open_dash, rows,
 )
@@ -88,7 +88,7 @@ def test_a16b_9_accepting_moves_it_out_of_open_with_reason_review_date_and_histo
     history.click()
     expect(status.locator(".history li")).to_have_count(1)
     expect(status.locator(".history li")).to_contain_text("Accepted")
-    expect(status.locator(".history li")).to_contain_text("by owner, on the CVEs page")
+    expect(status.locator(".history li")).to_contain_text("by you, on the CVEs page")  # B44 D4: your own decision
     expect(status.locator(".history li .history-when")).to_have_text(re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d UTC$"))
     # Reopen: the history grows, never shrinks
     more_actions(page, NO_FIX)
@@ -262,6 +262,7 @@ def test_a16b_12_review_due_shows_in_open_with_its_acceptance(open_cves, api_url
 def test_a16b_13_phone_and_pinned_show_the_decision_and_history_without_sideways_scroll(open_cves, api_url):
     page = open_cves("?product=langflow&kev=1", width=PHONE)
     accept(page, NO_FIX)
+    open_filters(page)  # folded on a phone (B44)
     page.get_by_role("combobox", name="Status").select_option(label="Accepted")
     status = cell(page, NO_FIX, "Status")
     status.get_by_text("History (1)").click()
@@ -293,6 +294,7 @@ def test_a16b_13_phone_and_pinned_show_the_decision_and_history_without_sideways
 def test_a16b_13_light_dark_phone_and_desktop(open_cves, api_url, browser_name, width, scheme):
     page = open_cves("?product=langflow&kev=1", width=width, scheme=scheme, reduced=True)
     accept(page, NO_FIX)
+    open_filters(page)  # folded on a phone (B44)
     page.get_by_role("combobox", name="Status").select_option(label="All")
     cell(page, NO_FIX, "Status").get_by_text("History (1)").click()
     SHOTS.mkdir(exist_ok=True)

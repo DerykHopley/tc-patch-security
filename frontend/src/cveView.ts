@@ -88,6 +88,12 @@ export function viewToSearch(v: CveView): string {
   return s ? `?${s}` : ''
 }
 
+/** The phone's folded filters (B44 L4): "Filters (2 on)", counting each filter the URL carries (the defaults carry
+ *  none), so the fold says whether the list is narrowed before you open it. */
+export function filtersLabel(v: CveView): string {
+  return `Filters (${[...params(v).keys()].length} on)`
+}
+
 /** The /cves request for the view: the same names as the URL, plus the page. */
 export function cvesQuery(v: CveView, limit: number, offset: number): string {
   const p = params(v)

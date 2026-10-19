@@ -2,7 +2,23 @@
 // Round trips per filter: URL → view → URL, the /cves query, the page context → the chip's words. Run with `npm test`.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { contextWords, cvesQuery, productIds, viewFromSearch, viewToContext, viewToSearch } from './cveView.ts'
+import {
+  contextWords,
+  cvesQuery,
+  filtersLabel,
+  productIds,
+  viewFromSearch,
+  viewToContext,
+  viewToSearch,
+} from './cveView.ts'
+
+test('B44.5 the folded filters say how many are on: every filter that differs from the defaults', () => {
+  assert.equal(filtersLabel({ status: 'open' }), 'Filters (0 on)') // the defaults: every watched product, open
+  assert.equal(filtersLabel({ status: 'all' }), 'Filters (1 on)') // another status is a filter
+  const five = viewFromSearch('?product=langflow,ollama&severity=HIGH&kev=1&since=2026-09-14&new=1')
+  assert.equal(filtersLabel(five), 'Filters (5 on)')
+  assert.equal(filtersLabel({ status: 'fixed', verdict: 'affected' }), 'Filters (2 on)')
+})
 
 /** One filter through every encoding: what the URL says, the view, the /cves query, the page context, the words. */
 const ROUND_TRIPS = [
