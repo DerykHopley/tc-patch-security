@@ -249,7 +249,7 @@ export function ModelCheck({ modelLabel, dirty, canRun, compared, onCompare }: {
   const toggle = (id: string) => onCompare(compared.includes(id) ? compared.filter((x) => x !== id) : [...compared, id])
 
   return (
-    <Card title="Model check" kind="live" why="Scores the saved model on the scripted questions, no LLM judge"
+    <Card title="Model check"
       className="model-check">
       <p className="meta">
         Asks the scripted questions of <strong>{modelLabel}</strong> and checks each answer exactly: the right tools,

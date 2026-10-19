@@ -97,9 +97,11 @@ class Deps:
 
     @property
     def decided_by(self) -> str:
-        """Who a new decision record names (B48, #77): the display name in the user's profile at this moment, else
-        "you". Never the session token's claims. A record keeps what it said when it was made."""
-        return self.state.profile_name() or DECIDED_BY
+        """Who a new decision record names: always "you" (B50, #95, owner 2026-10-19: the display name is the user
+        menu's only; B48 put it in records). Not the user id either: every record in a user's history is their own
+        (B09), so "you" says all, and an id is noise that would name the person if a history were ever shared. Never
+        the session token's claims. A record keeps what it said when it was made, a name from B48 too."""
+        return DECIDED_BY
 
     @property
     def owner_state(self) -> State:

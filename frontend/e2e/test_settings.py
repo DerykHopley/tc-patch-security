@@ -61,7 +61,7 @@ def fresh_state(browser: Browser, ui_url: str):
     page.goto(ui_url)
     page.get_by_role("button", name="Settings", exact=True).click()
     page.get_by_label("Type reset to confirm").fill("reset")
-    page.get_by_role("button", name="Reset demo data").click()
+    page.get_by_role("button", name="Reset all my data").click()
     expect(page.get_by_text("Reset to the defaults.")).to_be_visible()
     ctx.close()
 
@@ -84,13 +84,11 @@ def panel(page: Page, title: str):
     return page.locator("section.card", has=page.get_by_role("heading", name=title, exact=True))
 
 
-# --- A13.2: alert rules; each panel says live, saved for later, or mock -------------------------------------------
+# --- A13.2: alert rules; no "Live" chip on any card (B50: every card said it, so it told you nothing) ----------------
 
-def test_a13_2_each_panel_says_whether_it_is_live_saved_for_later_or_a_mock(settings_page):
+def test_a13_2_no_card_has_a_status_chip_and_the_data_card_points_to_check_now(settings_page):
     page = settings_page()
-    # Alerts went live with B04: a live check uses them
-    for title, chip in (("Alerts", "Live"), ("Delivery", "Live"), ("Watchlist", "Live"), ("Data", "Live")):
-        expect(panel(page, title).locator(".status-chip")).to_have_text(chip)
+    expect(page.locator("main section.card .status-chip")).to_have_count(0)
     # BR.13: no dead button; the Data card points to the dashboard's Check now and the Refresh runs card
     expect(page.get_by_role("button", name="Check for new CVEs now")).to_have_count(0)
     expect(panel(page, "Data")).not_to_contain_text("Not built yet")
@@ -157,10 +155,12 @@ def test_a13_3_channels_show_whether_they_are_set_up_and_how(settings_page):
     page = settings_page()
     email = page.locator(".channel", has_text="Email")
     expect(email.locator(".setup-pill")).to_have_text("not set up")
-    expect(email).to_contain_text("SMTP_HOST")
+    expect(email).to_contain_text("Set the mail server and the address to send to under Email (SMTP), below.")
     ntfy = page.locator(".channel", has_text="Phone push (ntfy)")
     expect(ntfy.locator(".setup-pill")).to_have_text("not set up")
-    expect(ntfy).to_contain_text("NTFY_TOPIC")
+    expect(ntfy).to_contain_text("Set a topic (a long random name) under Phone push (ntfy), below.")
+    for name in ("SMTP_HOST", "ALERT_EMAIL_TO", "NTFY_TOPIC", "notify-send", "backend/.env"):  # B50: plain words
+        expect(panel(page, "Delivery")).not_to_contain_text(name)
     expect(page.locator(".channel", has_text="Desktop notification").locator(".setup-pill")).to_have_text(
         re.compile("^(ready|not set up)$"))
     for name in ("Desktop notification", "Email", "Phone push (ntfy)"):
@@ -186,7 +186,7 @@ def test_a13_3_preview_shows_the_alert_and_logs_it(settings_page):
 def test_a13_3_test_on_a_channel_that_is_not_set_up_says_so_and_is_logged(settings_page):
     page = settings_page()
     page.get_by_role("button", name="Send test alert by email").click()
-    expect(page.get_by_role("alert")).to_contain_text("SMTP_HOST")
+    expect(page.get_by_role("alert")).to_contain_text("under Email (SMTP)")
     log = page.get_by_role("list", name="Recent alerts")
     expect(log.get_by_role("listitem")).to_have_count(1)
     expect(log).to_contain_text("email")
@@ -201,7 +201,7 @@ def test_a13_5_reset_needs_the_word_and_restores_the_defaults(settings_page):
     page.get_by_role("button", name="Save changes").click()
     page.get_by_role("button", name="Preview an alert (send nothing)").click()
     expect(page.get_by_role("list", name="Recent alerts").get_by_role("listitem")).to_have_count(1)
-    reset = page.get_by_role("button", name="Reset demo data")
+    reset = page.get_by_role("button", name="Reset all my data")
     expect(reset).to_be_disabled()
     page.get_by_label("Type reset to confirm").fill("Reset")
     expect(reset).to_be_disabled()
@@ -232,9 +232,9 @@ def test_a13_6_settings_parts_as_designed(settings_page, scheme):
         card = channel.bounding_box()
         assert pill and card and pill["width"] < 100 < card["width"]  # the pill hugs its text
     assert style(page.locator(".callout").first, "borderTopLeftRadius") == "14px"
-    danger = page.locator(".danger-zone")
-    assert style(danger, "borderTopLeftRadius") == "18px"
-    assert style(danger, "borderTopColor") == resolved(page, css_var(page, "--error"), "color")
+    danger = panel(page, "Start over")  # B50: its own warning card, a 2px --error edge inside
+    assert resolved(page, css_var(page, "--error"), "color") in style(danger, "boxShadow")
+    assert "inset" in style(danger, "boxShadow")
     for card in page.locator("section.card").all():
         assert style(card, "backgroundColor") == resolved(page, css_var(page, "--surface"))
         assert style(card, "borderTopLeftRadius") == "26px"
@@ -244,10 +244,11 @@ def test_a13_6_settings_parts_as_designed(settings_page, scheme):
 def test_a13_6_save_bar_floats_at_the_bottom_clear_of_patch(settings_page, width):
     page = settings_page(width=width)
     bar = page.locator(".save-bar")
+    page.get_by_label("Minimum severity").select_option("LOW")  # the bar shows wherever the page is scrolled
+    expect(bar).to_contain_text("Unsaved changes")  # B50: on a phone it shows only now
     assert style(bar, "position") == "sticky"
     assert style(bar, "borderTopLeftRadius") == "20px"
     assert "rgba(108, 76, 245, 0.16)" in style(bar, "boxShadow")
-    page.get_by_label("Minimum severity").select_option("LOW")  # the bar shows wherever the page is scrolled
     page.evaluate("window.scrollTo(0, 0)")
     box = bar.bounding_box()
     assert box and box["y"] + box["height"] <= 900
@@ -276,7 +277,7 @@ def test_a13_8_works_in_both_themes_at_both_widths(settings_page, browser_name, 
     assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
     cards = page.locator("section.card")
     expect(cards).to_have_count(9)  # with "Patch's answers" (A19), "Priority and due dates" (A16), "Refresh runs" (B19),
-    # "Profile" and "Demo data" (B48)
+    # "Profile" and "Demo data" (B48; "Start over" since B50)
     one_column = len({round(c.bounding_box()["x"]) for c in cards.all()}) == 1
     assert one_column == (width == PHONE)  # one column of cards at ≤ 900px (DESIGN.md §4.2)
     SHOTS.mkdir(exist_ok=True)
@@ -312,7 +313,7 @@ def test_a13_9_buttons_have_accessible_names(settings_page):
     page = settings_page()
     for name in ("Send test alert by desktop notification", "Send test alert by email",
                  "Send test alert by phone push (ntfy)", "Preview an alert (send nothing)",
-                 "Reset demo data", "Discard", "Save changes"):
+                 "Reset all my data", "Discard", "Save changes"):
         expect(page.get_by_role("button", name=name, exact=True)).to_have_count(1)
     unnamed = page.evaluate("""[...document.querySelectorAll('main button')].filter(b =>
         !(b.getAttribute('aria-label') || b.textContent).trim()).length""")

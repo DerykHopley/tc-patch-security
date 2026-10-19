@@ -78,10 +78,10 @@ export type ProfileDraft = ReturnType<typeof useProfileDraft>
 export function ProfileCard({ p }: { p: ProfileDraft }) {
   const [removed, setRemoved] = useState(false)
   return (
-    <Card title="Profile" kind="live" why="Your user menu and your new decision records use it" anchor="profile">
+    <Card title="Profile" anchor="profile">
       <p className="meta">
-        Patch knows you only by your account. A display name is optional: your user menu and your new decision records
-        use it. Nobody else sees it.
+        Patch knows you only by your account. A display name is optional: only your user menu shows it. Nobody else
+        sees it.
       </p>
       <div className="field-row profile-row">
         <label htmlFor="profile-name">Display name (optional)</label>
@@ -93,7 +93,7 @@ export function ProfileCard({ p }: { p: ProfileDraft }) {
           }} />
       </div>
       <p id="profile-name-why" className="meta">
-        Without one, the menu says "Your account" and records say "you". At most {NAME_MAX} characters.
+        Without one, the menu says "Your account". Decision records always say "you". At most {NAME_MAX} characters.
       </p>
       {p.problem && <p role="alert" className="form-error">{p.problem}</p>}
       {p.error && (
@@ -108,7 +108,7 @@ export function ProfileCard({ p }: { p: ProfileDraft }) {
         </button>
       )}
       <output className="meta profile-done">
-        {removed ? 'Name removed: new records say "you". Past records keep the name they were made with.' : null}
+        {removed ? 'Name removed: your user menu says "Your account".' : null}
       </output>
     </Card>
   )

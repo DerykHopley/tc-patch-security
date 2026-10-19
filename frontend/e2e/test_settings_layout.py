@@ -18,10 +18,11 @@ WIDE = 1440  # the width the owner's comparison was measured at
 # B48: "Yours" (Connected accounts needs a real Clerk user: not here) and "This Patch" (Requests needs sign-in on: not
 # here either). This Patch's right column comes first in the DOM, so Requests leads it when there is one.
 LEFT = ["Profile", "Alerts"]
-RIGHT = ["Patch's answers", "Priority and due dates", "Demo data"]
-PATCH_RIGHT = ["Refresh runs", "Data"]
-PATCH_LEFT = ["Delivery"]
-ORDER = ["Watchlist", *LEFT, *RIGHT, *PATCH_RIGHT, *PATCH_LEFT]  # reading order = DOM order = Tab order
+RIGHT = ["Patch's answers", "Priority and due dates"]
+START_OVER = "Start over"  # B50: its own warning card, across both columns at the end of "Yours"
+PATCH_RIGHT = ["Refresh runs"]
+PATCH_LEFT = ["Delivery", "Data"]  # B50: Data under Delivery, now that Delivery shows 3 alerts
+ORDER = ["Watchlist", *LEFT, *RIGHT, START_OVER, *PATCH_RIGHT, *PATCH_LEFT]  # reading order = DOM order = Tab order
 GAP = 1.2 * 16  # the gap between cards (DESIGN.md §4.1)
 
 
@@ -54,6 +55,11 @@ def test_sl_1_two_packed_columns_under_a_full_width_watchlist(open_settings):
     assert box["Alerts"]["x"] < box["Patch's answers"]["x"]
     left, right = box["Alerts"], box["Patch's answers"]
     assert abs(watch["x"] - left["x"]) <= 1 and abs(watch["x"] + watch["width"] - right["x"] - right["width"]) <= 1
+    # B50: Start over across both columns, one gap under the longer one
+    start = box[START_OVER]
+    assert abs(start["x"] - watch["x"]) <= 1 and abs(start["width"] - watch["width"]) <= 1
+    columns_end = max(box[t]["y"] + box[t]["height"] for t in LEFT + RIGHT)
+    assert abs(start["y"] - (columns_end + GAP)) <= 2
     # This Patch: its own two columns, level at the top, the right one (Requests first, B48) on the right
     top = min(box["Delivery"]["y"], box["Refresh runs"]["y"]) - GAP
     packed(box, PATCH_LEFT, top)

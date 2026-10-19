@@ -93,7 +93,7 @@ An accepted CVE whose review date has come (at the as-of date). It's back in the
 _Avoid_: expired, lapsed
 
 **Decision record**:
-What you decided about one CVE and why: the status, its justification or reason, a note, the review date and compensating control, when, and who. Every status change appends one to the CVE's history; none is ever edited or removed (only the full reset clears them).
+What you decided about one CVE and why: the status, its justification or reason, a note, the review date and compensating control, when, and who. Every status change appends one to the CVE's history; none is ever edited or removed (only **Start over** clears them).
 _Avoid_: audit log, comment
 
 **Justification**:
@@ -206,8 +206,12 @@ The one user whose alerts go to the channels, named by `OWNER` in the server's e
 _Avoid_: admin, account holder
 
 **Profile**:
-What a user tells Patch about themselves: only an optional **display name**, empty by default (anonymous). Kept in their own state, never taken from Clerk; used in their user menu and their new decision records. Nobody else sees it, and Reset demo data keeps it (B48, #77). On Settings it is the first card of **Yours**, the part every user has; **This Patch** is the owner's part.
+What a user tells Patch about themselves: only an optional **display name**, empty by default (anonymous). Kept in their own state, never taken from Clerk; used only in their user menu (B50, owner 2026-10-19: decision records always say "you"; between B48 and B50 new records held the name, and keep it). Nobody else sees it, and **Start over** keeps it (B48, #77). On Settings it is the first card of **Yours**, the part every user has; **This Patch** is the owner's part.
 _Avoid_: account (that's Clerk's), user name, nickname
+
+**Start over**:
+The reset on Settings, the last card of **Yours**: it deletes the user's own state (watchlist, CVE statuses with their whole decision history, alert rules, policy, alerts log; the owner's also the channels, the schedule and the Dev page's choices) and keeps the profile and the server settings. The button is "Reset all my data" (B50, #95).
+_Avoid_: reset demo data (it isn't demo data: it is the user's own decisions), factory reset
 
 **Default user**:
 The one user while sign-in is off (locally and in the tests). Their state is the state file.
@@ -285,5 +289,5 @@ Questions whose right source comes from structured fields (a CVE id → that CVE
 _Avoid_: embedding eval, recall test
 
 **Run**:
-One saved model check or retrieval check: who or what was checked, when, every score. The evaluation report is built from runs.
+One saved model check or retrieval check: who or what was checked, when, every score. The model-check report is built from runs.
 _Avoid_: result, session

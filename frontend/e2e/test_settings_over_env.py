@@ -77,7 +77,7 @@ def test_b26_9_the_owner_switches_to_live_data_and_back_with_no_restart(open_set
     data.get_by_label("Live").check()
     save(page)
     expect(page.locator(".side-card strong")).to_have_text("Live data")  # the app's status follows
-    expect(data.get_by_text("Live data from NVD, CISA KEV, EPSS and OSV")).to_be_visible()
+    expect(data.get_by_text("Live CVE data from NVD, CISA KEV, EPSS and OSV.dev")).to_be_visible()
     assert api(api_url, "/health")["mode"] == "live"
 
     page.get_by_role("button", name="Dashboard", exact=True).click()
@@ -95,7 +95,7 @@ def test_b26_9_a_setting_from_the_environment_is_shown_and_cant_be_changed(open_
     data = panel(page, "Data")
     expect(data.get_by_label("Live")).to_be_checked()
     expect(data.get_by_label("Live")).to_be_disabled()
-    expect(data.get_by_text("Set in the server's environment (DATA_MODE), which wins.")).to_be_visible()
+    expect(data.get_by_text("Set in the server's environment, which wins.")).to_be_visible()
 
 
 # --- B26.10: secrets are write-only; the tap link says what it does ------------------------------------------------

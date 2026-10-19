@@ -94,8 +94,12 @@ def test_a13_3_each_channel_says_whether_it_is_set_up_and_how(settings, knowledg
     channels = c.get("/settings").json()["channels"]
     assert set(channels) == {"desktop", "email", "ntfy"}
     assert not any(ch["configured"] for ch in channels.values())
-    assert "SMTP_HOST" in channels["email"]["detail"] and "NTFY_TOPIC" in channels["ntfy"]["detail"]
-    assert "notify-send" in channels["desktop"]["detail"]
+    assert "under Email (SMTP)" in channels["email"]["detail"]
+    assert "under Phone push (ntfy)" in channels["ntfy"]["detail"]
+    assert "desktop notifications" in channels["desktop"]["detail"]
+    # B50 (#95): plain words, never the server's names for them (README.md maps those)
+    for name in ("SMTP_HOST", "ALERT_EMAIL_TO", "NTFY_TOPIC", "notify-send", "osascript", "backend/.env"):
+        assert not any(name in ch["detail"] for ch in channels.values()), name
 
 
 def test_a13_3_settings_never_return_a_secret(settings, knowledge):

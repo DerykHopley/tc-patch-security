@@ -46,10 +46,24 @@ export const MAX_TRIES = 3
 /** When an entry has no channel results: no channel was picked in Settings. */
 export const NO_CHANNELS = 'No channel picked: recorded only'
 
+/** The Recent alerts card with nothing in it. Anyone but the owner (B50, #95) can't send a test alert (the channels
+ *  are the owner's), and a check only records theirs in Patch. */
+export function emptyAlerts(mode: 'live' | 'snapshot', owner: boolean): string {
+  if (mode === 'live') {
+    return owner ? 'No alerts yet. A check sends them when something on your watchlist needs you.'
+      : 'No alerts yet. A check shows them here when something on your watchlist needs you.'
+  }
+  return owner ? 'No alerts yet. The snapshot never changes, so only test alerts from Settings appear here.'
+    : 'No alerts yet. The snapshot never changes, so no check finds any.'
+}
+
+/** Delivery shows the last few; the dashboard's card has the last 20 (B50, #95: the two lists were the same). */
+export const DELIVERY_SHOWN = 3
+
 /** Why an entry has no channel results: held for quiet hours, another user's (B09: only the owner's alerts go to
- * the channels, which are the owner's), or no channel picked. */
+ * the channels; B50: "In Patch only", as their Alerts card's note says), or no channel picked. */
 export function noChannels(e: AlertLogEntry): string {
   if (e.kind === 'held') return 'Held: sent when quiet hours end'
-  if (e.in_app_only) return 'In the app only: alerts go to the owner’s channels'
+  if (e.in_app_only) return 'In Patch only'
   return NO_CHANNELS
 }

@@ -294,8 +294,9 @@ def overlaps(a: dict, b: dict) -> bool:
 def test_a11_6_save_bar_floats_clear_of_patch(dev_page, width):
     page = dev_page(width=width)
     bar = page.locator(".save-bar")
-    assert style(bar, "position") == "sticky" and style(bar, "borderTopLeftRadius") == "20px"
     page.get_by_label("Sources per search").fill("7")
+    expect(bar).to_contain_text("Unsaved changes")  # B50: on a phone it shows only now
+    assert style(bar, "position") == "sticky" and style(bar, "borderTopLeftRadius") == "20px"
     page.evaluate("window.scrollTo(0, 0)")
     box = bar.bounding_box()
     assert box and box["y"] + box["height"] <= 900

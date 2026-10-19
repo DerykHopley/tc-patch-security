@@ -74,6 +74,14 @@ test('B34.4 alert counts in words: zeros left out, in the order sent, recorded o
   assert.deepEqual(alertWords(counts()), [])
 })
 
+test("B50.9 anyone but the owner: their alerts are in Patch, never 'recorded only (not sent)'", () => {
+  assert.deepEqual(alertWords(counts({ recorded: 3 }), false), ['3 alerts in Patch'])
+  assert.deepEqual(alertWords(counts({ recorded: 1 }), false), ['1 alert in Patch'])
+  assert.deepEqual(alertWords(counts({ recorded: 3 })), ['3 alerts recorded only (not sent)']) // the owner's
+  const reply = { ...ran(run()), alerts_for_you: counts({ recorded: 2 }) }
+  assert.equal(replyLine(reply, false).text, 'Done: 2 new CVEs, 1 updated, 1 added to KEV. 2 alerts in Patch.')
+})
+
 // B20: a run where some feeds failed. Each feed is a step; the ones that answered were written.
 const feeds = (...failed: string[]) =>
   ['nvd', 'kev', 'osv', 'epss'].map((source) =>

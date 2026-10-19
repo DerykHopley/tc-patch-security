@@ -48,7 +48,7 @@ export function ConnectedAccountsCard() {
   const listed = rows(user)
   const offer = linkable(user)
   return (
-    <Card title="Connected accounts" kind="live" why="Sign-in methods on your account, in Clerk" anchor="connected-accounts">
+    <Card title="Connected accounts" anchor="connected-accounts">
       <p className="meta">
         Sign in with any of these and you land in the same account. Linking works even when the other account uses
         another email.

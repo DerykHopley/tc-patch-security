@@ -30,3 +30,11 @@ export function searchChoices(d: DevSettings): Choice[] {
     ['Self-query filters', onOff(d.use_filters)],
   ]
 }
+
+/** The owner's intro on the Dev page (B50, #95): what the page does, then who else sees it, by role (B45). It said
+ *  `DEV_PANEL=false` before: a server setting, now in README.md. */
+export const OWNER_INTRO = [
+  'Tune the model, the agent and search, then try a query to see each step. Your choices apply to everyone\'s chat.',
+  'Who else sees this page: Trusted people read it and use the playground; Reviewers change their own copy, which ' +
+    'applies only to them; Viewers don\'t see it. You pick each person\'s role on Settings, under Requests.',
+]

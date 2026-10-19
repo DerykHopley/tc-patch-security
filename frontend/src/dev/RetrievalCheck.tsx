@@ -61,7 +61,7 @@ export function RetrievalCheck({ embedder, canRun, compared, onCompare }: {
   const toggle = (id: string) => onCompare(compared.includes(id) ? compared.filter((x) => x !== id) : [...compared, id])
 
   return (
-    <Card title="Retrieval check" kind="live" why="Hit rate at 5 and MRR for the embedder the index was built with"
+    <Card title="Retrieval check"
       className="retrieval-check">
       <p className="meta">
         Asks {runs[0]?.questions ?? 'about 40'} questions whose right source comes from the data itself, of the loaded

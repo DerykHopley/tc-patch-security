@@ -11,8 +11,10 @@ export function SaveBar({ dirty, saving, saved, error, onSave, onDiscard }: {
 }) {
   const message = error ?? (dirty ? 'Unsaved changes' : saved ? '✓ Changes saved' : 'All changes saved')
   const tone = error ? ' error' : dirty ? ' dirty' : saved ? ' ok' : ''
+  // B50: nothing to say ("All changes saved", nothing done yet): a phone hides the bar (settings.css)
+  const idle = !error && !dirty && !saved && !saving
   return (
-    <div className="save-bar">
+    <div className={`save-bar${idle ? ' idle' : ''}`}>
       <output className={`save-message${tone}`}>{message}</output>
       <button type="button" onClick={onDiscard} disabled={!dirty || saving}>
         Discard

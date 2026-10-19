@@ -1,4 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
+import { roleOf } from '../access.ts'
+import { DELIVERY_SHOWN } from '../alertsLog.ts'
+import { AccessContext } from '../auth/AccessGate.tsx'
+import { dataSources } from '../freshness.ts'
+import { resetDeletes, resetKeeps, START_OVER_BUTTON } from '../startOver.ts'
 import {
   alertsLog,
   EXPLAIN_LEVELS,
@@ -34,8 +39,8 @@ import '../styles/settings.css'
 
 // The Settings page (DESIGN.md §5.7): in two parts since B48 (#97). "Yours", for everyone: the profile and connected
 // accounts, the watchlist (A15b: edited here, the dashboard only filters by it), the alert rules (B04), Patch's answers,
-// priority and due dates, and a safe reset. "This Patch", the owner's only: requests, refresh runs, delivery channels
-// with real test sends, and the data. Each card says what it really does today.
+// priority and due dates, then Start over (B50: a reset of the user's own data, in a warning card at the end). "This
+// Patch", the owner's only: requests, refresh runs, delivery channels with real test sends, and the data.
 
 const SEVERITIES: { value: Severity; label: string }[] = [
   { value: 'LOW', label: 'Low' },
@@ -79,6 +84,7 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
   mode?: DataMode
   onServerSaved?: () => void
 }) {
+  const role = roleOf(useContext(AccessContext)) // B50: what Start over deletes depends on it
   const s = useSettings()
   const w = useWatchlist() // its own route, the same save bar (A15b)
   const p = useProfileDraft() // B48: your display name, the same save bar
@@ -128,6 +134,7 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
   const set = (v: Partial<AlertSettings>) => s.patch('alerts', v)
   // B48: the owner sees "This Patch" too; anyone else (sign-in on) only "Yours", with their alerts in Patch only
   const isOwner = s.reply.owner === true
+  const live = mode === 'live'
   const policy = s.draft.policy
   const daysInOrder = policy.urgent_days <= policy.high_days && policy.high_days <= policy.normal_days &&
     policy.normal_days <= policy.low_days
@@ -193,7 +200,10 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
         <section className="settings-part" aria-labelledby="part-yours">
           <div className="part-head">
             <h2 id="part-yours">Yours</h2>
-            <p className="page-intro">Your profile, watchlist, alerts and answers. Everyone who uses Patch has their own.</p>
+            <p className="page-intro">
+              Your profile, watchlist, alerts and answers. Everyone who uses Patch has their own. Edits wait for Save
+              changes, at the bottom of the page.
+            </p>
           </div>
           <div className="settings-layout">
             <WatchlistCard w={w} />
@@ -201,7 +211,7 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
             <div className="settings-column">
               <ProfileCard p={p} />
               <ConnectedAccountsCard />
-              <Card title="Alerts" kind="live" why="Each live check uses them">
+              <Card title="Alerts">
                 <p className="meta">
                   Each live check {isOwner ? 'sends' : 'records'} these alerts once per CVE and reason. A CVE due in 3 days,
                   or overdue (again each week), always alerts while alerts are on.
@@ -302,7 +312,7 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
             </div>
 
             <div className="settings-column">
-              <Card title="Patch's answers" kind="live" why="Patch uses it on your next question">
+              <Card title="Patch's answers">
                 <p className="meta">
                   How Patch pitches an answer. The facts and sources stay the same at every level; only the wording changes.
                   The chat header can switch it for one question.
@@ -322,7 +332,7 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                 <WelcomeSwitch />
               </Card>
 
-              <Card title="Priority and due dates" kind="live" why="The CVEs page and the dashboard use it at once">
+              <Card title="Priority and due dates">
                 <p className="meta">
                   Fixed rules set each open CVE's priority from CISA KEV, EPSS, severity, the version check and whether the
                   product is internet-facing. Your policy turns the priority into a due date: the publication date (or the
@@ -370,38 +380,42 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                 <NotSaved error={s.error} show={s.changed('policy') || s.changed('priority')} />
               </Card>
 
-              <Card title="Demo data" kind="live" why="Your own state only">
-                <div className="danger-zone">
-                  <h4>Reset demo data</h4>
-                  <p className="meta">
-                    Back to the default watchlist, no fixed or not-affected marks, default settings, and an empty alerts log.
-                  </p>
-                  <div className="field-row">
-                    <label htmlFor="reset-confirm">
-                      Type <code>reset</code> to confirm
-                    </label>
-                    <input id="reset-confirm" value={confirmText} autoComplete="off"
-                      onChange={(e) => {
-                        setConfirmText(e.target.value)
-                        setResetDone(false)
-                      }} />
-                    <button type="button" className="danger-btn" disabled={confirmText !== 'reset'} onClick={reset}>
-                      Reset<span className="visually-hidden"> demo data</span>
-                    </button>
-                  </div>
-                  {resetDone && <p className="ok-note">✓ Reset to the defaults.</p>}
-                  {resetError && (
-                    <p role="alert" className="form-error">
-                      {resetError}
-                    </p>
-                  )}
-                </div>
-              </Card>
             </div>
+
+            {/* B50 (#95): its own warning card, the last of "Yours", across both columns: it deletes the user's whole
+                state (the decision history too), so it says exactly what goes and what stays. */}
+            <Card title="Start over" className="danger-card" anchor="start-over">
+              <p className="meta">Resets everything you set up in Patch to the defaults. It can't be undone. It deletes:</p>
+              <ul className="reset-list">
+                {resetDeletes(role).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+              <p className="meta">{resetKeeps(role)}</p>
+              <div className="field-row">
+                <label htmlFor="reset-confirm">
+                  Type <code>reset</code> to confirm
+                </label>
+                <input id="reset-confirm" value={confirmText} autoComplete="off"
+                  onChange={(e) => {
+                    setConfirmText(e.target.value)
+                    setResetDone(false)
+                  }} />
+                <button type="button" className="danger-btn" disabled={confirmText !== 'reset'} onClick={reset}>
+                  {START_OVER_BUTTON}
+                </button>
+              </div>
+              {resetDone && <p className="ok-note">✓ Reset to the defaults.</p>}
+              {resetError && (
+                <p role="alert" className="form-error">
+                  {resetError}
+                </p>
+              )}
+            </Card>
           </div>
         </section>
 
-        {isOwner && (
+        {isOwner && channels && (
           <section className="settings-part" aria-labelledby="part-patch">
             <div className="part-head">
               <h2 id="part-patch">This Patch</h2>
@@ -409,12 +423,12 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
             </div>
             {/* Requests first, at the top of the right column (owner, 2026-10-19): the card the owner acts on, where
                 an alert's /settings#requests lands. So the right column comes first in the DOM (and on a phone);
-                the CSS puts it on the right. Delivery (with its 20 recent alerts) alone on the left balances Requests,
-                Refresh runs (20 runs) and Data on the right (DECISIONS.md, B48). */}
+                the CSS puts it on the right. Since B50 Delivery shows 3 alerts, not 20, so Data moved under it: Delivery
+                and Data on the left balance Requests and Refresh runs (20 runs) on the right (DECISIONS.md, B50). */}
             <div className="settings-layout patch-layout">
               <div className="settings-column column-right">
                 <RequestsCard />
-                <Card title="Refresh runs" kind="live" why="The schedule and the history of every live check">
+                <Card title="Refresh runs">
                   <p className="meta">
                     How often the live data is checked, and the last 20 checks: the schedule's, Check now's and Patch's.
                   </p>
@@ -434,42 +448,29 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                       </select>
                     </div>
                     <div className="check-row switch-row">
-                      <input type="checkbox" id="al-paused" checked={a.schedule_paused}
+                      {/* B50: nothing is scheduled in snapshot mode, so there is nothing to pause */}
+                      <input type="checkbox" id="al-paused" checked={a.schedule_paused} disabled={!live}
                         onChange={(e) => set({ schedule_paused: e.target.checked })} aria-describedby="al-paused-why" />
                       <label htmlFor="al-paused">
                         <strong>Pause the schedule</strong>
                       </label>
                       <span id="al-paused-why" className="meta">
-                        No scheduled check starts. Check now and Patch's check still work.
+                        {live
+                          ? "No scheduled check starts. Check now and Patch's check still work."
+                          : 'Only in live mode: the snapshot never changes, so no check is scheduled to pause.'}
                       </span>
                     </div>
                   </fieldset>
                   <NotSaved error={s.error} show={s.changed('alerts', { only: SCHEDULE_KEYS })} />
                   <RefreshRuns reload={JSON.stringify(s.reply.settings.alerts)} />
                 </Card>
-
-                <Card title="Data" kind="live" why="The data the app reads">
-                  <p>
-                    {mode === 'live'
-                      ? 'Live data from NVD, CISA KEV, EPSS and OSV, as of '
-                      : 'Snapshot of OWASP, MITRE ATLAS, NVD and CISA KEV, as of '}
-                    <strong>{asOf ?? '…'}</strong>.
-                  </p>
-                  {owner && <DataSourceFields f={owner} />}
-                  <NotSaved error={srv.error} show={srv.changed(['data_mode', 'nvd_api_key'])} />
-                  <p className="meta" data-testid="check-now-pointer">
-                    In live mode, <strong>Check now</strong> on the{' '}
-                    <a href="/" onClick={(e) => followLink(e, openPath)}>dashboard's Data freshness card</a> checks the feeds
-                    for new CVEs. Every check is listed under <a href="#schedule">Refresh runs</a>.
-                  </p>
-                </Card>
               </div>
 
               <div className="settings-column column-left">
-                <Card title="Delivery" kind="live" why="Test alerts are really sent">
+                <Card title="Delivery">
                   <p className="meta">
                     Pick where your alerts go, and set each channel up below. A secret you save is never shown again; one set
-                    in the server's environment (backend/.env) wins. Everyone else's alerts show in Patch only.
+                    in the server's environment wins. Everyone else's alerts show in Patch only.
                   </p>
                   <ul className="channels">
                     {CHANNELS.map((c) => {
@@ -528,13 +529,30 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                     </div>
                   )}
 
-                  <h4 id="recent-alerts">Recent alerts</h4>
+                  {/* B50 (#95): the last 3 (a test send shows at the top); the dashboard's card has the last 20 */}
+                  <h4 id="delivery-recent">Recent alerts</h4>
                   {log.length === 0 ? (
                     <p className="meta">No alerts yet.</p>
                   ) : (
-                    <AlertList entries={log} labelledBy="recent-alerts" />
+                    <AlertList entries={log.slice(0, DELIVERY_SHOWN)} labelledBy="delivery-recent" />
                   )}
+                  <a className="edit-link" href="/#recent-alerts" onClick={(e) => followLink(e, openPath)}>
+                    All recent alerts on the dashboard <span aria-hidden="true">→</span>
+                  </a>
                   <NotSaved error={s.error} show={s.changed('alerts', { only: ['channels'] })} />
+                </Card>
+
+                <Card title="Data">
+                  <p data-testid="data-sources">
+                    {dataSources(mode ?? 'snapshot')} As of <strong>{asOf ?? '…'}</strong>.
+                  </p>
+                  {owner && <DataSourceFields f={owner} />}
+                  <NotSaved error={srv.error} show={srv.changed(['data_mode', 'nvd_api_key'])} />
+                  <p className="meta" data-testid="check-now-pointer">
+                    In live mode, <strong>Check now</strong> on the{' '}
+                    <a href="/" onClick={(e) => followLink(e, openPath)}>dashboard's Data freshness card</a> checks the feeds
+                    for new CVEs. Every check is listed under <a href="#schedule">Refresh runs</a>.
+                  </p>
                 </Card>
               </div>
             </div>

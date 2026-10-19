@@ -78,8 +78,8 @@ test('B26.8 a setting from the environment says so, and a secret says only wheth
   const s = status()
   assert.equal(sourceLine(s, 'data_mode'), null)
   assert.equal(sourceLine(status({ data_mode: { value: 'live', source: 'env' } }), 'data_mode'),
-    "Set in the server's environment (DATA_MODE), which wins.")
-  assert.equal(secretLine(s, 'ntfy_topic', undefined), "Set in the server's environment (NTFY_TOPIC), which wins.")
+    "Set in the server's environment, which wins.")
+  assert.equal(secretLine(s, 'ntfy_topic', undefined), "Set in the server's environment, which wins.")
   assert.equal(secretLine(s, 'smtp_host', undefined), 'Saved. Type a new one to replace it.')
   assert.equal(secretLine(s, 'smtp_host', null), 'Removed when you save.')
   assert.equal(secretLine(s, 'ntfy_token', undefined), 'Not set.')

@@ -647,7 +647,7 @@ export interface ChannelStatus {
 
 export interface SettingsReply {
   settings: AppSettings
-  channels: Record<Channel, ChannelStatus>
+  channels: Record<Channel, ChannelStatus> | null // the owner's channels; null for anyone else (B50: they're not theirs)
   alert_tz?: string // the time zone of quiet hours (ALERT_TZ or Settings, B04, B26)
   schedule?: ScheduleStatus // the owner's schedule, with `yours` (BR.9)
   server?: ServerStatus | null // B26: the owner's server settings; null for anyone else

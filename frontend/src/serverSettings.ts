@@ -73,17 +73,18 @@ export function serverChanges(status: ServerStatus, base: ServerFields, draft: S
   return out
 }
 
-const envLine = (name: string) => `Set in the server's environment (${name}), which wins.`
+// B50 (#95): in words, without the variable's name (README.md maps each setting to it)
+const ENV_LINE = "Set in the server's environment, which wins."
 
 /** The note under a plain setting set in the environment; null when Settings decides it. */
 export function sourceLine(status: ServerStatus, key: keyof ServerFields): string | null {
-  return status.fields[key].source === 'env' ? envLine(status.env_names[key]) : null
+  return status.fields[key].source === 'env' ? ENV_LINE : null
 }
 
 /** The note under a secret's box: where it's set, never what it is. `edit`: what the owner typed or removed. */
 export function secretLine(status: ServerStatus, key: SecretName, edit: string | null | undefined): string {
   const s = status.secrets[key]
-  if (s.source === 'env') return envLine(status.env_names[key])
+  if (s.source === 'env') return ENV_LINE
   if (edit === null) return 'Removed when you save.'
   if (edit) return 'Saved when you save.'
   return s.set ? 'Saved. Type a new one to replace it.' : 'Not set.'

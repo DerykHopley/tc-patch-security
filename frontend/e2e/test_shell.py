@@ -289,7 +289,7 @@ def test_a02_4_collapsed_rail_keeps_names_and_is_remembered(open_app):
 
 def test_a02_5_pages_reachable_and_active_page_shown_everywhere(open_app):
     page = open_app()
-    for name, title in (("CVEs", "CVEs"), ("Settings", "Settings"), ("Dev", "Dev panel"), ("Dashboard", "Dashboard")):
+    for name, title in (("CVEs", "CVEs"), ("Settings", "Settings"), ("Dev", "Dev"), ("Dashboard", "Dashboard")):
         page.get_by_role("button", name=name, exact=True).click()
         expect(page.get_by_role("heading", level=1)).to_have_text(title)
         expect(page.locator(".crumb-path")).to_have_text(f"Pages / {title}")

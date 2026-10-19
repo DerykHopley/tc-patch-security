@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { AlertLogEntry } from './api.ts'
-import { channelResult, entryReason, noChannels } from './alertsLog.ts'
+import { channelResult, emptyAlerts, entryReason, noChannels } from './alertsLog.ts'
 
 const entry = (over: Partial<AlertLogEntry> = {}): AlertLogEntry => ({
   at: '2026-10-15T09:00:00+00:00',
@@ -31,7 +31,19 @@ test('B04.11 each entry says what it was for', () => {
 test('B09.9 an entry with no channel says why: none picked, held, or another user (the owner gets the channels)', () => {
   assert.equal(noChannels(entry()), 'No channel picked: recorded only')
   assert.equal(noChannels(entry({ kind: 'held' })), 'Held: sent when quiet hours end')
-  assert.equal(noChannels(entry({ in_app_only: true })), 'In the app only: alerts go to the owner’s channels')
+  assert.equal(noChannels(entry({ in_app_only: true })), 'In Patch only')
+})
+
+test('B50.9 an empty Recent alerts card: anyone but the owner has no test alerts and no channels', () => {
+  assert.equal(emptyAlerts('snapshot', true),
+    'No alerts yet. The snapshot never changes, so only test alerts from Settings appear here.')
+  assert.equal(emptyAlerts('snapshot', false), 'No alerts yet. The snapshot never changes, so no check finds any.')
+  assert.equal(emptyAlerts('live', true), 'No alerts yet. A check sends them when something on your watchlist needs you.')
+  assert.equal(emptyAlerts('live', false),
+    'No alerts yet. A check shows them here when something on your watchlist needs you.')
+  for (const words of [emptyAlerts('snapshot', false), emptyAlerts('live', false)]) {
+    assert.doesNotMatch(words, /test alert|sends/)
+  }
 })
 
 test('B04.11 each channel says sent, recorded only, not set up or failed', () => {

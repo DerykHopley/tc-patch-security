@@ -7,6 +7,11 @@
   margin-bottom: 0.6rem;
 }
 
+/* B50: Settings' Delivery card links here (/#recent-alerts): 1rem of room above it, as the Requests card has */
+.alerts-card {
+  scroll-margin-top: 1rem;
+}
+
 .alerts-card .alert-log li {
   gap: 0.15rem;
   padding-bottom: 0.45rem;

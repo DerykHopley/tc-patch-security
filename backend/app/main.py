@@ -490,9 +490,12 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     @api.get("/settings")
     def get_settings(d: You):
+        """The caller's settings. The channels (how each is set up: a masked address, the ntfy server) are the
+        owner's, so anyone else gets none (B50, #95: B48 hid the Delivery card, the reply still held them)."""
+        owner = d.user_id == deps.settings.owner
         return {"settings": d.state.settings().model_dump(), "schedule": schedule_status(d.user_id),
-                "channels": channel_status(deps.settings, deps.transports), "alert_tz": deps.settings.alert_tz,
-                "server": server_part(d.user_id), "owner": d.user_id == deps.settings.owner}
+                "channels": channel_status(deps.settings, deps.transports) if owner else None,
+                "alert_tz": deps.settings.alert_tz, "server": server_part(d.user_id), "owner": owner}
 
     @api.put("/settings/server", dependencies=[Depends(owner_only)])
     def put_server_settings(body: ServerUpdate):

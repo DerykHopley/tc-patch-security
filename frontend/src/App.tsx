@@ -31,7 +31,7 @@ const PAGES: Record<Page, { title: string; nav: string; Icon: () => JSX.Element 
   dashboard: { title: 'Dashboard', nav: 'Dashboard', Icon: DashboardIcon },
   cves: { title: 'CVEs', nav: 'CVEs', Icon: ListIcon },
   settings: { title: 'Settings', nav: 'Settings', Icon: BellIcon },
-  dev: { title: 'Dev panel', nav: 'Dev', Icon: CodeIcon },
+  dev: { title: 'Dev', nav: 'Dev', Icon: CodeIcon }, // one name everywhere (B50: the title said "Dev panel")
   about: { title: 'About', nav: 'About', Icon: InfoIcon }, // the landing page inside the app (B42)
 }
 

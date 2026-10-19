@@ -1,6 +1,6 @@
 """Browser check (seam 4) for Settings in two parts (B48, #97; the Profile card of #77). Check ids: B48.n.
 
-"Yours" for everyone (the owner too): Watchlist, Profile, Alerts, Patch's answers, Priority and due dates, Demo data.
+"Yours" for everyone (the owner too): Watchlist, Profile, Alerts, Patch's answers, Priority and due dates, Start over (B50).
 "This Patch" for the owner only: Requests first (top of its right column), Refresh runs and Data under it; Delivery on
 the left.
 
@@ -26,8 +26,8 @@ from test_shell import contrast, no_sideways_scroll
 PHONE, DESKTOP = 390, 1440
 SIZES = [(PHONE, "light"), (PHONE, "dark"), (DESKTOP, "light"), (DESKTOP, "dark")]
 VIEWER = {**OWNER, "owner": False, "role": "viewer"}
-YOURS = ["Watchlist", "Profile", "Alerts", "Patch's answers", "Priority and due dates", "Demo data"]
-THIS_PATCH = ["Requests", "Refresh runs", "Data", "Delivery"]  # DOM order: the right column (Requests) first
+YOURS = ["Watchlist", "Profile", "Alerts", "Patch's answers", "Priority and due dates", "Start over"]
+THIS_PATCH = ["Requests", "Refresh runs", "Delivery", "Data"]  # DOM order: the right column (Requests) first
 NOTE = "Your alerts show here in Patch (Recent alerts, the New badge). Phone and email alerts go to the owner."
 SHOTS = os.environ.get("E2E_SHOTS")
 
@@ -45,7 +45,7 @@ def not_the_owner(ctx: BrowserContext, api_url: str) -> None:
             return
         response = route.fetch()
         body = response.json()
-        body.update(owner=False, server=None)
+        body.update(owner=False, server=None, channels=None)  # B50: the channels are the owner's
         body["schedule"]["yours"] = False
         body["settings"]["alerts"]["channels"] = []
         route.fulfill(response=response, json=body)
@@ -126,19 +126,21 @@ def busy(page: Page, api_url: str) -> None:
     page.context.route(f"{api_url}/alerts", lambda route: route.fulfill(json={"alerts": [DIGEST] * 20}))
     page.reload()
     expect(page.locator(".run-list > li")).to_have_count(20)
-    expect(page.locator(".alert-log > li")).to_have_count(20)
+    expect(page.locator(".alert-log > li")).to_have_count(3)  # B50: Delivery shows the last 3
 
 
 def test_b48_31_requests_tops_the_right_column_and_the_columns_balance(open_settings_as, api_url):
     page = open_settings_as(width=DESKTOP)
     busy(page, api_url)
-    req, runs, data, delivery = (box(page, t) for t in THIS_PATCH)
+    req, runs, delivery, data = (box(page, t) for t in THIS_PATCH)
     assert req["x"] > delivery["x"] + delivery["width"] - 1  # the right column
     assert abs(req["y"] - delivery["y"]) <= 1  # its top: level with the left column's first card
-    assert abs(runs["x"] - req["x"]) <= 1 and req["y"] < runs["y"] < data["y"]
-    # Balanced: neither column ends far below the other (Delivery and Refresh runs are the tall ones). With Delivery
-    # and Data on the left, the left one ended about 1,080px lower (measured, 2026-10-19)
-    left_end, right_end = delivery["y"] + delivery["height"], data["y"] + data["height"]
+    assert abs(runs["x"] - req["x"]) <= 1 and req["y"] < runs["y"]
+    assert abs(data["x"] - delivery["x"]) <= 1 and delivery["y"] < data["y"]  # B50: Data under Delivery
+    # Balanced: neither column ends far below the other (Delivery and Refresh runs are the tall ones). B50: Delivery
+    # shows 3 alerts, not 20, so Data moved under it; with Data still on the right, the right column ended about
+    # 1,265px lower (measured in Chromium, 2026-10-19)
+    left_end, right_end = data["y"] + data["height"], runs["y"] + runs["height"]
     tallest = max(left_end, right_end) - req["y"]
     assert abs(left_end - right_end) < 0.25 * tallest, (left_end, right_end)
     assert no_sideways_scroll(page)
@@ -232,7 +234,7 @@ def test_b48_33_a_display_name_saves_with_the_bar_and_is_removed_at_once(open_se
     remove.focus()
     page.keyboard.press("Enter")
     expect(page.locator(".profile-done")).to_have_text(
-        'Name removed: new records say "you". Past records keep the name they were made with.')
+        'Name removed: your user menu says "Your account".')
     expect(page.get_by_label("Display name (optional)")).to_have_value("")
     assert api(api_url, "/profile") == {"name": None}
     expect(page.get_by_text("All changes saved")).to_be_visible()

@@ -1,8 +1,8 @@
 """Browser check (seam 3) for where live data comes from (B28, #74): the Data card's line and the freshness card's
 warning. Check ids: B28.n.
 
-Every pair run.sh starts sets FEEDS=fake, so the browser sees the warning: "Live: the made-up test data
-(FEEDS=fake)", `--text` on `--warn-soft` with a 3px `--warn` edge (DESIGN.md §5.7's edge rule). The real feeds' words
+Every pair run.sh starts sets FEEDS=fake, so the browser sees the warning: "Live: the made-up test data, not
+the real feeds" (no setting's name since B50), `--text` on `--warn-soft` with a 3px `--warn` edge (DESIGN.md §5.7's edge rule). The real feeds' words
 ("Live: NVD, CISA KEV, EPSS and OSV.dev") are checked by `npm test` (src/feeds.test.ts) and the API by the backend's
 tests: no browser check may reach the real services. Sign-in is off, so the one local user is the owner.
 """
@@ -15,7 +15,7 @@ from test_settings_over_env import open_settings, server_defaults  # noqa: F401 
 from test_shell import DESKTOP, PHONE, contrast, no_sideways_scroll
 from reduced_motion import scene, still
 
-FAKE = "Live: the made-up test data (FEEDS=fake)"
+FAKE = "Live: the made-up test data, not the real feeds"
 
 
 def looks_like_a_warning(page: Page, line: Locator, box: Locator) -> None:

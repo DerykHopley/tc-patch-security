@@ -102,7 +102,7 @@ export function RequestsCard() {
   const people = reply?.requests ?? []
   const waiting = people.filter((p) => p.status === 'waiting').length
   return (
-    <Card title="Requests" kind="live" why="People who asked to use Patch; only you see this" anchor="requests">
+    <Card title="Requests" anchor="requests">
       <p className="meta">
         {reply === null && !error ? 'Loading the requests…'
           : people.length === 0 ? 'No one has asked to use Patch yet. You get an alert when someone does.'

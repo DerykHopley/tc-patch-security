@@ -1,8 +1,8 @@
 """Your profile (B48, #97; the decisions of #77): anonymous by default, an optional display name you give Patch.
 
 Patch needs nothing but Clerk's user id. The name lives in the user's own state, never in the token: the user menu and
-new decision records use it ("Decided by <name>", else "you"). Remove clears it; past records keep the name they were
-made with; Reset demo data keeps it. Another user's defaults have no alert channels (their alerts show in Patch only).
+new decision records used it until B50 (#95: now the user menu only, records say "you"). Remove clears it; past records
+keep the name they were made with; Reset demo data keeps it. Another user's defaults have no alert channels (their alerts show in Patch only).
 
 Through the HTTP API (seam 1). Check ids: B48.n.
 """
@@ -49,26 +49,28 @@ def test_b48_1_a_name_is_plain_text_and_at_most_60_characters(client):
     assert client.put("/profile", json={"name": "Ada\x00\x07 Lovelace\n"}).json() == {"name": "Ada Lovelace"}
 
 
-# --- B48.2: new decision records name you by your profile, else "you"; past records keep theirs --------------------
+# --- B48.2, changed by B50.10: new decision records say "you"; past records keep theirs --------------------
 
 def history(client) -> list[dict]:
     return client.get(f"/cves/{CVE}").json()["row"]["history"]
 
 
-def test_b48_2_a_record_says_you_without_a_name_and_the_name_with_one(client):
+def test_b50_10_a_record_says_you_with_or_without_a_name(client):
+    """Changed by B50 (#95, owner 2026-10-19): the display name is the user menu's only. B48.2 put it in new records."""
     assert mark(client)["decided_by"] == "you"
     client.put("/profile", json={"name": "Ada"})
-    assert mark(client, "open")["decided_by"] == "Ada"
+    assert mark(client, "open")["decided_by"] == "you"
+    assert [h["decided_by"] for h in history(client)] == ["you", "you"]
 
 
-def test_b48_2_past_records_keep_the_name_they_were_made_with(client):
+def test_b50_10_a_record_made_with_a_name_keeps_it(client, deps):
+    """A record saved while B48 put names in them stays as it was: history is never rewritten."""
+    old = {"status": "fixed", "justification": None, "reason": None, "note": None, "review_date": None,
+           "compensating_control": None, "decided_at": "2026-10-19T09:00:00+00:00", "decided_by": "Ada", "via": "page"}
+    deps.state._update(lambda data: data.update({"statuses": {CVE: "fixed"}, "history": {CVE: [old]}}))
     client.put("/profile", json={"name": "Ada"})
-    mark(client)
-    client.put("/profile", json={"name": "Ada L."})
     mark(client, "open")
-    client.put("/profile", json={"name": None})
-    mark(client)
-    assert [h["decided_by"] for h in history(client)] == ["Ada", "Ada L.", "you"]
+    assert [h["decided_by"] for h in history(client)] == ["Ada", "you"]
 
 
 # --- B48.3: Reset demo data keeps the profile -------------------------------------------------------------------------
@@ -133,6 +135,16 @@ def test_b48_6_another_users_defaults_have_no_channels(signed_in):
     assert mine["settings"]["alerts"]["channels"] == []
     assert mine["owner"] is False
     assert signed_in.c.get("/settings", headers=signed_in.as_(OWNER)).json()["owner"] is True
+
+
+def test_b50_1_another_user_gets_none_of_the_owners_channels(signed_in):
+    """B50 (#95, item 9): B48 hid the Delivery card, but the reply still held how each channel is set up (a masked
+    address, the ntfy server). Anyone else gets none; a real test send is still refused, Preview still works."""
+    assert set(signed_in.c.get("/settings", headers=signed_in.as_(OWNER)).json()["channels"]) == {
+        "desktop", "email", "ntfy"}
+    assert signed_in.c.get("/settings", headers=signed_in.as_(ALICE)).json()["channels"] is None
+    r = signed_in.c.post("/alerts/test", json={"channel": "ntfy"}, headers=signed_in.as_(ALICE))
+    assert r.status_code == 400 and r.json()["error"]["code"] == "not_owner"
 
 
 # --- B48.7: the owner's state as saved today loads unchanged ---------------------------------------------------------

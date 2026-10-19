@@ -200,19 +200,19 @@ def channel_status(s, transports: Transports) -> dict:
     """Whether each channel is set up, and how to set it up. Never returns a secret (the email is masked)."""
     cmd = transports.desktop_command()
     email_ready = bool(s.smtp_host and s.alert_email_to)
+    # B50 (#95): plain words, no server names (notify-send, SMTP_HOST, NTFY_TOPIC, backend/.env). Only the owner sees
+    # these (the Delivery card, a test send's error); README.md maps each to its setting.
     return {
         "desktop": {"configured": bool(cmd),
-                    "detail": f"via {cmd.rsplit('/', 1)[-1]} on the machine running the backend" if cmd
-                    else "No notify-send (Linux) or osascript (macOS) found on the backend's machine."},
+                    "detail": "On the computer running Patch's server." if cmd
+                    else "The computer running Patch's server can't show desktop notifications (Linux and macOS can)."},
         "email": {"configured": email_ready,
                   # B26: the SMTP host is a secret, so it isn't named; the address only masked
-                  "detail": f"to {mask_email(s.alert_email_to)} by SMTP, port {s.smtp_port}" if email_ready
-                  else "The owner sets the SMTP server and the address to send to on Settings, under Email, or "
-                  "SMTP_HOST and ALERT_EMAIL_TO in backend/.env."},
+                  "detail": f"To {mask_email(s.alert_email_to)} by SMTP, port {s.smtp_port}." if email_ready
+                  else "Set the mail server and the address to send to under Email (SMTP), below."},
         "ntfy": {"configured": bool(s.ntfy_topic),
-                 "detail": f"to a topic on {s.ntfy_url}" if s.ntfy_topic
-                 else "The owner sets a topic (a long random name) on Settings, under Phone push, or NTFY_TOPIC in "
-                 "backend/.env."},
+                 "detail": f"To a topic on {s.ntfy_url}." if s.ntfy_topic
+                 else "Set a topic (a long random name) under Phone push (ntfy), below."},
     }
 
 

@@ -8,7 +8,7 @@ import { feedsLine } from '../freshness.ts'
 import type { ServerSettingsForm } from './useServerSettings.ts'
 
 // B26: the owner's settings that used to need backend/.env and a restart, each in the Settings card it belongs to.
-// A setting the server's environment sets is shown, disabled, with its variable's name: the environment wins. A
+// A setting the server's environment sets is shown, disabled, with a line saying so: the environment wins. A
 // secret's box is write-only: it never shows what's saved, only whether something is (DESIGN.md §5.7).
 
 type Ready = ServerSettingsForm & { status: ServerStatus; draft: ServerFields }

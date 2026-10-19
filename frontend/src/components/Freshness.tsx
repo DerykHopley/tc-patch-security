@@ -56,7 +56,7 @@ export function FreshnessCard({ data, asOf, sources, onNavigate, newCves = null 
         // ok: a version was written (partial too). The line and the button wait until the dashboard and the alerts
         // have loaded again, so the cards above the button have their new size before the next click (#67).
         if (reply.ran && reply.result?.ok) await announceWatchlistChanged()
-        setLine(replyLine(reply))
+        setLine(replyLine(reply, data.schedule?.yours !== false)) // B50: anyone else's alerts are in Patch only
         if (reply.ran) setLatest(reply.result)
       })
       .catch((e: unknown) => setLine({ tone: 'error', text: message(e) }))

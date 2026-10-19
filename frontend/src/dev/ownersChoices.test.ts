@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { DevSettings } from '../api.ts'
-import { modelChoices, searchChoices } from './ownersChoices.ts'
+import { modelChoices, OWNER_INTRO, searchChoices } from './ownersChoices.ts'
 
 const saved: DevSettings = {
   provider: 'openrouter',
@@ -49,4 +49,10 @@ test('B29.4 the search choices use the editable form\'s labels, switches as on o
     ['Multi-query rewrites', 'on'],
     ['Self-query filters', 'off'],
   ])
+})
+
+test("B50.1 the owner's intro says who else sees the page, by role, in plain words", () => {
+  const intro = OWNER_INTRO.join(' ')
+  for (const role of ['Trusted', 'Reviewers', 'Viewers']) assert.ok(intro.includes(role), role)
+  assert.doesNotMatch(intro, /DEV_PANEL|=/)
 })

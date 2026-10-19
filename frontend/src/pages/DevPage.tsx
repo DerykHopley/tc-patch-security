@@ -19,13 +19,13 @@ import { useDevSettings } from '../components/useDevSettings.ts'
 import { EmbeddingMap } from '../dev/EmbeddingMap.tsx'
 import { ModelCheck } from '../dev/ModelCheck.tsx'
 import { OpenRouterModelField } from '../dev/OpenRouterModelField.tsx'
-import { modelChoices, searchChoices, type Choice } from '../dev/ownersChoices.ts'
+import { modelChoices, OWNER_INTRO, searchChoices, type Choice } from '../dev/ownersChoices.ts'
 import { RetrievalCheck } from '../dev/RetrievalCheck.tsx'
 import '../styles/dev.css'
 
-// The Dev panel (A11, DESIGN.md §5.3, §5.5–5.7): who answers, the agent's limits and search tuning, saved and applied
+// The Dev page (A11, DESIGN.md §5.3, §5.5–5.7): who answers, the agent's limits and search tuning, saved and applied
 // on the next call; a playground that shows every retrieval step; the embedding map. Only shown when the backend
-// allows the dev panel (it shows internals).
+// allows it (it shows internals) and, since B45, by role.
 
 const LOCAL_PRESETS = [
   { name: 'Ollama', url: 'http://localhost:11434/v1' },
@@ -251,7 +251,7 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
   if (!s.draft || !s.reply) {
     return (
       <div className="page">
-        <p className="muted">{s.error ?? 'Loading the dev panel…'}</p>
+        <p className="muted">{s.error ?? 'Loading the Dev page…'}</p>
       </div>
     )
   }
@@ -306,10 +306,11 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
   return (
     <div className="page dev-page">
       {role === 'owner' ? (
-        <p className="page-intro">
-          Tune the model, the agent and search, then try a query to see each step. Turn this page off with{' '}
-          <code>DEV_PANEL=false</code>: it shows internals.
-        </p>
+        <div className="page-intro" data-testid="owner-intro">
+          {OWNER_INTRO.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
       ) : role === 'reviewer' ? (
         <div className="reviewer-note" role="note" data-testid="reviewer-note">
           <p>{view.note}</p>
@@ -329,7 +330,7 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
       )}
 
       <div className="settings-grid">
-        <Card title="Model" kind="live" why="Saved choices apply on the next question, with no restart">
+        <Card title="Model">
           {yours ? (
             <>
               <fieldset>
@@ -411,7 +412,7 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
           )}
         </Card>
 
-        <Card title="Agent and search" kind="live" why="The chat and the playground read the saved values"
+        <Card title="Agent and search"
           className="span-rows">
           {yours ? (
             <>
@@ -441,7 +442,7 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
           )}
         </Card>
 
-        <Card title="Index" kind="live" why="The Chroma index the app loaded at start-up">
+        <Card title="Index">
           {info ? (
             <>
               <p>
@@ -474,7 +475,7 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
         </Card>
       </div>
 
-      <Card title="Search playground" kind="live" why="Runs search_security with the saved settings" className="playground">
+      <Card title="Search playground" className="playground">
         {/* B45: everyone who sees this page may run it (Trusted too), with their own effective settings */}
         <form className="play-form" onSubmit={run}>
           <input aria-label="Search query" value={query} maxLength={500} onChange={(e) => setQuery(e.target.value)} />
@@ -501,7 +502,7 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
         {result && <Playground result={result} rrfK={result.options.rrf_k} />}
       </Card>
 
-      <Card title="Embedding map" kind="live" why="PCA of the vectors stored in the index">
+      <Card title="Embedding map">
         {map ? (
           <EmbeddingMap data={map} search={result} />
         ) : (
@@ -516,7 +517,7 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
         compared={comparedEmbedders}
         onCompare={setComparedEmbedders} />
 
-      <Card title="Evaluation report" kind="live" why="One self-contained HTML page from the saved runs">
+      <Card title="Model-check report">
         <p className="meta">
           Models and embedders side by side, every failure, and room for the findings. With nothing ticked it shows the
           latest run per model and per embedder. For the published copy with written findings, use{' '}

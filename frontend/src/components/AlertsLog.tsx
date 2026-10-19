@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { alertsLog, type AlertLogEntry, type DataStatus } from '../api.ts'
-import { channelResult, entryReason, noChannels } from '../alertsLog.ts'
+import { channelResult, emptyAlerts, entryReason, noChannels } from '../alertsLog.ts'
 import { utcTime } from '../freshness.ts'
 import { cvePath, followLink, openPath } from '../route.ts'
 import { useWatchlistChanged } from '../watchlistEvents.ts'
@@ -69,9 +69,16 @@ export function AlertsCard({ data, onNavigate }: { data: DataStatus; onNavigate:
     load()
   }, [load])
   useWatchlistChanged(load)
+  // B50 (#95): Settings' Delivery card shows the last 3 and links here, /#recent-alerts: once the list is in, bring
+  // the card into view (the cards above it have their size by then)
+  const loaded = entries !== null
+  useEffect(() => {
+    if (loaded && window.location.hash === '#recent-alerts') document.getElementById('recent-alerts')?.scrollIntoView()
+  }, [loaded])
+  const owner = data.schedule?.yours !== false // anyone else's alerts are in Patch only (B48, B50)
 
   return (
-    <section className="card alerts-card" aria-labelledby="alerts-title">
+    <section id="recent-alerts" className="card alerts-card" aria-labelledby="alerts-title">
       <h2 id="alerts-title">Recent alerts</h2>
       {error ? (
         <p className="form-error" role="alert">
@@ -80,12 +87,7 @@ export function AlertsCard({ data, onNavigate }: { data: DataStatus; onNavigate:
       ) : entries === null ? (
         <p className="meta">Loading the alerts…</p>
       ) : entries.length === 0 ? (
-        <p className="meta">
-          No alerts yet.{' '}
-          {data.mode === 'live'
-            ? 'A check sends them when something on your watchlist needs you.'
-            : 'The snapshot never changes, so only test alerts from Settings appear here.'}
-        </p>
+        <p className="meta">{emptyAlerts(data.mode, owner)}</p>
       ) : (
         <AlertList entries={entries} labelledBy="alerts-title" />
       )}

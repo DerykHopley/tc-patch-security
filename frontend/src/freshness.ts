@@ -44,13 +44,15 @@ const ALERT_WORDS: [keyof AlertCounts, string][] = [
 ]
 
 /** "1 alert sent", "275 alerts recorded only (not sent)", …; a zero is left out. The dashboard's line and the
- *  refresh runs list say the same words. */
-export function alertWords(c: AlertCounts): string[] {
-  return ALERT_WORDS.filter(([k]) => c[k] > 0).map(([k, words]) => `${plural(c[k], 'alert')} ${words}`)
+ *  refresh runs list say the same words. `owner` false (B50, #95): anyone else's alerts are only ever in Patch, so
+ *  "recorded only (not sent)" would read as a fault: theirs say "3 alerts in Patch". */
+export function alertWords(c: AlertCounts, owner = true): string[] {
+  return ALERT_WORDS.filter(([k]) => c[k] > 0).map(([k, words]) =>
+    `${plural(c[k], 'alert')} ${!owner && k === 'recorded' ? 'in Patch' : words}`)
 }
 
 /** The line after Check now: what the run found, why it failed, or when the next check is allowed. */
-export function replyLine(reply: CheckReply): { tone: Tone; text: string } {
+export function replyLine(reply: CheckReply, owner = true): { tone: Tone; text: string } {
   if (reply.refusal) {
     const at = utcTime(reply.refusal.next_allowed).slice(11) // "09:05 UTC"
     return {
@@ -66,7 +68,7 @@ export function replyLine(reply: CheckReply): { tone: Tone; text: string } {
     return { tone: 'error', text: `The check failed${why ? ` (${why})` : ''}. The data is unchanged.` }
   }
   const parts = COUNT_WORDS.filter(([key]) => r.counts[key] > 0).map(([key, words]) => words(r.counts[key]))
-  const alerts = reply.alerts_for_you ? alertWords(reply.alerts_for_you) : []
+  const alerts = reply.alerts_for_you ? alertWords(reply.alerts_for_you, owner) : []
   const then = alerts.length ? ` ${alerts.join(', ')}.` : '' // B34: your alerts, by what happened
   if (r.status === 'partial') // B20: never "Done" for a run where a feed failed; the banner says which
     return { tone: 'warn', text: (parts.length ? `Done in part: ${parts.join(', ')}.` : 'Done in part: nothing new from the sources that answered.') + then }
@@ -105,7 +107,15 @@ export function runBanner(r: RefreshResult | null | undefined): { tone: Tone; te
 // never looks like the real thing (the owner's B07 run got phone alerts about CVE-2026-99101).
 const FEEDS_TEXT: Record<Feeds, string> = {
   real: 'Live: NVD, CISA KEV, EPSS and OSV.dev',
-  fake: 'Live: the made-up test data (FEEDS=fake)',
+  fake: 'Live: the made-up test data, not the real feeds',
+}
+
+/** The Data card's first line: all six sources the app reads (B50, #95: it named four, leaving out OSV.dev and EPSS
+ *  in snapshot mode). In live mode the CVE data is refreshed; OWASP and ATLAS stay the snapshot's (GLOSSARY.md). */
+export function dataSources(mode: 'live' | 'snapshot'): string {
+  return mode === 'live'
+    ? 'Live CVE data from NVD, CISA KEV, EPSS and OSV.dev; OWASP and MITRE ATLAS from the snapshot.'
+    : 'A snapshot of OWASP, MITRE ATLAS, NVD, CISA KEV, EPSS and OSV.dev.'
 }
 
 /** The Data card's line (the owner's): ok for the real feeds, warn for the fake ones. */
