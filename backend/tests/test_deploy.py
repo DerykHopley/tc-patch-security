@@ -42,7 +42,7 @@ def test_b13_1_the_cloud_run_template_names_real_settings_and_starts_once_filled
         monkeypatch.setenv(name, value)
     s = Settings.from_env()
     s.check()
-    assert (s.store, s.data_mode, s.feeds, s.auth, s.dev_panel) == ("gcs", "live", "real", True, False)
+    assert (s.store, s.data_mode, s.feeds, s.auth, s.dev_panel) == ("gcs", "live", "real", True, True)  # B14 (2026-10-19): roles guard the Dev page, so it stays on
     assert s.auth_allowed_origins == ["https://patch-x1.us-central1.run.app"]
 
 
