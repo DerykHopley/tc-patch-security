@@ -11,6 +11,7 @@ import {
 } from 'react'
 import { accessScreen, noteLeft, NOTE_MAX, type Access } from '../access.ts'
 import { getAccess, onNotApproved, requestAccess } from '../api.ts'
+import { clearChat, tabStorage } from '../chat/chatStore.ts'
 import { Landing } from '../landing/Landing.tsx'
 import { followLink, openPath, PATHS } from '../route.ts'
 import { ScreenCard } from './SignInScreen.tsx'
@@ -62,6 +63,11 @@ export function AccessGate({ signIn, onSignOut, children }: {
     }
   }, [])
   const path = useSyncExternalStore(subscribeToAddress, () => window.location.pathname)
+  // B46: the chat kept for the tab (B49, chatStore.ts) goes with their access, as it does on sign-out
+  const shut = access !== null && access.status !== 'approved'
+  useEffect(() => {
+    if (shut) clearChat(tabStorage())
+  }, [shut])
 
   if (access?.status === 'approved' || (!signIn && (access === null || failed))) {
     return <AccessContext.Provider value={access}>{children}</AccessContext.Provider>

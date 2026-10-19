@@ -20,7 +20,7 @@ import './styles/loading.css'
 // fails outright retries on the loading screen like one that hangs (B46): without it nobody knows whether sign-in is
 // on, so the app (its shell) never shows on a guess. Signed out, the landing page (B42), which needs
 // nothing but /health. Until it answers, the loading screen (#69): a
-// /health that doesn't answer in 15 s (a cold start, a hung server) shows "Backend offline — retrying" there.
+// /health that doesn't answer in 15 s (a cold start, a hung server) shows "Patch's server isn't answering yet." there.
 const ClerkApp = lazy(() => import('./auth/ClerkApp.tsx'))
 const OFF: AuthConfig = { on: false, publishable_key: null }
 

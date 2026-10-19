@@ -87,7 +87,7 @@ def go_offline(page: Page, health: Health) -> None:
     expect(status(page, "Waking Patch up…")).to_be_visible()
     health.asked(page, 1)
     page.clock.fast_forward(TIMEOUT_MS)
-    expect(status(page, "Backend offline — retrying")).to_be_visible()
+    expect(status(page, "Patch's server isn't answering yet. Trying again…")).to_be_visible()  # B49 L1
 
 
 # --- B69.7: a late /health shows the loading screen, then the app ---------------------------------------------------
@@ -141,7 +141,7 @@ def test_b69_8_retry_by_keyboard_tries_at_once(open_loading):
     assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2  # visible focus
     page.keyboard.press("Enter")
     health.asked(page, 2)  # at once, not after the 2 s wait
-    expect(card(page)).to_contain_text("Trying again…")
+    expect(card(page).locator(".loading-offline")).to_contain_text("Asking now…")
     expect(retry).to_be_focused()  # never disabled, so the focus stays
     health.answer()
     expect(page.get_by_role("heading", level=1, name="Dashboard")).to_be_visible()
@@ -153,7 +153,7 @@ def test_b69_9_a_failing_health_shows_the_offline_screen_not_the_app(open_loadin
     """Without /health nobody knows whether sign-in is on: showing the app (as before B46) showed its shell to anyone
     (#81)."""
     page, health = open_loading(fail=True)
-    expect(status(page, "Backend offline — retrying")).to_be_visible()
+    expect(status(page, "Patch's server isn't answering yet. Trying again…")).to_be_visible()
     expect(page.get_by_role("navigation")).to_have_count(0)
     expect(page.locator("aside, .topbar")).to_have_count(0)
     health.fail = False

@@ -293,7 +293,7 @@ def test_a06_6_citation_opens_the_details_and_scrolls_to_its_source(open_app):
     page = open_app()
     open_chat(page)
     answer = ask(page, Q2)
-    toggle = answer.get_by_role("button", name=re.compile(r"(Show|Hide) \d+ sources · 2 tool calls"))
+    toggle = answer.get_by_role("button", name=re.compile(r"(Show|Hide) \d+ sources? · 2 tool calls"))
     expect(toggle).to_have_text(re.compile("^Show"))
     expect(toggle).to_have_attribute("aria-expanded", "false")
     cites = answer.locator("a.cite")
@@ -731,7 +731,7 @@ def test_a06_10_keyboard_open_ask_and_reach_every_chat_control(open_app):
                                    "return a.getAttribute('aria-label') || a.textContent.trim() })()"))
     for name in ("New chat", "Make larger", "Close the chat"):
         assert name in names, names
-    assert any(n.startswith("Show 0 sources · 1 tool calls") for n in names), names
+    assert any(n.startswith("Show 0 sources · 1 tool call") for n in names), names
     window(page).get_by_role("button", name=re.compile("Show")).focus()
     page.keyboard.press("Enter")
     expect(window(page).get_by_role("tab", name=re.compile("Tool calls"))).to_be_visible()

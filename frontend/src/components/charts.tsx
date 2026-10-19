@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type AnimationEvent, type CSSProperties, t
 import type { ProductCounts } from '../api.ts'
 import { SEVERITIES, sevLabel } from '../severity.ts'
 import '../styles/charts.css'
+import { monthAxis } from '../monthAxis.ts'
 
 export interface Tip {
   x: number
@@ -224,14 +225,15 @@ export function Columns({ data, onTip }: { data: { month: string; count: number 
                     {d.count}
                   </text>
                 )}
-                {(d.month.endsWith('-01') || i === data.length - 1) && (
-                  <text x={x + bw / 2} y={h - 6} className="axis-label" textAnchor={i === data.length - 1 ? 'end' : 'start'}>
-                    {d.month.endsWith('-01') ? d.month.slice(0, 4) : d.month}
-                  </text>
-                )}
               </g>
             )
           })}
+          {/* The years and the latest month, kept apart on a phone (B49, monthAxis.ts) */}
+          {monthAxis(data.map((d) => d.month), { left: pad.l, slot }).map((l) => (
+            <text key={l.i} x={l.x} y={h - 6} className="axis-label" textAnchor={l.anchor}>
+              {l.text}
+            </text>
+          ))}
           <line x1={pad.l} x2={width - pad.r} y1={pad.t + plotH} y2={pad.t + plotH} className="baseline" />
         </svg>
       )}

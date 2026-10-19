@@ -122,14 +122,14 @@ function CveDetails({ detail: d, asOf, onDecide, onAsk, onNavigate }: {
         <div className="cve-title-row">
           <h2 id="cve-title">{d.id}</h2>
           {d.kev && (
-            <span className="chip kev" title={`In CISA KEV: known exploited. KEV deadline ${d.kev.deadline}`}>
+            <Tip text={`In CISA KEV: known exploited. KEV deadline ${d.kev.deadline}`} className="chip kev" plain>
               KEV
-            </span>
+            </Tip>
           )}
           {row?.new && (
-            <span className="chip new-chip" title={NEW_TITLE}>
+            <Tip text={NEW_TITLE} className="chip new-chip" plain>
               New
-            </span>
+            </Tip>
           )}
           {d.possible_match && <PossibleMatch />}
           {!d.watched && <span className="chip not-watched">Not on your watchlist</span>}

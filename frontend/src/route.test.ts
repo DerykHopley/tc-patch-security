@@ -3,12 +3,22 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { alertLinkPath, cvePath, locate } from './route.ts'
 
-test('B35.4 each page has its path; anything else is the dashboard', () => {
+test('B35.4 each page has its path', () => {
   assert.deepEqual(locate('/'), { page: 'dashboard', cve: null })
   assert.deepEqual(locate('/cves'), { page: 'cves', cve: null })
   assert.deepEqual(locate('/cves/'), { page: 'cves', cve: null })
   assert.deepEqual(locate('/settings'), { page: 'settings', cve: null })
-  assert.deepEqual(locate('/nowhere'), { page: 'dashboard', cve: null })
+})
+
+test('B49.6 any other address is "Page not found", not the dashboard (#96 O1)', () => {
+  assert.deepEqual(locate('/nowhere'), { page: 'notFound', cve: null })
+  assert.deepEqual(locate('/nope/deeper'), { page: 'notFound', cve: null })
+  assert.deepEqual(locate('/cves/CVE-2025-3248/more'), { page: 'notFound', cve: null })
+  assert.deepEqual(locate('/Settings'), { page: 'notFound', cve: null }) // paths are lower case
+})
+
+test('B49.6 the sign-in address, signed in, is the app: Clerk may land a signed-in person there', () => {
+  assert.deepEqual(locate('/sign-in'), { page: 'dashboard', cve: null })
 })
 
 test('B35.4 /cves/<id> is the page for one CVE, under CVEs, the id in upper case', () => {

@@ -407,6 +407,13 @@ table.cves .due-cell .due-date {
     background: var(--accent-soft);
   }
 
+  /* B49.20: on the card's --accent-soft, --accent is 4.48:1 in light mode: the id is --text, underlined, as a link on
+     a soft fill elsewhere (§5.15's back link) */
+  table.cves .cve-cell > a {
+    color: var(--text);
+    text-decoration: underline;
+  }
+
   table.cves td {
     display: block;
     padding: 0;

@@ -60,6 +60,13 @@
   font-weight: 700;
 }
 
+/* B49 C3: the reason or note (and the control) under the after value, each on its own line: free text, so it wraps
+   and never makes the value one long sentence in brackets. */
+.after-line {
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
 /* What a proposed decision rests on (B22): numbered sources, each with where it's from in words. */
 .proposal-sources ul {
   display: flex;

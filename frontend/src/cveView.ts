@@ -1,4 +1,4 @@
-import type { CveStatus, PageContext, Severity, Verdict } from './api.ts'
+import type { CveStatus, Justification, PageContext, Severity, Verdict } from './api.ts'
 import { SEVERITIES, sevLabel } from './severity.ts'
 import { VERDICT_LABEL, VERDICTS } from './verdict.ts'
 
@@ -37,6 +37,14 @@ export const STATUS_LABEL: Record<CveStatus, string> = {
   fixed: 'Fixed',
   not_affected: 'Not affected',
   accepted: 'Accepted',
+}
+// The five VEX justifications for "not affected" (A16b), as the decision dialog and the records say them.
+export const JUSTIFICATION_LABEL: Record<Justification, string> = {
+  component_not_present: 'Component not present',
+  vulnerable_code_not_present: 'Vulnerable code not present',
+  vulnerable_code_not_in_execute_path: 'Vulnerable code not in execute path',
+  vulnerable_code_cannot_be_controlled_by_adversary: 'Vulnerable code cannot be controlled by adversary',
+  inline_mitigations_already_exist: 'Inline mitigations already exist',
 }
 /** The status filter's options, in order: the statuses, then all of them ("All"; the chip says "All statuses"). */
 export const STATUS_FILTERS: StatusFilter[] = ['open', 'fixed', 'not_affected', 'accepted', 'all']

@@ -19,6 +19,7 @@ import { followLink, openPath } from '../route.ts'
 import { ProposalCard } from './ProposalCard.tsx'
 import { ToolCallCard } from './ToolCallCard.tsx'
 import type { Message, RefinedResult } from './useChat.ts'
+import { count } from '../plural.ts'
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 const scrollTo = (el: Element | null, block: ScrollLogicalPosition) =>
@@ -38,8 +39,8 @@ function Usage({ reply }: { reply: ChatReply }) {
   const u = reply.usage
   return (
     <p className="usage">
-      {u.input_tokens.toLocaleString()} in · {u.output_tokens.toLocaleString()} out · {u.llm_calls} LLM calls ·{' '}
-      {reply.steps} steps · {dollars(u.cost)}
+      {u.input_tokens.toLocaleString('en')} in · {u.output_tokens.toLocaleString('en')} out ·{' '}
+      {count(u.llm_calls, 'LLM call')} · {count(reply.steps, 'step')} · {dollars(u.cost)}
       {u.estimated && <span className="chip">estimated</span>}
     </p>
   )
@@ -97,8 +98,9 @@ function AnswerLink({ href = '', children }: { href?: string; children?: ReactNo
 const MARKDOWN_PARTS = { a: AnswerLink }
 const REMARK = [remarkGfm, remarkCveLinks]
 
-/** One answer with its inline details. A citation opens the details on Sources and scrolls to that source. */
-function Answer({ reply }: { reply: ChatReply }) {
+/** One answer with its inline details. A citation opens the details on Sources and scrolls to that source.
+ *  `usage`: show the usage line (tokens, cost): the owner and Reviewers only (B49 C1, access.ts seesUsage). */
+function Answer({ reply, usage, restored }: { reply: ChatReply; usage: boolean; restored: boolean }) {
   const prefix = useId().replace(/:/g, '')
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<DetailTab>(() => firstTab(reply))
@@ -136,7 +138,7 @@ function Answer({ reply }: { reply: ChatReply }) {
       {reply.tool_calls.map((c) => {
         // A change Patch proposes (B21, B22): its card under the answer, not folded in the details
         const proposal = proposalOf(c)
-        return proposal ? <ProposalCard key={c.id} proposal={proposal} /> : null
+        return proposal ? <ProposalCard key={c.id} proposal={proposal} restored={restored} /> : null
       })}
       {reply.flags.includes('injection_phrasing') && (
         <p className="flag-note">This message looks like an injection attempt. It was answered, and logged.</p>
@@ -157,12 +159,12 @@ function Answer({ reply }: { reply: ChatReply }) {
             {levelLabel(reply.explain_level)}
           </span>
         )}
-        <Usage reply={reply} />
+        {usage && <Usage reply={reply} />}
       </div>
       {hasDetails && (
         <>
           <button type="button" className="details-toggle" aria-expanded={open} onClick={toggle}>
-            {open ? 'Hide' : 'Show'} {reply.sources.length} sources · {reply.tool_calls.length} tool calls
+            {open ? 'Hide' : 'Show'} {count(reply.sources.length, 'source')} · {count(reply.tool_calls.length, 'tool call')}
           </button>
           {open && (
             <div id={`${prefix}-details`}>
@@ -180,13 +182,14 @@ const focused = new Set<number>()
 
 /** A refine button's result (B24): chips saying what was applied, then the search card run again. No model text:
  *  the answer above stays as it was, and asking again has Patch explain the narrower list. */
-function RefinedAnswer({ id, refined }: { id: number; refined: RefinedResult }) {
+function RefinedAnswer({ id, refined, restored }: { id: number; refined: RefinedResult; restored: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (focused.has(id)) return
     focused.add(id)
-    ref.current?.focus({ preventScroll: true }) // the conversation scrolls to the end itself
-  }, [id])
+    // the conversation scrolls to the end itself; one read back after a reload (B49) was shown before: no focus
+    if (!restored) ref.current?.focus({ preventScroll: true })
+  }, [id, restored])
   const n = (refined.call.result as { sources?: unknown[] } | null)?.sources?.length ?? 0
   return (
     <>
@@ -199,8 +202,7 @@ function RefinedAnswer({ id, refined }: { id: number; refined: RefinedResult }) 
         ))}
       </div>
       <p className="meta">
-        Searched again with {refined.applied.length === 1 ? 'this filter' : 'these filters'}: {n}{' '}
-        {n === 1 ? 'source' : 'sources'}. Patch didn't write a new answer: ask him to explain these.
+        Searched again with {refined.applied.length === 1 ? 'this filter' : 'these filters'}: {count(n, 'source')}. Patch didn't write a new answer: ask him to explain these.
       </p>
       <ToolCallCard call={refined.call} page={refined.page} applied={refined.filters} />
     </>
@@ -208,8 +210,9 @@ function RefinedAnswer({ id, refined }: { id: number; refined: RefinedResult }) 
 }
 
 /** The message list, the greeting with suggestions while empty, and the message box. */
-export function Conversation({ messages, pending, onSend, greeting, suggestions, examples }: {
+export function Conversation({ messages, pending, onSend, greeting, suggestions, examples, showUsage }: {
   messages: Message[]
+  showUsage: boolean // B49 C1: the usage line under each answer, for the owner and Reviewers
   pending: boolean
   onSend: (text: string) => Promise<boolean> // true: answered; false: the request failed (B20)
   greeting: ReactNode
@@ -289,9 +292,9 @@ export function Conversation({ messages, pending, onSend, greeting, suggestions,
               {m.error ? (
                 <p role="alert">{m.error}</p>
               ) : m.refined ? (
-                <RefinedAnswer id={m.id} refined={m.refined} />
+                <RefinedAnswer id={m.id} refined={m.refined} restored={Boolean(m.restored)} />
               ) : m.reply ? (
-                <Answer reply={m.reply} />
+                <Answer reply={m.reply} usage={showUsage} restored={Boolean(m.restored)} />
               ) : (
                 <p>{m.content}</p>
               )}

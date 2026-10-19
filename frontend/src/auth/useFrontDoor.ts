@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { clearChat, tabStorage } from '../chat/chatStore.ts'
 import { store } from '../storage.ts'
 import { frontDoor, type FrontDoor } from './signInView.ts'
 
@@ -20,6 +21,8 @@ export function subscribeToAddress(onChange: () => void) {
  * to wait for Clerk or show the landing page at once; it never lets anyone in. */
 export function rememberSignedIn(signedIn: boolean): void {
   store.set('signedInHere', signedIn ? '1' : '0')
+  // B49 C5: signed out (by the menu, the access screens, or a session that ended), the tab forgets the conversation
+  if (!signedIn) clearChat(tabStorage())
 }
 
 export function useFrontDoor(clerkLoaded: boolean): FrontDoor {

@@ -22,6 +22,7 @@ import { OpenRouterModelField } from '../dev/OpenRouterModelField.tsx'
 import { modelChoices, searchChoices, type Choice } from '../dev/ownersChoices.ts'
 import { RetrievalCheck } from '../dev/RetrievalCheck.tsx'
 import '../styles/dev.css'
+import { count } from '../plural.ts'
 
 // The Dev panel (A11, DESIGN.md §5.3, §5.5–5.7): who answers, the agent's limits and search tuning, saved and applied
 // on the next call; a playground that shows every retrieval step; the embedding map. Only shown when the backend
@@ -390,7 +391,7 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
                   {models && models.length === 0 && <p className="meta">The server is running but has no models.</p>}
                   {models && models.length > 0 && (
                     <output className="meta found">
-                      Found {models.length} model{models.length === 1 ? '' : 's'}.
+                      Found {count(models.length, 'model')}.
                     </output>
                   )}
                   <p className="meta">

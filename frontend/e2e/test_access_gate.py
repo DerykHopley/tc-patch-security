@@ -48,11 +48,15 @@ def test_b46_1_a_403_not_approved_swaps_the_shell_for_the_access_card(open_as, a
     page = open_as(fake)
     expect(heading(page, "Dashboard")).to_be_visible()
     # the owner refuses the person while their tab shows the app; the next call the app makes gets the 403
+    # B49's chat kept for the tab (chatStore.ts): it must not outlive their access either
+    page.evaluate("sessionStorage.setItem('chat', JSON.stringify({user: 'local', messages: [{role: 'user', "
+                  "content: 'Am I affected?'}]}))")
     fake.me = {**fake.me, "status": "refused"}
     not_approved(page.context, api_url, "refused")
     go_to_cves(page)
     expect(heading(page, "Your request wasn't approved")).to_be_visible()
     none_of_the_app(page)
+    assert page.evaluate("sessionStorage.getItem('chat')") is None
 
 
 def test_b46_1_removed_shows_the_ask_screen(open_as, api_url):

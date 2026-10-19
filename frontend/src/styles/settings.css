@@ -142,7 +142,8 @@
   font-size: 0.85em;
 }
 
-/* "Live", "Saved for later", "Mock" (DESIGN.md §5.2). Text stays --text or --accent: both pass on their fills. */
+/* "Live", "Saved for later", "Mock" (DESIGN.md §5.2). Text is --text, the tone an edge (§5.7): --accent on
+   --accent-soft is 4.48:1 in light mode, under 4.5:1 (measured by B49.20). */
 .status-chip {
   flex: none;
   padding: 0.1rem 0.55rem;
@@ -154,7 +155,8 @@
 
 .status-chip.live {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .status-chip.saved {
@@ -310,7 +312,8 @@
 
 .setup-pill.ready {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--text); /* B49.20: --accent here was 4.48:1 in light mode */
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 /* ---------- Callouts, the preview, the log ---------- */

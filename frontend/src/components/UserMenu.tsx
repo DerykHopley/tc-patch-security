@@ -10,6 +10,7 @@ import { ProfileContext } from './Profile.tsx'
 // their initials and the name. Never Clerk's name or email.
 
 export interface Account {
+  id?: string // Clerk's user id (B49: whose chat this tab keeps); undefined while Clerk's user loads
   onSignOut: () => Promise<void> | void
 }
 

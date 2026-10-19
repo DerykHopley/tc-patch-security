@@ -16,8 +16,11 @@ import type { ChatLayout } from './useChatLayout.ts'
 // only), Make larger (not when pinned), close; under them the explain-level switch (A19). Empty: Patch (idle, in the
 // variant picked on page load) behind a speech bubble, with suggested questions.
 // The same element in every layout, so pinning never loses the conversation's scroll.
-export function ChatWindow({ chat, mood, variant, restVariant, pageTitle, words, suggestions, examples, layout, asOf, onClose }: {
+export function ChatWindow({
+  chat, mood, variant, restVariant, pageTitle, words, suggestions, examples, layout, asOf, onClose, showUsage,
+}: {
   chat: ChatState
+  showUsage: boolean // B49 C1: tokens and cost under each answer, for the owner and Reviewers only
   asOf: string | null // the data's as-of date (B24: an accepted risk's review date must be after it)
   mood: Mood
   variant: Variant // the mood's animation, the same as on the button
@@ -110,6 +113,7 @@ export function ChatWindow({ chat, mood, variant, restVariant, pageTitle, words,
           greeting={greeting}
           suggestions={suggestions}
           examples={examples}
+          showUsage={showUsage}
         />
       </CardActionsContext>
     </aside>
