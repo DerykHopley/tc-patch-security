@@ -193,3 +193,10 @@ For #81: sign-up is open (Public mode) and the owner approves accounts in Patch;
 **Names and emails for the Requests card**
 
 - **`clerk_backend_api` 7.0.0 `Clerk(bearer_auth=<secret key>).users.list(request={"user_id": [...], "limit": n})`** returns `User` objects with `first_name`, `last_name`, `username`, `email_addresses` (each with `id`, `email_address`) and `primary_email_address_id` (*checked* in the installed SDK's `users.py` and `models/`). Never called by the tests: they replace the lookup with a fake. The Backend API's largest page: *unverified* (Patch asks for 100 ids per call). **Checked against the owner's real Clerk dev instance on 2026-10-19:** with `CLERK_SECRET_KEY` set, the lookup found 2 of 2 users, each with a name and a primary email.
+
+## ntfy.sh from Cloud Run (#101, 2026-10-19)
+
+- **Every ntfy.sh send from the live app (Cloud Run, europe-west1) answers HTTP 429** (*checked* in the Cloud Run log: an access-request alert and three test sends, 15:57–16:12 UTC). The same topic works from the owner's machine.
+- **An ntfy.sh account's access token didn't help** (*checked*: `NTFY_TOKEN` set as the `ntfy-token` secret, revision `patch-00002`, sent as `Authorization: Bearer`; the next three test sends still 429).
+- ntfy limits visitors by IP (60 requests burst, then one per 5–10 s; 250 messages a day) and bans IPs that overuse it repeatedly. https://docs.ntfy.sh/config/, https://docs.ntfy.sh/faq/
+- *Unverified*: whether it's the shared Cloud Run IP's limit or a ban of that IP. #101 logs ntfy's error code to tell.
