@@ -177,7 +177,7 @@ export interface PageContext {
   verdict?: Verdict
   kev?: boolean
   since?: string // YYYY-MM-DD
-  new?: boolean // new since the last check (B05)
+  new?: boolean // new and not seen yet (B05, B40)
   cve?: string // the selected CVE
 }
 
@@ -357,7 +357,7 @@ export interface CveRow {
   owasp_title: string | null
   kev: boolean
   kev_deadline: string | null // CISA's remediation date: a fact, not your due date
-  new: boolean // new since the user's previous check (B05): the "New" chip
+  new: boolean // a check found it new and the user hasn't seen it yet (B05, B40): the "New" chip
   status: CveStatus
   summary: string
   url: string
@@ -420,6 +420,7 @@ export interface Watchlist {
 export interface CvePage {
   total: number
   rows: CveRow[]
+  new_total: number // B40: every new row you haven't seen, whatever the filters ("Mark all as seen" shows above 0)
 }
 
 /** One OSV package's affected versions: introduced → fixed, or up to last_affected when no fix is listed. */
@@ -460,6 +461,11 @@ export interface CveDetail {
 }
 
 export const cve = (id: string) => request<CveDetail>(`/cves/${encodeURIComponent(id)}`)
+
+// B40: "New" until you've seen it. The CVE page marks its CVE seen; the list's "Mark all as seen" marks them all.
+export const markSeen = (id: string) =>
+  request<{ id: string; new_total: number }>(`/cves/${encodeURIComponent(id)}/seen`, { method: 'POST' })
+export const markAllSeen = () => request<{ new_total: number }>('/cves/seen', { method: 'POST' })
 
 function json(method: string, body: unknown): RequestInit {
   return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }

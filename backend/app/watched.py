@@ -87,8 +87,8 @@ class WatchedCves:
         CVE view's (app.cve_filters.CveView, checked there; pass `**view.filters()`): `product` one id or several,
         comma-separated (`langflow,ollama`, A15b); `severity` LOW..CRITICAL, this or worse; `status` open (open, or
         accepted with its review due: A16b), all, or one CVE status; `kev`; `since` YYYY-MM-DD, inclusive;
-        `verdict`; `new`, new since your previous check (B05)."""
-        k, watch, fresh = self.k, set(self._stack.watchlist), self._stack.new_since_check
+        `verdict`; `new`, found new by a check and not seen yet (B05, B40)."""
+        k, watch, fresh = self.k, set(self._stack.watchlist), self._stack.new
         products = set(product.split(",")) if product else None
 
         def keep(c: dict) -> bool:  # the filters that need only the snapshot: applied before the assessment
@@ -147,7 +147,7 @@ class WatchedCves:
             "id": cve["id"], "product": cve["product"], "product_name": k.products[cve["product"]],
             "severity": cve["severity"], "cvss": cve["cvss"], "published": cve["published"],
             "owasp": cve["owasp"], "owasp_title": cat["title"] if cat else None,
-            "new": cve["id"] in self._stack.new_since_check,  # B05: new since your previous check
+            "new": cve["id"] in self._stack.new,  # B40: a check found it new and you haven't seen it yet
             "kev": bool(kev), "kev_deadline": kev["dueDate"] if kev else None,  # CISA's, a fact; not your due date
             "status": a.status, "summary": cve["description"][:220], "url": cve["url"],
             "epss": k.epss_of(cve["id"]), "possible_match": k.possible_match(cve["id"]),

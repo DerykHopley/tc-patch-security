@@ -279,8 +279,19 @@ def create_app(deps: Deps | None = None) -> FastAPI:
             view = CveView.parse(request.query_params, d.knowledge.resolve_product)
         except InvalidFilter as e:
             raise InputError(str(e)) from None
-        rows = WatchedCves.of(d).rows(**view.filters())
-        return {"total": len(rows), "rows": rows[offset:offset + limit]}
+        watched = WatchedCves.of(d)
+        rows = watched.rows(**view.filters())
+        # B40: every new row the caller hasn't seen, whatever the filters: "Mark all as seen" shows while it's above 0
+        return {"total": len(rows), "rows": rows[offset:offset + limit], "new_total": new_total(watched)}
+
+    def new_total(watched: WatchedCves) -> int:
+        return len(watched.rows(status="all", new=True))
+
+    @api.post("/cves/seen")
+    def mark_all_seen(d: You):
+        """B40: "Mark all as seen" on the CVEs list: nothing is new for the caller any more."""
+        d.state.seen()
+        return {"new_total": 0}
 
     @api.get("/cves/{cve_id}")
     def get_cve(cve_id: str, d: You):
@@ -289,6 +300,16 @@ def create_app(deps: Deps | None = None) -> FastAPI:
             return WatchedCves.of(d).page(cve_id.strip().upper())
         except KeyError:
             return _error(404, "not_found", f"No such CVE: {cve_id[:40]} isn't in the snapshot.")
+
+    @api.post("/cves/{cve_id}/seen")
+    def cve_seen(cve_id: str, d: You):
+        """B40: the CVE page was opened, so this CVE isn't new for the caller any more. A POST from the page, not a
+        side effect of GET /cves/<id>: reads (the chat's tools, a reload's prefetch) never mark anything seen."""
+        cve = d.knowledge.cves.get(cve_id.strip().upper())
+        if cve is None:
+            return _error(404, "not_found", f"No such CVE: {cve_id[:40]} isn't in the snapshot.")
+        d.state.seen(cve["id"])
+        return {"id": cve["id"], "new_total": new_total(WatchedCves.of(d))}
 
     @api.patch("/cves/{cve_id}")
     def patch_cve(cve_id: str, body: StatusUpdate, d: You):

@@ -1,4 +1,4 @@
-"""Browser check for "New since last check" on the CVEs page. Check ids: B05.n (#38).
+"""Browser check for "New" on the CVEs page. Check ids: B05.n (#38). Until seen: B40, test_new_until_seen.py.
 
 Runs against the live pair (live mode, the fake feeds on day 2), as test_live.py: a check changes the CVE data, so
 each test starts and ends with the live data back at the snapshot (the fake feeds' reset route, which also forgets
@@ -44,7 +44,7 @@ def live_cves(browser: Browser, live_ui_url: str, live_api_url: str):
 
 
 def new_box(page: Page) -> Locator:
-    return page.get_by_role("checkbox", name="New since last check")
+    return page.get_by_role("checkbox", name="New, not seen yet")
 
 
 def count(page: Page) -> Locator:

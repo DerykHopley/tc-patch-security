@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ApiError, cve as fetchCve, setStatus, type CveDetail, type DecisionInput } from '../api.ts'
+import { ApiError, cve as fetchCve, markSeen, setStatus, type CveDetail, type DecisionInput } from '../api.ts'
 import { CveActions } from '../components/CveActions.tsx'
 import { DecisionSummary, HistoryList } from '../components/Decision.tsx'
 import { ExternalLink as External } from '../components/ExternalLink.tsx'
@@ -7,8 +7,8 @@ import { DueFacts, PriorityChip, PriorityReasons } from '../components/Priority.
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
 import { EPSS_URL, epssPercentile, epssScore, PossibleMatch } from '../components/SnapshotFacts.tsx'
 import { USAGE_LABEL, VerdictChip, VerdictFacts } from '../components/Verdict.tsx'
-import { STATUS_LABEL } from '../cveView.ts'
-import { rangeWords, showsPriority } from '../cvePage.ts'
+import { NEW_TITLE, STATUS_LABEL } from '../cveView.ts'
+import { marksSeen, rangeWords, showsPriority } from '../cvePage.ts'
 import { followLink, openedFromList, PATHS } from '../route.ts'
 import '../styles/cves.css'
 import '../styles/cvePage.css'
@@ -32,7 +32,12 @@ export function CvePage({ id, asOf, onAsk, onNavigate }: {
   const load = useCallback(
     () =>
       fetchCve(id).then(
-        (detail) => setLoaded({ detail }),
+        (detail) => {
+          setLoaded({ detail })
+          // B40: you've seen it now. The chip stays for this visit (it was new when you opened it); the list and a
+          // later visit show it as seen. A failed mark is harmless: it stays new, and the next visit tries again.
+          if (marksSeen(detail)) markSeen(detail.id).catch(() => {})
+        },
         (e: unknown) =>
           setLoaded(e instanceof ApiError && e.status === 404 ? { missing: true } : { error: (e as Error).message }),
       ),
@@ -120,7 +125,7 @@ function CveDetails({ detail: d, asOf, onDecide, onAsk, onNavigate }: {
             </span>
           )}
           {row?.new && (
-            <span className="chip new-chip" title="New since the last check: the last refresh added it">
+            <span className="chip new-chip" title={NEW_TITLE}>
               New
             </span>
           )}

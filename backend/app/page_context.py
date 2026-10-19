@@ -14,7 +14,7 @@ never carry free text to Patch: an instruction can't ride in on it.
 | verdict  | affected, not_affected, unknown                               | as is                |
 | kev      | true, 1, "1", "true" (false, 0: no filter)                    | true                 |
 | since    | a date, YYYY-MM-DD                                            | the date             |
-| new      | as kev: new since the user's previous check (B05)             | true                 |
+| new      | as kev: new and not seen yet by the user (B05, B40)           | true                 |
 | cve      | CVE-YYYY-NNNN…                                                | upper case           |
 """
 import json

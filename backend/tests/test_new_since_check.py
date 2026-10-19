@@ -1,4 +1,4 @@
-"""New since the last check on the CVEs page, through the HTTP API (seam 1). Check ids: B05.n, from #38.
+"""New on the CVEs page (B05; until seen since B40, test_new_until_seen.py), through the HTTP API (seam 1). Check ids: B05.n, from #38.
 
 The live app on the fake feeds (B02's day-1 and day-2 data sets) and a clock the test moves, as in
 test_alert_delivery.py. Day 1 adds a Langflow CVE to the snapshot; day 2 adds an Ollama CVE, rescores the day-1 CVE
@@ -26,20 +26,20 @@ def ids(app, query: str) -> list[str]:
     return [r["id"] for r in cves(app, query)["rows"]]
 
 
-# --- B05.1: after a day-2 refresh, `new` keeps the CVEs that check found new ----------------------------------------
+# --- B05.1: after a day-2 refresh, `new` holds what the checks found new (unseen: B40 keeps day 1's too) -----------
 
 def test_b05_1_new_filter_after_a_day2_refresh(app):
     app.check_now()
     assert ids(app, "new=1&status=all") == [NEW_DAY1]
 
     app.next_day()
-    assert ids(app, "new=1&status=all") == [NEW_DAY2]  # new since the previous check: day 1's CVE isn't any more
-    assert ids(app, "new=true&status=all") == [NEW_DAY2]
-    assert [r["new"] for r in cves(app, "new=1&status=all")["rows"]] == [True]  # the row says so: the "New" chip
+    assert set(ids(app, "new=1&status=all")) == {NEW_DAY1, NEW_DAY2}  # B40: day 1's CVE stays until it's seen
+    assert set(ids(app, "new=true&status=all")) == {NEW_DAY1, NEW_DAY2}
+    assert [r["new"] for r in cves(app, "new=1&status=all")["rows"]] == [True, True]  # the row says so: the chip
     not_new = {r["id"]: r["new"] for r in cves(app, "new=0&product=langflow&status=all&limit=200")["rows"]}
-    assert not_new[NEW_DAY1] is False and not_new[OLD_TO_KEV] is False  # rescored, added to KEV: not new
+    assert NEW_DAY1 not in not_new and not_new[OLD_TO_KEV] is False  # added to KEV: not new
     assert NEW_DAY2 not in ids(app, "new=0&product=ollama&status=all&limit=200")  # new=false: the CVEs that aren't new
-    assert ids(app, "new=1&product=langflow&status=all") == []  # with the other filters
+    assert ids(app, "new=1&product=ollama&status=all") == [NEW_DAY2]  # with the other filters
 
 
 # --- B05.2: a value that isn't allowed is a 400 that names the filter ----------------------------------------------
@@ -59,18 +59,18 @@ def test_b05_3_new_since_check_survives_a_restart_and_a_failed_check_and_needs_n
     assert ids(app, "new=1&status=all") == [NEW_DAY1]
 
     app.clock.advance(60 * 24)
-    app.feeds.fail = "nvd"  # partial (B20): last checked stays, so this run isn't a check; what was new stays
+    app.feeds.fail = "nvd"  # partial (B20): what was new stays
     assert app.check_now()["result"]["status"] == "partial"
     assert ids(app, "new=1&status=all") == [NEW_DAY1]
 
     app.feeds.fail, app.feeds.day = None, 2
     app.clock.advance(10)
-    assert app.check_now()["result"]["status"] == "ok"  # the next good check: new since the last good check
-    assert ids(app, "new=1&status=all") == [NEW_DAY2]
+    assert app.check_now()["result"]["status"] == "ok"
+    assert set(ids(app, "new=1&status=all")) == {NEW_DAY1, NEW_DAY2}  # B40: added to what you haven't seen
 
     app.clock.advance(10)
-    assert app.check_now()["result"]["status"] == "ok"  # a good check that finds nothing: nothing is new
-    assert ids(app, "new=1&status=all") == []
+    assert app.check_now()["result"]["status"] == "ok"  # a good check that finds nothing: B40 keeps both
+    assert set(ids(app, "new=1&status=all")) == {NEW_DAY1, NEW_DAY2}
 
 
 # --- B05.4: the snapshot has no checks, so nothing is new ----------------------------------------------------------
