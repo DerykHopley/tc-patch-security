@@ -359,6 +359,32 @@ class State:
             return fresh
         return self._update(change)
 
+    def retries(self) -> list[dict]:
+        """B41: the sends to try again on the next check, oldest first (app.alerts.Alerter). None in a file saved
+        before B41: its failed entries are never resent."""
+        return self._load().get("alerts_retry", [])
+
+    def save_retries(self, retries: list[dict]) -> None:
+
+        def change(data):
+            if retries:
+                data["alerts_retry"] = retries
+            elif data.pop("alerts_retry", None) is None:
+                return Keep()
+        self._update(change)
+
+    def update_alert_channels(self, entry_id: str, results: list[dict]) -> None:
+        """B41: a retry's results replace those channels' results in its alerts-log entry, in place. An entry
+        pushed out of the log (50 kept) is left out."""
+
+        def change(data):
+            entry = next((e for e in data.get("alerts_log", []) if e.get("id") == entry_id), None)
+            if entry is None:
+                return Keep()
+            by_channel = {r["channel"]: r for r in results}
+            entry["channels"] = [by_channel.get(c["channel"], c) for c in entry["channels"]]
+        self._update(change)
+
     def hold_alerts(self, messages: list[dict]) -> None:
         """Keep alerts found in quiet hours, to send when they end."""
 
@@ -377,8 +403,8 @@ class State:
         user has their own (B09). Every run that writes data notes them, complete or partial (B20): a CVE stays new
         until this user has seen it (`seen`), not until the next check. A run that finds nothing still notes its
         time, which B34's first check reads. `complete` (B05: whether the run was a check) no longer changes
-        anything; the refresh still passes it. Removing it from app.alerts and app.refresh waits for #91, which
-        is changing that code."""
+        anything; the refresh still passes it. Removing it from app.alerts and app.refresh is a follow-up, kept
+        out of B40 while #91 changed that code."""
 
         def change(data):
             saved = data.get("new_cves", {})
@@ -410,7 +436,7 @@ class State:
         """No alerts sent, held or logged, and nothing new (the fake feeds' reset, for the browser check)."""
 
         def change(data):
-            for key in ("alerted", "alerts_held", "alerts_log", "new_cves"):
+            for key in ("alerted", "alerts_held", "alerts_retry", "alerts_log", "new_cves"):
                 data.pop(key, None)
         self._update(change)
 
