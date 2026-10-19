@@ -50,7 +50,7 @@ const SHOWCASE: { shot: Shot; title: string; text: string; alt: string }[] = [
   },
   {
     shot: 'chat',
-    title: 'Ask Patch, check his sources',
+    title: 'Ask Patch, check the sources',
     text: "Patch looks it up in OWASP's lists, MITRE ATLAS and the CVE data, then answers with numbered sources you "
       + 'can open.',
     alt: 'Patch answering "Am I affected by CVE-2025-3248?" beside that CVE\'s page: affected, because 1.2.0 is '
@@ -61,7 +61,7 @@ const SHOWCASE: { shot: Shot; title: string; text: string; alt: string }[] = [
 const TILES: { name: string; text: string; tone: string }[] = [
   { name: 'Watch', text: 'The LLM software you run, checked against NVD, CISA KEV, EPSS and OSV.dev.', tone: 'open' },
   { name: 'Judge', text: 'Affected or not, for your version. A priority and a due date by rules you set.', tone: 'critical' },
-  { name: 'Alert', text: 'Newly exploited flaws on your phone, desktop or email, once per CVE.', tone: 'kev' },
+  { name: 'Alert', text: 'Newly exploited flaws, flagged once per CVE.', tone: 'kev' },
   { name: 'Ask', text: 'Questions about a risk, an attack or a CVE, answered with sources.', tone: 'new' },
 ]
 
@@ -96,7 +96,7 @@ export function Landing(props: Props) {
             advisories, again and again.
           </p>
           <p className="landing-what">
-            <strong>Patch</strong> does that reading for you. He watches the products you run, says which flaws
+            <strong>Patch</strong> does that reading for you. It watches the products you run, says which flaws
             affect you and what to fix first, and answers your questions with sources.
           </p>
           <div className="landing-next">{next}</div>
@@ -149,7 +149,7 @@ export function Landing(props: Props) {
       <section className="landing-end" aria-labelledby="landing-end-title">
         <Robot size={96} variant={endPose.variant} />
         <h2 id="landing-end-title">{front ? 'Ready to look at your own stack?' : "That's Patch."}</h2>
-        <p>{front ? 'Sign in, or ask the owner for access.' : 'Your own stack is on the dashboard.'}</p>
+        <p>{front ? 'Sign in, or ask the owner for access.' : 'Your watchlist is on the dashboard.'}</p>
         <div className="landing-next">{next}</div>
       </section>
 

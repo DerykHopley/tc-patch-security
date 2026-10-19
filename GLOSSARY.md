@@ -70,7 +70,7 @@ _Avoid_: search result, link
 
 **Watchlist**:
 The products you say you use. Only CVEs for watched products count as yours.
-_Avoid_: stack, subscriptions
+_Avoid_: stack, subscriptions. One exception (owner, 2026-10-19): the landing page's pitch to signed-out visitors may say "your LLM stack", since "watchlist" means nothing to them yet; inside the app (the About page included) it's "watchlist".
 
 **CVE status**:
 Your mark on a CVE for a watched product: open, fixed, not affected or accepted. Open until you say otherwise. Only you set it: never a rule, the verdict or Patch.
@@ -254,6 +254,7 @@ _Avoid_: JWT (it is one, but say what it's for), API key
 **Patch**:
 The product name, and the robot that is its face in the UI. The brand reads "Patch", with "LLM-security assistant" as the small line under it (B32).
 _Avoid_: the bot, the chatbot, the agent; "LLM Security assistant" as a name
+Patch is "it", never "he" or "she" (owner, 2026-10-19), or rephrase without a pronoun.
 
 **Page context**:
 What Patch is told about the view under the chat: the page, the CVEs page's filters (product, severity, status, verdict, KEV, since) and the selected CVE; on a CVE page, that CVE. Fixed fields only, each checked against a fixed list; anything else is dropped and listed. Never free text.

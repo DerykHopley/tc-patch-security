@@ -63,9 +63,14 @@ def match_product(row: dict) -> tuple[str | None, str | None]:
     return (best[0], "text") if best else (None, None)
 
 
+def owasp_categories(cwes: list[str], cwe_to_web: dict[str, str]) -> list[str]:
+    """Every OWASP Top 10 2025 (web) category a CVE's CWEs map to, by code. Empty when none maps (never guessed)."""
+    return sorted({cwe_to_web[c] for c in cwes if c in cwe_to_web})
+
+
 def owasp_category(cwes: list[str], cwe_to_web: dict[str, str]) -> str | None:
     """The OWASP Top 10 2025 category for a CVE's CWEs: the lowest code when several map."""
-    cats = sorted({cwe_to_web[c] for c in cwes if c in cwe_to_web})
+    cats = owasp_categories(cwes, cwe_to_web)
     return cats[0] if cats else None
 
 

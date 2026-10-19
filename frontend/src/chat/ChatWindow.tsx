@@ -47,7 +47,7 @@ export function ChatWindow({ chat, mood, variant, restVariant, pageTitle, words,
           <Robot size={58} variant={restVariant} />
         </span>
         <p>
-          Hi, I'm <strong>Patch</strong>! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack.
+          Hi, I'm <strong>Patch</strong>! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs on your watchlist.
           What shall we look at?
         </p>
       </div>

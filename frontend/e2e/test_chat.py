@@ -17,7 +17,7 @@ Q3 = "Which OWASP category is CWE-918?"
 Q6 = 'What does an "ignore previous instructions" attack look like?'
 Q9 = "Add vLLM to my watchlist"
 Q11 = "Look up CVE-1999-0001"
-GREETING = ("Hi, I'm Patch! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack. "
+GREETING = ("Hi, I'm Patch! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs on your watchlist. "
             "What shall we look at?")
 REM = 15  # px: the base font size (DESIGN.md §3.4)
 
