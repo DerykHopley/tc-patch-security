@@ -119,7 +119,7 @@ The owner's app on `spec-b`, live mode with the real feeds (`FEEDS=real`), no NV
 
 - NVD accepted the `...000Z` dates without a key (B03's open point). The `apiKey` header is still unverified.
 - Found on the way: live mode defaulted to the **fake** feeds, so the first "live" run alerted made-up CVEs (#74 makes the real feeds the default). Snapshot-mode ticks showed as failed services (also #74).
-- Still open, not blocking: a real alert from a real run on the owner's phone, with its delay and screenshots (#75). The next weekly overdue digest (week 2026-W43) or a new watched CVE will send one.
+- A real alert on the owner's phone (#75, 2026-10-19, week 2026-W43): the timer's check ran 06:57:28 to 06:59:39 UTC and sent one ntfy digest, "271 alerts for your watchlist, 271 overdue". The phone shows it at 08:59 CEST (06:59 UTC), so it arrived **under a minute** after the run finished (ntfy shows minutes only). The dashboard's Recent alerts records it with desktop and ntfy "sent". Screenshots: [phone](docs/media/live-run/phone-overdue-digest.png) (cropped: the title bar showed the ntfy topic), [dashboard](docs/media/live-run/dashboard-recent-alerts.png).
 
 ## What's open
 
