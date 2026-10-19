@@ -420,7 +420,13 @@ pause
 stage "The service's settings (env.yaml)"
 URL="https://$SERVICE-$PROJECT_NUMBER.$REGION.run.app"
 say "Patch's address will be: $URL"
-ask ALERT_TZ "Time zone for quiet hours (e.g. Europe/Berlin):"
+HERE_TZ=$(timedatectl show -p Timezone --value 2>/dev/null || true)
+[[ -n "$(_existing ALERT_TZ || true)" || -z "$HERE_TZ" ]] || write_env ALERT_TZ "$HERE_TZ"
+while true; do
+  ask ALERT_TZ "Time zone for quiet hours (Enter keeps this computer's, e.g. Europe/Berlin):"
+  [[ "$ALERT_TZ" =~ ^[A-Za-z_]+(/[A-Za-z0-9_+-]+)*$ ]] && break
+  warn "A time zone name like Europe/Berlin or UTC, please."
+done
 write_env ALERT_TZ "$ALERT_TZ"
 PK=$(local_value CLERK_PUBLISHABLE_KEY); JWT=$(local_value CLERK_JWT_KEY); OWNER_ID=$(local_value OWNER)
 [[ -n "$PK" && -n "$JWT" && -n "$OWNER_ID" ]] || { warn "backend/.env lacks CLERK_PUBLISHABLE_KEY, CLERK_JWT_KEY or OWNER."; exit 1; }
@@ -431,22 +437,26 @@ if [[ -f deploy/cloudrun/env.yaml ]] && ! confirm "deploy/cloudrun/env.yaml exis
 else
   cat > deploy/cloudrun/env.yaml <<EOF
 # Written by scripts/deploy-wizard.sh from env.example.yaml and backend/.env. Git-ignored. Nothing here is secret.
-LLM_PROVIDER: openrouter
-OPENROUTER_MODEL: anthropic/claude-haiku-5.5
-DATA_MODE: live
-FEEDS: real
-STORE: gcs
-GCS_BUCKET: $BUCKET
+LLM_PROVIDER: "openrouter"
+OPENROUTER_MODEL: "anthropic/claude-haiku-5.5"
+DATA_MODE: "live"
+FEEDS: "real"
+STORE: "gcs"
+GCS_BUCKET: "$BUCKET"
 AUTH: "on"
-CLERK_PUBLISHABLE_KEY: $PK
+CLERK_PUBLISHABLE_KEY: "$PK"
 CLERK_JWT_KEY: "$JWT"
-OWNER: $OWNER_ID
-AUTH_ALLOWED_ORIGINS: $URL
-APP_URL: $URL
-CORS_ORIGINS: $URL
+OWNER: "$OWNER_ID"
+AUTH_ALLOWED_ORIGINS: "$URL"
+APP_URL: "$URL"
+CORS_ORIGINS: "$URL"
 DEV_PANEL: "true"
-ALERT_TZ: $ALERT_TZ
+ALERT_TZ: "$ALERT_TZ"
 EOF
+  if grep -qE '^[A-Z_]+: *("")?$' deploy/cloudrun/env.yaml; then
+    warn "These settings came out empty: $(grep -E '^[A-Z_]+: *(\"\")?$' deploy/cloudrun/env.yaml | cut -d: -f1 | tr '\n' ' ')"
+    say "Fix them in deploy/cloudrun/env.yaml (or backend/.env) and run the wizard again."; exit 1
+  fi
   printf '  %s✓ wrote%s deploy/cloudrun/env.yaml\n' "$GREEN" "$RESET"
 fi
 pause
