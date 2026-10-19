@@ -1,11 +1,11 @@
-import { useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Brand } from '../components/Brand.tsx'
 import { MoonIcon, SunIcon } from '../components/Icons.tsx'
 import { Robot } from '../components/Robot.tsx'
 import { pickPose } from '../components/patchPose.ts'
 import { useTheme } from '../theme.ts'
 import { signInView, type SignInView } from './signInView.ts'
-import { subscribeToAddress } from './useFrontDoor.ts'
+import { rememberSigningIn, subscribeToAddress } from './useFrontDoor.ts'
 
 // The sign-in screen (B10, DESIGN.md §5.13): what a signed-out visitor sees with sign-in on. One Playful card on the
 // page background, Patch rising over its top edge, the brand, a heading and one line, then Clerk's sign-in form
@@ -31,6 +31,7 @@ export function useSignInView(): SignInView {
 
 export function SignInScreen({ children }: { children: ReactNode }) {
   const { title, lead } = TEXT[useSignInView()]
+  useEffect(rememberSigningIn, []) // B51: the load of "/" after signing in waits for Clerk, no landing-page flash
   return <ScreenCard title={title} lead={lead}>{children}</ScreenCard>
 }
 

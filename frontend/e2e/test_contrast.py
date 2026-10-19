@@ -186,7 +186,7 @@ PENDING = ".tile, .landing-tile"
 
 def low_contrast(page: Page, root: str = "body") -> list[dict]:
     """Every text under `root` below WCAG AA, with where it is, its words, its ratio, what it needed, and whether it
-    is a pending design call (PENDING)."""
+    is the owner's accepted exception (PENDING keeps its name)."""
     return page.evaluate(TEXT_CONTRAST, {"root": root, "pending": PENDING})
 
 
@@ -223,9 +223,9 @@ def test_b49_20_every_text_on_every_page_meets_wcag_aa(open_at, path, width, sch
     assert not found, f"{path} at {width}px, {scheme}:\n{show(found)}"
 
 
-@pytest.mark.xfail(strict=True, reason="design call for the owner: the candy tiles' text on the bright end (B49)")
+@pytest.mark.xfail(strict=True, reason="accepted by the owner (2026-10-19): the candy tiles' text on the bright end reads clearly enough (B49)")
 @pytest.mark.parametrize("path", ["/", "/about"])
-def test_b49_20_pending_design_call_the_candy_tiles(open_at, path):
+def test_b49_20_accepted_exception_the_candy_tiles(open_at, path):
     page = open_at(path, PHONE, "light")
     found = [f for f in low_contrast(page) if f["pending"]]
     assert not found, show(found)

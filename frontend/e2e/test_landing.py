@@ -141,6 +141,27 @@ def test_b42_10_a_browser_signed_in_before_waits_for_clerk(browser: Browser, ui_
         ctx.close()
 
 
+# --- B51.3: after the sign-in form, the next load of "/" waits for Clerk; the landing page never flashes -----------
+
+# Every level-1 heading the page ever shows, from its first paint: catches a landing page shown for a moment.
+SEEN_HEADINGS = """window.__h1s = []
+new MutationObserver(() => document.querySelectorAll('h1').forEach(h => {
+  if (!window.__h1s.includes(h.textContent)) window.__h1s.push(h.textContent) })
+).observe(document, { childList: true, subtree: true, characterData: true })"""
+
+
+def test_b51_3_after_the_sign_in_form_a_load_of_home_waits_for_clerk(open_signed_out):
+    # Clerk's redirect after signing in is a fresh load of "/" before Clerk answers; Clerk can't load here, so the
+    # wait lasts until Clerk gives up, then the landing page (B42.10)
+    page, _ = open_signed_out(path="/sign-in")  # the form was shown (its loading line: Clerk is unreachable)
+    page.context.add_init_script(SEEN_HEADINGS)
+    page.goto(page.url.removesuffix("/sign-in") + "/")
+    expect(page.get_by_role("heading", level=1, name="Opening Patch")).to_be_visible()
+    assert TITLE not in page.evaluate("window.__h1s"), page.evaluate("window.__h1s")
+    expect(page.get_by_role("heading", level=1, name=TITLE)).to_be_visible(timeout=CLERK_GIVES_UP_MS)
+    assert page.evaluate("window.__h1s")[0] == "Opening Patch"
+
+
 # --- B42.11: sign-in off: the dashboard as before, the landing page as About ----------------------------------------
 
 def test_b42_11_with_sign_in_off_the_app_opens_on_the_dashboard_and_about_is_in_the_nav(open_app):  # noqa: F811

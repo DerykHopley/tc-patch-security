@@ -36,15 +36,28 @@ export const REQUEST_ACCESS_PATH = CLERK_URLS.signUpUrl
 /** The screen for a signed-out (or not yet known) visitor at this address. The sign-in form lives at /sign-in, on
  * Clerk's own steps (hash routes, `#/…`, which Clerk may append to any path) and on an old invitation link; every
  * other address, an unknown one too (#96), is the landing page. While Clerk still loads, a browser that was signed
- * in last time waits (`wait`), so a returning user isn't shown the landing page for a moment before the app. */
+ * in last time, or was on the sign-in form (B51), waits (`wait`), so nobody sees the landing page for a moment before
+ * the app. `signedInHere` is the per-browser key (DESIGN.md §11); `rememberedSignIn` gives its values. */
 export function frontDoor(
   { pathname, search, hash }: { pathname: string; search: string; hash: string },
-  clerk: { loaded: boolean; wasSignedIn: boolean },
+  clerk: { loaded: boolean; signedInHere: string | null },
 ): FrontDoor {
   const path = pathname.replace(/\/+$/, '') || '/'
   const params = new URLSearchParams(search)
   if (path === SIGN_IN_PATH || hash.startsWith('#/') || params.has('__clerk_ticket') || params.has('__clerk_status')) {
     return 'sign-in'
   }
-  return !clerk.loaded && clerk.wasSignedIn ? 'wait' : 'landing'
+  const mayBeSignedIn = clerk.signedInHere === '1' || clerk.signedInHere === SIGNING_IN
+  return !clerk.loaded && mayBeSignedIn ? 'wait' : 'landing'
+}
+
+/** `signedInHere` while the sign-in form shows (B51, #80). */
+export const SIGNING_IN = 'pending'
+
+/** The `signedInHere` value for Clerk's answer at this front door: `1` signed in, `0` signed out, and `pending` when
+ * signed out on the sign-in form (B51, #80). After a sign-in Clerk loads `/` before it answers again; `pending` makes
+ * that load wait instead of flashing the landing page. An abandoned sign-in only costs the next visit a short wait. */
+export function rememberedSignIn(signedIn: boolean, door: FrontDoor): '1' | '0' | typeof SIGNING_IN {
+  if (signedIn) return '1'
+  return door === 'sign-in' ? SIGNING_IN : '0'
 }

@@ -2,7 +2,7 @@
 // shows for the page's address. `npm test`.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { CLERK_URLS, frontDoor, signInView } from './signInView.ts'
+import { CLERK_URLS, frontDoor, rememberedSignIn, signInView } from './signInView.ts'
 
 const at = (search: string, hash: string) => ({ search, hash })
 
@@ -37,7 +37,7 @@ test("B38.24: Clerk's sign-up steps (open sign-up) are the request-access view, 
 
 // B42 (#80): what a signed-out visitor sees at an address. The landing page everywhere (an unknown address too, #96),
 // except where the sign-in form lives: /sign-in, Clerk's own steps (a hash route, "#/…") and an old invitation link.
-const door = (pathname: string, search = '', hash = '', clerk = { loaded: true, wasSignedIn: false }) =>
+const door = (pathname: string, search = '', hash = '', clerk: { loaded: boolean; signedInHere: string | null } = { loaded: true, signedInHere: '0' }) =>
   frontDoor({ pathname, search, hash }, clerk)
 
 test('B42.2 a signed-out visitor lands on the landing page, at any address', () => {
@@ -59,12 +59,31 @@ test("B42.3 the sign-in screen at /sign-in, on Clerk's steps and for an old invi
   assert.equal(door('/', '?__clerk_status=sign_up'), 'sign-in')
 })
 
-const loading = (wasSignedIn: boolean) => ({ loaded: false, wasSignedIn })
+const loading = (signedInHere: string | null) => ({ loaded: false, signedInHere })
 
 test('B42.4 while Clerk loads, a browser that was signed in waits instead of flashing the landing page', () => {
-  assert.equal(door('/', '', '', loading(true)), 'wait')
-  assert.equal(door('/cves', '', '', loading(true)), 'wait')
-  assert.equal(door('/', '', '', loading(false)), 'landing') // a first visit: the landing page at once
-  assert.equal(door('/sign-in', '', '', loading(true)), 'sign-in') // the form shows its own loading line
-  assert.equal(door('/', '', '', { loaded: true, wasSignedIn: true }), 'landing') // loaded and signed out
+  assert.equal(door('/', '', '', loading('1')), 'wait')
+  assert.equal(door('/cves', '', '', loading('1')), 'wait')
+  assert.equal(door('/', '', '', loading(null)), 'landing') // a first visit: the landing page at once
+  assert.equal(door('/', '', '', loading('0')), 'landing') // signed out last time
+  assert.equal(door('/sign-in', '', '', loading('1')), 'sign-in') // the form shows its own loading line
+  assert.equal(door('/', '', '', { loaded: true, signedInHere: '1' }), 'landing') // loaded and signed out
+})
+
+// B51 (#80): after signing in on /sign-in, Clerk sends the browser to "/". On that load Clerk hasn't answered yet, so
+// a browser that only showed the sign-in form must wait too, or the landing page flashes before the dashboard.
+test('B51.1 a browser that was on the sign-in form waits for Clerk at "/", like one that was signed in', () => {
+  assert.equal(door('/', '', '', loading('pending')), 'wait')
+  assert.equal(door('/cves', '', '', loading('pending')), 'wait')
+  assert.equal(door('/', '', '', { loaded: true, signedInHere: 'pending' }), 'landing') // Clerk answered: signed out
+  assert.equal(door('/', '', '', loading('junk')), 'landing') // an unknown value is a first visit
+})
+
+test("B51.2 Clerk's answer is remembered; signed out on the sign-in form stays 'pending'", () => {
+  assert.equal(rememberedSignIn(true, 'landing'), '1')
+  assert.equal(rememberedSignIn(true, 'sign-in'), '1')
+  assert.equal(rememberedSignIn(false, 'landing'), '0') // signed out: the landing page at once next time
+  assert.equal(rememberedSignIn(false, 'wait'), '0')
+  // on the form, Clerk says "signed out" first; the sign-in that follows reloads "/" before Clerk answers again
+  assert.equal(rememberedSignIn(false, 'sign-in'), 'pending')
 })
