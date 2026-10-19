@@ -2,7 +2,7 @@
 
 Runs in Firefox and Chromium (run.sh). The snapshot pair for most checks; the live pair (test_live.py's fixture) for
 "See the N new CVEs". Expected numbers come from the backend's API (backend/tests/test_dashboard.py,
-test_new_until_seen.py B43.1, B43.2); expected looks from docs/design/DESIGN.md §5.4, §5.8, §5.9, §5.10, §5.16, §6.1.
+test_new_until_seen.py B43.1, B43.2); expected looks from docs/design/DESIGN.md §5.4, §5.8, §5.9, §5.10, §5.17, §6.1.
 """
 import pathlib
 import re

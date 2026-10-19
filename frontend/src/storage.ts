@@ -1,7 +1,7 @@
 // Per-browser conveniences (DESIGN.md §11). Storage can be blocked (private windows, strict settings),
 // so every read and write is wrapped: a blocked storage forgets, it never breaks the app.
 
-export type StorageKey = 'theme' | 'sidenavCollapsed' | 'helloHidden' | 'pinned' | 'splitWidth'
+export type StorageKey = 'theme' | 'sidenavCollapsed' | 'helloHidden' | 'pinned' | 'splitWidth' | 'signedInHere'
 
 export const store = {
   get(key: StorageKey): string | null {

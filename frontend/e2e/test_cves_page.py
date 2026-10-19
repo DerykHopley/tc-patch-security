@@ -92,7 +92,7 @@ def test_a04b_1_sidebar_lists_cves_and_shows_it_active(open_dash):
     side = page.get_by_role("complementary", name="Main")
     names = side.locator(".side-links .side-link").evaluate_all(
         "els => els.map(el => el.getAttribute('aria-label') || el.querySelector('.side-label').textContent.trim())")
-    assert names == ["Dashboard", "CVEs", "Settings", "Dev", "Ask Patch"]
+    assert names == ["Dashboard", "CVEs", "Settings", "Dev", "Ask Patch", "About"]  # About: B42
     side.get_by_role("button", name="CVEs", exact=True).click()
     expect(page.get_by_role("heading", level=1)).to_have_text("CVEs")
     expect(page.locator(".crumb-path")).to_have_text("Pages / CVEs")
@@ -109,7 +109,7 @@ def test_a04b_1_phone_tab_bar_has_five_tabs_that_fit(open_cves):
     page = open_cves(width=PHONE)
     bar = page.locator(".sidenav")
     labels = bar.locator(".side-label").evaluate_all("els => els.map(el => el.firstChild.textContent.trim())")
-    assert labels == ["Dashboard", "CVEs", "Settings", "Dev", "Ask"]
+    assert labels == ["Dashboard", "CVEs", "Settings", "Dev", "Ask", "About"]  # About since B42: six fit
     for link in bar.locator(".side-link").all():
         b = link.bounding_box()
         assert b and b["x"] >= 0 and b["x"] + b["width"] <= PHONE

@@ -171,7 +171,7 @@ export interface ChatReply {
 
 // Page context (A18): fixed fields only, each checked by the backend (app/page_context.py). Never free text.
 export interface PageContext {
-  page?: 'dashboard' | 'cves' | 'settings' | 'dev'
+  page?: 'dashboard' | 'cves' | 'settings' | 'dev' | 'about'
   product?: string // one id, or the dashboard's several (A15b): `langflow,ollama`
   severity?: Severity
   status?: CveStatus | 'all'

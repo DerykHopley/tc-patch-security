@@ -210,8 +210,12 @@ The one user while sign-in is off (locally and in the tests). Their state is the
 _Avoid_: local user, guest
 
 **Sign-in**:
-Clerk, switched by `AUTH` (off locally and in the tests). On, every API route but `/health` needs a signed-in user; a signed-out visitor sees the sign-in screen. Sign-up is open; using Patch needs the owner's approval (B38).
+Clerk, switched by `AUTH` (off locally and in the tests). On, every API route but `/health` needs a signed-in user; a signed-out visitor sees the landing page, and the sign-in screen at `/sign-in` (B42). Sign-up is open; using Patch needs the owner's approval (B38).
 _Avoid_: login, auth (except the setting's name)
+
+**Landing page**:
+What a visitor who isn't signed in sees first (with sign-in on): the problem Patch solves, what Patch is, three screenshots on example data, then Sign in or Request access. No API call, no live data. Inside the app the same page is **About** (`/about`) (B42).
+_Avoid_: home page, marketing page, splash screen
 
 **Access request**:
 A new account's request to use Patch, with an optional note for the owner (at most 280 characters). It is waiting until the owner approves or refuses it on the Requests card. A refusal is final until the owner undoes it. Patch keeps only the Clerk user id, the status, when and by whom, and the note (B38).
