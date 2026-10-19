@@ -4,6 +4,7 @@ import { health, type AuthConfig } from './api.ts'
 import App from './App.tsx'
 import { AccessGate } from './auth/AccessGate.tsx'
 import { OpeningPatch, SignInLoading, SignInScreen } from './auth/SignInScreen.tsx'
+import type { FrontDoor } from './auth/signInView.ts'
 import { useFrontDoor } from './auth/useFrontDoor.ts'
 import { Landing } from './landing/Landing.tsx'
 import { LoadingScreen } from './components/LoadingScreen.tsx'
@@ -45,17 +46,29 @@ function Root() {
       </AccessGate>
     )
   }
+  return <SignInOn publishableKey={auth.publishable_key} />
+}
+
+/** Sign-in on. The landing page is drawn here, outside the Suspense boundary and outside ClerkProvider, so it stays
+ * one element while Clerk's chunk loads (#100): drawn once by the fallback and once by ClerkApp, React swapped one for
+ * the other ~300 ms in, and the page faded up twice. Until ClerkApp has said, the same rule as its fallback decides
+ * (useFrontDoor, Clerk not loaded); then ClerkApp's own answer (`onLanding`), which knows sign-in and Clerk failing. */
+function SignInOn({ publishableKey }: { publishableKey: string }) {
+  const door = useFrontDoor(false)
+  const [reported, setReported] = useState<boolean | null>(null)
+  const landing = reported ?? door === 'landing'
   return (
-    <Suspense fallback={<SignedOutFallback />}>
-      <ClerkApp publishableKey={auth.publishable_key} />
-    </Suspense>
+    <>
+      {landing && <Landing place="front-door" />}
+      <Suspense fallback={landing ? null : <SignedOutFallback door={door} />}>
+        <ClerkApp publishableKey={publishableKey} onLanding={setReported} />
+      </Suspense>
+    </>
   )
 }
 
-/** Until Clerk's chunk loads: the same screen ClerkApp shows a signed-out visitor at this address (B42). */
-function SignedOutFallback() {
-  const door = useFrontDoor(false)
-  if (door === 'landing') return <Landing place="front-door" />
+/** Until Clerk's chunk loads, when it isn't the landing page: the screen ClerkApp shows at this address (B42). */
+function SignedOutFallback({ door }: { door: FrontDoor }) {
   if (door === 'wait') return <OpeningPatch />
   return (
     <SignInScreen>

@@ -40,12 +40,14 @@ def open_signed_out(browser: Browser, ui_url: str, api_url: str):
     contexts: list[BrowserContext] = []
 
     def _open(width=DESKTOP, scheme="light", reduced=False, path="/sign-in",
-              heading="Sign in to Patch") -> tuple[Page, list[str]]:
+              heading="Sign in to Patch", init_script: str | None = None) -> tuple[Page, list[str]]:
         ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme,
                                   reduced_motion="reduce" if reduced else "no-preference")
         contexts.append(ctx)
         ctx.route(lambda url: not LOCAL.match(url), lambda route: route.abort())  # no network: Clerk can't load
         ctx.route(f"{api_url}/health", _signed_in_health)
+        if init_script:  # runs before the page's own scripts (B100.4 counts the landing pages drawn)
+            ctx.add_init_script(init_script)
         page = ctx.new_page()
         asked: list[str] = []
         page.on("request", lambda r: asked.append(r.url.removeprefix(api_url)) if r.url.startswith(api_url) else None)
