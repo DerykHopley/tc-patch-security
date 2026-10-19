@@ -34,3 +34,4 @@ deploy/cloudrun/wizard.env
 
 # The Google Cloud CLI, if its installer was run from scripts/ (the owner's first deploy, 2026-10-19)
 scripts/google-cloud-sdk/
+scripts/google-cloud-cli-*.tar.gz
