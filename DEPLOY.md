@@ -68,7 +68,7 @@ export PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(pro
 ```
 
 - The budget emails the billing account's admins at 50 cents and at $1. It alerts; it doesn't stop anything.
-- The budget's currency must be the billing account's own: an account opened in Germany bills in EUR, and `1USD` then fails with `INVALID_ARGUMENT` (the owner's first deploy, 2026-10-19; *unverified* that the currency was the cause). Use `--budget-amount=1EUR` there; `gcloud billing accounts describe <ACCOUNT_ID> --format='value(currencyCode)'` says which.
+- The budget's currency must be the billing account's own: an account opened in Germany bills in EUR, and `1USD` then fails with `INVALID_ARGUMENT` (*checked* on the owner's first deploy, 2026-10-19: `1USD` failed, `1EUR` worked). Use `--budget-amount=1EUR` there; `gcloud billing accounts describe <ACCOUNT_ID> --format='value(currencyCode)'` says which.
 - If `budgets create` fails, set the same budget in the console: Billing → Budgets & alerts.
 
 ## 2. The service account
