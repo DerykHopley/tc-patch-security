@@ -158,6 +158,49 @@ def test_b50_5_delivery_shows_the_last_three_and_links_to_the_dashboard(open_as,
                            " return r && r.top >= 0 && r.top < 120 }")
 
 
+# --- B56: the card stays in view when the charts draw after the alerts are in ------------------------------------
+
+# A chart sizes itself to its card (a ResizeObserver, charts.tsx useWidth), then draws: it grows from ~80px to
+# ~260px. Here every chart hears its size 50 ms late, so it draws just after the alerts are in and the card is in
+# view: the order CI's slower runner sometimes took. Before the fix, 20, 50 and 100 ms each failed every run in both
+# browsers (0 ms and 200 ms passed: checked, why 200 ms passes is unverified). The delay is in the page, not the test.
+CHARTS_DRAW_LATE = """(() => {
+  const Native = window.ResizeObserver;
+  window.ResizeObserver = class extends Native {
+    constructor(callback) {
+      super((entries, observer) => {
+        if (entries.some((e) => e.target.closest('.chart'))) setTimeout(() => callback(entries, observer), 50);
+        else callback(entries, observer);
+      });
+    }
+  };
+})()"""
+
+# Once every chart has drawn: where the card's top is two frames later (what a person sees, not a settled end).
+CARD_TOP_AFTER_THE_CHARTS = """() => new Promise((done) => {
+  const drawn = () => [...document.querySelectorAll('.dash-main .chart')].every((c) => c.querySelector('svg'));
+  const look = () => drawn()
+    ? requestAnimationFrame(() => requestAnimationFrame(() =>
+        done(document.getElementById('recent-alerts').getBoundingClientRect().top)))
+    : requestAnimationFrame(look);
+  look();
+})"""
+
+
+def test_b56_recent_alerts_stays_in_view_when_the_charts_draw_late(open_as, api_url):
+    """At 1440px Recent alerts heads the right column, the page's tallest, so the charts growing on the left leave
+    the page's height alone (keepInView watched only that) while the browser's scroll anchoring keeps a chart in
+    place and scrolls the card off the top. CI's B50.5 failures, 6 runs (B56)."""
+    def late(ctx: BrowserContext) -> None:
+        ctx.route(f"{api_url}/alerts", lambda route: route.fulfill(json={"alerts": [DIGEST] * 20}))
+        ctx.add_init_script(CHARTS_DRAW_LATE)
+    page = open_as(width=DESKTOP, setup=late)
+    card(page, "Delivery").get_by_role("link", name="All recent alerts on the dashboard").click()
+    expect(page.locator("section#recent-alerts .alert-log > li")).to_have_count(20)
+    top = page.evaluate(CARD_TOP_AFTER_THE_CHARTS)
+    assert 0 <= top < 120, f"Recent alerts' top at {top:.0f}px once the charts drew"
+
+
 # --- B50.6: Start over, its own warning card at the end of "Yours" -------------------------------------------------
 
 @pytest.mark.parametrize("width, scheme", SIZES)
