@@ -79,9 +79,13 @@ test('B19.5 the schedule line: paused, next due, or in live mode only', () => {
     'Every 6 hours, in live mode. The snapshot never changes.')
 })
 
-test('BR.9 another user sees the owner\'s schedule, read-only', () => {
-  assert.equal(ownersSchedule({ hours: 6, paused: false, next_due: null }),
-    "The owner's schedule: every 6 hours. Only the owner can change or pause it.")
-  assert.equal(ownersSchedule({ hours: 1, paused: true, next_due: null }),
-    "The owner's schedule: every hour, paused. Only the owner can change or pause it.")
+test('B48.20 another user sees one schedule line on their Alerts card (was BR.9\'s read-only schedule)', () => {
+  assert.equal(ownersSchedule({ hours: 6, paused: false, next_due: null }, 'live'),
+    'Patch checks for new CVEs every 6 hours (set by the owner).')
+  assert.equal(ownersSchedule({ hours: 1, paused: false, next_due: null }, 'live'),
+    'Patch checks for new CVEs every hour (set by the owner).')
+  assert.equal(ownersSchedule({ hours: 6, paused: true, next_due: null }, 'live'),
+    "Patch's checks for new CVEs are paused (set by the owner).")
+  assert.equal(ownersSchedule({ hours: 6, paused: false, next_due: null }, 'snapshot'),
+    'Patch reads a snapshot that never changes, so it checks for no new CVEs (set by the owner).')
 })

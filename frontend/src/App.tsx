@@ -11,6 +11,7 @@ import { usePatch } from './chat/usePatch.ts'
 import { Brand } from './components/Brand.tsx'
 import { BellIcon, ChatIcon, ChevronIcon, CodeIcon, DashboardIcon, InfoIcon, ListIcon, MoonIcon, SunIcon } from './components/Icons.tsx'
 import { Robot } from './components/Robot.tsx'
+import { ProfileContext, useProfileState } from './components/Profile.tsx'
 import { UserMenu, type Account } from './components/UserMenu.tsx'
 import { Landing } from './landing/Landing.tsx'
 import { CvePage } from './pages/CvePage.tsx'
@@ -64,6 +65,7 @@ export default function App({ account }: { account?: Account } = {}) {
   const [examples, setExamples] = useState<Example[]>([])
   const patch = usePatch(chat, chatOpen) // one mood and one animation for the button and the chat header
   const patchButton = useRef<HTMLButtonElement>(null)
+  const profile = useProfileState() // B48: the user menu and Settings' Profile card share it
 
   // After the Dev page saves a model choice, the snapshot card shows the new model.
   const refreshHealth = useCallback(() => {
@@ -132,6 +134,7 @@ export default function App({ account }: { account?: Account } = {}) {
   const dark = theme === 'dark'
 
   return (
+    <ProfileContext.Provider value={profile}>
     <div className={`app${collapsed ? ' collapsed' : ''}${layout.docked ? ' docked' : ''}`}>
       <aside className="sidenav" aria-label="Main">
         <Brand />
@@ -307,5 +310,6 @@ export default function App({ account }: { account?: Account } = {}) {
         />
       )}
     </div>
+    </ProfileContext.Provider>
   )
 }

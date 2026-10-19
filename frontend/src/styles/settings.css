@@ -37,8 +37,65 @@
   min-width: 0;
 }
 
-/* ≤ 900px: one column of cards (DESIGN.md §4.2); on Settings the left column, then the right. */
+/* B48 (#97): Settings in two parts, "Yours" and "This Patch" (the owner's), each a heading on the page background and
+   its own packed columns. */
+.settings-part {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.settings-part + .settings-part {
+  margin-top: 1rem;
+}
+
+.part-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.part-head h2 {
+  font-size: 1.3rem;
+  color: var(--text);
+}
+
+/* "This Patch": its right column (Requests first) comes first in the DOM, so a phone shows Requests first and an
+   alert's /settings#requests lands on it; over 900px it sits on the right. */
+.patch-layout > .column-right {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.patch-layout > .column-left {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+/* Anyone but the owner: their alerts show in Patch only (§5.7 edge rule: --text, a 3px edge) */
+.in-patch-note {
+  margin: 0.3rem 0 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-input);
+  background: var(--nested-fill);
+  color: var(--text);
+}
+
+.profile-row input {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+/* ≤ 900px: one column of cards (DESIGN.md §4.2); on Settings the left column, then the right ("This Patch": the
+   column with Requests first). */
 @media (max-width: 900px) {
+  .patch-layout > .column-right,
+  .patch-layout > .column-left {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
   .settings-grid,
   .settings-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -62,7 +119,15 @@
   margin-bottom: 0.3rem;
 }
 
-.settings-card h3 {
+/* A card's title is h2, or h3 on Settings under its parts' headings (B48): the same look either way */
+.card-head .card-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Headings inside a card (Recent alerts, Last 20 runs): h3 on the Dev page, h4 on Settings */
+.settings-card :is(h3, h4):not(.card-title) {
   margin: 1rem 0 0.4rem;
   font-family: var(--font-display);
   font-size: 0.95rem;
@@ -323,7 +388,7 @@
   border-radius: var(--radius-nested);
 }
 
-.settings-card .danger-zone h3 {
+.settings-card .danger-zone :is(h3, h4) {
   margin: 0 0 0.2rem;
 }
 

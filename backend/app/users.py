@@ -62,9 +62,16 @@ class Users:
             raise ValueError(f"not a user id: {user_id!r}")
         with self._lock:
             if user_id not in self._states:
-                self._states[user_id] = State(None, self.k, self.defaults, self.dev_defaults, store=self.store,
-                                              key=f"{user_id}.json")
+                self._states[user_id] = State(None, self.k, self._defaults_for(user_id), self.dev_defaults,
+                                              store=self.store, key=f"{user_id}.json")
             return self._states[user_id]
+
+    def _defaults_for(self, user_id: str):
+        """The owner's defaults tick every channel set up; anyone else's tick none (B48, #97): their alerts show in
+        Patch only, and the channels are the owner's."""
+        if user_id == self.owner or self.defaults is None:
+            return self.defaults
+        return self.defaults.model_copy(update={"alerts": self.defaults.alerts.model_copy(update={"channels": []})})
 
     def adopt_default(self) -> bool:
         """Sign-in on (B31, #78): the owner adopts the default user's state, once. Everything set up while sign-in was
@@ -131,8 +138,8 @@ class Users:
         for every State."""
         with self._lock:
             self.defaults = defaults
-            for s in self._states.values():
-                s.defaults = defaults
+            for user_id, s in self._states.items():
+                s.defaults = self._defaults_for(user_id)
 
     def set_knowledge(self, knowledge) -> None:
         """A new live version (Deps.sync): every State resolves products and checks versions with it."""

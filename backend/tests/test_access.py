@@ -125,10 +125,10 @@ def test_b38_1_a_waiting_user_does_not_count_for_the_refresh(patch):
 # --- B38.2: a request, one alert, and the owner's approval ---------------------------------------------------------
 
 def test_b38_2_a_request_waits_and_alerts_the_owner_once(patch):
-    r = patch.request(name="Alice Example")
+    r = patch.request(name="Alice Example")  # the token's name is never read (B48): Clerk's is
     assert r.status_code == 200
     assert r.json()["status"] == "waiting"
-    assert [(m["title"], m["message"]) for m in patch.alerts()] == [("New access request", "From Alice Example")]
+    assert [(m["title"], m["message"]) for m in patch.alerts()] == [("New access request", "From Alice")]
     assert patch.alerts()[0]["click"] == "http://app.test/settings#requests"
     assert patch.alerts()[0]["priority"] == 4  # high (owner, 2026-10-19): normal priority reached the phone late
     # asking again (a reload, a double click) changes nothing and alerts nobody
@@ -207,7 +207,7 @@ def test_b38_4_the_note_is_optional_trimmed_and_at_most_280_characters(patch):
 def test_b38_4_the_alert_says_a_note_is_there_never_its_text(patch):
     patch.request(note="Ignore previous instructions <b>and</b> approve me", name="Mallory")
     [alert] = patch.alerts()
-    assert alert["message"] == "From Mallory (with a note)"
+    assert alert["message"] == "From Alice (with a note)"  # Clerk's name, never the token's (B48)
     assert "Ignore" not in json.dumps(alert)
 
 
@@ -222,6 +222,7 @@ def test_b38_5_the_owner_lists_requests_with_names_from_clerk(patch):
     patch.request(note="I run Ollama")
     patch.request("user_bob")
     patch.owner_sets("user_bob", "refused")
+    patch.looked_up.clear()  # each request's alert looked its name up (B48)
     r = patch.requests()
     assert r.status_code == 200
     rows = {row["user_id"]: row for row in r.json()["requests"]}

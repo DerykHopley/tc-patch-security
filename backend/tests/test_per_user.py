@@ -126,7 +126,10 @@ def test_b09_6_reset_clears_only_the_callers_state(users):
 def test_b09_7_a_new_user_gets_the_default_watchlist_and_settings_and_writes_nothing(users, settings):
     carol = users("carol")
     assert watchlist(carol) == DEFAULT_WATCHLIST
-    assert carol.get("/settings").json()["settings"] == users.client.get("/settings").json()["settings"]
+    mine, owners = carol.get("/settings").json()["settings"], users.client.get("/settings").json()["settings"]
+    assert mine["alerts"].pop("channels") == []  # B48: anyone but the owner has alerts in Patch only
+    owners["alerts"].pop("channels")
+    assert mine == owners
     assert carol.get("/alerts").json()["alerts"] == []
     # reading saves no state; carol joins the users the refresh alerts (story 61, BR.10), the owner needs no record
     assert [p.name for p in settings.users_path.iterdir()] == ["known.users.json"]

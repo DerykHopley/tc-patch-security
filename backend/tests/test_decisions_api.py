@@ -145,7 +145,7 @@ def test_a16b_6_every_change_is_appended_with_who_and_when(client):
     assert [(h["status"], h["note"] or h["reason"]) for h in history] == [
         ("fixed", "Upgraded"), ("open", "Rolled back"), ("accepted", "Behind our VPN; vendor has no fix")]
     for h in history:
-        assert h["decided_by"] == "owner" and h["via"] == "page"
+        assert h["decided_by"] == "you" and h["via"] == "page"
         assert h["decided_at"][:4] >= "2026" and "T" in h["decided_at"]  # date and time, UTC
     assert history[0]["decided_at"] <= history[-1]["decided_at"]
 
@@ -246,7 +246,7 @@ def test_a16b_8_not_affected_from_the_chat_needs_a_justification_and_is_recorded
     proposals.approve(deps, rec.result["proposal_id"])  # you approve Patch's proposal (B21)
     h = deps.state.read().decision(FIXABLE)
     assert (h["status"], h["justification"], h["via"], h["decided_by"]) == (
-        "not_affected", "component_not_present", "chat", "owner")
+        "not_affected", "component_not_present", "chat", "you")
 
 
 def test_a16b_8_patch_explains_a_no_fix_cve_and_only_suggests_accepting(client):

@@ -264,7 +264,7 @@ export interface Decision {
   review_date: string | null // accepted
   compensating_control: string | null // accepted, optional
   decided_at: string | null // ISO date and time (UTC); null for a status saved before decision records
-  decided_by: string | null // "owner" until there are users
+  decided_by: string | null // the display name when the record was made, else "you" (B48; "owner" on older records)
   via: 'page' | 'chat' | null
   proposal?: string // the proposal you approved, for a change Patch proposed in the chat (B21)
   sources?: ProposalSource[] // what that proposal cited (B22)
@@ -651,6 +651,7 @@ export interface SettingsReply {
   alert_tz?: string // the time zone of quiet hours (ALERT_TZ or Settings, B04, B26)
   schedule?: ScheduleStatus // the owner's schedule, with `yours` (BR.9)
   server?: ServerStatus | null // B26: the owner's server settings; null for anyone else
+  owner?: boolean // B48: the caller is the owner, so Settings shows "This Patch" too
 }
 
 // --- B26: what the owner sets on Settings instead of .env. The environment wins when it sets one.
@@ -744,6 +745,9 @@ export interface TestAlertReply {
 }
 
 export const getSettings = () => request<SettingsReply>('/settings')
+// B48 (#77): your profile, anonymous by default: an optional display name, in your own state
+export const getProfile = () => request<{ name: string | null }>('/profile')
+export const saveProfile = (name: string | null) => request<{ name: string | null }>('/profile', json('PUT', { name }))
 export const saveSettings = (s: AppSettings) => request<{ settings: AppSettings }>('/settings', json('PUT', s))
 export const saveServerSettings = (u: ServerUpdate) => request<ServerReply>('/settings/server', json('PUT', u))
 export const alertsLog = () => request<{ alerts: AlertLogEntry[] }>('/alerts')
