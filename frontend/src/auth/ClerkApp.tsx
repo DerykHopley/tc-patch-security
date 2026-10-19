@@ -102,8 +102,8 @@ function SignedInApp() {
     })),
     createExternalAccount: (params) => createExternalAccount(params),
   } : null, [user, createExternalAccount, destroy])
-  const email = user?.primaryEmailAddress?.emailAddress ?? null
-  const account = { name: user?.fullName?.trim() || email || user?.id || 'Signed in', email, onSignOut: () => signOut() }
+  // B48 (#77): no name or email from Clerk: the menu shows the user's own display name from their profile, if any
+  const account = { onSignOut: () => signOut() }
   return (
     <LinkedAccountsContext.Provider value={linked}>
       <AccessGate signIn onSignOut={() => signOut()}>

@@ -91,11 +91,11 @@ def test_b21_3_approving_a_status_proposal_records_the_decision_with_who_and_whe
     r = client.post(f"/proposals/{p['proposal_id']}/approve")
     assert r.status_code == 200, r.text
     done = r.json()
-    assert (done["state"], done["approved_by"]) == ("approved", "owner") and done["approved_at"]
+    assert (done["state"], done["approved_by"]) == ("approved", "you") and done["approved_at"]
     assert done["message"] == f"Marked {CVE} as fixed."
     assert deps.state.read().statuses == {CVE: "fixed"}
     d = deps.state.read().decision(CVE)
-    assert (d["status"], d["via"], d["decided_by"], d["proposal"]) == ("fixed", "chat", "owner", p["proposal_id"])
+    assert (d["status"], d["via"], d["decided_by"], d["proposal"]) == ("fixed", "chat", "you", p["proposal_id"])
     assert client.get(f"/proposals/{p['proposal_id']}").json() == done
 
 

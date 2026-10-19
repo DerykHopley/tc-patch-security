@@ -1,5 +1,7 @@
 """Browser check (seam 3) for the Settings page's layout: two packed columns under the Watchlist, and Delivery's
-setup blocks folded. Check ids: SL.n (the owner's decision of 2026-10-16, DECISIONS.md).
+setup blocks folded. Check ids: SL.n (the owner's decision of 2026-10-16, DECISIONS.md). Since B48 (#97) the page has
+two parts, "Yours" and "This Patch" (the owner's), each with its own packed columns (test_settings_parts.py checks the
+parts themselves).
 
 The snapshot pair runs with sign-in off, so the one local user is the owner and sees Delivery's setup blocks.
 Expected values come from docs/design/DESIGN.md §5.7, not from the CSS.
@@ -13,9 +15,13 @@ from test_shell import DESKTOP, PHONE, contrast, no_sideways_scroll
 from reduced_motion import scene, still
 
 WIDE = 1440  # the width the owner's comparison was measured at
-LEFT = ["Alerts", "Refresh runs", "Delivery"]
-RIGHT = ["Patch's answers", "Priority and due dates", "Data"]
-ORDER = ["Watchlist", *LEFT, *RIGHT]  # reading order = DOM order = Tab order
+# B48: "Yours" (Connected accounts needs a real Clerk user: not here) and "This Patch" (Requests needs sign-in on: not
+# here either). This Patch's right column comes first in the DOM, so Requests leads it when there is one.
+LEFT = ["Profile", "Alerts"]
+RIGHT = ["Patch's answers", "Priority and due dates", "Demo data"]
+PATCH_RIGHT = ["Refresh runs", "Data"]
+PATCH_LEFT = ["Delivery"]
+ORDER = ["Watchlist", *LEFT, *RIGHT, *PATCH_RIGHT, *PATCH_LEFT]  # reading order = DOM order = Tab order
 GAP = 1.2 * 16  # the gap between cards (DESIGN.md §4.1)
 
 
@@ -23,10 +29,19 @@ def cards(page: Page) -> list[tuple[str, dict]]:
     """Each Settings card's title and box, in DOM order."""
     return page.evaluate("""[...document.querySelectorAll('main section.card')].map(c => {
         const r = c.getBoundingClientRect();
-        return [c.querySelector('h2').textContent, {x: r.left, y: r.top + scrollY, width: r.width, height: r.height}] })""")
+        return [c.querySelector('.card-title').textContent, {x: r.left, y: r.top + scrollY, width: r.width, height: r.height}] })""")
 
 
 # --- SL.1: two packed columns under the Watchlist ---------------------------------------------------------------------
+
+def packed(box: dict, column: list[str], top: float) -> None:
+    """Each card starts one gap under the one above (or under `top`), never lower: no holes."""
+    xs = {round(box[t]["x"]) for t in column}
+    assert len(xs) == 1, (column, xs)  # one column each
+    for title in column:
+        assert abs(box[title]["y"] - (top + GAP)) <= 2, title  # rem rounding
+        top = box[title]["y"] + box[title]["height"]
+
 
 def test_sl_1_two_packed_columns_under_a_full_width_watchlist(open_settings):
     page = open_settings(width=WIDE)
@@ -35,15 +50,16 @@ def test_sl_1_two_packed_columns_under_a_full_width_watchlist(open_settings):
     box = dict(boxes)
     watch = box["Watchlist"]
     for column in (LEFT, RIGHT):
-        xs = {round(box[t]["x"]) for t in column}
-        assert len(xs) == 1, (column, xs)  # one column each
-        top = watch["y"] + watch["height"]
-        for title in column:  # packed: each card starts one gap under the one above, never lower
-            assert abs(box[title]["y"] - (top + GAP)) <= 2, title  # rem rounding
-            top = box[title]["y"] + box[title]["height"]
+        packed(box, column, watch["y"] + watch["height"])
     assert box["Alerts"]["x"] < box["Patch's answers"]["x"]
     left, right = box["Alerts"], box["Patch's answers"]
     assert abs(watch["x"] - left["x"]) <= 1 and abs(watch["x"] + watch["width"] - right["x"] - right["width"]) <= 1
+    # This Patch: its own two columns, level at the top, the right one (Requests first, B48) on the right
+    top = min(box["Delivery"]["y"], box["Refresh runs"]["y"]) - GAP
+    packed(box, PATCH_LEFT, top)
+    packed(box, PATCH_RIGHT, top)
+    assert abs(box["Delivery"]["x"] - left["x"]) <= 1 and abs(box["Refresh runs"]["x"] - right["x"]) <= 1
+    assert box["Delivery"]["y"] > max(box[t]["y"] + box[t]["height"] for t in LEFT + RIGHT)  # under "Yours"
 
 
 @pytest.mark.parametrize("scheme", ["light", "dark"])
@@ -65,7 +81,7 @@ def test_sl_2_tab_order_is_the_reading_order(open_settings):
     visited: list[str] = []
     for _ in range(400):
         title = page.evaluate("""(() => { const c = document.activeElement.closest('main section.card');
-            return c ? c.querySelector('h2').textContent : null })()""")
+            return c ? c.querySelector('.card-title').textContent : null })()""")
         if title and (not visited or visited[-1] != title):
             visited.append(title)
         if title is None and visited:

@@ -1,13 +1,15 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useContext, useEffect, useId, useRef, useState } from 'react'
+import { menuLabel } from '../profile.ts'
 import { initials } from '../userMenu.ts'
+import { PersonIcon } from './Icons.tsx'
+import { ProfileContext } from './Profile.tsx'
 
-// The user menu (B10, DESIGN.md §5.13): with sign-in on, a round button in the top bar with the user's initial; it
-// opens a small card with their name and email and "Sign out". Esc or a click outside closes it, and the focus goes
-// back to the button. Not shown with sign-in off.
+// The user menu (B10, DESIGN.md §5.13): with sign-in on, a round button in the top bar; it opens a small card with
+// "Sign out". Esc or a click outside closes it, and the focus goes back to the button. Not shown with sign-in off.
+// B48 (#77): anonymous by default: a person icon and "Your account". With a display name from the user's profile,
+// their initials and the name. Never Clerk's name or email.
 
 export interface Account {
-  name: string
-  email: string | null
   onSignOut: () => Promise<void> | void
 }
 
@@ -17,6 +19,7 @@ export function UserMenu({ account }: { account: Account }) {
   const button = useRef<HTMLButtonElement>(null)
   const box = useRef<HTMLDivElement>(null)
   const menuId = useId()
+  const { name } = useContext(ProfileContext)
 
   useEffect(() => {
     if (!open) return
@@ -55,16 +58,16 @@ export function UserMenu({ account }: { account: Account }) {
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls={menuId}
-        aria-label={`Your account: ${account.name}`}
-        title={account.name}
+        aria-label={menuLabel(name)}
+        title={menuLabel(name)}
         onClick={() => setOpen(!open)}
       >
-        <span aria-hidden="true">{initials(account.name)}</span>
+        {name ? <span aria-hidden="true">{initials(name)}</span> : <PersonIcon />}
       </button>
       {open && (
         <section className="user-card" id={menuId} aria-label="Your account">
-          <strong className="user-name">{account.name}</strong>
-          {account.email && account.email !== account.name && <span className="user-email">{account.email}</span>}
+          <strong className="user-name">{name ?? 'Your account'}</strong>
+          {!name && <span className="user-email">No display name. You can add one on Settings, under Profile.</span>}
           <button type="button" className="user-signout" onClick={signOut} disabled={leaving} aria-busy={leaving}>
             {leaving ? 'Signing out…' : 'Sign out'}
           </button>

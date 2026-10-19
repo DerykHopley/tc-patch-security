@@ -18,6 +18,10 @@ export const ChatIcon = () => (
 export const ShieldIcon = () => (
   <svg {...base}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></svg>
 );
+// B48: the user menu's button while the user has no display name (anonymous by default, #77)
+export const PersonIcon = () => (
+  <svg {...base}><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+);
 export const ChevronIcon = () => (
   <svg {...base}><path d="m15 18-6-6 6-6" /></svg>
 );

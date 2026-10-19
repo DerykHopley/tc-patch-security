@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
 from app import access, agent, card_actions, chat_turn, dashboard, page_context, proposals, refresh
 from app.alerts import alert_counts
 from app.app_settings import AppSettings, ResetRequest, TestAlertRequest
-from app.auth import SIGNED_OUT, SignedOut, Verifier, current_user, is_owner, owner_only, user_name
+from app.auth import SIGNED_OUT, SignedOut, Verifier, current_user, is_owner, owner_only
 from app.config import Settings
 from app.cve_filters import CveView, InvalidFilter
 from app.deps import Deps, build_deps
@@ -29,6 +29,7 @@ from app.live_data import MixedFeeds
 from app.server_settings import ServerUpdate, effective as server_effective, status as server_status
 from app.server_settings import updated as server_updated
 from app.one_port import one_port
+from app.profile import NAME_MAX, ProfileUpdate, clean_name
 from app.rate_limits import ChatLimits, refused
 from app.proposals import ProposalEdit, ProposalError
 from app.refresh import CheckReply
@@ -194,11 +195,11 @@ def create_app(deps: Deps | None = None) -> FastAPI:
             log.exception("Loading the new settings or live version failed")
         return await call_next(request)
 
-    def you(request: Request, user: Annotated[str, Depends(current_user)]) -> Deps:
-        """The parts acting for the calling user (B09): their state, their id, their name for decision records
-        (B10). Every route that reads or writes a user's state takes this; the live data and the refresh are
+    def you(user: Annotated[str, Depends(current_user)]) -> Deps:
+        """The parts acting for the calling user (B09): their state (their profile's name for decision records, B48)
+        and their id. Every route that reads or writes a user's state takes this; the live data and the refresh are
         shared."""
-        return deps.for_user(user, user_name(request))
+        return deps.for_user(user)
 
     You = Annotated[Deps, Depends(you)]
 
@@ -245,7 +246,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return own_access(user)
 
     @asking.post("/access/request")
-    def request_access(body: AccessRequest, request: Request, user: Annotated[str, Depends(current_user)]):
+    def request_access(body: AccessRequest, user: Annotated[str, Depends(current_user)]):
         """Ask the owner to be let in. A new request alerts the owner once, on their channels; the alert says only
         that a note is there, never its text (a stranger's words stay off the owner's lock screen). Asking again
         changes nothing: a waiting request stays as it was, a refused one stays refused, with no new alert."""
@@ -256,9 +257,21 @@ def create_app(deps: Deps | None = None) -> FastAPI:
             return own_access(user)
         entry, new = deps.users.access.request(user, note)
         if new:
-            alert_owner(user_name(request) or user, bool(entry["note"]))
+            alert_owner(requester_name(user), bool(entry["note"]))
             deps.users.access.mark_alerted(user)
         return own_access(user)
+
+    def requester_name(user: str) -> str:
+        """The name in a request's alert (B48): Clerk's, looked up as the Requests card does (CLERK_SECRET_KEY), else
+        the user id. Never the session token's claims, never anything the requester typed."""
+        if deps.people is not None:
+            try:
+                name = deps.people([user]).get(user, {}).get("name")
+                if name:
+                    return name
+            except Exception:
+                log.exception("Looking up a request's name in Clerk failed")
+        return user
 
     def alert_owner(name: str, with_note: bool) -> None:
         """One alert per request, on the owner's ticked channels, sent at once (quiet hours hold CVE alerts only).
@@ -441,6 +454,20 @@ def create_app(deps: Deps | None = None) -> FastAPI:
                              "ecosystem": osv["packages"][0]["ecosystem"] if osv["packages"] else None})
         return {"watchlist": list(stack.watchlist), "products": products}
 
+    # --- Your profile (B48, #77): anonymous by default, an optional display name in the caller's own state
+
+    @api.get("/profile")
+    def get_profile(d: You):
+        return {"name": d.state.profile_name()}
+
+    @api.put("/profile")
+    def put_profile(body: ProfileUpdate, d: You):
+        """Set, change or remove (null or empty) the caller's display name. Plain text, one line, at most NAME_MAX."""
+        name = clean_name(body.name)
+        if name and len(name) > NAME_MAX:
+            raise InputError(f"A display name can be at most {NAME_MAX} characters.", "name_too_long")
+        return {"name": d.state.save_profile_name(name)}
+
     @api.get("/watchlist")
     def get_watchlist(d: You):
         return watchlist_body(d)
@@ -465,7 +492,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     def get_settings(d: You):
         return {"settings": d.state.settings().model_dump(), "schedule": schedule_status(d.user_id),
                 "channels": channel_status(deps.settings, deps.transports), "alert_tz": deps.settings.alert_tz,
-                "server": server_part(d.user_id)}
+                "server": server_part(d.user_id), "owner": d.user_id == deps.settings.owner}
 
     @api.put("/settings/server", dependencies=[Depends(owner_only)])
     def put_server_settings(body: ServerUpdate):

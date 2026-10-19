@@ -33,9 +33,8 @@ class SignedOut(Exception):
 
 @dataclass(frozen=True)
 class SignedIn:
-    """A verified session: the user id (Clerk's `sub`) and a name for decision records."""
+    """A verified session: the user id (Clerk's `sub`), and nothing else from the token (B48)."""
     user_id: str
-    name: str
 
 
 class Verifier:
@@ -60,27 +59,17 @@ class Verifier:
         if not USER_ID.fullmatch(user_id) or claims.get("sts") == "pending":
             log.info("Signed out: a token without a usable user (sub %r, sts %r)", user_id, claims.get("sts"))
             raise SignedOut()
-        # `name` and `email`: custom session claims set on the Clerk instance (docs/SOURCE-CHECKS.md, Clerk B10);
-        # without them, the user id
-        name = str(claims.get("name") or "").strip() or str(claims.get("email") or "").strip() or user_id
-        return SignedIn(user_id, name[:80])
+        # The user id only (B48, #77): a `name` or `email` claim set on the Clerk instance is never read, so it can't
+        # reach a record. A name is the user's own choice, in their profile (app.profile)
+        return SignedIn(user_id)
 
 
 def current_user(request: Request) -> str:
-    """The user id. Sign-in off: the default user. On: the verified token's user, or SignedOut (401). The verified
-    user is kept on the request (`request.state.signed_in`) for the decision records' name."""
+    """The user id. Sign-in off: the default user. On: the verified token's user, or SignedOut (401)."""
     verify: Verifier | None = getattr(request.app.state, "verify", None)
     if verify is None:
         return DEFAULT_USER
-    user = verify(request)
-    request.state.signed_in = user
-    return user.user_id
-
-
-def user_name(request: Request) -> str | None:
-    """The signed-in user's name, or None (sign-in off, or a test's fake user)."""
-    user: SignedIn | None = getattr(request.state, "signed_in", None)
-    return user.name if user else None
+    return verify(request).user_id
 
 
 def is_owner(request: Request, user: str) -> bool:

@@ -120,7 +120,8 @@ export function FreshnessCard({ data, asOf, sources, onNavigate, newCves = null 
           {newCves.text} <span aria-hidden="true">→</span>
         </a>
       )}
-      {live && (
+      {/* B48: Refresh runs is the owner's card ("This Patch"): anyone else has no schedule to open */}
+      {live && data.schedule?.yours !== false && (
         <a className="edit-link" href="/settings#schedule" onClick={(e) => followLink(e, onNavigate)}>
           Schedule and refresh runs <span aria-hidden="true">→</span>
         </a>

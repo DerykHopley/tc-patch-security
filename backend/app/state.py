@@ -348,6 +348,15 @@ class State:
         self._update(lambda data: data.update(server=new.model_dump(exclude_none=True)))
         return new
 
+    # --- Your profile (B48, #77): the optional display name. Its own part, so a reset of the demo data keeps it
+
+    def profile_name(self) -> str | None:
+        return (self._load().get("profile") or {}).get("name")
+
+    def save_profile_name(self, name: str | None) -> str | None:
+        self._update(lambda data: data.update(profile={"name": name}))
+        return name
+
     def log_alert(self, entry: dict) -> None:
         self.log_alerts([entry])
 
@@ -475,8 +484,10 @@ class State:
     def reset(self) -> None:
         """Back to the default watchlist, no statuses, default settings (dev choices too) and an empty alerts log.
         This user's state only: the key is deleted, so the next read gives the defaults. The owner's server settings
-        (B26: live mode, the channels' secrets) stay: they set up the app, they aren't demo data."""
-        server = self._load().get("server")
+        (B26: live mode, the channels' secrets) stay: they set up the app, they aren't demo data. So does the
+        profile (B48): a name isn't demo data."""
+        saved = self._load()
+        kept = {part: saved[part] for part in ("server", "profile") if saved.get(part)}
         self.store.delete(self.key)
-        if server:
-            self._update(lambda data: data.update(server=server))
+        if kept:
+            self._update(lambda data: data.update(kept))

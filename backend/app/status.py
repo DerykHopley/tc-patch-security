@@ -29,7 +29,7 @@ FIELDS = {"open": ("note",), "fixed": ("note",), "not_affected": ("justification
 LABELS = {"note": "a note", "justification": "a justification", "reason": "a reason",
           "review_date": "a review date", "compensating_control": "a compensating control"}
 LEGACY_NOTE = "recorded before decision records"
-DECIDED_BY = "owner"  # the default user (sign-in off); a signed-in user is named by Deps.decided_by (B10)
+DECIDED_BY = "you"  # a record made without a display name (B48, #77); Deps.decided_by names the profile
 
 
 def decision(status: str, fields: dict, as_of: str) -> dict:
