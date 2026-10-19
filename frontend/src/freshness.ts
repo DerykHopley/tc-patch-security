@@ -1,6 +1,7 @@
 // The freshness panel's words (B02, DESIGN.md §5.10): when the data was last checked, and the one line Check now
 // leaves behind. Plain functions, so `npm test` checks the words without a browser.
 import type { AlertCounts, CheckReply, DataStatus, Feeds, RefreshCounts, RefreshResult } from './api.ts'
+import { viewToSearch } from './cveView.ts'
 
 const two = (n: number) => String(n).padStart(2, '0')
 
@@ -115,4 +116,13 @@ export function feedsLine(feeds: Feeds): { tone: 'ok' | 'warn'; text: string } {
 /** The freshness card's warning: only in live mode on the fake feeds, and only for the owner (`feeds` is set). */
 export function freshnessFeedsWarning(data: DataStatus): string | null {
   return data.mode === 'live' && data.feeds === 'fake' ? FEEDS_TEXT.fake : null
+}
+
+/** B43: "See the 2 new CVEs" → the CVEs list of the new CVEs you haven't seen yet (B40), any status, so the list
+ *  shows the same number even after you closed one from the list; with the dashboard's product filter, as the tiles.
+ *  Null when nothing is new. */
+export function newCvesLink(count: number, filter: string[]): { text: string; href: string } | null {
+  if (count <= 0) return null
+  const href = `/cves${viewToSearch({ status: 'all', new: true, product: filter.join(',') || undefined })}`
+  return { text: count === 1 ? 'See the new CVE' : `See the ${count} new CVEs`, href }
 }

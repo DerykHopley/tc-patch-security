@@ -150,7 +150,9 @@ def test_a14_14_keyboard_reaches_the_epss_credit_and_the_source_links(open_cves,
                             " return [s.outlineStyle, s.outlineWidth] })()")
     assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
     dash = open_dash()  # the freshness panel's EPSS source link, on the dashboard
-    dash.get_by_role("link", name="Edit watchlist in Settings").focus()
+    summary = dash.get_by_role("region", name="Data freshness").get_by_text("Sources and licences")
+    summary.focus()  # folded since B43: opened by keyboard, then Tab into the sources
+    dash.keyboard.press("Enter")
     seen = []
     for _ in range(40):
         dash.keyboard.press("Tab")

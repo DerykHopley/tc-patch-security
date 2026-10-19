@@ -19,7 +19,7 @@ def chart(page: Page, title: str):
 
 BY_PRODUCT = "Open CVEs by product and severity"
 PER_MONTH = "CVEs per month"
-BY_OWASP = "Open CVEs by OWASP category"
+BY_OWASP = "Open CVEs by OWASP Top 10 (web, 2025)"
 
 
 # --- Open CVEs by product and severity (DESIGN.md §5.4) -----------------------------------------------------------
@@ -74,7 +74,7 @@ def test_a05_3_horizontal_bars_per_owasp_category(open_dash, api_url):
     expect(bars).to_have_count(len(d["by_owasp"]))
     assert card.locator("svg .value-label").all_text_contents() == [str(o["count"]) for o in d["by_owasp"]]
     labels = card.locator("svg .axis-label").all_text_contents()
-    assert all(lab.startswith(o["code"]) for lab, o in zip(labels, d["by_owasp"])), labels  # the code always shows
+    assert labels == [o["code"] for o in d["by_owasp"]], labels  # the code only; the name is in the tooltip (B43)
     boxes = bars.evaluate_all("els => els.map(el => [el.getBBox().x, getComputedStyle(el).fill])")
     assert len({round(b[0]) for b in boxes}) == 1  # every bar starts at the axis
     assert {b[1] for b in boxes} == {"rgb(123, 92, 255)"}
@@ -219,15 +219,16 @@ def test_a05_6_data_freshness_with_date_and_licence_per_source(open_dash, api_ur
     page = open_dash(reduced=True)
     sources = api(api_url, "/dashboard")["freshness"]
     panel = page.get_by_role("region", name="Data freshness")
+    panel.get_by_text("Sources and licences").click()  # folded since B43
     items = panel.get_by_role("listitem")
     expect(items).to_have_count(len(sources))
     for item, s in zip(items.all(), sources):
         expect(item.get_by_role("link", name=s["name"])).to_have_attribute("href", s["url"])
         expect(item).to_contain_text(s["licence"])
         expect(item).to_contain_text(f"retrieved {s['retrieved']}")
-    # Side column: the watchlist (a product filter since A15b), the incidents, recent alerts (B04), freshness.
+    # Side column: recent alerts (B04), freshness, then the incidents (B43); the watchlist filter sits before the tiles.
     titles = page.locator(".dash-side > .card h2").all_inner_texts()
-    assert titles == ["Watchlist", "Latest AI incidents (MITRE ATLAS)", "Recent alerts", "Data freshness"]
+    assert titles == ["Recent alerts", "Data freshness", "Latest AI incidents (MITRE ATLAS)"]
 
 
 # --- Motion (DESIGN.md §7.1) ---------------------------------------------------------------------------------------
@@ -323,7 +324,7 @@ def test_a05_9_light_dark_phone_and_desktop(open_dash, browser_name, width, sche
     assert side and main
     if width == PHONE:  # one column: the side panels drop below the main column
         assert side["y"] > main["y"] + main["height"] - 1
-        assert banner(page).evaluate("el => getComputedStyle(el).flexDirection") == "column"
+        assert banner(page).evaluate("el => getComputedStyle(el).display") == "grid"  # B43: small Patch by the title
     else:
         assert side["x"] > main["x"] + main["width"] - 1
 
@@ -385,8 +386,11 @@ def test_a05_10_keyboard_reaches_banner_bars_tables_and_panels(open_dash):
     assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
     page.keyboard.press("Enter")
     expect(chart(page, BY_PRODUCT).get_by_role("table")).to_be_visible()
-    # The side panels' links are reachable too.
-    link = page.get_by_role("region", name="Data freshness").get_by_role("link").first
+    # The side panels' links are reachable too (the sources are folded since B43: Enter opens them).
+    fresh = page.get_by_role("region", name="Data freshness")
+    fresh.get_by_text("Sources and licences").focus()
+    page.keyboard.press("Enter")
+    link = fresh.get_by_role("link").first
     link.focus()
     expect(link).to_be_focused()
 

@@ -278,10 +278,10 @@ def test_a04b_5_dashboard_keeps_its_other_parts(open_dash):
     expect(page.locator(".hello")).to_be_visible()
     expect(page.locator(".tile")).to_have_count(4)
     titles = page.locator(".dash-main > .card h2").all_inner_texts()
-    assert titles == ["Open CVEs by product and severity", "CVEs per month", "Open CVEs by OWASP category",
+    assert titles == ["Open CVEs by product and severity", "CVEs per month", "Open CVEs by OWASP Top 10 (web, 2025)",
                       "Top 5 open CVEs"]
     side = page.locator(".dash-side > .card h2").all_inner_texts()
-    assert side == ["Watchlist", "Latest AI incidents (MITRE ATLAS)", "Recent alerts", "Data freshness"]  # B04
+    assert side == ["Recent alerts", "Data freshness", "Latest AI incidents (MITRE ATLAS)"]  # B04; B43: the watchlist sits before the tiles, incidents last
 
 
 # --- A04b.6: "Ask about this" over the CVEs page ---------------------------------------------------------------

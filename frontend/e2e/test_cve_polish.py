@@ -2,7 +2,7 @@
 backend/tests/test_cve_polish.py; B44.2 to B44.5 are the unit tests in src/tips.test.ts, src/decisionWho.test.ts and
 src/cveView.test.ts).
 
-Tooltips work by mouse, keyboard and touch (DESIGN.md §5.17): the column headings that need explaining, the OWASP code
+Tooltips work by mouse, keyboard and touch (DESIGN.md §5.18): the column headings that need explaining, the OWASP code
 and the "Possible match" chip. On a phone the filters fold behind "Filters (n on)". The KEV deadline shows once per
 row. Your own decisions say "by you". At 390px and 1440px, light and dark; runs in Firefox and Chromium (run.sh).
 """

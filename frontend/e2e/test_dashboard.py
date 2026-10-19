@@ -236,7 +236,7 @@ def test_a04_11_keyboard_reaches_the_watchlist_filter(open_dash):
     # The filters, row actions and paging moved to the CVEs page (test_cves_page.py keeps A04.11 for them); the
     # watchlist is a filter now (A15b): its chips and the link to Settings.
     page = open_dash()
-    page.get_by_role("link", name="See all CVEs").focus()
+    page.locator(".hello").get_by_role("button", name="Ask Patch").focus()  # B43: the filter comes right after the banner
     seen = []
     for _ in range(40):
         page.keyboard.press("Tab")

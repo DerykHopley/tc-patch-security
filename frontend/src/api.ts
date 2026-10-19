@@ -299,11 +299,13 @@ export interface Dashboard {
     accepted: number // accepted and not yet due for review
     new_30d: number
     new_since: string // the first of those 30 days, YYYY-MM-DD: the tile's link filters on it
+    new_unseen: number // B43: new CVEs you haven't seen yet (B40), any status: "See the N new CVEs →"
   }
   by_product: ProductCounts[] // open CVEs per watched product, in watchlist order
   per_month: { month: string; count: number }[] // all statuses, by publication month (YYYY-MM)
-  by_owasp: { code: string; title: string; count: number }[] // open CVEs per OWASP web category
-  owasp_unmapped: number // open CVEs whose CWE isn't in OWASP's lists
+  by_owasp: { code: string; title: string; count: number }[] // open CVEs per OWASP web category: under each one
+  // their CWEs map to, so the counts can add up to more than the open CVEs (B43, #25)
+  owasp_unmapped: number // open CVEs none of whose CWEs is in OWASP's lists
   latest_incidents: Incident[] // the 5 latest MITRE ATLAS incidents
   freshness: SnapshotSource[] // one per snapshot source
   data: DataStatus // B02: Live or Snapshot, and the last check, for the freshness panel

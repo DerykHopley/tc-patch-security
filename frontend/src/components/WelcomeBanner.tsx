@@ -24,7 +24,7 @@ export function WelcomeBanner({ onAsk, variant }: { onAsk: () => void; variant: 
       <Robot size={110} variant={variant} />
       <div className="hello-body">
         <h2 id="hello-title">{TITLE}</h2>
-        <p>I watch the CVEs in your LLM stack and can explain any of them, or how to defend against them. Just ask.</p>
+        <p>I watch the CVEs on your watchlist and can explain any of them, or how to defend against them. Just ask.</p>
         <button type="submit" onClick={onAsk}>
           Ask Patch
         </button>

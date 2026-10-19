@@ -17,11 +17,14 @@ import '../styles/runs.css' // B19: "Schedule paused"
 
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
 
-export function FreshnessCard({ data, asOf, sources, onNavigate }: {
+// B43: `newCves`, "See the N new CVEs →" while a check has found CVEs you haven't seen (freshness.ts newCvesLink).
+// The sources are folded into "Sources and licences (7)", closed: about 700px of licences used to follow the status.
+export function FreshnessCard({ data, asOf, sources, onNavigate, newCves = null }: {
   data: DataStatus
   asOf: string
   sources: SnapshotSource[]
   onNavigate: (href: string) => void
+  newCves?: { text: string; href: string } | null
 }) {
   const [checking, setChecking] = useState(false)
   const [resumed, setResumed] = useState(false)
@@ -112,26 +115,34 @@ export function FreshnessCard({ data, asOf, sources, onNavigate }: {
       )}
       {/* <output> is a status region; it is always in the page, so a screen reader hears the line when it appears. */}
       <output className={`check-line${line ? ` ${line.tone}` : ''}`}>{line?.text}</output>
+      {newCves && (
+        <a className="edit-link new-cves-link" href={newCves.href} onClick={(e) => followLink(e, onNavigate)}>
+          {newCves.text} <span aria-hidden="true">→</span>
+        </a>
+      )}
       {live && (
         <a className="edit-link" href="/settings#schedule" onClick={(e) => followLink(e, onNavigate)}>
           Schedule and refresh runs <span aria-hidden="true">→</span>
         </a>
       )}
-      <ul className="side-list">
-        {sources.map((s) => (
-          <li key={s.id}>
-            <a href={s.url} target="_blank" rel="noreferrer">
-              {s.name}
-            </a>
-            <span className="meta">
-              {s.count.toLocaleString('en')} items · {s.licence} ·{' '}
-              {s.as_of && s.as_of !== s.retrieved ? `as of ${s.as_of}, ` : ''}retrieved {s.retrieved}
-            </span>
-            <span className="meta attribution">{s.attribution}</span>
-            {s.notice && <span className="meta freshness-notice">{s.notice}</span>}
-          </li>
-        ))}
-      </ul>
+      <details className="sources">
+        <summary>Sources and licences ({sources.length})</summary>
+        <ul className="side-list">
+          {sources.map((s) => (
+            <li key={s.id}>
+              <a href={s.url} target="_blank" rel="noreferrer">
+                {s.name}
+              </a>
+              <span className="meta">
+                {s.count.toLocaleString('en')} items · {s.licence} ·{' '}
+                {s.as_of && s.as_of !== s.retrieved ? `as of ${s.as_of}, ` : ''}retrieved {s.retrieved}
+              </span>
+              <span className="meta attribution">{s.attribution}</span>
+              {s.notice && <span className="meta freshness-notice">{s.notice}</span>}
+            </li>
+          ))}
+        </ul>
+      </details>
     </section>
   )
 }
