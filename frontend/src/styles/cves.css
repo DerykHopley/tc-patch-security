@@ -53,6 +53,11 @@
   font-size: 0.8rem;
 }
 
+/* "Mark all as seen" (B40): a plain pill (DESIGN.md §5.3) after the New box, shown while something is new. */
+.filters .mark-seen {
+  white-space: nowrap;
+}
+
 .filter-chip button {
   display: grid;
   place-items: center;
@@ -610,7 +615,7 @@ table.cves tr.selected > td:first-child {
   white-space: nowrap;
 }
 
-/* "New" (B05): new since the last check. --text on --accent-soft with an --ok edge (the §5.7 edge rule): the word
+/* "New" (B05, B40): a check found it and you haven't opened it yet. --text on --accent-soft with an --ok edge (the §5.7 edge rule): the word
    says it, so colour is never the only cue. */
 .chip.new-chip {
   margin-left: 0.35rem;

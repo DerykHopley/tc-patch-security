@@ -182,6 +182,14 @@ _Avoid_: summary, batch
 An alert about a due date, not about something a check found: due soon or overdue. A user's first check sends none (B34); overdue repeats weekly.
 _Avoid_: nag, follow-up
 
+**New**:
+A CVE a refresh run found that wasn't in the data before, and that you haven't seen yet: you haven't opened its page or pressed "Mark all as seen". Each user's own. A later check that finds nothing leaves it new (B40). Rescored or newly-KEV CVEs aren't new. The CVEs list's "New" chip and "New, not seen yet" filter.
+_Avoid_: new since last check (B05's rule, until B40), unread, fresh
+
+**Seen**:
+You opened the CVE's page, or pressed "Mark all as seen" on the CVEs list. A row shown on the dashboard or in the list isn't seen.
+_Avoid_: read, viewed, acknowledged
+
 **First check**:
 A user's first refresh run that writes data, with no earlier run in their state. It alerts only what it found, never reminders.
 

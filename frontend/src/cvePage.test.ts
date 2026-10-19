@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { CveRow } from './api.ts'
-import { rangeWords, showsPriority } from './cvePage.ts'
+import { marksSeen, rangeWords, showsPriority } from './cvePage.ts'
 
 const range = (introduced: string | null, fixed: string | null, last_affected: string | null = null) =>
   ({ introduced, fixed, last_affected })
@@ -27,4 +27,12 @@ test('B35.8 B33 priority and due date show for open CVEs only: the backend\'s cl
   assert.equal(showsPriority(row('accepted', false)), false)
   assert.equal(showsPriority(row('fixed', false)), false)
   assert.equal(showsPriority(row('not_affected', false)), false)
+})
+
+const shown = (r: Partial<CveRow> | null) => ({ row: r as CveRow | null })
+
+test('B40.6 opening a CVE page marks it seen only when it is new for you: no write on every page view', () => {
+  assert.equal(marksSeen(shown({ new: true })), true)
+  assert.equal(marksSeen(shown({ new: false })), false)
+  assert.equal(marksSeen(shown(null)), false) // off the watchlist: never in the New list
 })

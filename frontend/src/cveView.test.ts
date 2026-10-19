@@ -64,11 +64,11 @@ const ROUND_TRIPS = [
     words: ['Since 2026-09-14'],
   },
   {
-    url: '?new=1', // B05: new since the last check
+    url: '?new=1', // B05; B40: new and not seen yet
     view: { status: 'open', new: true },
     query: '/cves?new=1&limit=25&offset=0',
     context: { status: 'open', new: true },
-    words: ['New since last check'],
+    words: ['New, not seen yet'],
   },
 ] as const
 
@@ -89,7 +89,7 @@ test('every filter at once keeps one order in the URL, the query and the words',
   assert.equal(viewToSearch(view), url)
   assert.equal(cvesQuery(view, 5, 10), `/cves${url}&limit=5&offset=10`)
   assert.deepEqual(contextWords({ ...viewToContext(view), cve: 'CVE-2025-3248' }, 'Langflow'), [
-    'Langflow', 'Critical or worse', 'Accepted', 'Unknown', 'In KEV', 'Since 2025-01-01', 'New since last check',
+    'Langflow', 'Critical or worse', 'Accepted', 'Unknown', 'In KEV', 'Since 2025-01-01', 'New, not seen yet',
     'CVE-2025-3248',
   ])
 })

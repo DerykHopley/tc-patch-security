@@ -49,10 +49,14 @@ def _upgraded(entry: dict) -> dict:
     return {"kind": "test", "cve": None, "reason": None, "alerts": [], **entry, "channels": [result]}
 
 
-def _new_since_check(data: dict) -> list[str]:
-    """New since last check (B05): what the last check found new, and what partial runs since then found."""
-    saved = data.get("new_since_check", {})
-    return [*saved.get("cves", []), *saved.get("pending", [])]
+def _moved_new(data: dict) -> None:
+    """B40: a state saved before B40 kept B05's "new since last check" (`new_since_check`: the last check's new CVEs
+    in `cves`, the partial runs' since then in `pending`). Both are unseen, so both are "New"; the next write saves
+    the new part (`new_cves`) in its place."""
+    old = data.pop("new_since_check", None)
+    if old is not None and "new_cves" not in data:
+        data["new_cves"] = {"at": old.get("at"),
+                            "cves": list(dict.fromkeys([*old.get("cves", []), *old.get("pending", [])]))}
 
 
 def _default_fields(pid: str) -> dict:
@@ -80,7 +84,7 @@ class YourStack:
     settings: AppSettings  # the saved settings over the defaults
     dev: DevSettings  # the dev panel's saved choices over the defaults
     alerts_log: tuple[Mapping, ...]  # newest first
-    new_since_check: frozenset[str]  # B05: the CVEs your previous check found new (none before a check)
+    new: frozenset[str]  # B40: the CVEs refresh runs found new that you haven't seen yet (none before a check)
     _fields: Mapping[str, Mapping]  # product id → its saved fields
     _history: Mapping[str, tuple[Mapping, ...]]  # CVE id → its decision records, oldest first
 
@@ -137,6 +141,7 @@ class State:
                "history": data.get("history", {})}
         for key, value in data.items():  # keep parts saved by later tickets (settings, alerts log)
             out.setdefault(key, value)
+        _moved_new(out)
         for cve_id, status in out["statuses"].items():  # a status saved before decision records (A16b)
             if not out["history"].get(cve_id):
                 out["history"][cve_id] = [{"status": status, "justification": None, "reason": None,
@@ -178,7 +183,7 @@ class State:
             settings=self._merged_settings(data.get("settings", {})),
             dev=DevSettings.model_validate(self.dev_defaults.model_dump() | data.get("dev", {})),
             alerts_log=_freeze(data.get("alerts_log", [])),
-            new_since_check=frozenset(_new_since_check(data)), _fields=_freeze(data.get("product_settings", {})),
+            new=frozenset(data.get("new_cves", {}).get("cves", ())), _fields=_freeze(data.get("product_settings", {})),
             _history=_freeze(data["history"]))
 
     def fork(self, path: Path) -> "State":
@@ -394,28 +399,44 @@ class State:
         return self._update(change)
 
     def note_new_cves(self, cve_ids: list[str], at: str, complete: bool = True) -> None:
-        """One run's new CVEs (B05: the CVEs page's "New" chip and filter), in the user's own state
-        (`new_since_check`), so each user has their own (B09). A complete run (every feed answered, so last checked
-        moves) is a check: its new CVEs, with those of the partial runs (B20) since the previous check, replace the
-        list. A partial run isn't a check: its new CVEs wait in `pending`, and show as new at once."""
+        """One run's new CVEs join "New" (B40, #92; B05 before it), in the user's own state (`new_cves`), so each
+        user has their own (B09). Every run that writes data notes them, complete or partial (B20): a CVE stays new
+        until this user has seen it (`seen`), not until the next check. A run that finds nothing still notes its
+        time, which B34's first check reads. `complete` (B05: whether the run was a check) no longer changes
+        anything; the refresh still passes it. Removing it from app.alerts and app.refresh is a follow-up, kept
+        out of B40 while #91 changed that code."""
 
         def change(data):
-            saved = data.get("new_since_check", {})
-            pending = list(dict.fromkeys([*saved.get("pending", []), *cve_ids]))
-            data["new_since_check"] = ({"at": at, "cves": pending, "pending": []} if complete else
-                                       {**saved, "pending": pending})
+            saved = data.get("new_cves", {})
+            data["new_cves"] = {"at": at, "cves": list(dict.fromkeys([*saved.get("cves", []), *cve_ids]))}
         self._update(change)
 
+    def seen(self, cve_id: str | None = None) -> int:
+        """B40: the user has seen this CVE (opened its page), or every new CVE (`None`: "Mark all as seen"), so it
+        isn't new any more. Returns how many new CVEs are left. The part stays, empty, so B34 still knows a run
+        has reached this user."""
+
+        def change(data):
+            saved = data.get("new_cves")
+            if not saved or not saved["cves"]:
+                return Keep(0)
+            left = [c for c in saved["cves"] if cve_id is not None and c != cve_id]
+            if len(left) == len(saved["cves"]):
+                return Keep(len(left))
+            data["new_cves"] = {**saved, "cves": left}
+            return len(left)
+        return self._update(change)
+
     def checked_before(self) -> bool:
-        """B34: whether a refresh run has reached this user before (it noted its new CVEs, B05). False until the
-        first one, and again after the fake feeds' reset."""
-        return "new_since_check" in self._load()
+        """B34: whether a refresh run has reached this user before (it noted its new CVEs, B05, B40). False until
+        the first one, and again after the fake feeds' reset. Seen marks keep it (B40)."""
+        return "new_cves" in self._load()
 
     def clear_alerts(self) -> None:
         """No alerts sent, held or logged, and nothing new (the fake feeds' reset, for the browser check)."""
 
         def change(data):
-            for key in ("alerted", "alerts_held", "alerts_retry", "alerts_log", "new_since_check"):
+            for key in ("alerted", "alerts_held", "alerts_retry", "alerts_log", "new_cves"):
                 data.pop(key, None)
         self._update(change)
 

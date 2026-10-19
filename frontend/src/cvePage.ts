@@ -15,3 +15,9 @@ export function rangeWords({ introduced, fixed, last_affected }: AffectedPackage
 export function showsPriority(row: CveRow): boolean {
   return row.priority !== null
 }
+
+/** B40: opening the page is seeing the CVE, so it leaves "New". Only a CVE that is new for you is marked: one write
+ *  when it matters, not one per page view (each is a state write, in Cloud Storage when deployed). */
+export function marksSeen(detail: { row: CveRow | null }): boolean {
+  return detail.row?.new === true
+}

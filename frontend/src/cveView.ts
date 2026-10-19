@@ -16,8 +16,12 @@ export interface CveView {
   verdict?: Verdict // A15
   kev?: true // only CVEs in CISA KEV (the KEV tile's link)
   since?: string // YYYY-MM-DD, published on or after (the "new in 30 days" tile's link)
-  new?: true // only CVEs new since the last check (B05)
+  new?: true // only CVEs a check found new that you haven't seen yet (B05, B40)
 }
+
+/** "New" (B40, GLOSSARY.md): a check found the CVE new and you haven't opened its page or marked all as seen. */
+export const NEW_LABEL = 'New, not seen yet'
+export const NEW_TITLE = "New: a check found it, and you haven't opened it yet"
 
 /** The defaults: every watched product, any severity, open. They need no parameters. */
 export const OPEN_VIEW: CveView = { status: 'open' }
@@ -114,7 +118,7 @@ export function contextWords(ctx: PageContext, productName?: string): string[] {
     ctx.verdict && VERDICT_LABEL[ctx.verdict],
     ctx.kev && 'In KEV',
     ctx.since && `Since ${ctx.since}`,
-    ctx.new && 'New since last check',
+    ctx.new && NEW_LABEL,
     ctx.cve,
   ].filter((w): w is string => !!w)
 }

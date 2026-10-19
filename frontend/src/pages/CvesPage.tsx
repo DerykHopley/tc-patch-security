@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   cves as fetchCves,
   dashboard as fetchDashboard,
+  markAllSeen,
   setStatus,
   type CvePage,
   type CveRow,
@@ -25,6 +26,8 @@ import { rowActions } from '../cveActions.ts'
 import { CveLink } from '../components/CveLink.tsx'
 import { SEVERITIES, sevLabel } from '../severity.ts'
 import {
+  NEW_LABEL,
+  NEW_TITLE,
   STATUS_FILTERS,
   STATUS_LABEL,
   statusFilterLabel,
@@ -79,7 +82,7 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
   const [products, setProducts] = useState<Product[]>([])
   const [error, setError] = useState<string | null>(null)
   const [asOf, setAsOf] = useState<string | null>(null)
-  const [live, setLive] = useState(false) // live data (B02): checks happen, so "New since last check" can mean something
+  const [live, setLive] = useState(false) // live data (B02): checks happen, so "New" can mean something
   const [deciding, setDeciding] = useState<DecisionRequest | null>(null) // the open decision dialog (A16b)
 
   const loadRows = useCallback(
@@ -132,6 +135,23 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
   async function decide(id: string, body: DecisionInput) {
     await setStatus(id, body)
     await loadRows().catch((e: unknown) => setError(message(e)))
+  }
+
+  // B40: "Mark all as seen" empties "New" (every new CVE, whatever the filters). The button goes away with them, so
+  // the focus moves to the New box next to it rather than being lost.
+  const newBox = useRef<HTMLInputElement>(null)
+  const [marking, setMarking] = useState(false)
+  async function markAll() {
+    setMarking(true)
+    try {
+      await markAllSeen()
+      await loadRows()
+      newBox.current?.focus()
+    } catch (e: unknown) {
+      setError(message(e))
+    } finally {
+      setMarking(false)
+    }
   }
 
   // A product from a link that isn't on the watchlist (or several, from the dashboard) still shows in the list, so
@@ -213,12 +233,24 @@ export function CvesPage({ search, onAsk, selected = null, onView }: {
           {(live || filters.new) && (
             <label>
               <input
+                ref={newBox}
                 type="checkbox"
                 checked={filters.new ?? false}
                 onChange={(e) => filter({ new: e.target.checked || undefined })}
               />
-              New since last check
+              {NEW_LABEL}
             </label>
+          )}
+          {(live || filters.new) && page && page.new_total > 0 && (
+            <button
+              type="button"
+              className="mark-seen"
+              disabled={marking}
+              title={`${page.new_total} new CVE${page.new_total === 1 ? '' : 's'} you haven't opened`}
+              onClick={() => void markAll()}
+            >
+              Mark all as seen
+            </button>
           )}
           {filters.since && (
             <span className="chip filter-chip">
@@ -339,7 +371,7 @@ function CveTable({ page, onDecide, onAsk, onOpen, selected }: {
                   </span>
                 )}
                 {r.new && (
-                  <span className="chip new-chip" title="New since the last check: the last refresh added it">
+                  <span className="chip new-chip" title={NEW_TITLE}>
                     New
                   </span>
                 )}

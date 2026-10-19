@@ -11,7 +11,7 @@ value rules.
 | verdict  | affected, not_affected, unknown                              | as is                  |
 | kev      | true, 1, "1", "true" / false, 0, "0", "false"                | True / False           |
 | since    | a real calendar date written YYYY-MM-DD, inclusive           | the date               |
-| new      | as kev: new since the user's previous check (B05)            | True / False           |
+| new      | as kev: new and not seen yet by the user (B05, B40)          | True / False           |
 
 GET /cves still takes its old names as aliases: severity_min (severity) and published_since (since).
 
@@ -34,7 +34,7 @@ FIELDS = ("product", "severity", "status", "verdict", "kev", "since", "new")  # 
 ALIASES = {"severity_min": "severity", "published_since": "since"}  # GET /cves's old names, still accepted
 # The view in words, for FakeLLM's answers (prioritise: "in this view (Langflow, high or worse)")
 WORDS = {"product": "{}", "severity": "{} or worse", "verdict": "verdict {}", "kev": "in CISA KEV",
-         "since": "published since {}", "new": "new since the last check"}
+         "since": "published since {}", "new": "new, not seen yet"}
 
 
 def product(value: str, resolve_product) -> str | None:
@@ -119,7 +119,7 @@ class CveView:
     verdict: str | None = None
     kev: bool | None = None
     since: str | None = None
-    new: bool | None = None  # B05: new since the user's previous check (True), or not new (False)
+    new: bool | None = None  # B05, B40: new and not seen yet (True), or not new (False)
 
     @classmethod
     def parse(cls, raw, resolve_product) -> "CveView":
