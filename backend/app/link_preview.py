@@ -23,8 +23,8 @@ PAGES = {"": "/", "about": "/about"}  # the path one_port sees (no leading slash
 TITLE = "Patch, the LLM-security assistant"
 DESCRIPTION = ("Security flaws in your LLM stack, tracked for you. Patch watches the products you run, says which "
                "flaws affect you and what to fix first, and answers your questions with sources.")
-IMAGE_ALT = ("Patch, a purple robot, beside the name Patch, the line \"Security flaws in your LLM stack, tracked for "
-             "you\" and four labels: Watch, Judge, Alert, Ask.")
+IMAGE_ALT = ("Patch's app icon and name, the words \"Watch. Judge. Alert. Ask.\", the address "
+             "github.com/DerykHopley/tc-patch-security, and Patch, a purple robot, smiling.")
 
 
 def public_base(app_url: str | None) -> str | None:
