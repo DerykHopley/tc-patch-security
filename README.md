@@ -19,7 +19,7 @@ Built for the Turing College sprint 2 project: a RAG assistant that rewrites que
 - **Page-aware chat:** "What should I fix first?" means the view you're looking at.
 - **Token usage and cost** under every answer: tokens in and out, LLM calls, steps, and dollars (from OpenRouter's reported cost).
 - **Dev page:** switch the model at runtime (FakeLLM, OpenRouter, or a local OpenAI-compatible server such as Ollama), tune search, watch each retrieval step in a playground, see the index on an embedding map, and run the model check.
-- **Alert channels:** desktop, email and ntfy, with test sends. The scheduled refresh that sends real alerts is spec B.
+- **Alert channels:** desktop, email, ntfy and Telegram (B57), with test sends. The scheduled refresh that sends real alerts is spec B.
 - **A landing page** (B42, [#80](https://github.com/DerykHopley/tc-patch-security/issues/80)): a visitor who isn't signed in first sees what Patch is, the problem it solves and three screenshots in their theme, then **Sign in** or **Request access**. Inside the app it is the **About** page (`/about`). It also has a 20-second launch video, light or dark to match ([#99](https://github.com/DerykHopley/tc-patch-security/issues/99)). Its screenshots are taken from the app on example data by `scripts/landing-shots.sh` ([how](./docs/design/DESIGN.md#516-the-landing-page-b42-80-2026-10-19)).
 
 | The chat, with a tool card | Settings: your watchlist |
@@ -120,7 +120,7 @@ A real chat model and real embeddings, both through OpenRouter. Set a spending c
 
 Since B26 ([#70](https://github.com/DerykHopley/tc-patch-security/issues/70)), what can change while the app runs is set on **Settings**, by the owner; the rest stays in `backend/.env`.
 
-- **On Settings (the owner only):** live or snapshot data and the NVD key (Data card); the quiet hours' time zone (Alerts card); the app address for alert links, the ntfy server, topic and token, and the email (SMTP) details (Delivery card). They apply when you save, with no restart, and the refresh command line uses them too.
+- **On Settings (the owner only):** live or snapshot data and the NVD key (Data card); the quiet hours' time zone (Alerts card); the app address for alert links, the ntfy server, topic and token, the Telegram bot token and chat id, and the email (SMTP) details (Delivery card). They apply when you save, with no restart, and the refresh command line uses them too.
 - **Secrets on Settings are write-only:** the boxes are masked, the app never sends a saved one back (it says only "Saved" or "Not set"), and **Remove** deletes it. They are kept in the owner's state: `backend/data/state.json` locally (git-ignored), the private bucket when deployed. Start over (the reset on Settings) keeps them.
 - **`.env` still wins:** a setting set in `backend/.env` is used, and Settings shows it read-only as "set in the server's environment". To manage one on Settings, delete its line from `.env` and restart once.
 - **Stays in `.env` only:** what the app needs before it can read Settings, or what could lock you out if set wrong from a page: `AUTH`, the Clerk keys, `AUTH_ALLOWED_ORIGINS`, `OWNER`, `STORE`/`GCS_BUCKET`, `CORS_ORIGINS`, the paths (`LIVE_PATH`, `INDEX_PATH`, `STATE_PATH`), `SCHEDULER_SECRET`, the model and embedder settings, and the test switches (`FEEDS=fake`, `NOTIFY_DRY_RUN`).
@@ -129,16 +129,34 @@ Since B26 ([#70](https://github.com/DerykHopley/tc-patch-security/issues/70)), w
   - **Desktop notification** needs `notify-send` (Linux, from libnotify) or `osascript` (macOS) on the computer running the backend. Settings says "can't show desktop notifications" without one.
   - **Email (SMTP)** needs the mail server and the address to send to: on Settings, or `SMTP_HOST` and `ALERT_EMAIL_TO` (plus `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_EMAIL_FROM`, `SMTP_STARTTLS`) in `.env`.
   - **Phone push (ntfy)** needs a topic: on Settings, or `NTFY_TOPIC` (and `NTFY_URL`, `NTFY_TOKEN`) in `.env`.
+  - **Telegram** needs the bot token and the chat id: on Settings, or `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env` ([Alerts](#alerts)).
   - "Live: the made-up test data, not the real feeds": the backend runs with `FEEDS=fake`. Remove it (the default is `FEEDS=real`) and restart.
   - The Dev page: `DEV_PANEL=false` turns it off for everyone (on by default); with sign-in on, the role you give each person decides who else sees it.
-- **Tapping a phone alert:** while the app address is `localhost` (or `127.*`, `::1`, `0.0.0.0`), a phone can't open it, so alerts carry no link and a tap opens the message in the ntfy app. Set a LAN, Tailscale or Cloud Run address and a tap opens Patch at the CVE. A test alert from Settings says which happens.
+- **Tapping a phone alert:** while the app address is `localhost` (or `127.*`, `::1`, `0.0.0.0`), a phone can't open it, so alerts carry no link and a tap opens the message in the ntfy app (a Telegram message has no Open in Patch button). Set a LAN, Tailscale or Cloud Run address and a tap opens Patch at the CVE. A test alert from Settings says which happens.
+
+### Alerts
+
+The owner's alerts go to the channels ticked on Settings → Delivery: the desktop, email, ntfy and Telegram. Everyone else's stay in Patch. No alert ever holds the CVE description (untrusted text, and it shows on a lock screen).
+
+- **ntfy** works well from your own computer. From Cloud Run it fails by the afternoon: ntfy.sh counts its daily quota per IP address, and Cloud Run's addresses are shared ([source checks](./docs/SOURCE-CHECKS.md#ntfysh-from-cloud-run-101-2026-10-19)).
+- **Telegram** (B57, [#102](https://github.com/DerykHopley/tc-patch-security/issues/102)) is limited per bot, not per address, and free. Use it for the live app. High and urgent alerts ring; low and normal arrive silently. A tap on **Open in Patch** opens the CVE.
+
+**Set up Telegram once** (the same steps are on the Settings card; checked against Telegram's docs, not yet against a real bot):
+
+1. In Telegram, open **@BotFather**, send `/newbot`, and pick a name and a username (it must end in `bot`). BotFather replies with the bot's **token**, like `110201543:AAH…`. Anyone with it controls your bot: keep it secret. `/token` in BotFather makes a new one if it leaks.
+2. Open your new bot in Telegram (BotFather links it) and press **Start**, or send it any message. That message is how Patch finds your chat (and, *unverified*, a bot may not write to someone who never started it).
+3. On Patch, Settings → Delivery → **Telegram**: paste the token under Bot token, then press **Find my chat id**. Patch asks Telegram for the bot's recent messages and fills in your chat's id. Telegram keeps those messages 24 hours, so do step 2 within a day.
+   By hand instead: open `https://api.telegram.org/bot<TOKEN>/getUpdates` in a browser and read `message.chat.id` (it puts the token in your browser history).
+4. Save, tick Telegram, and press **Send test**. The message arrives in your chat.
+
+Locally the token and chat id can also go in `backend/.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`); there they win over Settings. On Cloud Run the token is a secret (`telegram-bot-token`) and the chat id a plain setting: `scripts/update-deploy.sh` adds both ([DEPLOY.md](./DEPLOY.md)).
 
 ### Sign-in (Clerk)
 
 Off locally and in the tests (`AUTH=off`): one default user, no sign-in, no requests; the landing page is only the About page. On (`AUTH=on`, the Clerk keys in `backend/.env`: [#65](https://github.com/DerykHopley/tc-patch-security/issues/65)), a signed-out visitor first sees the landing page at any address (the form is at `/sign-in`), anyone can make an account (email and password, or an SSO provider such as Google or Discord), and **the owner approves each new account in Patch** before it can use the app (B38, [#81](https://github.com/DerykHopley/tc-patch-security/issues/81)). Every sign-in and sign-up step stays on Patch's page, never Clerk's hosted pages. Why, and what's checked: [DECISIONS.md](./DECISIONS.md) (B31, B38), [docs/SOURCE-CHECKS.md](./docs/SOURCE-CHECKS.md) (Clerk, B31 and B38).
 
 - **A new account asks.** After signing up, a person sees only "Ask to join Patch", with an optional note for you (at most 280 characters). Then "Your request is waiting for the owner". The API refuses them everything else (403) until you approve.
-- **You get one alert per request** on the channels you ticked on Settings (e.g. ntfy): "New access request", "From <name>" (the name Clerk has for them, asked with `CLERK_SECRET_KEY`; without the key, their user id), and "(with a note)" if there is one. The note's text never goes in the alert: a stranger's words stay off your lock screen. Tapping it opens Settings at the Requests card (when the app address is reachable from your phone).
+- **You get one alert per request** on the channels you ticked on Settings (e.g. ntfy or Telegram): "New access request", "From <name>" (the name Clerk has for them, asked with `CLERK_SECRET_KEY`; without the key, their user id), and "(with a note)" if there is one. The note's text never goes in the alert: a stranger's words stay off your lock screen. Tapping it opens Settings at the Requests card (when the app address is reachable from your phone).
 - **The Requests card on Settings** (only you see it): everyone who asked, with Approve, Refuse, Undo refusal and Remove. A refusal is final until you undo it: that person can't ask again, so you get at most one alert per account. Remove forgets the request and its note; they can ask again. Approved people get the app the next time they load Patch; Patch sends them no email.
 - **Roles** (B45, [#90](https://github.com/DerykHopley/tc-patch-security/issues/90)): next to Approve you pick a role, and you can change it later with Save role. **Viewer** (the default, and for everyone approved before roles): the dashboard, the CVEs, the chat and their own watchlist, no Dev page. **Trusted**: also the Dev page read-only and the search playground. **Reviewer**: also changes the Dev settings, but only their own copy (their chat and playground use it; everyone else keeps yours), with "Back to the owner's settings" to drop it. Only you run the model check and see the Requests card and the server settings. You are `OWNER` in `.env`, never a stored role, so nobody can lock you out or make themselves owner from inside the app. A change applies on the person's next page load, no sign-out needed. Why: [DECISIONS.md](./DECISIONS.md) (B45).
 - **What Patch stores:** each person's Clerk user id, their status and role, when and by whom it changed, and the note. No names or emails: the card asks Clerk for those when it opens, with the Clerk secret key (`CLERK_SECRET_KEY` in `backend/.env`, optional; without it the card shows user ids). The key stays on the server.
@@ -316,7 +334,7 @@ All public and openly licensed, frozen as a snapshot on 2026-10-13. The counts a
 
 - **Your local state:** the watchlist, product versions, CVE statuses and their history, settings, the alert log. One JSON file, `backend/data/state.json` (git-ignored).
 - **Embeddings:** the hash embedder runs locally and is free (the default). Real embeddings come from OpenRouter's API (`text-embedding-3-small`) or a local Ollama model (`mxbai-embed-large`). The index is stored locally in `backend/data/`.
-- **Optional outside services:** OpenRouter or a local model server for the chat; ntfy, email (SMTP) or the desktop for alerts. Model keys live in `backend/.env` only; the alert channels' secrets in `backend/.env` or, saved on Settings, in the owner's state (never sent back to the browser).
+- **Optional outside services:** OpenRouter or a local model server for the chat; ntfy, Telegram, email (SMTP) or the desktop for alerts. Model keys live in `backend/.env` only; the alert channels' secrets in `backend/.env` or, saved on Settings, in the owner's state (never sent back to the browser).
 
 ## Documents
 

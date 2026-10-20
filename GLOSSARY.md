@@ -171,7 +171,7 @@ Why an alert fired, for example new, kev, now critical. Each CVE and reason aler
 _Avoid_: trigger, type
 
 **Channel**:
-Where alerts are delivered: desktop, email or ntfy.
+Where alerts are delivered: desktop, email, ntfy or Telegram (a message from the owner's own bot, B57).
 _Avoid_: notifier (that's the code), sink
 
 **Digest**:

@@ -187,7 +187,7 @@ finish() {
 # Build a new image tag, push it, deploy it, check it answers. Settings and secrets stay as they are.
 # ──────────────────────────────────────────────────────────────────────────
 
-TOTAL_STAGES=5
+TOTAL_STAGES=6
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -196,6 +196,7 @@ LOCAL_ENV="backend/.env"
 REGION=$(grep -E "^REGION=" "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2)
 REGION="${REGION:-us-central1}"  # saved in wizard.env; the owner moved Patch to europe-west1 on 2026-10-19
 SERVICE=patch
+UPDATE_SECRETS=()  # --update-secrets for the deploy: a secret added since the first deploy (stage 5)
 
 local_value() {
   [[ -f "$LOCAL_ENV" ]] || return 0
@@ -222,6 +223,7 @@ PROJECT_NUMBER=$(_existing PROJECT_NUMBER || true)
 [[ -n "$PROJECT_ID" && -n "$PROJECT_NUMBER" ]] || { printf 'wizard.env lacks PROJECT_ID or PROJECT_NUMBER.\n'; exit 1; }
 IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/patch/patch"
 URL="https://$SERVICE-$PROJECT_NUMBER.$REGION.run.app"
+SA="patch-run@$PROJECT_ID.iam.gserviceaccount.com"
 
 banner "Update Patch on Cloud Run ($PROJECT_ID)"
 
@@ -318,11 +320,52 @@ run "Upload it" docker push "$IMAGE:$TAG" || exit 1
 pause
 
 # ── 5 ─────────────────────────────────────────────────────────────────────
+stage "Telegram (optional)"
+# B57 (#102): ntfy.sh's daily quota counts per IP address and Cloud Run's are shared, so phone alerts from here go by
+# Telegram. Its token is a secret (Secret Manager); its chat id a plain setting (env.yaml). Both kept once added.
+say "Phone alerts from Cloud Run go by Telegram: ntfy.sh's daily quota is per address, and this one is shared."
+if gcloud secrets describe telegram-bot-token --project="$PROJECT_ID" >/dev/null 2>&1; then
+  printf '  %s✓%s the bot token is in Secret Manager (telegram-bot-token).\n' "$GREEN" "$RESET"
+  if confirm "Replace it with a new token?"; then
+    ask_secret tg "New bot token (hidden):"
+    [[ -n "$tg" ]] && printf '%s' "$tg" | gcloud secrets versions add telegram-bot-token --project="$PROJECT_ID" \
+      --data-file=- >/dev/null && printf '  %s✓ stored%s\n' "$GREEN" "$RESET"
+    tg=""
+  fi
+  UPDATE_SECRETS=(--update-secrets=TELEGRAM_BOT_TOKEN=telegram-bot-token:latest)
+elif confirm "Add Telegram now? (README \"Alerts\": @BotFather → /newbot gives the token)"; then
+  tg=$(local_value TELEGRAM_BOT_TOKEN)
+  if [[ -z "$tg" ]] || ! confirm "Use the TELEGRAM_BOT_TOKEN from backend/.env?"; then
+    ask_secret tg "Bot token (hidden):"
+  fi
+  if [[ -n "$tg" ]]; then
+    printf '%s' "$tg" | gcloud secrets create telegram-bot-token --project="$PROJECT_ID" \
+      --replication-policy=automatic --data-file=- >/dev/null \
+      && gcloud secrets add-iam-policy-binding telegram-bot-token --project="$PROJECT_ID" \
+        --member="serviceAccount:$SA" --role=roles/secretmanager.secretAccessor >/dev/null \
+      && printf '  %s✓ secret%s telegram-bot-token stored, readable by the service\n' "$GREEN" "$RESET" \
+      && UPDATE_SECRETS=(--update-secrets=TELEGRAM_BOT_TOKEN=telegram-bot-token:latest) \
+      || warn "Storing the token failed (see above): deploying without Telegram."
+  fi
+  tg=""
+else note "no Telegram: skipped (ntfy stays as it was)"; fi
+if (( ${#UPDATE_SECRETS[@]} )) && ! grep -qE '^TELEGRAM_CHAT_ID:' deploy/cloudrun/env.yaml; then
+  chat=$(local_value TELEGRAM_CHAT_ID)
+  if [[ -n "$chat" ]] && confirm "Put the chat id from backend/.env ($chat) in env.yaml?"; then
+    printf 'TELEGRAM_CHAT_ID: "%s"\n' "$chat" >> deploy/cloudrun/env.yaml
+    printf '  %s✓%s TELEGRAM_CHAT_ID added to deploy/cloudrun/env.yaml\n' "$GREEN" "$RESET"
+  else
+    say "Then set the chat id on Settings → Delivery → Telegram (Find my chat id), after the deploy."
+  fi
+fi
+pause
+
+# ── 6 ─────────────────────────────────────────────────────────────────────
 stage "Deploy $TAG"
 say "Cloud Run starts $TAG next to the running version and switches over once it answers: no downtime."
-note "Settings from deploy/cloudrun/env.yaml again; the secrets stay as they are."
+note "Settings from deploy/cloudrun/env.yaml again; the secrets stay as they are (plus Telegram's, if added)."
 run "Deploy" gcloud run deploy "$SERVICE" --image="$IMAGE:$TAG" --region="$REGION" --project="$PROJECT_ID" \
-  --env-vars-file=deploy/cloudrun/env.yaml || exit 1
+  --env-vars-file=deploy/cloudrun/env.yaml "${UPDATE_SECRETS[@]}" || exit 1
 say "Checking that $URL answers..."
 if curl -fsS --max-time 90 -o /dev/null "$URL/api/health"; then
   printf '  %s✓%s %s answers, running %s\n' "$GREEN" "$RESET" "$URL" "$TAG"

@@ -111,9 +111,11 @@ add_secret clerk-secret-key            # sk_test_... (names on the Requests card
 add_secret tavily-api-key              # optional: tvly-... (web research)
 add_secret ntfy-topic                  # optional: your ntfy topic (alerts on your phone)
 add_secret ntfy-token                  # optional: only if your ntfy topic needs an access token
+add_secret telegram-bot-token          # optional, recommended: from @BotFather (README "Alerts"); phone alerts from Cloud Run
 ```
 
 - Skip the optional ones you don't use, and leave their line out of `--set-secrets` in step 6.
+- **Telegram, not ntfy, for phone alerts from Cloud Run** (B57, #102): ntfy.sh counts its daily quota per IP address and Cloud Run's outgoing addresses are shared, so its sends fail by the afternoon (docs/SOURCE-CHECKS.md, "ntfy.sh from Cloud Run"). Telegram limits per bot. Its chat id isn't a secret: it goes in `env.yaml` (step 6), or on Settings → Delivery → Telegram → Find my chat id.
 - To change a secret later: `printf '%s' "<new value>" | gcloud secrets versions add <name> --data-file=-`, then redeploy (step 9) so a new instance reads it.
 
 ## 5. Build and push the image
@@ -144,13 +146,13 @@ echo https://$SERVICE-$PROJECT_NUMBER.$REGION.run.app       # the address
 cp deploy/cloudrun/env.example.yaml deploy/cloudrun/env.yaml   # git-ignored
 ```
 
-Fill in every `<...>` in `deploy/cloudrun/env.yaml`: the bucket name, the Clerk keys and your user id, the address three times, your time zone. Then:
+Fill in every `<...>` in `deploy/cloudrun/env.yaml`: the bucket name, the Clerk keys and your user id, the address three times, your time zone, and (optional) `TELEGRAM_CHAT_ID`. Then:
 
 ```bash
 gcloud run deploy $SERVICE --image=$IMAGE:v1 --region=$REGION --service-account=$SA \
   --allow-unauthenticated --min-instances=0 --max-instances=1 --memory=1Gi --cpu=1 --cpu-boost --timeout=900 \
   --env-vars-file=deploy/cloudrun/env.yaml \
-  --set-secrets=OPENROUTER_API_KEY=openrouter-api-key:latest,SCHEDULER_SECRET=scheduler-secret:latest,CLERK_SECRET_KEY=clerk-secret-key:latest,TAVILY_API_KEY=tavily-api-key:latest,NTFY_TOPIC=ntfy-topic:latest,NTFY_TOKEN=ntfy-token:latest
+  --set-secrets=OPENROUTER_API_KEY=openrouter-api-key:latest,SCHEDULER_SECRET=scheduler-secret:latest,CLERK_SECRET_KEY=clerk-secret-key:latest,TAVILY_API_KEY=tavily-api-key:latest,NTFY_TOPIC=ntfy-topic:latest,NTFY_TOKEN=ntfy-token:latest,TELEGRAM_BOT_TOKEN=telegram-bot-token:latest
 gcloud run services describe $SERVICE --region=$REGION --format='value(status.url)'
 ```
 
@@ -196,14 +198,14 @@ gcloud scheduler jobs run patch-refresh --location=$REGION     # one tick now, t
 
 The checks for #45:
 
-1. Sign in, set your watchlist. In a private window, a second account asks for access (B38): you get the alert (if ntfy is set), approve it on Settings → Requests with a role (B45), and they see the default watchlist, not yours, and only their "Yours" part of Settings (B48).
+1. Sign in, set your watchlist. In a private window, a second account asks for access (B38): you get the alert (if Telegram or ntfy is set), approve it on Settings → Requests with a role (B45), and they see the default watchlist, not yours, and only their "Yours" part of Settings (B48).
 2. Dashboard → **Check now**: it runs and says what it found.
 3. Ask Patch "Who's talking about CVE-2025-3248?" (needs the Tavily secret): an answer with web sources.
 4. After the next hourly tick: `gcloud scheduler jobs describe patch-refresh --location=$REGION` (last attempt) and Settings → Refresh runs (trigger "schedule").
 5. Cold-start time: after 15 idle minutes, open the app and time the first page. The log has the start-up and the `Search index caught up` line.
 6. After a week: Billing → Reports, filtered to the project. Expected $0.
 
-**Update after a change: `scripts/update-deploy.sh`.** It shows what's live and what's new, suggests the next version (`v2`, `v3`…), rebuilds the search index only when the snapshot or the chunking changed (it compares the index's fingerprint), builds, uploads and deploys the new tag, checks it answers, and offers to delete the old image. It reads the first deploy's `deploy/cloudrun/wizard.env` and `env.yaml`; the secrets stay as they are. By hand: build and push a new tag (step 5 with `v2`), then `gcloud run deploy $SERVICE --image=$IMAGE:v2 --region=$REGION` (the other settings stay). Delete old tags to keep storage free: `gcloud artifacts docker images delete $IMAGE:v1`.
+**Update after a change: `scripts/update-deploy.sh`.** It shows what's live and what's new, suggests the next version (`v2`, `v3`…), rebuilds the search index only when the snapshot or the chunking changed (it compares the index's fingerprint), builds, uploads and deploys the new tag, checks it answers, and offers to delete the old image. It reads the first deploy's `deploy/cloudrun/wizard.env` and `env.yaml`; the secrets stay as they are. It also offers Telegram (B57): it stores the bot token as the `telegram-bot-token` secret (from `backend/.env` or typed, hidden), lets the service read it, adds it to the deploy (`--update-secrets`, so the other secrets stay), and puts `TELEGRAM_CHAT_ID` from `backend/.env` in `env.yaml` if you like. Once added, every later update keeps both. By hand: step 4's `add_secret telegram-bot-token`, then `gcloud run deploy ... --update-secrets=TELEGRAM_BOT_TOKEN=telegram-bot-token:latest`. By hand: build and push a new tag (step 5 with `v2`), then `gcloud run deploy $SERVICE --image=$IMAGE:v2 --region=$REGION` (the other settings stay). Delete old tags to keep storage free: `gcloud artifacts docker images delete $IMAGE:v1`.
 
 Roll back: `gcloud run revisions list --service=$SERVICE --region=$REGION`, then `gcloud run services update-traffic $SERVICE --region=$REGION --to-revisions=<revision>=100`.
 

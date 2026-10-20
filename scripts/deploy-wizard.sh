@@ -397,6 +397,9 @@ else put_secret scheduler-secret "$(openssl rand -hex 32)"; fi
 offer_secret clerk-secret-key CLERK_SECRET_KEY "Clerk secret key (names on the Requests card)" optional
 offer_secret ntfy-topic NTFY_TOPIC "ntfy topic (alerts on your phone)" optional
 offer_secret ntfy-token NTFY_TOKEN "ntfy access token" optional
+# B57 (#102): ntfy.sh's daily quota counts per IP address, and Cloud Run's are shared, so phone alerts from the live
+# app go by Telegram. @BotFather's /newbot gives the token (README "Alerts").
+offer_secret telegram-bot-token TELEGRAM_BOT_TOKEN "Telegram bot token (alerts on your phone from Cloud Run)" optional
 offer_secret tavily-api-key TAVILY_API_KEY "Tavily key (web research)" optional
 pause
 
@@ -440,6 +443,17 @@ while true; do
   warn "A time zone name like Europe/Berlin or UTC, please."
 done
 write_env ALERT_TZ "$ALERT_TZ"
+# B57: the Telegram chat id isn't a secret, so it goes in env.yaml. Optional: Settings → Delivery can set it too
+# (its "Find my chat id" button), and a value here wins over Settings.
+CHAT_ID=$(local_value TELEGRAM_CHAT_ID)
+if [[ -n "$CHAT_ID" ]] && confirm "Use the Telegram chat id from backend/.env ($CHAT_ID)?"; then :
+elif secret_exists telegram-bot-token && confirm "Type your Telegram chat id now? (No: set it on Settings → Delivery later)"; then
+  while true; do
+    printf '  %sTelegram chat id%s ' "$BOLD" "$RESET"; read -r CHAT_ID || true
+    [[ "$CHAT_ID" =~ ^(-?[0-9]{1,20}|@[A-Za-z0-9_]{5,32})$ ]] && break
+    warn "A number like 987654321 (a group's starts with -), or a channel's @name."
+  done
+else CHAT_ID=""; fi
 PK=$(local_value CLERK_PUBLISHABLE_KEY); JWT=$(local_value CLERK_JWT_KEY); OWNER_ID=$(local_value OWNER)
 [[ -n "$PK" && -n "$JWT" && -n "$OWNER_ID" ]] || { warn "backend/.env lacks CLERK_PUBLISHABLE_KEY, CLERK_JWT_KEY or OWNER."; exit 1; }
 JWT="${JWT#\"}"; JWT="${JWT%\"}"
@@ -465,6 +479,7 @@ CORS_ORIGINS: "$URL"
 DEV_PANEL: "true"
 ALERT_TZ: "$ALERT_TZ"
 EOF
+  [[ -z "$CHAT_ID" ]] || printf 'TELEGRAM_CHAT_ID: "%s"\n' "$CHAT_ID" >> deploy/cloudrun/env.yaml
   if grep -qE '^[A-Z_]+: *("")?$' deploy/cloudrun/env.yaml; then
     warn "These settings came out empty: $(grep -E '^[A-Z_]+: *(\"\")?$' deploy/cloudrun/env.yaml | cut -d: -f1 | tr '\n' ' ')"
     say "Fix them in deploy/cloudrun/env.yaml (or backend/.env) and run the wizard again."; exit 1
@@ -479,6 +494,7 @@ SECRETS="OPENROUTER_API_KEY=openrouter-api-key:latest,SCHEDULER_SECRET=scheduler
 secret_exists clerk-secret-key && SECRETS+=",CLERK_SECRET_KEY=clerk-secret-key:latest"
 secret_exists ntfy-topic       && SECRETS+=",NTFY_TOPIC=ntfy-topic:latest"
 secret_exists ntfy-token       && SECRETS+=",NTFY_TOKEN=ntfy-token:latest"
+secret_exists telegram-bot-token && SECRETS+=",TELEGRAM_BOT_TOKEN=telegram-bot-token:latest"
 secret_exists tavily-api-key   && SECRETS+=",TAVILY_API_KEY=tavily-api-key:latest"
 say "One container, sleeping when unused (min 0), never more than one (max 1: required, see DEPLOY.md)."
 run "Deploy the service" gcloud run deploy "$SERVICE" --image="$IMAGE:$TAG" --region="$REGION" \
