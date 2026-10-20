@@ -208,7 +208,7 @@ The owner's alerts go to the channels ticked on Settings → Delivery: the deskt
    By hand instead: open `https://api.telegram.org/bot<TOKEN>/getUpdates` in a browser and read `message.chat.id` (it puts the token in your browser history).
 4. Save, tick Telegram, and press **Send test**. The message arrives in your chat.
 
-Locally the token and chat id can also go in `backend/.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`); there they win over Settings. On Cloud Run the token is a secret (`telegram-bot-token`) and the chat id a plain setting: `scripts/update-deploy.sh` adds both ([DEPLOY.md](./DEPLOY.md)).
+Locally the token and chat id can also go in `backend/.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`); there they win over Settings. On Cloud Run the token is a secret (`telegram-bot-token`) and the chat id a plain setting: `scripts/update-deploy.sh` adds both from `backend/.env`, once ([DEPLOY.md](./DEPLOY.md)).
 
 ### Web research (Tavily)
 
@@ -302,7 +302,7 @@ docker run --rm -p 8080:8080 --env-file backend/.env patch   # with your setting
 One container on Cloud Run, users' state and the live data in Cloud Storage, keys in Secret Manager, a Cloud Scheduler job, Clerk sign-in, at no cost at this use (B13, [#44](https://github.com/DerykHopley/tc-patch-security/issues/44)). The live app at https://patch-976248543439.europe-west1.run.app was deployed this way on 2026-10-19 (B14, [#45](https://github.com/DerykHopley/tc-patch-security/issues/45)): [STATUS.md](./STATUS.md#the-live-app).
 
 - **First deploy:** `scripts/deploy-wizard.sh`, from the repo root. It walks through every step one at a time: it explains each, shows the command and asks before running it, skips what already exists, and never writes a secret to a file. The same steps by hand, copy-pasteable, with the costs against the free tiers: [DEPLOY.md](./DEPLOY.md).
-- **Update after a change:** `scripts/update-deploy.sh`. It suggests the next version tag, rebuilds the search index only when needed, builds, pushes, deploys and checks it answers. It also offers the Telegram secret ([Alerts](#alerts)).
+- **Update after a change:** `scripts/update-deploy.sh`. One command, no questions: it checks the checkout and CI (it waits for a running CI), rebuilds the index only when needed, builds, deploys, checks it answers, keeps the last 3 images, and adds the Telegram and Tavily secrets from `backend/.env` once. It stops at the first problem with nothing live changed. `--dry-run` shows what it would do ([DEPLOY.md](./DEPLOY.md)).
 - **What you need:** a Google Cloud account with billing, the `gcloud` CLI, Docker, an OpenRouter key with a spending cap, the Clerk keys ([Sign-in](#sign-in-clerk)). Optional: a Tavily key, a Telegram bot.
 - **Checked on the first deploy** (2026-10-19): the wizard's steps ran; three fixes went into the wizard and DEPLOY.md on the way (the billing account id, the budget in the account's currency, an empty time zone). The region is `europe-west1` (Belgium), not DEPLOY.md's example `us-central1`: why in [DEPLOY.md](./DEPLOY.md#what-runs-where).
 - **Link previews** need `APP_URL` set to the public https address in `deploy/cloudrun/env.yaml` (the wizard fills it in). The image is made by `scripts/link-preview-image.sh` on throwaway servers.

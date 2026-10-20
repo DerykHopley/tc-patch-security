@@ -205,7 +205,17 @@ The checks for #45:
 5. Cold-start time: after 15 idle minutes, open the app and time the first page. The log has the start-up and the `Search index caught up` line.
 6. After a week: Billing → Reports, filtered to the project. Expected $0.
 
-**Update after a change: `scripts/update-deploy.sh`.** It shows what's live and what's new, suggests the next version (`v2`, `v3`…), rebuilds the search index only when the snapshot or the chunking changed (it compares the index's fingerprint), builds, uploads and deploys the new tag, checks it answers, and offers to delete the old image. It reads the first deploy's `deploy/cloudrun/wizard.env` and `env.yaml`; the secrets stay as they are. It also offers Telegram (B57): it stores the bot token as the `telegram-bot-token` secret (from `backend/.env` or typed, hidden), lets the service read it, adds it to the deploy (`--update-secrets`, so the other secrets stay), and puts `TELEGRAM_CHAT_ID` from `backend/.env` in `env.yaml` if you like. Once added, every later update keeps both. By hand: step 4's `add_secret telegram-bot-token`, then `gcloud run deploy ... --update-secrets=TELEGRAM_BOT_TOKEN=telegram-bot-token:latest`. By hand: build and push a new tag (step 5 with `v2`), then `gcloud run deploy $SERVICE --image=$IMAGE:v2 --region=$REGION` (the other settings stay). Delete old tags to keep storage free: `gcloud artifacts docker images delete $IMAGE:v1`.
+**Update after a change: `scripts/update-deploy.sh`.** One command, no questions (B71, 2026-10-20). It:
+
+1. Checks the checkout: no uncommitted changes (they would go into the image), fast-forwards to GitHub if behind, stops if the branch has diverged.
+2. Checks CI with `gh`: the run for this commit must pass, and it waits if the run is still going. A docs-only commit skips the browser checks, so the newest run before it that did run them must pass too (v7 shipped past a red run; this closes that gap).
+3. Rebuilds the search index only when the snapshot or the chunking changed, with the OpenRouter key from `backend/.env`.
+4. Builds and uploads the next tag (`v9`, `v10`…).
+5. Secrets: the Telegram token and the Tavily key are added once from `backend/.env` (`TELEGRAM_BOT_TOKEN`, `TAVILY_API_KEY`) and then kept; it never asks again. `--rotate telegram` (or `tavily`) stores a new version from `backend/.env`. `TELEGRAM_CHAT_ID` goes into `env.yaml` once.
+6. Deploys (no downtime: Cloud Run switches over once the new version answers), checks `/api/health` (up to 3 tries of 2 minutes, for a cold start), and records the tag and commit in `wizard.env`.
+7. Keeps the newest 3 images (`--keep N`) and deletes older ones, so there is always one to roll back to.
+
+It stops, with nothing on the live app changed, at the first problem, and says why. `--dry-run` runs every check and prints what it would do. `--skip-ci` deploys without the CI check (for when GitHub is down). If the new version doesn't answer, it prints the rollback command. By hand: build and push a new tag (step 5 with `v2`), then `gcloud run deploy $SERVICE --image=$IMAGE:v2 --region=$REGION --update-secrets=...` (the other settings stay).
 
 Roll back: `gcloud run revisions list --service=$SERVICE --region=$REGION`, then `gcloud run services update-traffic $SERVICE --region=$REGION --to-revisions=<revision>=100`.
 
