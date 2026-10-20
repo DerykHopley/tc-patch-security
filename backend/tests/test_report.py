@@ -373,3 +373,17 @@ def test_kinds_the_grid_says_how_to_read_it(deps, runs):
     for words in ("Every question was answered", "Red", "amber", "explain levels", "Flagged",
                   "our guard"):
         assert words.lower() in note.lower(), words
+
+
+def test_b16_two_runs_of_one_model_are_told_apart_by_their_day(deps, runs):
+    """B16 (#47): the published report holds Haiku's 2026-10-15 run and its 2026-10-20 run. Both said only
+    "claude-haiku-5.5", so the grid's columns and the chart's points couldn't be told apart."""
+    old = {**runs["fake"], "id": "20261015-100000-000-aaaa", "started": "2026-10-15T10:00:00+00:00"}
+    new = {**runs["fake"], "id": "20261020-100000-000-bbbb", "started": "2026-10-20T10:00:00+00:00"}
+    html = report.build([old, new, runs["lazy"]], [], as_of=deps.settings.as_of)
+    head = re.search(r"<thead>.*?</thead>", section(html, "grid"), re.S).group(0)
+    assert "2026-10-15" in head and "2026-10-20" in head
+    glance = section(html, "glance")
+    assert "(2026-10-15)" in glance and "(2026-10-20)" in glance
+    lazy_day = runs["lazy"]["started"][:10]
+    assert f"lazy-model ({lazy_day})" not in html  # a model with one run keeps its plain name
