@@ -42,8 +42,9 @@ ok()   { printf '  %s✓%s %s\n' "$G" "$N" "$1"; }
 info() { printf '  %s%s%s\n' "$D" "$1" "$N"; }
 stop() { printf '\n  %s✗ %s%s\n  %sNothing on the live app changed.%s\n\n' "$R" "$1" "$N" "$D" "$N"; exit 1; }
 # do_ "what" cmd...: runs it, or in a dry run prints it
-# (to stderr: callers send the command's own output to a log or /dev/null)
-do_() { local what="$1"; shift; if [[ $DRY == yes ]]; then info "would run: $what" >&2; else "$@"; fi; }
+# (to fd 3, the screen saved at start: callers send the command's own output, and errors, to a log or /dev/null)
+exec 3>&1
+do_() { local what="$1"; shift; if [[ $DRY == yes ]]; then info "would run: $what" >&3; else "$@"; fi; }
 
 saved()  { grep -E "^${1}=" "$WIZARD_ENV" 2>/dev/null | tail -n1 | cut -d= -f2-; }
 local_() { grep -E "^${1}=" "$LOCAL_ENV" 2>/dev/null | tail -n1 | cut -d= -f2- | sed -E "s/^['\"]|['\"]$//g"; }
