@@ -143,3 +143,62 @@ def test_a16b_2_no_fix_table(coverage, entries, want):
     from app.verdict import no_fix
 
     assert no_fix(coverage, entries) is want
+
+
+# --- B67 (#109): a fix under more than one package ------------------------------------------------------------------
+# OSV's entries for CVE-2024-8309 (GHSA-45pg-36p6-83v9), as in the snapshot: langchain fixed in 0.2.0, then the
+# chain lives in langchain-community from 0.2.0, fixed in 0.2.19.
+MOVED = [entry("PyPI", "langchain", ("0", "0.2.0", None)),
+         entry("PyPI", "langchain-community", ("0.2.0", "0.2.19", None))]
+BOTH_FIXES = [("langchain", "0.2.0"), ("langchain-community", "0.2.19")]
+
+
+def fixes(v):
+    return [(f.package, f.fixed_version) for f in v.fixes]
+
+
+def test_b67_1_affected_names_each_packages_fix():
+    v = verdict("package", MOVED, "library", "0.1.5")
+    assert (v.verdict, v.fixed_version) == ("affected", "0.2.0")
+    assert v.reason == ("0.1.5 is before the fixed version 0.2.0 (langchain); "
+                        "OSV also lists langchain-community from 0.2.0, fixed in 0.2.19")
+    assert fixes(v) == BOTH_FIXES
+
+
+# CVE-2024-12704 as in the snapshot: llama-index last affected 0.12.5 (no fix listed), llama-index-core fixed 0.12.6
+CORE_ONLY_FIX = [entry("PyPI", "llama-index", ("0", None, "0.12.5")),
+                 entry("PyPI", "llama-index-core", ("0", "0.12.6", None))]
+
+B67_TABLE = [
+    # case, entries, your version, verdict, reason, fixed version, fixes
+    ("no version: each package's fix", MOVED, None, "unknown", "no version given", "0.2.19", BOTH_FIXES),
+    ("in the later package's range", MOVED, "0.2.5", "affected",
+     "0.2.5 is before the fixed version 0.2.19 (langchain-community); OSV also lists langchain, fixed in 0.2.0",
+     "0.2.19", BOTH_FIXES),
+    ("past both fixes", MOVED, "0.2.19", "not_affected",
+     "0.2.19 is at or after the fixed version 0.2.19 (langchain-community)", "0.2.19", BOTH_FIXES),
+    ("one package: reads as before, no list", LANGFLOW, "1.2.0", "affected",
+     "1.2.0 is before the fixed version 1.3.0 (langflow)", "1.3.0", []),
+    ("one package, no version: no list", LANGFLOW, None, "unknown", "no version given", "1.3.0", []),
+    ("one package, two ranges: no list", CORE_TWO_LINES, "1.0.6", "affected",
+     "1.0.6 is before the fixed version 1.0.7 (langchain-core)", "1.0.7", []),
+    ("two packages, the same fix: the reason reads as before", FLOWISE, "3.0.13", "affected",
+     "3.0.13 is before the fixed version 3.1.0 (flowise)", "3.1.0",
+     [("flowise", "3.1.0"), ("flowise-components", "3.1.0")]),
+    ("a package with no fix listed", CORE_ONLY_FIX, "0.12.5", "affected",
+     "0.12.5 is at or before the last affected version 0.12.5 (llama-index); no fixed version listed; "
+     "OSV also lists llama-index-core, fixed in 0.12.6", None,
+     [("llama-index", None), ("llama-index-core", "0.12.6")]),
+]
+
+
+@pytest.mark.parametrize("case,entries,version,want,reason,fixed,want_fixes", B67_TABLE, ids=[r[0] for r in B67_TABLE])
+def test_b67_2_fixes_per_package_table(case, entries, version, want, reason, fixed, want_fixes):
+    v = verdict("package", entries, "library", version)
+    assert (v.verdict, v.reason, v.fixed_version, fixes(v)) == (want, reason, fixed, want_fixes)
+
+
+def test_b67_2_the_list_is_the_same_whatever_your_version():
+    """lookup_cve without a version and check_affected with one give the same fixes for one CVE."""
+    for version in (None, "0.1.5", "0.2.5", "0.3.0", "latest"):
+        assert fixes(verdict("package", MOVED, "library", version)) == BOTH_FIXES

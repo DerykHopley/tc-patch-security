@@ -432,7 +432,12 @@ function CveTable({ page, onDecide, onAsk, onOpen, selected }: {
               </td>
               <td data-label="Verdict" className="verdict-cell">
                 <VerdictChip verdict={r.verdict} />
-                <VerdictFacts reason={r.verdict_reason} fixed={r.fixed_version} who={r.who_acts} />
+                <VerdictFacts
+                  reason={r.verdict_reason}
+                  fixed={r.fixed_version}
+                  fixes={r.package_fixes}
+                  who={r.who_acts}
+                />
                 {/* A suggestion only: the user's click is the decision; nothing marks a CVE on its own (A15). */}
                 <SuggestNotAffected row={r} onDecide={onDecide} />
               </td>
