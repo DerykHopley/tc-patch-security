@@ -29,6 +29,7 @@ import { scheduleLine } from '../refreshRuns.ts'
 import { followLink, openPath } from '../route.ts'
 import { AskButton, ChangeActions, RefineActions } from './CardActions.tsx'
 import { count } from '../plural.ts'
+import '../styles/checkNow.css' // Try again's spinner, shared with Check now (§5.10)
 
 // One card per tool call: name, arguments, status, time, and the result drawn for its tool. Errors in red.
 // Result types come from the tools' declared result models (toolResults.ts, generated from backend/app/tools/).

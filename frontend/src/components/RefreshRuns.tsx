@@ -2,12 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { refreshRuns, type RunRow, type RunsReply } from '../api.ts'
 import { utcTime } from '../freshness.ts'
 import { feedLine, runCounts, runResult, runWhen, scheduleLine, triggerName } from '../refreshRuns.ts'
+import { CheckLine, CheckNowButton, useCheckNow } from './CheckNow.tsx'
 import { CveLink } from './CveLink.tsx'
 import '../styles/runs.css'
 
 // The run history (B19, DESIGN.md §5.12): the last 20 refresh runs on Settings' "Refresh runs" card, newest first.
 // Each run is a <details>: the summary says the result (in words, with its tone as an edge), the trigger, when and
 // how long, and what it found; opened, each feed's step, the new CVEs, and any error. A refused run is "skipped".
+// B59 (#103): Check now (live mode) above the list, the dashboard's own (CheckNow.tsx). After every press the list loads
+// again, so the new run, or the refusal's "skipped" row, shows on top without a reload.
 
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
 
@@ -103,9 +106,14 @@ export function RunList({ runs, labelledBy }: { runs: RunRow[]; labelledBy: stri
   )
 }
 
-/** The schedule line and the runs, under Settings' schedule fields. */
+/** The schedule line, Check now and the runs, under Settings' schedule fields. The card is the owner's (B48). */
 export function RefreshRuns({ reload }: { reload: string }) {
-  const { reply, error } = useRefreshRuns(reload)
+  const [presses, setPresses] = useState(0) // each Check now press loads the runs again
+  const { reply, error } = useRefreshRuns(`${reload}|${presses}`)
+  const { checking, line, check } = useCheckNow({
+    owner: reply?.schedule.yours !== false,
+    onDone: () => setPresses((n) => n + 1),
+  })
   if (error) {
     return (
       <p className="form-error" role="alert">
@@ -120,10 +128,16 @@ export function RefreshRuns({ reload }: { reload: string }) {
         data-testid="schedule-line">
         {scheduleLine(reply.schedule, reply.mode)}
       </p>
+      {reply.mode === 'live' && (
+        <>
+          <CheckNowButton checking={checking} onCheck={check} />
+          <CheckLine line={line} />
+        </>
+      )}
       <h4 id="runs-title">Last 20 runs</h4>
       {reply.runs.length === 0 ? (
         <p className="meta">
-          {reply.mode === 'live' ? 'No runs yet. Check now on the dashboard, the schedule or Patch starts one.'
+          {reply.mode === 'live' ? 'No runs yet. Check now, the schedule or Patch starts one.'
             : 'The snapshot never changes, so nothing runs.'}
         </p>
       ) : (

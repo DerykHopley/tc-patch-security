@@ -464,7 +464,8 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                     </div>
                   </fieldset>
                   <NotSaved error={s.error} show={s.changed('alerts', { only: SCHEDULE_KEYS })} />
-                  <RefreshRuns reload={JSON.stringify(s.reply.settings.alerts)} />
+                  {/* Loads again on a saved schedule, and on a switch of mode (Check now shows in live mode only) */}
+                  <RefreshRuns reload={`${JSON.stringify(s.reply.settings.alerts)}|${mode ?? ''}`} />
                 </Card>
               </div>
 
@@ -555,9 +556,9 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                   {owner && <DataSourceFields f={owner} />}
                   <NotSaved error={srv.error} show={srv.changed(['data_mode', 'nvd_api_key'])} />
                   <p className="meta" data-testid="check-now-pointer">
-                    In live mode, <strong>Check now</strong> on the{' '}
+                    In live mode, <strong>Check now</strong> under <a href="#schedule">Refresh runs</a> or on the{' '}
                     <a href="/" onClick={(e) => followLink(e, openPath)}>dashboard's Data freshness card</a> checks the feeds
-                    for new CVEs. Every check is listed under <a href="#schedule">Refresh runs</a>.
+                    for new CVEs. Every check is listed under Refresh runs.
                   </p>
                 </Card>
               </div>

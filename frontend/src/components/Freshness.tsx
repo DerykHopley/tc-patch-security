@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { checkNow, setSchedulePaused, type DataStatus, type RefreshResult, type SnapshotSource } from '../api.ts'
-import { checkedLine, freshnessFeedsWarning, replyLine, runBanner, type Tone } from '../freshness.ts'
+import { setSchedulePaused, type DataStatus, type RefreshResult, type SnapshotSource } from '../api.ts'
+import { checkedLine, freshnessFeedsWarning, runBanner } from '../freshness.ts'
 import { followLink } from '../route.ts'
-import { announceWatchlistChanged } from '../watchlistEvents.ts'
+import { CheckLine, CheckNowButton, useCheckNow } from './CheckNow.tsx'
 import '../styles/settings.css' // the card head and its status chip, shared with the Settings cards (§5.2)
 import '../styles/runs.css' // B19: "Schedule paused"
 
@@ -10,6 +10,7 @@ import '../styles/runs.css' // B19: "Schedule paused"
 // checked, Check now (live mode only), and the sources with their licences, attributions and NVD's notice.
 // After a check that ran, the dashboard and any CVE list on screen load again (the "data changed" event), so the
 // new CVEs and the new last-checked time show at once; the line ("Done: …") and the button wait for that load.
+// B59: Check now itself (the button, the wait, the line) is CheckNow.tsx, shared with Settings' Refresh runs card.
 // B20: when the last run was partial or failed, a banner says which sources updated, which didn't, and when Retry may
 // run; Retry is Check now again (the server keeps the 5-minute rule, and a refusal shows in the line as usual).
 // B19: when the schedule is paused, "Schedule paused" with Resume (saves the setting); a link to the run history.
@@ -26,11 +27,15 @@ export function FreshnessCard({ data, asOf, sources, onNavigate, newCves = null 
   onNavigate: (href: string) => void
   newCves?: { text: string; href: string } | null
 }) {
-  const [checking, setChecking] = useState(false)
   const [resumed, setResumed] = useState(false)
   const [resuming, setResuming] = useState(false)
-  const [line, setLine] = useState<{ tone: Tone; text: string } | null>(null)
   const [latest, setLatest] = useState<RefreshResult | null | undefined>(undefined) // this page's last run, if any
+  const { checking, line, setLine, check } = useCheckNow({
+    owner: data.schedule?.yours !== false, // B50: anyone else's alerts are in Patch only
+    onDone: (out) => {
+      if (out.ran) setLatest(out.result)
+    },
+  })
   const live = data.mode === 'live'
   const banner = live ? runBanner(latest !== undefined ? latest : data.last_result) : null
   const paused = live && !!data.schedule?.paused && !resumed
@@ -46,21 +51,6 @@ export function FreshnessCard({ data, asOf, sources, onNavigate, newCves = null 
       })
       .catch((e: unknown) => setLine({ tone: 'error', text: `Not resumed: ${message(e)}` }))
       .finally(() => setResuming(false))
-  }
-
-  const check = () => {
-    setChecking(true)
-    setLine(null)
-    checkNow()
-      .then(async (reply) => {
-        // ok: a version was written (partial too). The line and the button wait until the dashboard and the alerts
-        // have loaded again, so the cards above the button have their new size before the next click (#67).
-        if (reply.ran && reply.result?.ok) await announceWatchlistChanged()
-        setLine(replyLine(reply, data.schedule?.yours !== false)) // B50: anyone else's alerts are in Patch only
-        if (reply.ran) setLatest(reply.result)
-      })
-      .catch((e: unknown) => setLine({ tone: 'error', text: message(e) }))
-      .finally(() => setChecking(false))
   }
 
   return (
@@ -105,16 +95,8 @@ export function FreshnessCard({ data, asOf, sources, onNavigate, newCves = null 
           )}
         </div>
       )}
-      {live && (
-        <div className="check-now-row">
-          <button type="button" className="check-now" onClick={check} disabled={checking} aria-busy={checking}>
-            {checking && <span className="spinner" aria-hidden="true" />}
-            {checking ? 'Checking…' : 'Check now'}
-          </button>
-        </div>
-      )}
-      {/* <output> is a status region; it is always in the page, so a screen reader hears the line when it appears. */}
-      <output className={`check-line${line ? ` ${line.tone}` : ''}`}>{line?.text}</output>
+      {live && <CheckNowButton checking={checking} onCheck={check} />}
+      <CheckLine line={line} />
       {newCves && (
         <a className="edit-link new-cves-link" href={newCves.href} onClick={(e) => followLink(e, onNavigate)}>
           {newCves.text} <span aria-hidden="true">→</span>
