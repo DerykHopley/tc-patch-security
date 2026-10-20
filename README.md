@@ -260,7 +260,7 @@ Claude Desktop, in `claude_desktop_config.json` (Settings → Developer → Edit
 ```
 
 - For your own model, add `"--env-file", ".env"` after `"run"`. It needs `backend/.env` to exist, or the server won't start. Checked: the command starts from another folder and lists the four tools, with and without `--env-file`.
-- *Unverified:* the `claude mcp add` syntax and the Desktop menu path were not run here. The human demo checks them: [docs/mcp-demo.md](./docs/mcp-demo.md).
+- The `claude mcp add` command above works as written (*checked* 2026-10-20 with Claude Code 2.1.304: the real-client demo in [docs/mcp-demo.md](./docs/mcp-demo.md)). *Unverified:* the Claude Desktop menu path.
 - **Not built:** the deployed server over streamable HTTP, behind Clerk or a token and rate-limited like the app. It's optional and waits on the rate limits ([#43](https://github.com/DerykHopley/tc-patch-security/issues/43)).
 
 ### The model check and the report
