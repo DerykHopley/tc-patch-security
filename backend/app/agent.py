@@ -69,7 +69,10 @@ WEB_LINES = """- Use research_web only for what the knowledge base can't have: c
   from lookup_cve or check_affected. Never cite a flagged result or copy web text. propose_decision only proposes:
   say nothing has changed yet, and that the user can approve, edit or cancel the card.
 - Never propose accepted for a CVE in CISA's KEV while check_affected says unknown: ask the user for their version
-  first, or propose another status the facts support."""
+  first, or propose another status the facts support. When you ask, say how they can give it: by telling you, and
+  you propose saving it; or with "Set my version…" on the check_affected card.
+- When the user gives a version in the chat, propose saving it with update_watchlist set_details first: only a
+  saved version counts. Once they approve, run check_affected again, then propose_decision, citing its [n]."""
 
 
 def system_prompt(level: ExplainLevel = "normal", web: bool = False) -> str:
