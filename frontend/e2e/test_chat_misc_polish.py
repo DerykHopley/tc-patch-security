@@ -16,7 +16,8 @@ from test_chat import ask, open_chat, send, window
 from test_contrast import low_contrast, show
 from test_dashboard import api, ask_about
 from test_partial import text_contrast
-from test_research_decision import ASK as RESEARCH, CVE as RESEARCH_CVE
+from test_affected import set_stack
+from test_research_decision import ASK_KNOWN as RESEARCH, CVE as RESEARCH_CVE
 from test_shell import SHOTS, no_sideways_scroll, settled
 
 PHONE, DESKTOP = 390, 1440
@@ -33,6 +34,13 @@ def fresh_state(api_url: str):
     api(api_url, "/state/reset", "POST", {"confirm": "reset"})
     yield
     api(api_url, "/state/reset", "POST", {"confirm": "reset"})
+
+
+@pytest.fixture
+def known_langflow(api_url: str):
+    """Langflow 1.2.0 recorded, so the research question ends in an accepted proposal: since B62 (#111) Patch asks for
+    the version instead while it's unknown. fresh_state resets it after."""
+    set_stack(api_url, langflow={"version": "1.2.0"})
 
 
 @pytest.fixture
@@ -100,7 +108,7 @@ def test_b49_9_the_details_button_and_usage_line_say_one_source_one_tool_call(op
 
 # --- B49.10 (C3): the proposal's after value, the reason on its own line ----------------------------------------------
 
-def test_b49_10_an_accepted_risk_reads_accepted_review_date_with_the_reason_under_it(open_page):
+def test_b49_10_an_accepted_risk_reads_accepted_review_date_with_the_reason_under_it(open_page, known_langflow):
     page = open_page()
     open_chat(page)
     card = ask(page, RESEARCH).locator(".proposal-card")
@@ -183,7 +191,7 @@ def test_b49_12_with_storage_blocked_the_chat_still_works(open_page):
     expect(window(page).locator(".message")).to_have_count(0)  # nothing kept, nothing broken
 
 
-def test_b49_12_a_kept_proposal_shows_its_state_after_the_reload(open_page):
+def test_b49_12_a_kept_proposal_shows_its_state_after_the_reload(open_page, known_langflow):
     page = open_page()
     open_chat(page)
     card = ask(page, RESEARCH).locator(".proposal-card")
