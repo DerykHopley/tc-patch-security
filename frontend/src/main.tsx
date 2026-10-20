@@ -4,11 +4,13 @@ import { health, type AuthConfig } from './api.ts'
 import App from './App.tsx'
 import { AccessGate } from './auth/AccessGate.tsx'
 import { OpeningPatch, SignInLoading, SignInScreen } from './auth/SignInScreen.tsx'
+import { keepTarget } from './auth/signInTarget.ts'
 import type { FrontDoor } from './auth/signInView.ts'
 import { useFrontDoor } from './auth/useFrontDoor.ts'
 import { Landing } from './landing/Landing.tsx'
 import { LoadingScreen } from './components/LoadingScreen.tsx'
 import { waitForHealth, type HealthWait } from './healthWait.ts'
+import { signInTargetAt } from './route.ts'
 import './styles/tokens.css'
 import './styles/shell.css'
 import './styles/controls.css'
@@ -57,6 +59,11 @@ function SignInOn({ publishableKey }: { publishableKey: string }) {
   const door = useFrontDoor(false)
   const [reported, setReported] = useState<boolean | null>(null)
   const landing = reported ?? door === 'landing'
+  // B60 (#107): the address this signed-out visitor asked for, kept for this tab, so sign-in opens it (route.ts);
+  // at "/" an older one is forgotten. Its own Sign in and Request access need nothing more.
+  useEffect(() => {
+    if (landing) keepTarget(signInTargetAt(window.location))
+  }, [landing])
   return (
     <>
       {landing && <Landing place="front-door" />}

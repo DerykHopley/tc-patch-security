@@ -16,6 +16,7 @@ import { AccessGate } from './AccessGate.tsx'
 import { LinkedAccountsContext } from './ConnectedAccounts.tsx'
 import type { ClerkAccount, ClerkUserLike } from './linkedAccounts.ts'
 import { OpeningPatch, SignInFailed, SignInLoading, SignInScreen } from './SignInScreen.tsx'
+import { clerkRedirects, readTarget } from './signInTarget.ts'
 import { CLERK_URLS } from './signInView.ts'
 import { rememberSignedIn, useFrontDoor } from './useFrontDoor.ts'
 
@@ -79,7 +80,9 @@ function Gate({ onLanding }: { onLanding: Props['onLanding'] }) {
       <ClerkLoaded>
         {/* Hash routing: the app's own paths stay the app's. Sign-in, with the sign-up steps (open sign-up, B38, and
             those an SSO sign-in can need) kept inside it under #/create. */}
-        <SignIn routing="hash" withSignUp appearance={appearance} />
+        {/* B60 (#107): then to the address the visitor asked for while signed out, if any (signInTarget.ts). Read
+            from this tab's storage on every render, so it's there again after Clerk's SSO round trip reloads the page */}
+        <SignIn routing="hash" withSignUp appearance={appearance} {...clerkRedirects(readTarget())} />
       </ClerkLoaded>
     </SignInScreen>
   )

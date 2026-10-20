@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 // Any other address is "Page not found" (B49, #96 O1), with a link to the dashboard: it used to show the dashboard
 // under the bad address, so a mistyped link looked like it worked. Signed out with sign-in on, the front door shows
 // the landing page instead (auth/signInView.ts `frontDoor`): this is the signed-in (or sign-in off) side.
+import { takeTarget } from './auth/signInTarget.ts'
 import { SIGN_IN_PATH } from './auth/signInView.ts'
 
 /** A page with its own path: the sidebar's and the tab bar's. */
@@ -59,6 +60,29 @@ export function alertLinkPath(hash: string): string | null {
   return m && CVE_ID.test(m[1]) ? cvePath(m[1]) : null
 }
 
+const trimmed = (pathname: string) => pathname.replace(/\/+$/, '') || '/'
+
+/** The address a signed-out visitor asked for, which the front door keeps for after sign-in (B60, #107): an in-app
+ *  address (path, query and hash) other than the bare dashboard. An old alert link becomes its CVE page. Nothing at
+ *  `/` (the app opens there anyway), the sign-in form, Clerk's steps (`#/…`) or an unknown address. */
+export function signInTargetAt({ pathname, search, hash }: { pathname: string; search: string; hash: string }):
+  string | null {
+  const alert = alertLinkPath(hash)
+  if (alert) return alert
+  const path = trimmed(pathname)
+  if (hash.startsWith('#/') || path === SIGN_IN_PATH || locate(path).page === 'notFound') return null
+  const target = path + search + hash
+  return target === '/' ? null : target
+}
+
+/** Where the app opens after sign-in when a target was kept (B60): the target, when the app starts where Clerk lands
+ *  without one (`/`, its fallback, or the form's address); elsewhere null: Clerk already went there, or the person
+ *  chose that address. */
+export function afterSignIn(pathname: string, target: string | null): string | null {
+  const path = trimmed(pathname)
+  return target && (path === '/' || path === SIGN_IN_PATH) ? target : null
+}
+
 /** The history state of a CVE page opened from the CVEs list (B35): its back link then steps back to the list, in
  *  place, instead of opening the list again at the top. */
 export const FROM_LIST = { cveFromList: true }
@@ -80,7 +104,13 @@ function current(visit: number): Route {
 
 /** The page in the address bar, and a function that opens another one (a new history entry; Back returns). */
 export function useRoute(): [Route, (href: string) => void] {
-  const [route, setRoute] = useState(() => current(0))
+  const [route, setRoute] = useState(() => {
+    // B60 (#107): the app's first page after sign-in is the address the visitor asked for while signed out, once
+    // (replaced, not pushed: Back doesn't return to the dashboard they never asked for)
+    const target = afterSignIn(window.location.pathname, takeTarget())
+    if (target) history.replaceState(null, '', target)
+    return current(0)
+  })
 
   useEffect(() => {
     const onPop = () => setRoute((r) => current(r.visit + 1))
