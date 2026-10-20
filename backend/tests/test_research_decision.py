@@ -425,3 +425,76 @@ def test_b62_5_the_system_prompt_says_to_ask_for_the_version_first():
     web = " ".join(agent.system_prompt("normal", web=True).split())
     assert ("Never propose accepted for a CVE in CISA's KEV while check_affected says unknown: ask the user for "
             "their version first") in web
+
+
+# --- B66 (#113): a version given in the chat is proposed for saving first; after Approve, Patch carries on ----------
+# Only a saved, approved version counts for B62's rule: Patch proposes saving the one you type, never uses it as is.
+
+GIVE_VERSION = "1.2.0"  # the user's whole reply to "Which Langflow version do you run?", as in the #62 demo
+CARRY_ON = "Approved. Carry on."
+
+
+def turns(*pairs):
+    return [{"role": role, "content": text} for q, a in pairs for role, text in (("user", q), ("assistant", a))]
+
+
+def test_b66_1_a_version_given_in_the_chat_is_proposed_then_approved_then_the_decision_follows(web_deps):
+    client = client_for(web_deps)
+    before = web_deps.state.read()
+    first = client.post("/chat", json={"message": ASK}).json()
+    assert "which langflow version do you run?" in first["answer"].lower()  # B62: no version saved, so it asks
+
+    # The user answers in the chat: Patch proposes saving it (set_details), and changes nothing yet
+    second = client.post("/chat", json={"message": GIVE_VERSION,
+                                        "history": turns((ASK, first["answer"]))}).json()
+    assert [t["name"] for t in second["tool_calls"]] == ["update_watchlist"], second["tool_calls"]
+    p = second["tool_calls"][0]["result"]
+    assert (p["action"], p["state"], p["fields"]["version"]) == ("set_details", "proposed", VERSION), p
+    assert "nothing has changed yet" in second["answer"].lower() and "approve" in second["answer"].lower()
+    assert web_deps.state.read() == before
+
+    # Approve saves it; the next turn checks again (now affected) and proposes the decision
+    assert client.post(f"/proposals/{p['proposal_id']}/approve").json()["state"] == "approved"
+    third = client.post("/chat", json={"message": CARRY_ON, "history": turns(
+        (ASK, first["answer"]), (GIVE_VERSION, second["answer"]))}).json()
+    assert [t["name"] for t in third["tool_calls"]] == ["check_affected", "propose_decision"], third["tool_calls"]
+    assert all(t["status"] == "ok" for t in third["tool_calls"]), third["tool_calls"]
+    assert third["tool_calls"][0]["result"]["verdict"] == "affected"
+    d = third["tool_calls"][1]["result"]
+    assert (d["action"], d["fields"]["status"]) == ("set_status", "accepted")
+    assert [s["label"] for s in d["sources"]] == ["knowledge base"]
+    assert "nothing has changed yet" in third["answer"].lower()
+
+
+def test_b66_2_without_approve_the_version_said_in_the_chat_does_not_count(web_deps):
+    # The rejected option (#113): a version in the conversation doesn't satisfy B62. The chat's check_affected takes
+    # no version (only the MCP server's does, B23): it reads the saved one, so a version the model passes is ignored
+    ctx = researched(web_deps)
+    assert call(web_deps, ctx, "check_affected", cve_id=CVE, version=VERSION).result["verdict"] == "unknown"
+    rec = propose(web_deps, ctx)
+    assert rec.status == "error" and rec.error["code"] == "kev_version_unknown", rec.error
+
+
+def test_b66_2_carrying_on_without_approving_is_still_refused(web_deps):
+    body = client_for(web_deps).post("/chat", json={"message": CARRY_ON}).json()  # the save was never approved
+    assert body["tool_calls"][0]["result"]["verdict"] == "unknown"
+    assert body["tool_calls"][1]["status"] == "error"
+    assert body["tool_calls"][1]["error"]["code"] == "kev_version_unknown"
+    assert web_deps.state.read().decision(CVE) is None
+
+
+def test_b66_3_patch_says_how_to_give_the_version_and_that_only_a_saved_one_counts(web_deps):
+    from app import agent
+
+    web = " ".join(agent.system_prompt("normal", web=True).split())
+    # Says *how*, not only "send me your version" (#113); described, not scripted, so the answer doesn't quote it
+    assert ("When you ask, say how they can give it: by telling you, and you propose saving it; or with \"Set my "
+            "version…\" on the check_affected card.") in web
+    assert ("When the user gives a version in the chat, propose saving it with update_watchlist set_details first: "
+            "only a saved version counts. Once they approve, run check_affected again, then propose_decision") in web
+    # The tool's refusal says the same, for a model that didn't follow the prompt
+    rec = propose(web_deps, researched(web_deps))
+    assert "propose saving it with update_watchlist (set_details): only a saved version counts" in rec.error["message"]
+    # FakeLLM's answer at the question says how, too
+    answer = client_for(web_deps).post("/chat", json={"message": ASK}).json()["answer"]
+    assert "Tell me and I'll propose saving it, or use \"Set my version…\" on the check_affected card" in answer

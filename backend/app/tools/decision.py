@@ -96,7 +96,9 @@ def check_kev_accept(cve_id: str, status: str, deps) -> None:
     if a.verdict.verdict == "unknown":
         product = deps.knowledge.products[a.cve["product"]]
         raise ToolError(f"Can't propose accepting {cve_id}: it's in CISA's KEV and the version check says unknown "
-                        f"({a.verdict.reason}). Ask the user for their {product} version, or propose another status.",
+                        f"({a.verdict.reason}). Ask the user for their {product} version, or propose another status. "
+                        "When they give it, propose saving it with update_watchlist (set_details): only a saved "
+                        "version counts.",
                         "kev_version_unknown")
 
 

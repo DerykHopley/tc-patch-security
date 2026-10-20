@@ -566,6 +566,58 @@
    "answer": "{affected}\n\n{web}\n\n{decision}"
   },
   {
+   "id": "research-give-version",
+   "question": "1.2.0",
+   "keywords": [
+    "1.2.0"
+   ],
+   "web": true,
+   "tool_calls": [
+    {
+     "name": "update_watchlist",
+     "args": {
+      "action": "set_details",
+      "product": "Langflow",
+      "version": "1.2.0",
+      "why": "You told me you run Langflow 1.2.0; the version check needs it saved."
+     }
+    }
+   ],
+   "answer": "{watch}\n\nOnly a saved version counts for the check. Once you approve the card, tell me to carry on: I'll check 1.2.0 against the fix and propose a decision."
+  },
+  {
+   "id": "research-carry-on",
+   "question": "Approved. Carry on.",
+   "keywords": [
+    "approved",
+    "carry on"
+   ],
+   "web": true,
+   "steps": [
+    [
+     {
+      "name": "check_affected",
+      "args": {
+       "cve_id": "CVE-2025-3248"
+      }
+     }
+    ],
+    [
+     {
+      "name": "propose_decision",
+      "args": {
+       "cve_id": "CVE-2025-3248",
+       "status": "accepted",
+       "reason": "Our saved Langflow 1.2.0 is affected and the fix is in 1.3.0 [1]; it's reachable only over the VPN, so we accept it until we upgrade.",
+       "review_in_days": 14
+      }
+     }
+    ]
+   ],
+   "tool_calls": [],
+   "answer": "{affected}\n\n{decision}"
+  },
+  {
    "id": "Q-research",
    "question": "Is CVE-2025-3248 a problem for my Langflow behind a VPN? Research it and propose a decision.",
    "keywords": [
@@ -602,7 +654,7 @@
     ]
    ],
    "tool_calls": [],
-   "answer": "{affected}\n\n{web}\n\nThis CVE is in CISA's KEV list, so attackers are using it now. Without your Langflow version I can't tell whether you're affected, so I won't propose accepting the risk yet. Which Langflow version do you run? Tell me, or set it in Settings, and I'll check it against the fix and propose a decision.",
+   "answer": "{affected}\n\n{web}\n\nThis CVE is in CISA's KEV list, so attackers are using it now. Without your Langflow version I can't tell whether you're affected, so I won't propose accepting the risk yet. Which Langflow version do you run? Tell me and I'll propose saving it, or use \"Set my version…\" on the check_affected card. Once it's saved, I'll check it against the fix and propose a decision.",
    "expect": {
     "tools_in_order": [
      "lookup_cve",

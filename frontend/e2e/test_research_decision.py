@@ -1,4 +1,4 @@
-"""Browser check for web research that ends in a proposed decision (B22, #62). Check ids: B22.9, B62.8.
+"""Browser check for web research that ends in a proposed decision (B22, #62). Check ids: B22.9, B62.8, B66.4.
 
 run.sh turns web research on against the fake Tavily (backend/tests/fake_tavily.py). With Langflow's version recorded
 (1.2.0: affected), FakeLLM runs its workflow script research-known-version: lookup_cve, check_affected, research_web,
@@ -103,6 +103,26 @@ def test_b62_8_with_no_version_patch_asks_for_it_instead_of_proposing(open_app, 
     expect(answer).to_contain_text("Which Langflow version do you run?")
     expect(answer.locator(".proposal-card")).to_have_count(0)
     assert langflow_row(api_url)["status"] == "open"
+
+
+def test_b66_4_a_version_typed_in_the_chat_is_proposed_saved_then_the_decision_follows(open_app, api_url):
+    """#113: the user answers Patch's question in the chat. Patch proposes saving it; only after Approve does the
+    next turn propose the decision. The chat sends the earlier turns as history, as for any follow-up."""
+    api(api_url, "/state/reset", "POST", {"confirm": "reset"})  # no Langflow version: the verdict is unknown
+    page = open_app()
+    open_chat(page)
+    expect(ask(page, ASK)).to_contain_text("Tell me and I'll propose saving it")
+
+    save = ask(page, "1.2.0").locator(".proposal-card")
+    expect(save.get_by_text("Change how you run Langflow", exact=True)).to_be_visible()
+    expect(save.locator(".before-after .after")).to_contain_text("1.2.0")
+    save.get_by_role("button", name="Approve", exact=True).click()
+    expect(save.locator("output.proposal-line")).to_contain_text("Done:")
+
+    card = ask(page, "Approved. Carry on.").locator(".proposal-card")
+    expect(card.get_by_text(f"Accept the risk of {CVE}", exact=True)).to_be_visible()
+    expect(card.locator(".proposal-sources li .chip")).to_have_text(["Knowledge base"])
+    assert langflow_row(api_url)["status"] == "open"  # the decision waits for its own Approve
 
 
 # --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
