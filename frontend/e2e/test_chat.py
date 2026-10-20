@@ -326,6 +326,43 @@ def test_b65_2_a_click_on_send_s_lower_edge_sends_and_the_chat_stays_open(open_a
     expect(chat).to_be_visible()
 
 
+# Opening an answer's details scrolled the window itself in Firefox (#112, the owner's v7 screenshot): the header went
+# up out of the frame and an empty band opened under the message box, over Send's lower half. Why: the message list
+# scrolls but wasn't positioned, so its absolute children (`.visually-hidden` spans) overflowed the window instead,
+# and scrollIntoView scrolls every scrollable ancestor, an `overflow: hidden` window too. Only the list may scroll.
+WINDOW_PARTS = """win => {
+  const b = el => el.getBoundingClientRect(), w = b(win)
+  return { scrollTop: win.scrollTop, overflows: win.scrollHeight > win.clientHeight,
+           headTop: Math.round(b(win.querySelector('.chat-head')).top - w.top),
+           composerBottom: Math.round(w.bottom - b(win.querySelector('.composer')).bottom) }
+}"""
+
+# Resolves once the window and its list have kept their scroll position for 10 frames: a smooth scroll has ended.
+SCROLL_STILL = """win => new Promise(done => {
+  const list = win.querySelector('.messages'), at = () => win.scrollTop + ',' + list.scrollTop
+  let last = at(), still = 0
+  const frame = () => { const now = at(); still = now === last ? still + 1 : 0; last = now
+                        still >= 10 ? done() : requestAnimationFrame(frame) }
+  requestAnimationFrame(frame)
+})"""
+
+
+@pytest.mark.parametrize("width", [PHONE, 750, DESKTOP])
+def test_b65_3_opening_an_answer_s_details_never_moves_the_window(open_app, width):
+    page = open_app(width=width)
+    chat = open_chat(page)
+    settled(chat)
+    for _ in range(2):  # enough to make the list scroll
+        ask(page, Q2)
+    assert chat.evaluate(WINDOW_PARTS) == {"scrollTop": 0, "overflows": False, "headTop": 0, "composerBottom": 0}
+    details = chat.get_by_role("button", name=re.compile(r"^Show \d+ source")).last
+    details.click()
+    expect(chat.get_by_role("button", name=re.compile(r"^Hide"))).to_have_count(1)
+    chat.evaluate(SCROLL_STILL)  # the smooth scroll has ended
+    assert chat.evaluate(WINDOW_PARTS) == {"scrollTop": 0, "overflows": False, "headTop": 0, "composerBottom": 0}
+    assert send_button(page).evaluate(SEND_HITS) == [True, True, True]
+
+
 # --- Inline details, citations, flags (DESIGN.md §6.2) -----------------------------------------------------------
 
 def in_view(page: Page, item: Locator) -> bool:

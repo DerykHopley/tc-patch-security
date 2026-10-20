@@ -100,7 +100,7 @@
   flex-direction: column;
   width: min(400px, calc(100vw - 2.5rem));
   height: min(600px, calc(100vh - var(--chat-bottom) - 1.25rem));
-  overflow: hidden;
+  overflow: clip; /* never a scroll container: `hidden` still lets scrollIntoView scroll it (B65, #112) */
   border-radius: var(--radius-card);
   background: var(--surface);
   box-shadow: var(--shadow-bubble);
@@ -264,7 +264,10 @@
   min-height: 0;
 }
 
+/* Only the list scrolls. Positioned, so its absolute children (the .visually-hidden spans) overflow the list, not
+   the window: otherwise the window had something to scroll and Firefox's scrollIntoView scrolled it (B65, #112). */
 .messages {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
