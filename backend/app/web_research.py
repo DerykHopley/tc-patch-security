@@ -25,12 +25,16 @@ from app.config import FIXTURES, Settings
 log = logging.getLogger(__name__)
 
 MAX_RESULTS = 5
+# B64: asked of Tavily, so MAX_RESULTS are left after keep() drops exploit sites. exclude_domains isn't sent: with
+# it, Tavily returned unrelated pages for a plain CVE query (*checked* 2026-10-20, docs/SOURCE-CHECKS.md)
+ASKED_RESULTS = 8
 SNIPPET_CHARS = 500
 TIMEOUT_S = 15
 MCP_TOOL_NAMES = ("tavily_search", "tavily-search")  # the open-source server's name; the docs' spelling
 LIMIT_REACHED = "web research limit reached for today"
 
-# Exploit and proof-of-concept sites: never searched, never shown (spec B: the no-exploit rule covers web sources).
+# Exploit and proof-of-concept sites: never shown (spec B: the no-exploit rule covers web sources). keep() drops them
+# from Tavily's results; since B64 the list isn't sent to Tavily as exclude_domains, which spoiled its results.
 # GitHub isn't here: it hosts proof-of-concept repos, but also the GitHub Advisory Database (DECISIONS.md, B08).
 EXCLUDED_DOMAINS = [
     "exploit-db.com", "packetstormsecurity.com", "packetstorm.news", "0day.today", "cxsecurity.com",
@@ -142,8 +146,7 @@ class WebResearch:
         self.cap = cap or DailyCap(settings.web_research_daily_cap, settings.web_research_user_daily_cap)
 
     def _args(self, query: str) -> dict:
-        return {"query": query, "search_depth": "basic", "max_results": MAX_RESULTS, "include_raw_content": False,
-                "exclude_domains": list(EXCLUDED_DOMAINS)}
+        return {"query": query, "search_depth": "basic", "max_results": ASKED_RESULTS, "include_raw_content": False}
 
     def search(self, query: str) -> tuple[list[Hit], str]:
         """The hits (excluded sites dropped, snippets cut) and how they came: "mcp" or "api"."""
