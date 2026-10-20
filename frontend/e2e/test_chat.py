@@ -282,6 +282,50 @@ def test_a06_5_sidebar_ask_patch_opens_the_chat(open_app):
     expect(window(page)).to_be_hidden()
 
 
+# --- B65 (#112): the open chat button never covers Send (DESIGN.md §6.2) -----------------------------------------
+# The open button was still 84 × 66px with only its 30px pill drawn. Its empty top lay over the window's bottom-right
+# corner (z 21 over the window's 20), where Send sits: a click on Send's lower half closed the chat. 750px is the
+# tab-bar layout's bubble (701–800px); at 390px the sheet covers the button.
+
+def send_button(page: Page) -> Locator:
+    return window(page).get_by_role("button", name="Send", exact=True)
+
+
+# Which element a click at the top, middle and bottom of Send (3px in from each edge) lands on: Send or inside it.
+SEND_HITS = """send => {
+  const b = send.getBoundingClientRect(), x = b.left + b.width / 2
+  return [b.top + 3, b.top + b.height / 2, b.bottom - 3].map(y => send.contains(document.elementFromPoint(x, y)))
+}"""
+
+
+@pytest.mark.parametrize("width", [PHONE, 750, DESKTOP])
+@pytest.mark.parametrize("enlarged", [False, True])
+def test_b65_1_send_takes_a_click_at_its_top_middle_and_bottom(open_app, width, enlarged):
+    page = open_app(width=width)
+    chat = open_chat(page)
+    if enlarged and width > 700:  # a phone's sheet has no Make larger
+        chat.locator(".chat-head").get_by_role("button", name="Make larger", exact=True).click()
+    settled(chat)
+    assert send_button(page).evaluate(SEND_HITS) == [True, True, True]
+
+
+@pytest.mark.parametrize("width", [PHONE, DESKTOP])
+def test_b65_2_a_click_on_send_s_lower_edge_sends_and_the_chat_stays_open(open_app, width):
+    page = open_app(width=width)
+    chat = open_chat(page)
+    settled(chat)
+    chat.get_by_role("textbox", name="Message").fill(Q3)
+    b = box(send_button(page))
+    # The mouse itself, as a person clicks: Playwright's click would wait for the covering button to move away.
+    page.mouse.click(b["x"] + b["width"] / 2, b["y"] + b["height"] - 3)
+    expect(chat.locator(".message.user").last).to_have_text(Q3)
+    expect(chat.locator(".message.assistant")).to_have_count(1, timeout=10_000)
+    expect(chat).to_be_visible()
+    ask(page, Q2)  # Enter still sends
+    expect(chat.locator(".message.user")).to_have_count(2)
+    expect(chat).to_be_visible()
+
+
 # --- Inline details, citations, flags (DESIGN.md §6.2) -----------------------------------------------------------
 
 def in_view(page: Page, item: Locator) -> bool:

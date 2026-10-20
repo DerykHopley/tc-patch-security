@@ -57,7 +57,12 @@
   border-radius: var(--radius-input); /* the global focus ring, rounded around Patch and his pill */
 }
 
-/* Open: Patch steps off; the pill turns purple with a white ✕. */
+/* Open: Patch steps off; the pill turns purple with a white ✕. The button shrinks to the pill (B65, #112): its
+   empty top would lie over the window's bottom-right corner, where Send sits, and take Send's clicks. */
+.patch-fab.open {
+  height: 30px;
+}
+
 .patch-fab.open .patch-pill {
   border-color: transparent;
   background: var(--gradient-primary);
