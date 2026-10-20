@@ -188,7 +188,8 @@ def test_b26_3_non_owners_never_see_the_server_settings_and_cant_change_them(app
 
 SECRETS = {"ntfy_topic": "patch-s3cr3t-topic-4f9a", "ntfy_token": "tk_s3cr3t_token", "smtp_host": "smtp.s3cr3t.test",
            "smtp_user": "s3cr3t-user", "smtp_password": "s3cr3t pass ", "alert_email_from": "from@s3cr3t.test",
-           "alert_email_to": "owner@s3cr3t.test", "nvd_api_key": "nvd-s3cr3t-key"}
+           "alert_email_to": "owner@s3cr3t.test", "nvd_api_key": "nvd-s3cr3t-key",
+           "telegram_bot_token": "4242:s3cr3t-telegram-token-abcdef"}
 
 
 def test_b26_4_secrets_are_saved_but_never_sent_back_or_logged(app, caplog):

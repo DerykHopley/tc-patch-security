@@ -1,5 +1,5 @@
 """What the owner sets on Settings instead of .env (B26, #70): live or snapshot data, the quiet hours' time zone, the
-alert link address, the ntfy server and SMTP's port, and the channels' secrets.
+alert link address, the ntfy server, SMTP's port, the Telegram chat id, and the channels' secrets.
 
 One rule for every one of them (`effective`): the environment wins when it sets it, else the owner's saved value, else
 the default. They are saved in the owner's state, next to their other settings (the state file is git-ignored
@@ -20,6 +20,9 @@ Url = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200, pa
 Secret = Annotated[str, StringConstraints(min_length=1, max_length=500)]
 Email = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200, pattern=r"^[^@\s]+@[^@\s]+$")]
 Source = Literal["env", "saved", "default"]
+# B57: Telegram's form, "<bot id>:<secret>" (docs/SOURCE-CHECKS.md). A refusal never quotes it: the 400 handler gives
+# pydantic's message, which names the rule, not the input
+TelegramToken = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^[0-9]{1,20}:[A-Za-z0-9_-]{20,100}$")]
 
 
 class ServerSettings(BaseModel):
@@ -30,6 +33,9 @@ class ServerSettings(BaseModel):
     ntfy_url: Url | None = None
     smtp_port: int | None = Field(None, ge=1, le=65535)
     smtp_starttls: bool | None = None
+    # B57: a chat's id (a number; a group's is negative) or a channel's @username, as Telegram's sendMessage takes it
+    telegram_chat_id: Annotated[str, StringConstraints(strip_whitespace=True,
+                                                       pattern=r"^(-?[0-9]{1,20}|@[A-Za-z0-9_]{5,32})$")] | None = None
     # The secrets (config.SECRETS): write-only
     ntfy_topic: Annotated[str, StringConstraints(pattern=r"^[-_A-Za-z0-9]{1,64}$")] | None = None  # ntfy's rule
     ntfy_token: Secret | None = None
@@ -39,6 +45,7 @@ class ServerSettings(BaseModel):
     smtp_password: Secret | None = None
     alert_email_from: Email | None = None
     alert_email_to: Email | None = None
+    telegram_bot_token: TelegramToken | None = None
     nvd_api_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)] | None = None
 
     @field_validator("alert_tz")

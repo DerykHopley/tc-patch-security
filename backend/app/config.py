@@ -34,11 +34,11 @@ FEED_KINDS = ("fake", "real")  # fake: the made-up day data sets (B02, no networ
 # CORS, the scheduler's secret) stay in .env only: the app needs them before it can read Settings, or they could lock
 # you out. app.server_settings applies the rule.
 MOVABLE = {"data_mode": "DATA_MODE", "alert_tz": "ALERT_TZ", "app_url": "APP_URL", "ntfy_url": "NTFY_URL",
-           "smtp_port": "SMTP_PORT", "smtp_starttls": "SMTP_STARTTLS"}
+           "smtp_port": "SMTP_PORT", "smtp_starttls": "SMTP_STARTTLS", "telegram_chat_id": "TELEGRAM_CHAT_ID"}
 # B26: the secrets among them: write-only on Settings, never sent back (the API says only whether one is set).
 SECRETS = {"ntfy_topic": "NTFY_TOPIC", "ntfy_token": "NTFY_TOKEN", "smtp_host": "SMTP_HOST", "smtp_user": "SMTP_USER",
            "smtp_password": "SMTP_PASSWORD", "alert_email_from": "ALERT_EMAIL_FROM",
-           "alert_email_to": "ALERT_EMAIL_TO", "nvd_api_key": "NVD_API_KEY"}
+           "alert_email_to": "ALERT_EMAIL_TO", "nvd_api_key": "NVD_API_KEY", "telegram_bot_token": "TELEGRAM_BOT_TOKEN"}
 
 
 def snapshot_date() -> str:
@@ -117,6 +117,9 @@ class Settings:
     smtp_starttls: bool = True
     alert_email_from: str = ""
     alert_email_to: str = ""
+    # B57 (#102): the owner's Telegram bot. The token is a secret (it is part of every Bot API URL); the chat id isn't
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
     alert_tz: str = "UTC"  # the time zone of quiet hours (B04): an IANA name, e.g. Europe/London
     notify_dry_run: bool = False  # on: every channel records only, nothing is sent (the browser check's live pair)
     # Search (A09). The index is built by `python -m app.rag.build_index` and loaded at start-up.
@@ -199,6 +202,8 @@ class Settings:
             smtp_starttls=_flag(os.environ.get("SMTP_STARTTLS", ""), default=True),
             alert_email_from=_env("ALERT_EMAIL_FROM"),
             alert_email_to=_env("ALERT_EMAIL_TO"),
+            telegram_bot_token=_env("TELEGRAM_BOT_TOKEN"),
+            telegram_chat_id=_env("TELEGRAM_CHAT_ID"),
             alert_tz=_env("ALERT_TZ", cls.alert_tz),
             notify_dry_run=_flag(os.environ.get("NOTIFY_DRY_RUN", ""), default=False),
             embedder=_env("EMBEDDER", cls.embedder).lower(),

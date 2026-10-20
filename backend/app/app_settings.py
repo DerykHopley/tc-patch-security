@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 from app.config import Settings
 
 Severity = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
-Channel = Literal["desktop", "email", "ntfy"]
+Channel = Literal["desktop", "email", "ntfy", "telegram"]
 HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
 
 
@@ -75,6 +75,8 @@ def default_settings(env: Settings) -> AppSettings:
         channels.append("email")
     if env.ntfy_topic:
         channels.append("ntfy")
+    if env.telegram_bot_token and env.telegram_chat_id:
+        channels.append("telegram")
     return AppSettings(alerts=AlertSettings(channels=channels))
 
 
@@ -110,4 +112,4 @@ class ResetRequest(BaseModel):
 
 
 class TestAlertRequest(BaseModel):
-    channel: Literal["desktop", "email", "ntfy", "preview"] = "preview"
+    channel: Literal["desktop", "email", "ntfy", "telegram", "preview"] = "preview"

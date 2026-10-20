@@ -21,14 +21,20 @@ DESCRIPTION_WORDS = "symbolic links"  # from the day-2 Ollama CVE's description:
 
 
 class Channels:
-    """Fake ntfy and desktop senders. `ntfy_fails`: ntfy's server can't be reached. `ntfy_429s`: how many of the next
-    POSTs ntfy answers 429 (B55); `waits`: what the sends waited, by a fake sleep, so nothing really waits."""
+    """Fake ntfy, Telegram and desktop senders. `ntfy_fails`: ntfy's server can't be reached. `ntfy_429s`: how many of
+    the next POSTs ntfy answers 429 (B55); `waits`: what the sends waited, by a fake sleep, so nothing really waits.
+    B57: a request to Telegram's Bot API goes to `telegram` instead, with `telegram_fails` and `telegram_429s`
+    (Telegram's flood-control reply, retry_after 7 s); `telegram_urls` holds each request's URL (it has the token)."""
 
     def __init__(self):
         self.ntfy: list[dict] = []
+        self.telegram: list[dict] = []
+        self.telegram_urls: list[str] = []
         self.desktop: list[list[str]] = []
         self.ntfy_fails = False
         self.ntfy_429s = 0
+        self.telegram_fails = False
+        self.telegram_429s = 0
         self.waits: list[float] = []
 
     def transports(self):
@@ -42,13 +48,30 @@ class Channels:
         class Resp:
             status = 200
 
+            def read(self):
+                return b'{"ok": true, "result": {"message_id": 1}}'
+
             def __enter__(self):
                 return self
 
             def __exit__(self, *a):
                 pass
 
+        def telegram(req):
+            channels.telegram_urls.append(req.full_url)
+            if channels.telegram_fails:
+                raise OSError("network down")
+            if channels.telegram_429s:
+                channels.telegram_429s -= 1
+                body = json.dumps({"ok": False, "error_code": 429, "description": "Too Many Requests: retry after 7",
+                                   "parameters": {"retry_after": 7}})
+                raise urllib.error.HTTPError(req.full_url, 429, "Too Many Requests", {}, io.BytesIO(body.encode()))
+            channels.telegram.append(json.loads(req.data))
+            return Resp()
+
         def opener(req, timeout):
+            if req.full_url.startswith("https://api.telegram.org/"):
+                return telegram(req)
             if channels.ntfy_fails:
                 raise OSError("network down")
             if channels.ntfy_429s:

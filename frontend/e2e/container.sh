@@ -35,7 +35,7 @@ echo "Image size: $(( $(docker image inspect -f '{{.Size}}' "$IMAGE") / 1000000 
 
 echo "== B12.7: no key or .env in the image"
 found="$(docker run --rm --entrypoint sh "$IMAGE" -c \
-  'find / -xdev \( -name ".env" -o -name "*.env" \) -not -path "/proc/*" 2>/dev/null; env | grep -E "^(OPENROUTER_API_KEY|NTFY_TOPIC|NTFY_TOKEN|SMTP_PASSWORD|CLERK_[A-Z_]*|SCHEDULER_SECRET|TAVILY_API_KEY)=." || true')"
+  'find / -xdev \( -name ".env" -o -name "*.env" \) -not -path "/proc/*" 2>/dev/null; env | grep -E "^(OPENROUTER_API_KEY|NTFY_TOPIC|NTFY_TOKEN|TELEGRAM_BOT_TOKEN|SMTP_PASSWORD|CLERK_[A-Z_]*|SCHEDULER_SECRET|TAVILY_API_KEY)=." || true')"
 if [ -n "$found" ]; then echo "Found in the image: $found" >&2; exit 1; fi
 
 echo "== B13: the Cloud Storage client is in the image (STORE=gcs on Cloud Run); nothing is called"

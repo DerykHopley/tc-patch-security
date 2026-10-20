@@ -24,9 +24,10 @@ from app.cve_filters import CveView, InvalidFilter
 from app.deps import Deps, build_deps
 from app.dev import dev_router
 from app.errors import InputError, LLMError, NotAllowed, NotApproved, NotOwner, RateLimited
-from app.notify import RUN_WAIT, NotifyError, WaitBudget, channel_status, deliver, format_alert, send_on, tap_link
+from app.notify import (RUN_WAIT, NotifyError, TelegramNotifier, WaitBudget, channel_status, deliver, format_alert,
+                        send_on, tap_link)
 from app.live_data import MixedFeeds
-from app.server_settings import ServerUpdate, effective as server_effective, status as server_status
+from app.server_settings import ServerUpdate, TelegramToken, effective as server_effective, status as server_status
 from app.server_settings import updated as server_updated
 from app.one_port import one_port
 from app.profile import NAME_MAX, ProfileUpdate, clean_name
@@ -88,6 +89,12 @@ class AccessChange(BaseModel):
     model_config = ConfigDict(extra="forbid")
     status: Literal["waiting", "approved", "refused"] | None = None
     role: Literal["viewer", "trusted", "reviewer"] | None = None
+
+
+class TelegramChatsRequest(BaseModel):
+    """B57: Find my chat id. The token typed on Settings (not saved yet); none: the one that applies."""
+    model_config = ConfigDict(extra="forbid")
+    bot_token: TelegramToken | None = None
 
 
 class FakeFeedsRequest(BaseModel):
@@ -520,6 +527,19 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         return {"server": server_part(deps.settings.owner),
                 "channels": channel_status(deps.settings, deps.transports), "alert_tz": deps.settings.alert_tz}
 
+    @api.post("/settings/telegram/chats", dependencies=[Depends(owner_only)])
+    def telegram_chats(body: TelegramChatsRequest):
+        """B57, Find my chat id: the chats that wrote to the bot lately (Telegram's getUpdates, asked here so the
+        token never goes into a browser's address bar). The typed token if there is one (not saved), else the one
+        that applies. The dry run (the browser check) asks Telegram nothing and gives one example chat."""
+        token = body.bot_token or deps.settings.telegram_bot_token
+        if not token:
+            raise InputError("Type the bot token first: Patch asks Telegram with it.", "not_configured")
+        if deps.settings.notify_dry_run:
+            return {"chats": [{"id": "123456789", "name": "Example chat (dry run: Telegram wasn't asked)",
+                               "kind": "private"}]}
+        return {"chats": TelegramNotifier(token, "", opener=deps.transports.opener).chats()}
+
     @api.put("/settings")
     def put_settings(body: AppSettings, d: You):
         """The caller's settings. The schedule (hours, paused) runs the shared refresh, so only the owner's count:
@@ -552,11 +572,17 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         entry = deliver(body.channel, msg, deps.settings, deps.transports, d.state)
         note = ("Recorded only: nothing was sent." if body.channel == "preview"
                 else f"Sent by {body.channel}. Check that it arrived.")
-        # B26: what tapping the phone alert does (ntfy; email has the same link or none)
+        # B26: what tapping the phone alert does (ntfy; email has the same link or none). B57: Telegram's link is the
+        # message's Open in Patch button
         link = tap_link(msg["click"])
-        tap = (f"Tapping it opens Patch at {cve['id']}." if link else
-               "Tapping it opens the message in the ntfy app: the app address for alert links can't be reached "
-               "from a phone.")
+        if body.channel == "telegram":
+            tap = (f"Open in Patch opens Patch at {cve['id']}." if link else
+                   "The message has no Open in Patch button: the app address for alert links can't be reached from "
+                   "a phone.")
+        else:
+            tap = (f"Tapping it opens Patch at {cve['id']}." if link else
+                   "Tapping it opens the message in the ntfy app: the app address for alert links can't be reached "
+                   "from a phone.")
         return {"alert": msg, "channel": body.channel, "sent": entry["sent"], "note": note, "tap_link": link,
                 "tap": tap}
 

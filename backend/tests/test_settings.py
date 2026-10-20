@@ -92,10 +92,11 @@ def test_a13_1_saving_keeps_the_watchlist_statuses_and_parts_saved_by_other_page
 def test_a13_3_each_channel_says_whether_it_is_set_up_and_how(settings, knowledge):
     c, _ = make_client(settings, knowledge, desktop_command=no_desktop)
     channels = c.get("/settings").json()["channels"]
-    assert set(channels) == {"desktop", "email", "ntfy"}
+    assert set(channels) == {"desktop", "email", "ntfy", "telegram"}
     assert not any(ch["configured"] for ch in channels.values())
     assert "under Email (SMTP)" in channels["email"]["detail"]
     assert "under Phone push (ntfy)" in channels["ntfy"]["detail"]
+    assert "under Telegram" in channels["telegram"]["detail"]
     assert "desktop notifications" in channels["desktop"]["detail"]
     # B50 (#95): plain words, never the server's names for them (README.md maps those)
     for name in ("SMTP_HOST", "ALERT_EMAIL_TO", "NTFY_TOPIC", "notify-send", "osascript", "backend/.env"):

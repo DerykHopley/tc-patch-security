@@ -71,6 +71,10 @@ class Patch:
     def alerts(self) -> list[dict]:
         return [m for m in self.channels.ntfy if "access_request" in m["tags"]]
 
+    def telegram_alerts(self) -> list[dict]:
+        """B57: the access-request alerts sent by Telegram (its text starts with the title, in bold)."""
+        return [m for m in self.channels.telegram if m["text"].startswith("<b>New access request</b>")]
+
 
 @pytest.fixture
 def patch(auth_settings, knowledge, index):

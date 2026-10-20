@@ -141,7 +141,7 @@ def test_b50_1_another_user_gets_none_of_the_owners_channels(signed_in):
     """B50 (#95, item 9): B48 hid the Delivery card, but the reply still held how each channel is set up (a masked
     address, the ntfy server). Anyone else gets none; a real test send is still refused, Preview still works."""
     assert set(signed_in.c.get("/settings", headers=signed_in.as_(OWNER)).json()["channels"]) == {
-        "desktop", "email", "ntfy"}
+        "desktop", "email", "ntfy", "telegram"}
     assert signed_in.c.get("/settings", headers=signed_in.as_(ALICE)).json()["channels"] is None
     r = signed_in.c.post("/alerts/test", json={"channel": "ntfy"}, headers=signed_in.as_(ALICE))
     assert r.status_code == 400 and r.json()["error"]["code"] == "not_owner"

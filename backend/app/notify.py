@@ -1,12 +1,13 @@
 """Channels and the alert text. Moved from proto (N1-N4), with the senders passed in as `Transports`.
 
-Channels: ntfy (phone push), email (SMTP) and desktop (the OS's own notification on the machine running the
-backend). "preview" builds the alert and records it without sending. Every channel gets the same structured
-message: never the CVE description, which is untrusted text and shows on a lock screen. Secrets (topic, token,
+Channels: ntfy (phone push), Telegram (a message from the owner's bot, B57), email (SMTP) and desktop (the OS's own
+notification on the machine running the backend). "preview" builds the alert and records it without sending. Every
+channel gets the same structured message: never the CVE description, which is untrusted text and shows on a lock screen. Secrets (topic, tokens,
 SMTP password) come from .env or the owner's Settings (B26) and never leave the server. A phone alert or an email
 carries the link back to the CVE only when a phone can open it (`tap_link`, B26).
 """
 import datetime as dt
+import html
 import ipaddress
 import json
 import logging
@@ -32,7 +33,7 @@ log = logging.getLogger(__name__)
 PRIORITY = {"kev": 5, "kev_recheck": 3, "new": 3, "new_unscored": 2, "now_critical": 4, "due_soon": 4, "overdue": 5}
 TITLE = {"kev": "In CISA KEV", "kev_recheck": "Check your fix", "new": "New CVE", "new_unscored": "New CVE, not scored yet",
          "now_critical": "Now critical", "due_soon": "Due in 3 days", "overdue": "Overdue"}
-CHANNELS = ("desktop", "email", "ntfy")
+CHANNELS = ("desktop", "email", "ntfy", "telegram")
 
 
 class NotifyError(AppError):
@@ -71,7 +72,7 @@ def desktop_command() -> str | None:
 class Transports:
     """How alerts leave the machine. The real ones by default; tests pass fakes, so no test sends anything."""
     smtp_factory: Callable[[str, int], Any] | None = None  # None: smtplib, chosen by port
-    opener: Callable[..., Any] = urllib.request.urlopen  # for ntfy's HTTP POST
+    opener: Callable[..., Any] = urllib.request.urlopen  # for ntfy's and Telegram's HTTP requests
     runner: Callable[..., Any] = subprocess.run  # for the desktop command
     # looked up when called, so the tests' guard (conftest.py) can turn the real desktop command off everywhere
     desktop_command: Callable[[], str | None] = lambda: desktop_command()  # noqa: E731
@@ -132,10 +133,11 @@ class WaitBudget:
 
 TEST_SEND_WAIT = 4.0  # B55: a test send (a web request someone waits on) waits at most this, in all
 RUN_WAIT = 60.0  # B55: a refresh, or an access request's alert, waits at most this in all (one budget per run)
-NTFY_TRIES = 3  # B55: a 429 is tried again inside the same send, at most 3 tries in all
-NTFY_BACKOFF = (10.0, 30.0)  # the waits after the first and second 429 when ntfy sends no Retry-After
-NTFY_MAX_WAIT = 30.0  # ntfy's Retry-After is honoured up to this
-REPLY_MAX = 200  # ntfy's reply in an error is cut to this many characters
+# B55: a 429 (ntfy, and Telegram since B57) is tried again inside the same send, at most 3 tries in all
+LIMITED_TRIES = 3
+LIMITED_BACKOFF = (10.0, 30.0)  # the waits after the first and second 429 when the server says no wait
+LIMITED_MAX_WAIT = 30.0  # the server's wait (ntfy's Retry-After, Telegram's retry_after) is honoured up to this
+REPLY_MAX = 200  # the server's reply in an error is cut to this many characters
 
 
 def retry_after(e: urllib.error.HTTPError) -> float | None:
@@ -162,13 +164,13 @@ class NtfyNotifier:
         payload = {"topic": self.topic, "title": title, "message": body, "priority": priority, "tags": tags}
         if link := tap_link(click):
             payload["click"] = link
-        for attempt in range(1, NTFY_TRIES + 1):
+        for attempt in range(1, LIMITED_TRIES + 1):
             try:
                 self._post(payload)
                 return
             except urllib.error.HTTPError as e:
-                if e.code != 429 or attempt == NTFY_TRIES or not self.wait.wait(
-                        min(retry_after(e) or NTFY_BACKOFF[attempt - 1], NTFY_MAX_WAIT)):
+                if e.code != 429 or attempt == LIMITED_TRIES or not self.wait.wait(
+                        min(retry_after(e) or LIMITED_BACKOFF[attempt - 1], LIMITED_MAX_WAIT)):
                     raise NotifyError(self._refused(e)) from e
             except OSError as e:
                 raise NotifyError(f"Couldn't reach ntfy at {self.url}: {e}") from e
@@ -207,6 +209,121 @@ class NtfyNotifier:
         with self.opener(req, timeout=10) as r:
             if r.status >= 300:
                 raise NotifyError(f"ntfy replied with HTTP {r.status}.")
+
+
+TELEGRAM_API = "https://api.telegram.org"
+TELEGRAM_RINGS = 4  # this priority and up (high, urgent) rings; below it (normal, low) arrives silently
+
+
+def telegram_text(title: str, body: str) -> str:
+    """The message in Telegram's HTML parse mode: the title in bold, then the body. Only `<`, `>` and `&` need
+    escaping there (docs/SOURCE-CHECKS.md), so no title or body can turn into markup."""
+    return f"<b>{html.escape(title, quote=False)}</b>\n{html.escape(body, quote=False)}"
+
+
+class TelegramNotifier:
+    """A message from the owner's bot to their chat (B57, #102): one JSON POST to the Bot API's `sendMessage`.
+    Telegram limits each bot, not each IP address, so it works from Cloud Run where ntfy.sh's per-IP quota runs out.
+    The token is part of the URL, so the URL is never logged, raised or returned."""
+    name = "telegram"
+
+    def __init__(self, token: str, chat_id: str, opener=urllib.request.urlopen, wait: WaitBudget | None = None,
+                 api: str = TELEGRAM_API):
+        self.token, self.chat_id, self.opener, self.api = token, chat_id, opener, api
+        self.wait = wait or WaitBudget(0)
+
+    def send(self, title, body, priority, tags, click) -> None:
+        payload = {"chat_id": self.chat_id, "text": telegram_text(title, body), "parse_mode": "HTML",
+                   "link_preview_options": {"is_disabled": True},
+                   # low and normal arrive without a sound; high and urgent ring (DECISIONS.md, B57)
+                   "disable_notification": priority < TELEGRAM_RINGS}
+        if link := tap_link(click):
+            payload["reply_markup"] = {"inline_keyboard": [[{"text": "Open in Patch", "url": link}]]}
+        for attempt in range(1, LIMITED_TRIES + 1):
+            try:
+                self._call("sendMessage", payload)
+                return
+            except _TelegramRefused as e:
+                if e.code != 429 or attempt == LIMITED_TRIES or not self.wait.wait(
+                        min(e.retry_after or LIMITED_BACKOFF[attempt - 1], LIMITED_MAX_WAIT)):
+                    raise NotifyError(self._refused(e)) from None
+
+    def chats(self) -> list[dict]:
+        """Find my chat id (B57): the chats that wrote to the bot lately, newest first, each once: `id` (as
+        sendMessage takes it), `name` and `kind` (private, group, supergroup, channel). From `getUpdates`, which
+        keeps a message 24 hours and fails while a webhook is set (docs/SOURCE-CHECKS.md). No offset is sent, so
+        nothing is marked as read."""
+        try:
+            result = self._call("getUpdates")
+        except _TelegramRefused as e:
+            raise NotifyError(self._refused(e, "the request")) from None
+        found: dict[str, dict] = {}
+        for update in reversed(result if isinstance(result, list) else []):
+            for kind in ("message", "edited_message", "channel_post", "my_chat_member"):
+                chat = (update.get(kind) or {}).get("chat") if isinstance(update, dict) else None
+                if isinstance(chat, dict) and "id" in chat and str(chat["id"]) not in found:
+                    name = chat.get("title") or " ".join(filter(None, (chat.get("first_name"), chat.get("last_name"))))
+                    found[str(chat["id"])] = {"id": str(chat["id"]), "name": self._scrub(
+                        name or (f"@{chat['username']}" if chat.get("username") else "a chat with no name")),
+                        "kind": str(chat.get("type", "private"))}
+        return list(found.values())
+
+    def _refused(self, e: "_TelegramRefused", what: str = "the message") -> str:
+        """The error, with Telegram's own words. No try count, as for ntfy (B55): B41's pill counts the tries."""
+        if e.code == 429:
+            return f"Telegram is limiting this bot: try again later. Telegram said: {e.said}"
+        return f"Telegram refused {what} (HTTP {e.code}). Telegram said: {e.said}"
+
+    def _scrub(self, text: str) -> str:
+        """`text` with the token blanked out, cut to REPLY_MAX characters: it goes into errors and log lines."""
+        text = " ".join(text.split()).replace(self.token, "…") if self.token else " ".join(text.split())
+        return text if len(text) <= REPLY_MAX else text[:REPLY_MAX - 1] + "…"
+
+    def _call(self, method: str, payload: dict | None = None) -> Any:
+        """One Bot API call; its `result`. Raises _TelegramRefused with Telegram's reply, or NotifyError when
+        Telegram can't be reached. The request (its URL holds the token) never leaves this method: every exception
+        is raised `from None`, so no traceback carries it either."""
+        req = urllib.request.Request(f"{self.api}/bot{self.token}/{method}",
+                                     data=json.dumps(payload).encode() if payload is not None else None,
+                                     method="POST" if payload is not None else "GET",
+                                     headers={"Content-Type": "application/json"})
+        refused = None
+        try:
+            with self.opener(req, timeout=10) as r:
+                reply = _json(r.read())
+        except urllib.error.HTTPError as e:
+            try:
+                raw = e.read()
+            except (OSError, AttributeError):
+                raw = b""
+            reply, refused = _json(raw), e.code
+        except OSError as e:
+            reason = e.reason if isinstance(e, urllib.error.URLError) else e
+            raise NotifyError(f"Couldn't reach Telegram: {self._scrub(str(reason))}") from None
+        if refused is None and reply.get("ok"):
+            return reply.get("result")
+        code = reply.get("error_code") or refused or 0
+        said = f"{code}: {reply.get('description') or 'no description'}"
+        retry = (reply.get("parameters") or {}).get("retry_after")
+        raise _TelegramRefused(refused or code, self._scrub(said),
+                               float(retry) if isinstance(retry, int | float) and retry > 0 else None)
+
+
+class _TelegramRefused(Exception):
+    """Telegram answered with an error: the HTTP status (else its `error_code`), its words (scrubbed), and
+    `parameters.retry_after` in seconds when it sent one."""
+
+    def __init__(self, code: int, said: str, retry_after: float | None):
+        super().__init__(said)
+        self.code, self.said, self.retry_after = code, said, retry_after
+
+
+def _json(raw: bytes) -> dict:
+    try:
+        data = json.loads(raw.decode("utf-8", "replace") or "{}")
+    except (ValueError, AttributeError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 class EmailNotifier:
@@ -292,12 +409,16 @@ def channel_status(s, transports: Transports) -> dict:
         "ntfy": {"configured": bool(s.ntfy_topic),
                  "detail": f"To a topic on {s.ntfy_url}." if s.ntfy_topic
                  else "Set a topic (a long random name) under Phone push (ntfy), below."},
+        # B57: the token is a secret and the chat id says nothing useful, so neither is shown
+        "telegram": {"configured": bool(s.telegram_bot_token and s.telegram_chat_id),
+                     "detail": "To your chat, from your bot." if s.telegram_bot_token and s.telegram_chat_id
+                     else "Set the bot token and the chat id under Telegram, below."},
     }
 
 
 def notifier_for(channel: str, s, transports: Transports, wait: WaitBudget | None = None) -> Notifier:
     """The channel's sender. With NOTIFY_DRY_RUN on (the browser check), a set-up channel records only. `wait`: how
-    long ntfy may wait between tries after a 429 (B55); none, no second try."""
+    long ntfy or Telegram may wait between tries after a 429 (B55); none, no second try."""
     if channel == "preview":
         return PreviewNotifier()
     status = channel_status(s, transports)[channel]
@@ -307,6 +428,8 @@ def notifier_for(channel: str, s, transports: Transports, wait: WaitBudget | Non
         return PreviewNotifier()
     if channel == "ntfy":
         return NtfyNotifier(s.ntfy_url, s.ntfy_topic, s.ntfy_token, opener=transports.opener, wait=wait)
+    if channel == "telegram":
+        return TelegramNotifier(s.telegram_bot_token, s.telegram_chat_id, opener=transports.opener, wait=wait)
     if channel == "email":
         return EmailNotifier(s, smtp_factory=transports.smtp_factory)
     return DesktopNotifier(transports.desktop_command() or "", runner=transports.runner)
@@ -315,7 +438,7 @@ def notifier_for(channel: str, s, transports: Transports, wait: WaitBudget | Non
 def send_on(channel: str, msg: dict, s, transports: Transports, wait: WaitBudget | None = None) -> dict:
     """Send one message on one channel. The result, never raised: sent, recorded only (not sent, no error), not
     set up, or failed with its error. A failed send is a warning in the server's log, with the error (B55: ntfy's
-    own reply is in it; never the topic or a token)."""
+    or Telegram's own reply is in it; never the topic or a token)."""
     result = {"channel": channel, "sent": False, "error": None, "error_code": None}
     try:
         notifier = notifier_for(channel, s, transports, wait)
@@ -332,7 +455,7 @@ def send_on(channel: str, msg: dict, s, transports: Transports, wait: WaitBudget
 def deliver(channel: str, msg: dict, s, transports: Transports, state) -> dict:
     """A test alert (Settings): send on one channel and log the attempt either way, in the alerts log's shape
     (app.alerts) plus this channel's own fields, which the Settings page reads. Re-raises a failure once logged.
-    A web request waits for it, so ntfy waits at most TEST_SEND_WAIT in all after a 429 (B55)."""
+    A web request waits for it, so ntfy or Telegram waits at most TEST_SEND_WAIT in all after a 429 (B55)."""
     result = send_on(channel, msg, s, transports, WaitBudget(TEST_SEND_WAIT, transports.sleep))
     entry = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "kind": "test", "cve": None,
              "reason": None, **msg, "alerts": [], "channels": [result], **result}
