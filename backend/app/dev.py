@@ -236,7 +236,7 @@ def dev_router(deps) -> APIRouter:
     def evaluation_report(model_ids: str = Query("", alias="models"), retrieval_ids: str = Query("", alias="retrieval")):
         """The report page from saved runs: the ones named (comma-separated ids), else the latest per model and
         per embedder. Findings are written later, for the published copy (python -m app.evals report)."""
-        return HTMLResponse(report.from_store(report.store_of(deps.settings), deps.settings.as_of,
+        return HTMLResponse(report.from_store(deps.runs, deps.settings.as_of,
                                               _ids(model_ids), _ids(retrieval_ids)))
 
     return r
