@@ -178,7 +178,7 @@ isError: False
 Recorded by the owner on 2026-10-20. ✅
 
 - Client and version: Claude Code 2.1.304, on Linux. The server was added with the `claude mcp add` command in step 2. It connected and both tools ran, so that command works as written.
-- Model: the session's default model (not noted).
+- Model: Claude Opus 5.5, medium effort.
 - Date: 2026-10-20, from `spec-b` at b0476a5. Without `--env-file`, so no Patch key: `lookup_cve` and `check_affected` read the local data and call no model.
 - Prompts: both prompts in step 3, in one session.
 
