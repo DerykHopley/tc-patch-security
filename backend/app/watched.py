@@ -132,7 +132,8 @@ class WatchedCves:
             "affected": [{"package": e["package"], "ecosystem": e["ecosystem"], "advisory": e["advisory"],
                           "ranges": e["ranges"]}
                          for e in k.osv["cves"].get(cve["id"], []) if e["product"] == cve["product"]],
-            "verdict": v.verdict, "verdict_reason": v.reason, "fixed_version": v.fixed_version, "who_acts": v.who_acts,
+            "verdict": v.verdict, "verdict_reason": v.reason, "fixed_version": v.fixed_version,
+            "package_fixes": package_fixes(v), "who_acts": v.who_acts,
             "no_fix": a.no_fix, "usage": a.usage, "version": a.version, "internet_facing": a.internet_facing,
             "url": cve["url"], "osv_url": OSV_URL.format(cve["id"]),
             "watched": a.watched, "row": self._row(a) if a.watched else None,
@@ -158,6 +159,7 @@ class WatchedCves:
             "status": a.status, "summary": cve["description"][:220], "url": cve["url"],
             "epss": k.epss_of(cve["id"]), "possible_match": k.possible_match(cve["id"]),
             "verdict": a.verdict.verdict, "verdict_reason": a.verdict.reason, "fixed_version": a.verdict.fixed_version,
+            "package_fixes": package_fixes(a.verdict),
             "who_acts": a.verdict.who_acts, "usage": a.usage, "version": a.version,
             "internet_facing": a.internet_facing, "no_fix": a.no_fix,
             "open": a.open, "review_due": a.review_due, "review_date": a.review_date, "decision": a.decision,
@@ -204,3 +206,8 @@ def _sort_key(r: dict):
     # CVEs (no priority, B33) come after every open one
     return (*(sort_key(r["priority"], r["due_date"]) if r["priority"] else (len(LEVELS), "")), -(r["cvss"] or 0),
             -dt.date.fromisoformat(r["published"]).toordinal())
+
+
+def package_fixes(v: Verdict) -> list[dict]:
+    """The verdict's fix per package (B67), as every tool and page gives it: [] when OSV lists one package."""
+    return [{"package": f.package, "fixed_version": f.fixed_version} for f in v.fixes]

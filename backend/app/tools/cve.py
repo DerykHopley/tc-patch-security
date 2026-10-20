@@ -9,9 +9,9 @@ from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
 from app.status import JUSTIFICATIONS, STATUSES
 from app.schemas import CveId
-from app.tools.registry import (Category, PriorityLevel, Severity, ToolResult, ToolSpec, Verdict, WatchStatus,
-                                WhoActs, register)
-from app.watched import WatchedCves
+from app.tools.registry import (Category, PackageFix, PriorityLevel, Severity, ToolResult, ToolSpec, Verdict,
+                                WatchStatus, WhoActs, register)
+from app.watched import WatchedCves, package_fixes
 
 
 class CveArgs(BaseModel):
@@ -75,6 +75,7 @@ class CveResult(ToolResult):
     verdict: Verdict
     verdict_reason: str
     fixed_version: str | None
+    package_fixes: list[PackageFix]  # each package's fix when OSV lists more than one; else []
     who_acts: WhoActs
     no_fix: bool
     decision: Decision | None
@@ -106,7 +107,8 @@ def run(args: CveArgs, deps, ctx) -> dict:
         "epss": k.epss_of(cve["id"]),  # EPSS by FIRST, as of the snapshot date
         "product_match": k.product_match(cve["id"]),  # None when the product came from the CPE
         "possible_match": k.possible_match(cve["id"]),
-        "verdict": v.verdict, "verdict_reason": v.reason, "fixed_version": v.fixed_version, "who_acts": v.who_acts,
+        "verdict": v.verdict, "verdict_reason": v.reason, "fixed_version": v.fixed_version,
+        "package_fixes": package_fixes(v), "who_acts": v.who_acts,
         "no_fix": a.no_fix,  # OSV lists no fixed version: "no fix yet", not overdue (A16b)
         "decision": a.decision, "review_due": a.review_due, "open_days": a.open_days,
         # The rules' priority and your due date (A16); None off the watchlist or closed (B33). KEV deadline: "kev".
@@ -121,7 +123,8 @@ register(ToolSpec(
     description="Look up one CVE by id (e.g. CVE-2024-8309): severity, CWEs, OWASP category, CISA KEV status, "
                 "EPSS score and percentile, whether the product is only a possible match (guessed from the "
                 "description), whether it's open on the user's watchlist, and the version check's verdict "
-                "(affected, not affected, unknown) with its reason, the fixed version and who acts. For an open "
+                "(affected, not affected, unknown) with its reason, the fixed version (package_fixes: each "
+                "package's fix, when OSV lists more than one package) and who acts. For an open "
                 "watched CVE, also the priority set by the rules (urgent, high, normal, low) with its reasons, the "
                 "user's due date and whether it's overdue (a closed one has none); the KEV deadline is CISA's date, "
                 "separate from the due date. "

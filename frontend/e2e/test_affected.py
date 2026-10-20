@@ -187,6 +187,40 @@ def test_a15_11_keyboard_reaches_the_verdict_filter_and_the_suggestion(open_cves
 # The watchlist fields by keyboard (A15.11) moved to the Settings card: test_watchlist.py (A15b.5).
 
 
+# --- B67.5 (#109): a fix under more than one package shows each package's fix ----------------------------------------
+MOVED_FIX = "CVE-2024-8309"  # OSV: langchain fixed in 0.2.0, then langchain-community from 0.2.0, fixed in 0.2.19
+BOTH_FIXES = "Fixed in langchain 0.2.0, langchain-community 0.2.19"
+UPGRADE_PATH = ("0.1.5 is before the fixed version 0.2.0 (langchain); "
+                "OSV also lists langchain-community from 0.2.0, fixed in 0.2.19")
+
+
+@pytest.mark.parametrize("width", [PHONE, DESKTOP])
+def test_b67_5_each_packages_fix_on_the_cve_page_and_one_fix_stays_as_before(open_cves, api_url, ui_url, width):
+    set_stack(api_url, langchain={"version": "0.1.5"}, langflow={"version": "1.2.0"})
+    page = open_cves(width=width)
+    page.goto(f"{ui_url}/cves/{MOVED_FIX}")
+    cell = page.locator("dd.verdict-cell")
+    expect(cell.locator(".verdict")).to_have_text("Affected")
+    expect(cell.locator(".verdict-reason")).to_have_text(UPGRADE_PATH)
+    expect(cell.locator(".verdict-fact").first).to_have_text(BOTH_FIXES)
+    assert no_sideways_scroll(page)  # long package names wrap on a phone
+    page.goto(f"{ui_url}/cves/{LANGFLOW_KEV}")  # one package: reads as before
+    expect(page.locator("dd.verdict-cell .verdict-fact").first).to_have_text("Fixed in 1.3.0")
+
+
+@pytest.mark.parametrize("width", [PHONE, DESKTOP])
+def test_b67_5_the_cves_list_shows_each_packages_fix(open_cves, api_url, width):
+    """The list's verdict cell (B36: "Fixed in … · Who acts: …" on one line) and a phone card. Patch's
+    check_affected card uses the same VerdictFacts; its tool output is checked in backend/tests/test_affected.py."""
+    set_stack(api_url, langchain={"version": "0.1.5"})
+    page = open_cves("?product=langchain&severity=CRITICAL&verdict=affected", width=width)
+    cell = verdict_cell(page, MOVED_FIX)
+    expect(cell).to_contain_text(UPGRADE_PATH)
+    expect(cell.locator(".verdict-fact").first).to_have_text(BOTH_FIXES)
+    expect(cell).to_contain_text("Who acts: you")
+    assert no_sideways_scroll(page)
+
+
 # --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
 
 @scene

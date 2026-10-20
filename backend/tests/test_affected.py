@@ -244,3 +244,36 @@ def test_a15_8_fakellm_answers_am_i_affected_from_the_rules(client):
     q = next(q for q in questions() if q["question"] == "Am I affected by CVE-2025-3248?")
     assert q["expect"]["verdict"] and q["expect"]["status_unchanged"]
     assert q["expect"]["tools_any"] == ["check_affected", "lookup_cve"]  # #54: either gives the verdict
+
+
+# --- B67 (#109): a fix under more than one package, the same in every tool and page ---------------------------------
+BOTH = [{"package": "langchain", "fixed_version": "0.2.0"},
+        {"package": "langchain-community", "fixed_version": "0.2.19"}]
+REASON_8309 = ("0.1.5 is before the fixed version 0.2.0 (langchain); "
+               "OSV also lists langchain-community from 0.2.0, fixed in 0.2.19")
+
+
+def test_b67_3_lookup_cve_and_check_affected_give_the_same_fixes(deps):
+    deps.state.set_watchlist(["langchain", "langflow"], {"langchain": {"version": "0.1.5"},
+                                                         "langflow": {"version": "1.2.0"}})
+    look = call(deps, "lookup_cve", cve_id="CVE-2024-8309").result
+    check = call(deps, "check_affected", cve_id="CVE-2024-8309").result
+    assert (look["verdict_reason"], look["fixed_version"], look["package_fixes"]) == (REASON_8309, "0.2.0", BOTH)
+    assert (check["reason"], check["fixed_version"], check["package_fixes"]) == (REASON_8309, "0.2.0", BOTH)
+    rows = call(deps, "check_affected", product="LangChain").result["cves"]
+    row = next(c for c in rows if c["id"] == "CVE-2024-8309")
+    assert (row["reason"], row["fixed_version"], row["package_fixes"]) == (REASON_8309, "0.2.0", BOTH)
+    # One package (CVE-2025-3248): reads as before, and the list is empty
+    one = call(deps, "check_affected", cve_id="CVE-2025-3248").result
+    assert (one["reason"], one["fixed_version"], one["package_fixes"]) == (
+        "1.2.0 is before the fixed version 1.3.0 (langflow)", "1.3.0", [])
+    assert call(deps, "lookup_cve", cve_id="CVE-2025-3248").result["package_fixes"] == []
+
+
+def test_b67_3_the_cves_list_and_the_cve_page_carry_the_fixes(client):
+    client.put("/watchlist", json={"products": [{"product": "langchain", "version": "0.1.5"}]})
+    row = _row(client, "CVE-2024-8309", "langchain")
+    assert (row["verdict_reason"], row["package_fixes"]) == (REASON_8309, BOTH)
+    page = client.get("/cves/CVE-2024-8309").json()
+    assert page["package_fixes"] == BOTH and page["row"]["package_fixes"] == BOTH
+    assert client.get("/cves/CVE-2025-3248").json()["package_fixes"] == []

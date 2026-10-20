@@ -122,7 +122,7 @@ function AffectedCard({ r }: { r: AffectedOne | AffectedProduct }) {
         {r.possible_match && <PossibleMatch />}
       </div>
       <p className="meta verdict-lines">
-        <VerdictFacts reason={r.reason} fixed={r.fixed_version} who={r.who_acts} />
+        <VerdictFacts reason={r.reason} fixed={r.fixed_version} fixes={r.package_fixes} who={r.who_acts} />
       </p>
       <ChangeActions owner={r} keyId={r.id} cve={r.id} product={r.product} buttons={changeButtons(r.watch_status)} />
     </div>

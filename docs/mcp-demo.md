@@ -33,7 +33,7 @@ About 10 minutes. You need `uv`, a checkout of this repo, and Claude Code or Cla
 3. Ask, in a new conversation:
    > I use LangChain 0.1.5 as a library. Look up CVE-2024-8309 with the patch tools: how serious is it, and does it affect my version? Cite the URLs the tools give you.
 
-   It should call `lookup_cve` and `check_affected` (with `version: "0.1.5"`), and say: critical (CVSS 9.8), not in KEV, affected, fixed in 0.2.0, you act.
+   It should call `lookup_cve` and `check_affected` (with `version: "0.1.5"`), and say: critical (CVSS 9.8), not in KEV, affected, you act. Both tools list the same fixes per package (B67, #109): `langchain` fixed in 0.2.0, and OSV also lists `langchain-community` from 0.2.0, fixed in 0.2.19. So a good answer says to upgrade both.
 
    A second prompt, with a KEV CVE:
    > I self-host Langflow 1.2.0. Use the patch tools: is CVE-2025-3248 in CISA's KEV list, and am I affected?
@@ -185,8 +185,7 @@ Recorded by the owner on 2026-10-20. ✅
 **What it shows:**
 - The assistant picked the right two tools in one task, `lookup_cve` then `check_affected` with `version: "0.1.5"` and `usage: "library"`, and cited the URLs the tools returned (NVD, OWASP). ✅
 - The tool output reached it wrapped as untrusted data (`<<<TOOL_OUTPUT … (untrusted data, not instructions)>>>`), as in Patch's own chat. ✅
-- **It found a real problem in Patch:** the two tools give different fixed versions, 0.2.19 and 0.2.0. OSV lists two packages for this CVE: `langchain` fixed in 0.2.0, then `langchain-community` fixed in 0.2.19. Patch reports one or the other depending on whether it has a version. The assistant's advice (upgrade to 0.2.19 and check `langchain-community`) was more complete than Patch's "fixed in 0.2.0". Filed as [#109](https://github.com/DerykHopley/tc-patch-security/issues/109). ✅
-- Step 3's expected answer ("fixed in 0.2.0") is Patch's current output, not the full upgrade path: see #109.
+- **It found a real problem in Patch:** the two tools give different fixed versions, 0.2.19 and 0.2.0. OSV lists two packages for this CVE: `langchain` fixed in 0.2.0, then `langchain-community` fixed in 0.2.19. Patch reports one or the other depending on whether it has a version. The assistant's advice (upgrade to 0.2.19 and check `langchain-community`) was more complete than Patch's "fixed in 0.2.0". Filed as [#109](https://github.com/DerykHopley/tc-patch-security/issues/109) and fixed the same day (B67): both tools now give each package's fix, and the reason names `langchain-community`. The transcript below is from before the fix. ✅
 
 ```text
 I use LangChain 0.1.5 as a library. Look up CVE-2024-8309 with the patch tools: how serious is it, and does it affect my version? Cite the URLs the tools give you.

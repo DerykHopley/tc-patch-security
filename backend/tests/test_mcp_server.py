@@ -120,7 +120,8 @@ def test_b23_5_check_affected_one_cve_by_the_given_version(deps, given):
     body = unwrapped(r, "check_affected")
     res = body["result"]
     assert (res["verdict"], res["fixed_version"], res["version"]) == ("affected", "0.2.0", "0.1.5")
-    assert res["reason"] == "0.1.5 is before the fixed version 0.2.0 (langchain)"
+    assert res["reason"] == ("0.1.5 is before the fixed version 0.2.0 (langchain); "  # B67: the whole upgrade path
+                             "OSV also lists langchain-community from 0.2.0, fixed in 0.2.19")
     assert res["usage"] == "library" and res["who_acts"] == "you" and res["watch_status"] == "not_watched"
     assert [s["url"] for s in body["sources"]] == ["https://nvd.nist.gov/vuln/detail/CVE-2024-8309"]
 
@@ -235,3 +236,17 @@ def test_b23_8_stdio_server_as_a_subprocess(tmp_path, index_dir):
     assert names == list(READ_ONLY)
     assert unwrapped(r, "lookup_cve")["result"]["id"] == "CVE-2024-8309"
     assert not (tmp_path / "state.json").exists()
+
+
+def test_b67_3_lookup_cve_and_check_affected_agree_on_each_packages_fix(deps):
+    """#109: Claude Code saw 0.2.19 from one tool and 0.2.0 from the other. Both now list each package's fix."""
+    both = [{"package": "langchain", "fixed_version": "0.2.0"},
+            {"package": "langchain-community", "fixed_version": "0.2.19"}]
+    look = unwrapped(call(deps, "lookup_cve", cve_id="CVE-2024-8309"), "lookup_cve")["result"]
+    check = unwrapped(call(deps, "check_affected", cve_id="CVE-2024-8309", version="0.1.5", usage="library"),
+                      "check_affected")["result"]
+    assert look["package_fixes"] == check["package_fixes"] == both
+    assert (look["verdict_reason"], look["fixed_version"]) == ("no version given", "0.2.19")
+    assert (check["verdict"], check["fixed_version"]) == ("affected", "0.2.0")
+    assert check["reason"] == ("0.1.5 is before the fixed version 0.2.0 (langchain); "
+                               "OSV also lists langchain-community from 0.2.0, fixed in 0.2.19")

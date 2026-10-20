@@ -3,7 +3,7 @@
 
 import type { Access, AccessStatus, RequestsReply, StoredRole, UserRole } from './access.ts'
 import { cvesQuery, type CveView } from './cveView.ts'
-import type { NamedResult, Proposal, ProposalSource } from './toolResults.ts'
+import type { NamedResult, PackageFix, Proposal, ProposalSource } from './toolResults.ts'
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
@@ -380,6 +380,7 @@ export interface CveRow {
   verdict: Verdict
   verdict_reason: string // e.g. "1.2.0 is before the fixed version 1.3.0 (langflow)", or why it's unknown
   fixed_version: string | null
+  package_fixes: PackageFix[] // each package's fix when OSV lists more than one (B67); else []
   who_acts: WhoActs
   usage: ProductUsage
   version: string | null
@@ -462,6 +463,7 @@ export interface CveDetail {
   verdict: Verdict
   verdict_reason: string
   fixed_version: string | null
+  package_fixes: PackageFix[]
   who_acts: WhoActs
   no_fix: boolean
   usage: ProductUsage

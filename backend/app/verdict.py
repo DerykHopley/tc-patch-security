@@ -16,12 +16,15 @@ PEP 440 for PyPI (`packaging`, PyPA's reference implementation: pre-, post- and 
 for npm and Go modules (`semver`; Go module versions are SemVer with a leading "v", pseudo-versions are pre-releases).
 
 A product with several packages (LangChain: langchain, -core, -community) has one version, yours; it's compared
-with every package OSV lists for the CVE, and the reason names the package.
+with every package OSV lists for the CVE, and the reason names the package. When OSV gives the fix under more
+than one package (CVE-2024-8309: langchain 0.2.0, then langchain-community 0.2.19), `fixes` lists each package's
+newest fix, the same whatever your version, and an "affected" reason names the other packages with a different fix
+(B67, #109).
 
 Who acts comes from your usage alone. The verdict is advice: it never changes your CVE status.
 """
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
 
 import semver
@@ -40,11 +43,20 @@ NO_VERSION = "no version given"
 
 
 @dataclass(frozen=True)
+class PackageFix:
+    """One package's newest fixed version, None when OSV lists none for it (B67)."""
+    package: str
+    fixed_version: str | None
+
+
+@dataclass(frozen=True)
 class Verdict:
     verdict: Literal["affected", "not_affected", "unknown"]
     reason: str
     fixed_version: str | None  # the fix for your version when known; otherwise the newest fix OSV lists
     who_acts: Literal["you", "upstream", "vendor"]
+    # B67: each package's newest fix, in OSV's order, when the CVE's entries span more than one package; else ()
+    fixes: tuple[PackageFix, ...] = ()
 
 
 def parse_version(ecosystem: str, text: str):
@@ -99,6 +111,18 @@ def _newest_fix(entries: list[dict]):
     return max(fixes)[1] if fixes else None
 
 
+def package_fixes(entries: list[dict]) -> tuple[PackageFix, ...]:
+    """Each package's newest fix when OSV lists the CVE under more than one package (CVE-2024-8309: langchain
+    0.2.0, then langchain-community 0.2.19). One package: (), since `fixed_version` says it all. The same list
+    whatever your version, so every tool and page gives the same fixes for one CVE."""
+    by_package: dict[str, list[dict]] = {}
+    for e in entries:
+        by_package.setdefault(e["package"], []).append(e)
+    if len(by_package) < 2:
+        return ()
+    return tuple(PackageFix(p, _newest_fix(es)) for p, es in by_package.items())
+
+
 def no_fix(coverage: str, entries: list[dict]) -> bool:
     """"No fix yet" (A16b): OSV lists the CVE for the product's packages and none of them has a fixed version
     (open ranges or last-affected only). No record, or commit ranges only, is unknown: False."""
@@ -123,13 +147,13 @@ def verdict(coverage: str, entries: list[dict], usage: str, version: str | None)
         return unknown(NO_CVE_DATA)
     newest = _newest_fix(entries)
     if not version or not version.strip():
-        return unknown(NO_VERSION, newest)
-    version = version.strip()
-
-    try:
-        return _compare(entries, version, who, newest)
-    except _BadOsvVersion as err:  # one CVE's odd OSV data: that CVE is unknown, the rest of the list still works
-        return unknown(f"OSV version not understood: {err}", newest)
+        v = unknown(NO_VERSION, newest)
+    else:
+        try:
+            v = _compare(entries, version.strip(), who, newest)
+        except _BadOsvVersion as err:  # one CVE's odd OSV data: that CVE is unknown, the rest still works
+            v = unknown(f"OSV version not understood: {err}", newest)
+    return replace(v, fixes=package_fixes(entries))
 
 
 class _BadOsvVersion(ValueError):
@@ -154,22 +178,37 @@ def _compare(entries: list[dict], version: str, who: str, newest) -> Verdict:
                 continue
             if r["fixed"]:
                 if mine < v(r["fixed"]):
-                    return Verdict("affected", f"{version} is before the fixed version {r['fixed']}"
-                                   + _pkg(e, entries), r["fixed"], who)
+                    return _affected(f"{version} is before the fixed version {r['fixed']}" + _pkg(e, entries),
+                                     r["fixed"], e, entries, who)
                 passed.append((v(r["fixed"]), r["fixed"], e))
             elif r["last_affected"]:
                 if mine <= v(r["last_affected"]):
-                    return Verdict("affected", f"{version} is at or before the last affected version "
-                                   f"{r['last_affected']}{_pkg(e, entries)}; no fixed version listed", None, who)
+                    return _affected(f"{version} is at or before the last affected version "
+                                     f"{r['last_affected']}{_pkg(e, entries)}; no fixed version listed",
+                                     None, e, entries, who)
             else:
-                return Verdict("affected", f"{version} is in an affected range with no fix yet"
-                               + _pkg(e, entries), None, who)
+                return _affected(f"{version} is in an affected range with no fix yet" + _pkg(e, entries),
+                                 None, e, entries, who)
     if passed:
         _, fix, e = max(passed, key=lambda p: p[0])
         return Verdict("not_affected", f"{version} is at or after the fixed version {fix}" + _pkg(e, entries),
                        fix, who)
     return Verdict("not_affected", f"{version} is outside the affected versions" + _pkg(entries[0], entries),
                    None, who)
+
+
+def _affected(reason: str, fixed: str | None, e: dict, entries: list[dict], who: str) -> Verdict:
+    """An "affected" verdict, its reason naming any other package with a different fix (B67), so it shows the
+    whole upgrade path: "…; OSV also lists langchain-community from 0.2.0, fixed in 0.2.19". A package with the
+    same fix adds nothing (flowise and flowise-components, both 3.1.0): that reason reads as before."""
+    others = [f for f in package_fixes(entries) if f.package != e["package"] and f.fixed_version != fixed]
+    parts = []
+    for f in others:
+        ranges = [r for o in entries if o["package"] == f.package for r in o["ranges"]]
+        start = ranges[0]["introduced"] if len(ranges) == 1 else None
+        parts.append(f.package + (f" from {start}" if start not in ("0", None) else "")
+                     + (f", fixed in {f.fixed_version}" if f.fixed_version else ", no fix listed"))
+    return Verdict("affected", reason + ("; OSV also lists " + "; ".join(parts) if parts else ""), fixed, who)
 
 
 def _pkg(e: dict, entries: list[dict]) -> str:

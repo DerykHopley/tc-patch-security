@@ -165,7 +165,12 @@ function CveDetails({ detail: d, asOf, onDecide, onAsk, onNavigate }: {
                 <dt>Verdict</dt>
                 <dd className="verdict-cell">
                   <VerdictChip verdict={row.verdict} />
-                  <VerdictFacts reason={row.verdict_reason} fixed={row.fixed_version} who={row.who_acts} />
+                  <VerdictFacts
+                    reason={row.verdict_reason}
+                    fixed={row.fixed_version}
+                    fixes={row.package_fixes}
+                    who={row.who_acts}
+                  />
                 </dd>
                 {showsPriority(row) && (
                   <>
@@ -199,7 +204,12 @@ function CveDetails({ detail: d, asOf, onDecide, onAsk, onNavigate }: {
                 <dt>Verdict</dt>
                 <dd className="verdict-cell">
                   <VerdictChip verdict={d.verdict} />
-                  <VerdictFacts reason={d.verdict_reason} fixed={d.fixed_version} who={d.who_acts} />
+                  <VerdictFacts
+                    reason={d.verdict_reason}
+                    fixed={d.fixed_version}
+                    fixes={d.package_fixes}
+                    who={d.who_acts}
+                  />
                 </dd>
               </dl>
               <div className="actions cve-actions">

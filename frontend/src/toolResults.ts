@@ -10,6 +10,7 @@ export interface AffectedOne {
   verdict: 'affected' | 'not_affected' | 'unknown'
   reason: string
   fixed_version: string | null
+  package_fixes: PackageFix[]
   who_acts: 'you' | 'upstream' | 'vendor'
   usage: string
   version: string | null
@@ -30,6 +31,12 @@ export interface AffectedProduct {
   note: string
 }
 
+/** One package's newest fixed version (B67): listed when OSV gives the CVE's fix under more than one package. */
+export interface PackageFix {
+  package: string
+  fixed_version: string | null
+}
+
 export interface VerdictCounts {
   affected: number
   unknown: number
@@ -42,6 +49,7 @@ export interface AffectedRow {
   verdict: 'affected' | 'not_affected' | 'unknown'
   reason: string
   fixed_version: string | null
+  package_fixes: PackageFix[]
 }
 
 /** lookup_cve: one CVE with its OWASP, KEV, EPSS and watchlist context, the verdict and the priority. */
@@ -64,6 +72,7 @@ export interface CveResult {
   verdict: 'affected' | 'not_affected' | 'unknown'
   verdict_reason: string
   fixed_version: string | null
+  package_fixes: PackageFix[]
   who_acts: 'you' | 'upstream' | 'vendor'
   no_fix: boolean
   decision: Decision | null
