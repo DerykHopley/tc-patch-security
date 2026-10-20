@@ -1,0 +1,59 @@
+/* ---------- The alerts log (B04, DESIGN.md §5.11): the dashboard's "Recent alerts" card and Settings' list ----------
+   The list itself (.alert-log) is styled in settings.css. Each channel's result is a small pill: text in --text, the
+   tone as a 1px edge (the §5.7 edge rule), so it reads at 4.5:1 or better on every fill and the word, not the
+   colour, says what happened. */
+
+.alerts-card .alert-log {
+  margin-bottom: 0.6rem;
+}
+
+/* B50: Settings' Delivery card links here (/#recent-alerts): 1rem of room above it, as the Requests card has */
+.alerts-card {
+  scroll-margin-top: 1rem;
+}
+
+.alerts-card .alert-log li {
+  gap: 0.15rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.alerts-card .alert-log li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.alert-log a,
+.alert-log strong {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.channel-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+
+.channel-results .result {
+  padding: 0.05rem 0.5rem;
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.channel-results .result.ok {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--ok);
+}
+
+.channel-results .result.error {
+  background: var(--error-soft);
+  box-shadow: inset 0 0 0 1px var(--error);
+}
+
+.channel-results .result.muted {
+  box-shadow: inset 0 0 0 1px var(--border);
+}

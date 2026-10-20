@@ -38,7 +38,8 @@ def test_a01_6_unknown_provider_fails_with_a_plain_message():
 
 def test_a01_7_env_example_lists_every_setting():
     listed = set(re.findall(r"^([A-Z_]+)=", (ROOT / ".env.example").read_text(), re.M))
-    assert listed == {f.name.upper() for f in dataclasses.fields(Settings)}
+    # env_set (B26) is not a setting: it records which of them the environment set
+    assert listed == {f.name.upper() for f in dataclasses.fields(Settings) if f.name != "env_set"}
 
 
 def test_a01_7_env_example_holds_no_values_that_look_like_keys():

@@ -2,7 +2,7 @@
 
 Get a phone notification when a CVE for a watched product appears, gets added to CISA KEV, or gets scored critical. Builds on the prototype in `proto/` and the process map's "Flow 4".
 
-Written 2026-10-13. Not built yet.
+Written 2026-10-13. The rules, de-duplication, delivery and the alerts panel were built in B04 (#37, 2026-10-15): `backend/app/alerts.py`; what the build chose where this plan left room is in DECISIONS.md (2026-10-15, B04 rows).
 
 ## Why
 

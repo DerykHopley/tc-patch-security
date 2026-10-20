@@ -1,10 +1,13 @@
 import type { Epss } from '../api.ts'
+import { Tip } from './Tip.tsx'
 
 // Facts frozen into the snapshot (A14), shown the same way on the dashboard and in Patch's tool cards.
 
 export const EPSS_URL = 'https://www.first.org/epss'
+// B44 L7: what "matched on text" means, in words a reader can check: not NVD's product id (CPE), not OSV's packages.
 export const POSSIBLE_MATCH_TITLE =
-  'Product guessed from the description; OSV package data does not confirm it. Check before acting.'
+  "Possible match: Patch matched the product on the description's text, not on NVD's product id (CPE), and " +
+  "OSV.dev's package data doesn't confirm it. Check before acting."
 
 /** EPSS score as a percentage: "13.7%", or "<0.1%" for the long tail. */
 export function epssScore(e: Epss): string {
@@ -18,11 +21,12 @@ export function epssPercentile(e: Epss): string {
   return `${n}${suffix} percentile`
 }
 
-/** A small "Possible match" chip; the title says why. Never colour alone: it carries the words. */
+/** A small "Possible match" chip; its tooltip (mouse, keyboard, touch: B44) says why. Never colour alone: it carries
+ *  the words. */
 export function PossibleMatch() {
   return (
-    <span className="chip possible" title={POSSIBLE_MATCH_TITLE}>
+    <Tip text={POSSIBLE_MATCH_TITLE} className="chip possible" plain>
       Possible match
-    </span>
+    </Tip>
   )
 }

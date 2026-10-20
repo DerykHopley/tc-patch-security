@@ -11,8 +11,9 @@ from playwright.sync_api import Locator, Page, expect
 
 from test_chat import ask
 from test_cves_page import focused, no_sideways_scroll, open_cves, pin, visible_focus, window  # noqa: F401
-from test_dashboard import DESKTOP, PHONE, SHOTS, api, clean_state, open_dash  # noqa: F401 (fixtures)
+from test_dashboard import DESKTOP, PHONE, SHOTS, api, ask_about, clean_state, open_dash  # noqa: F401 (fixtures)
 from test_shell import contrast
+from reduced_motion import scene, still
 
 FIX_FIRST = "What should I fix first?"
 VIEW = "?product=langflow&severity=HIGH"
@@ -30,6 +31,8 @@ def chip(page: Page) -> Locator:
 
 
 def open_chat(page: Page) -> Locator:
+    # The app mounts once /health has said whether sign-in is on (B10): after a goto, wait for its shell first
+    expect(page.locator(".side-ask")).to_be_attached()
     page.keyboard.press("Control+k")
     expect(window(page)).to_be_visible()
     return window(page)
@@ -60,7 +63,7 @@ def test_a18_1_the_cves_page_sends_its_filters_and_the_selected_cve(open_cves):
     assert bodies[-1]["page"] == {"page": "cves", "product": "langflow", "severity": "HIGH", "status": "open",
                                   "verdict": "unknown", "kev": True, "since": "2025-01-01"}
     cve = table_ids(page, 1)[0]
-    page.get_by_role("button", name=f"Ask about this: {cve}").click()
+    ask_about(page, cve).press("Enter")  # the open chat sits over this short list's top row: by keyboard
     expect(window(page).locator(".message.assistant")).to_have_count(2, timeout=10_000)
     assert bodies[-1]["page"]["cve"] == cve
 
@@ -107,7 +110,7 @@ def test_a18_2_the_chip_shows_the_page_its_filters_and_the_selected_cve(open_cve
     page.locator("main").get_by_label("Verdict").select_option("unknown")
     expect(chip(page)).to_have_text("on CVEs · Langflow · High or worse · Unknown")
     cve = table_ids(page, 1)[0]
-    page.get_by_role("button", name=f"Ask about this: {cve}").click()
+    ask_about(page, cve).click()
     expect(chip(page)).to_have_text(f"on CVEs · Langflow · High or worse · Unknown · {cve}")
     row = page.locator("table.cves tbody tr", has=page.get_by_role("link", name=cve, exact=True))
     expect(row.locator(".selected-chip")).to_have_text("Selected")  # the row says it, not only its edge
@@ -125,7 +128,7 @@ def test_a18_2_changing_a_filter_clears_the_selected_cve(open_cves):
     page = open_cves(VIEW)
     bodies = chat_bodies(page)
     cve = table_ids(page, 1)[0]
-    page.get_by_role("button", name=f"Ask about this: {cve}").click()
+    ask_about(page, cve).click()
     expect(chip(page)).to_contain_text(cve)
     expect(window(page).locator(".message.assistant")).to_have_count(1, timeout=10_000)
     page.locator("main").get_by_label("Verdict").select_option("unknown")
@@ -163,9 +166,9 @@ def test_a18_2_ask_about_this_while_patch_is_answering_selects_nothing(open_cves
     first, second = table_ids(page, 2)
     release = []
     page.route("**/chat", lambda route: release.append(route))  # hold the first reply
-    page.get_by_role("button", name=f"Ask about this: {first}").click()
+    ask_about(page, first).click()
     expect(window(page).locator(".message.user")).to_have_count(1)
-    page.get_by_role("button", name=f"Ask about this: {second}").click()
+    ask_about(page, second).click()
     row = page.locator("table.cves tbody tr", has=page.get_by_role("link", name=second, exact=True))
     expect(row.locator(".selected-chip")).to_have_count(0)
     expect(chip(page)).not_to_contain_text(second)
@@ -206,7 +209,7 @@ def test_a18_3_the_dashboard_asks_for_the_whole_watchlist(open_dash, api_url):
 
 # --- A18.6: reduced motion: nothing in this ticket moves -----------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a18_6).
+# Reduced motion: scene a18_6 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A18.7: light and dark, phone and desktop ---------------------------------------------------------------------
@@ -217,7 +220,7 @@ def test_a18_7_chip_card_and_selected_row_in_light_and_dark_at_phone_and_desktop
                                                                                  scheme):
     page = open_cves(VIEW, width=width, scheme=scheme, reduced=True)
     cve = table_ids(page, 1)[0]
-    page.get_by_role("button", name=f"Ask about this: {cve}").click()
+    ask_about(page, cve).click()
     chat = window(page)
     expect(chip(page)).to_contain_text(cve)
     c, w = chip(page).bounding_box(), chat.bounding_box()
@@ -257,8 +260,24 @@ def test_a18_8_fix_first_and_ask_about_this_by_keyboard_with_visible_focus(open_
     page.keyboard.press("Enter")
     expect(window(page).locator(".message.assistant")).to_have_count(1, timeout=10_000)
     cve = table_ids(page, 1)[0]
-    ask_button = page.get_by_role("button", name=f"Ask about this: {cve}")
+    ask_button = ask_about(page, cve)
     ask_button.focus()
     assert visible_focus(page)
     page.keyboard.press("Enter")
     expect(chip(page)).to_contain_text(cve)
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a18_6_fix_first(fx):
+    page = fx("open_cves")(VIEW, reduced=True)
+    open_chat(page)
+    still(page, "the chat with the page context")
+    answer = ask(page, FIX_FIRST)
+    fix_card(answer)
+    still(page, "the prioritise card")
+    cve = table_ids(page, 1)[0]
+    ask_about(page, cve).click()  # the row's, not the card's (B24)
+    expect(chip(page)).to_contain_text(cve)
+    still(page, "the selected row")

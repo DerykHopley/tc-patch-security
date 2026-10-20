@@ -1,7 +1,8 @@
 import { useId, type KeyboardEvent } from 'react'
 import type { ChatReply, DocType, QueryInfo, Source } from '../api.ts'
+import { ExternalLink } from '../components/ExternalLink.tsx'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
-import { ToolCallCard } from './ToolCallCard.tsx'
+import { ToolCallCard, WebFacts } from './ToolCallCard.tsx'
 
 export type DetailTab = 'sources' | 'tools' | 'query'
 
@@ -12,6 +13,7 @@ const DOC_LABEL: Record<DocType, string> = {
   atlas_mitigation: 'ATLAS mitigation',
   atlas_case: 'ATLAS case study',
   cve: 'CVE',
+  web: 'Web result, unverified',
 }
 
 /** The tab an answer's details open on: sources if it has any, else tool calls, else the query plan. */
@@ -29,16 +31,18 @@ function Sources({ sources, prefix }: { sources: Source[]; prefix: string }) {
         <li key={s.chunk_id} id={sourceId(prefix, s.n)} className="source" data-n={s.n}>
           <div className="source-head">
             <span className="source-n">{s.n}</span>
-            <a href={s.url} target="_blank" rel="noreferrer">
-              {s.title}
-            </a>
+            <ExternalLink href={s.url}>{s.title}</ExternalLink>
           </div>
-          <div className="meta">
-            {DOC_LABEL[s.doc_type]}
-            {s.section && <> · {s.section}</>}
-            {s.date && <> · {s.date}</>}
-            {s.score !== null && <> · score {s.score.toFixed(3)}</>}
-          </div>
+          {s.doc_type === 'web' ? (
+            <WebFacts site={s.site} date={s.date} flagged={!!s.flags?.includes('injection_phrasing')} />
+          ) : (
+            <div className="meta">
+              {DOC_LABEL[s.doc_type]}
+              {s.section && <> · {s.section}</>}
+              {s.date && <> · {s.date}</>}
+              {s.score !== null && <> · score {s.score.toFixed(3)}</>}
+            </div>
+          )}
           {s.doc_type === 'cve' && (
             <div className="chips">
               <SeverityBadge severity={s.severity} cvss={s.cvss} />
@@ -159,7 +163,7 @@ export function AnswerDetails({ reply, prefix, tab, onTab }: {
       </div>
       <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${tab}`}>
         {tab === 'sources' && <Sources sources={reply.sources} prefix={prefix} />}
-        {tab === 'tools' && reply.tool_calls.map((c) => <ToolCallCard key={c.id} call={c} />)}
+        {tab === 'tools' && reply.tool_calls.map((c) => <ToolCallCard key={c.id} call={c} page={reply.page_context} />)}
         {tab === 'query' && reply.query && <QueryPlan query={reply.query} />}
       </div>
     </div>

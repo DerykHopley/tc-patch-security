@@ -1,9 +1,14 @@
 """Chat request and reply shapes. Moved from proto (A06); other routes add their own shapes."""
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.app_settings import ExplainLevel
+
+
+# A CVE id as tools and buttons take it: any case in, upper case out (CVE-2025-3248). One definition, so every tool
+# argument and the card actions accept the same ids.
+CveId = Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, pattern=r"(?i)^CVE-\d{4}-\d{4,}$")]
 
 
 class Turn(BaseModel):
@@ -35,6 +40,9 @@ class Source(BaseModel):
     severity: str | None = None
     cvss: float | None = None
     kev: bool | None = None
+    # Web only (B08): the page's site, and "injection_phrasing" when its text tries to give instructions
+    site: str | None = None
+    flags: list[str] = Field(default_factory=list)
 
 
 class QueryInfo(BaseModel):
@@ -44,6 +52,7 @@ class QueryInfo(BaseModel):
     filters: dict[str, str]
     dropped_filters: list[str]
     relaxed: bool
+    off_topic: bool = False  # #53: no vector hit reached the threshold, so keyword hits were dropped too
     found_by: dict[int, list[str]] = Field(default_factory=dict)  # source n → ["keyword", "vector"] (A10)
 
 
@@ -55,6 +64,7 @@ class ToolCallRecord(BaseModel):
     result: dict | None = None
     error: dict | None = None  # {code, message}
     duration_ms: float
+    retryable: bool = False  # B20: an error that may pass on a second try (a timeout, a rate limit): "Try again"
 
 
 class Usage(BaseModel):
@@ -78,3 +88,6 @@ class ChatReply(BaseModel):
     explain_level: ExplainLevel = "normal"  # the level this answer was pitched at (A19)
     page_context: dict[str, Any] = Field(default_factory=dict)  # the checked page context Patch had (A18)
     dropped_context: list[str] = Field(default_factory=list)  # page-context values dropped: "key=value"
+    # The tools didn't run again: this answers from the earlier answer's search for this question, at another
+    # explain level (#51), so its sources and numbers are the same
+    search_reused: bool = False

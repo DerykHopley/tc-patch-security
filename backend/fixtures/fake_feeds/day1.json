@@ -1,0 +1,16 @@
+{
+ "_note": "The fake Feeds' day 1 (B02): what NVD, KEV, EPSS and OSV say on top of snapshot_raw/ one day after the snapshot. Made up for tests: the ids CVE-2026-991xx and GHSA-fake-* are not real.",
+ "date": "2026-10-14",
+ "catalogVersion": "2026.10.14",
+ "nvd": [
+  {"id": "CVE-2026-99101", "published": "2026-10-14T08:15:00.000", "lastModified": "2026-10-14T08:15:00.000",
+   "status": "Received",
+   "description": "Langflow before 1.9.2 lets an authenticated user escape the component sandbox with a crafted flow manifest upload and run code on the server.",
+   "cwes": ["CWE-94"], "score": 8.1, "severity": "HIGH", "vendor_products": ["langflow:langflow"], "keywords": ["langflow"]}
+ ],
+ "kev": [],
+ "epss": [
+  {"cve": "CVE-2026-99101", "epss": "0.012000000", "percentile": "0.780000000", "date": "2026-10-14"}
+ ],
+ "osv": {}
+}

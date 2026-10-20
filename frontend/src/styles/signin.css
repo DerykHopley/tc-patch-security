@@ -1,0 +1,257 @@
+/* Sign-in (B10, docs/design/DESIGN.md §5.13): the sign-in screen and the user menu. Tokens only. */
+
+/* ---------- The sign-in screen: one card in the middle of the page ---------- */
+
+.signin-page {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 4.5rem 1rem 2rem; /* room for Patch's head and the theme switch */
+  box-sizing: border-box;
+}
+
+.signin-theme {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+}
+
+.signin-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 26rem;
+  box-sizing: border-box;
+  padding: 0 1.6rem 1.6rem;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+  animation: signin-up 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; /* the cards' fade up (§7.1) */
+}
+
+.signin-card > .robot {
+  margin: -3rem 0 0.2rem; /* his head rises over the card's top edge (§8.2) */
+}
+
+.signin-brand {
+  justify-content: center;
+  padding-bottom: 0.8rem;
+  margin-bottom: 0.8rem;
+  align-self: stretch;
+}
+
+.signin-card h1 {
+  margin: 0 0 0.3rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.signin-lead {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+.signin-form {
+  width: 100%;
+  min-width: 0;
+}
+
+.signin-note {
+  display: block;
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+}
+
+/* Clerk didn't load: an error line with its edge, as the other status lines (§5.7) */
+.signin-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border-left: 3px solid var(--error);
+  border-radius: var(--radius-input);
+  background: var(--error-soft);
+  color: var(--text);
+}
+
+.signin-failed p {
+  margin: 0;
+}
+
+@keyframes signin-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ---------- The user menu: a round button in the top bar, a small card under it ---------- */
+
+.user-menu {
+  position: relative;
+}
+
+.user-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: var(--on-primary);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-primary);
+}
+
+.user-btn:hover:not(:disabled) {
+  border-color: transparent;
+}
+
+.user-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.user-card {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: max-content;
+  min-width: 12rem;
+  max-width: min(18rem, calc(100vw - 2rem));
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-nested);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  animation: user-pop 0.16s ease both; /* the bubble's pop (§7.1) */
+}
+
+.user-name,
+.user-email {
+  overflow-wrap: anywhere;
+}
+
+.user-email {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.user-signout {
+  margin-top: 0.5rem;
+  align-self: flex-start;
+}
+
+@keyframes user-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+/* ---------- The access screens (B38, §5.13): ask with a note, waiting, refused. The sign-in card's frame ---------- */
+
+.signin-card h1:focus {
+  outline: none; /* focused by the page when the step changes, never by Tab */
+}
+
+.access-step {
+  text-align: left;
+}
+
+.access-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.access-form label {
+  font-weight: 700;
+}
+
+.access-optional {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.access-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 5rem;
+}
+
+.access-count {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Over the limit: --text on the soft error fill with its edge (§5.7), never red text alone */
+.access-count.over {
+  padding: 0.2rem 0.6rem;
+  border-left: 3px solid var(--error);
+  border-radius: var(--radius-input);
+  background: var(--error-soft);
+  color: var(--text);
+}
+
+.access-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+
+/* Their own note, read back: a nested card (§3.5) */
+.access-mine {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-nested);
+  background: var(--nested-fill);
+}
+
+.access-mine-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.access-mine p {
+  margin: 0.2rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.access-step > .signin-note {
+  margin-top: 0.8rem;
+  text-align: center;
+}
+
+/* B46: what Patch is (the landing page's content at /about), under the card's actions. --text, underlined: a plain
+   link on --surface, at least 4.5:1 in both themes */
+.access-about {
+  display: block;
+  width: fit-content;
+  margin: 1rem auto 0;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}

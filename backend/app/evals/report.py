@@ -13,6 +13,7 @@ published as one file. Everything from a model or the data is escaped: answers a
 """
 import datetime as dt
 import json
+from collections import Counter
 from html import escape
 from pathlib import Path
 
@@ -263,23 +264,47 @@ def _grid_cell(row: dict | None) -> str:
             f'<summary>✕ {len(names)} {label}</summary><ul>{items}</ul></details></td>')
 
 
+def _changed() -> dict[str, list[dict]]:
+    """Each question's changed expectations (`expect_changed` in fake_script.json, #54): date, issue, was, now, why."""
+    from app.evals.model_check import questions
+
+    return {q["id"]: q["expect_changed"] for q in questions() if q.get("expect_changed")}
+
+
+def _old(run: dict, changes: list[dict]) -> bool:
+    """Scored before the question's latest expectation change, by the day the run started."""
+    return bool(changes) and (run.get("started") or "")[:10] < max(c["date"] for c in changes)
+
+
 def _grid(runs: list[dict]) -> str:
-    """Questions down, models across: which question tripped which model, and on which checks."""
+    """Questions down, models across: which question tripped which model, and on which checks. A question whose
+    expectation changed says so, and a run scored before the change says "old expectation" (#54)."""
     if not runs:
         return '<p class="meta">No model-check runs saved yet.</p>'
     ids = list(dict.fromkeys(row["id"] for r in runs for row in r["results"]))
     by_q = [{row["id"]: row for row in r["results"]} for r in runs]
+    changed = _changed()
     head = "".join(f'<th scope="col" title="{_e(r["model"])}">{_e(_short(r["model"]))}<br>'
                    f'<span class="meta">{"cloud" if _is_cloud(r) else "local"}</span></th>' for r in runs)
     body = ""
     for qid in ids:
         question = next(b[qid]["question"] for b in by_q if qid in b)
-        cells = "".join(_grid_cell(b.get(qid)) for b in by_q)
-        body += f'<tr><th scope="row">{_e(qid)} <span class="meta">{_e(question)}</span></th>{cells}</tr>'
+        changes = changed.get(qid, [])
+        chip = "".join(f' <span class="chip" title="Was: {_e(c["was"])}. Now: {_e(c["now"])}.">expectation changed '
+                       f'{_e(c["date"])}</span>' for c in changes)
+        cells = "".join(_grid_cell(b.get(qid)).replace(
+            "</td>", '<br><span class="meta">old expectation</span></td>', 1) if b.get(qid) and _old(r, changes)
+            else _grid_cell(b.get(qid)) for r, b in zip(runs, by_q))
+        body += f'<tr><th scope="row">{_e(qid)} <span class="meta">{_e(question)}</span>{chip}</th>{cells}</tr>'
     totals = "".join(f'<td class="cell">{r["summary"]["passed"]} / {r["summary"]["questions"]}</td>' for r in runs)
+    notes = "".join(f'<li><strong>{_e(qid)}</strong>, {_e(c["date"])} (#{_e(c["issue"])}): was {_e(c["was"])}; now '
+                    f'{_e(c["now"])}. Why: {_e(c["why"])}.</li>'
+                    for qid, changes in changed.items() if qid in ids for c in changes)
+    notes = (f'<h3>Expectations changed</h3><p class="meta">Runs started before the date were scored on the old '
+             f'expectation: their cell says so. Compare them with care.</p><ul>{notes}</ul>' if notes else "")
     return (f'<div class="table-scroll"><table class="grid"><caption class="visually-hidden">Pass or fail per '
             f'question and model</caption><thead><tr><th scope="col">Question</th>{head}</tr></thead>'
-            f'<tbody>{body}<tr><th scope="row">Questions passed</th>{totals}</tr></tbody></table></div>')
+            f'<tbody>{body}<tr><th scope="row">Questions passed</th>{totals}</tr></tbody></table></div>{notes}')
 
 
 def _failures(runs: list[dict]) -> str:
@@ -489,9 +514,18 @@ def _section(sid: str, title: str, body: str, intro: str = "") -> str:
     return f'<section id="{sid}" class="card" aria-labelledby="{sid}-h"><h2 id="{sid}-h">{title}</h2>{intro_html}{body}</section>'
 
 
+def _told_apart(runs: list[dict]) -> list[dict]:
+    """B16: a model with more than one run gets its run's day in its name ("… (2026-10-20)"), so the grid's columns
+    and the chart's points can be told apart. A model with one run keeps its plain name."""
+    counts = Counter(r["model"] for r in runs)
+    return [{**r, "model": f'{r["model"]} ({(r.get("started") or "")[:10]})'} if counts[r["model"]] > 1 else r
+            for r in runs]
+
+
 def build(model_runs: list[dict], retrieval_runs: list[dict], as_of: str, findings: str | None = None,
           generated: str | None = None) -> str:
     """The page. `findings` is HTML a person wrote (A20), put in as is."""
+    model_runs = _told_apart(model_runs)
     tokens = TOKENS.read_text()
     generated = generated or dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     placeholder = ('<p class="placeholder">Not run yet. {what} This section stays empty until that ticket adds its '
@@ -522,7 +556,8 @@ def build(model_runs: list[dict], retrieval_runs: list[dict], as_of: str, findin
         ("threshold", "Threshold", "Off-topic threshold", _threshold(retrieval_runs),
          "Each embedder's best (top-1) vector score for the retrieval questions above and for 15 off-topic "
          "questions, with the threshold in use. Off-topic questions also show how many chunks BM25 keyword search "
-         "matches: it has no threshold, so hybrid search can still bring those back."),
+         "matches: it has no threshold of its own, so the off-topic gate drops its hits when no vector hit reaches the "
+         "threshold (#53)."),
         ("explain-levels", "Explain levels", "Explain levels: readability", _explain_levels(model_runs, placeholder.format(
             what="A19 asks one question at simple, normal and deep dive: the same key fact and citations, "
                  "readability easiest for simple and hardest for deep dive.")),

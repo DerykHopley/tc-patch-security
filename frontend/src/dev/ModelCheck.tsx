@@ -25,6 +25,8 @@ export const CHECK_LABEL: Record<string, string> = {
   readability: 'Readability by level',
   verdict: "Rules' verdict",
   status_unchanged: 'Status unchanged',
+  proposed: 'Proposed, not done', // B21: a change comes back as a proposal
+  state_unchanged: 'State unchanged before approval',
 }
 
 const POLL_MS = 600
@@ -193,9 +195,10 @@ function Compare({ runs }: { runs: ModelCheckListed[] }) {
   )
 }
 
-export function ModelCheck({ modelLabel, dirty, compared, onCompare }: {
+export function ModelCheck({ modelLabel, dirty, canRun, compared, onCompare }: {
   modelLabel: string
   dirty: boolean
+  canRun: boolean // false: not the owner (B29), so the saved runs only
   compared: string[]
   onCompare: (ids: string[]) => void
 }) {
@@ -246,27 +249,33 @@ export function ModelCheck({ modelLabel, dirty, compared, onCompare }: {
   const toggle = (id: string) => onCompare(compared.includes(id) ? compared.filter((x) => x !== id) : [...compared, id])
 
   return (
-    <Card title="Model check" kind="live" why="Scores the saved model on the scripted questions, no LLM judge"
+    <Card title="Model check"
       className="model-check">
       <p className="meta">
         Asks the scripted questions of <strong>{modelLabel}</strong> and checks each answer exactly: the right tools,
         filters, a key fact, real citations, cites sources, the injection flag and no exploit code. Watchlist questions
         run on a copy of your data.
       </p>
-      <form className="eval-run" onSubmit={start}>
-        <button type="submit" disabled={running || dirty}>
-          {running ? 'Running…' : 'Run model check'}
-        </button>
-        {dirty && <span className="meta inline">Save your settings first: the check uses the saved model.</span>}
-        {running && run && (
-          <>
-            <progress max={run.total} value={done} aria-label="Model check progress" />
-            <span className="meta inline">
-              {done} of {run.total} · local models can take a minute per question
-            </span>
-          </>
-        )}
-      </form>
+      {canRun ? (
+        <form className="eval-run" onSubmit={start}>
+          <button type="submit" disabled={running || dirty}>
+            {running ? 'Running…' : 'Run model check'}
+          </button>
+          {dirty && <span className="meta inline">Save your settings first: the check uses the saved model.</span>}
+          {running && run && (
+            <>
+              <progress max={run.total} value={done} aria-label="Model check progress" />
+              <span className="meta inline">
+                {done} of {run.total} · local models can take a minute per question
+              </span>
+            </>
+          )}
+        </form>
+      ) : (
+        <p className="meta" data-testid="owner-runs">
+          Only the owner can run it: it asks the owner's model and saves the run for everyone.
+        </p>
+      )}
       {error && (
         <p role="alert" className="form-error">
           {error}

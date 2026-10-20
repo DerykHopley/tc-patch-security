@@ -11,3 +11,4 @@ The course brief lists "Use LangChain with OpenRouter" as a core requirement, bu
 
 - Don't "upgrade" retrieval to LangChain retrievers without moving the filter check in front of them.
 - FakeLLM is our own class above the seam, so tests need no key and no network.
+- Spec B adds one more thin use (B08, 2026-10-15): `langchain-mcp-adapters` connects to Tavily's remote MCP server inside our `research_web` tool. The adapter's tool is called directly; it isn't bound to the model, and our loop still runs the tools.

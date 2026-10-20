@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getSettings, saveSettings, type AppSettings, type SettingsReply } from '../api.ts'
+import { getSettings, saveSettings, type AppSettings, type ServerReply, type SettingsReply } from '../api.ts'
 import { announceSavedLevel } from '../chat/savedLevel.ts'
 
 // The settings that are groups of values (alerts; later policy), as opposed to single values (explain_level).
@@ -13,18 +13,28 @@ export function useSettings() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(() => {
+  /** Loads the saved settings into the form. `current`: false once this load is out of date, so it's dropped. */
+  const load = useCallback((current: () => boolean = () => true) => {
     getSettings().then(
       (r) => {
+        if (!current()) return
         setReply(r)
         setDraft(r.settings)
         setError(null)
         announceSavedLevel(r.settings.explain_level) // e.g. after a reset
       },
-      (e: Error) => setError(e.message),
+      (e: Error) => current() && setError(e.message),
     )
   }, [])
-  useEffect(load, [load])
+  // The first load drops its answer once its effect is cleaned up: in development React runs the effect twice, and
+  // the late answer reset whatever the user had changed since the first (the Dev page's race, CI run 38847853994).
+  useEffect(() => {
+    let live = true
+    load(() => live)
+    return () => {
+      live = false
+    }
+  }, [load])
 
   const dirty = !!reply && !!draft && JSON.stringify(reply.settings) !== JSON.stringify(draft)
 
@@ -34,7 +44,7 @@ export function useSettings() {
     setError(null)
     try {
       const r = await saveSettings(draft)
-      setReply({ ...reply, settings: r.settings })
+      setReply((old) => (old ? { ...old, settings: r.settings } : old)) // keeps a server save made just before (B26)
       setDraft(r.settings)
       setSaved(true)
       announceSavedLevel(r.settings.explain_level) // the chat header's switch follows (A19)
@@ -56,10 +66,32 @@ export function useSettings() {
     setSaved(false)
   }
 
+  /** B20: whether a part has unsaved edits, so a failed save can show its error in that part's card. `only` or
+   *  `except` narrow a group to some of its keys (the Delivery card is alerts' `channels`). */
+  function changed(part: keyof AppSettings, keys: { only?: string[]; except?: string[] } = {}): boolean {
+    if (!reply || !draft) return false
+    const before = reply.settings[part]
+    const edited = draft[part]
+    if (typeof before !== 'object' || typeof edited !== 'object') return before !== edited
+    const a = before as unknown as Record<string, unknown>
+    const b = edited as unknown as Record<string, unknown>
+    return Object.keys({ ...a, ...b })
+      .filter((k) => (!keys.only || keys.only.includes(k)) && !keys.except?.includes(k))
+      .some((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]))
+  }
+
   function discard() {
     if (reply) setDraft(reply.settings)
     setError(null)
   }
 
-  return { reply, draft, dirty, saving, saved, error, save, discard, patch, setValue, reload: load }
+  /** B26: the owner's server settings were saved: their new state, the channels and the time zone. The draft of the
+   *  other settings stays as it is. */
+  function setServer(r: ServerReply) {
+    setReply((old) => (old ? { ...old, server: r.server, channels: r.channels, alert_tz: r.alert_tz } : old))
+  }
+
+  return {
+    reply, draft, dirty, saving, saved, error, save, discard, patch, setValue, changed, setServer, reload: () => load(),
+  }
 }

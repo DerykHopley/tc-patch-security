@@ -12,7 +12,8 @@ from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from app.errors import LLMError, ToolError
+from app.config import DEFAULT_USER
+from app.errors import InputError, LLMError, ToolError
 from app.llm.base import LLMReply, ToolCall
 from app.schemas import QueryInfo, Source, ToolCallRecord, Usage
 
@@ -22,11 +23,15 @@ log = logging.getLogger(__name__)
 @dataclass
 class Context:
     """Per-request state the tools add to: sources across search calls, the last query, usage. `page`: the checked
-    page context (A18), read by prioritise."""
+    page context (A18), read by prioritise. `user_id`: whose request it is (B09: the auth dependency's, through
+    Deps.user_id; the default user while sign-in is off). research_web counts its daily cap by it (B08), and
+    check_updates picks the user's alerts by it (B06)."""
     sources: list[Source] = field(default_factory=list)
     query: QueryInfo | None = None
     usage: Usage = field(default_factory=Usage)
     page: dict = field(default_factory=dict)
+    user_id: str = DEFAULT_USER
+    force_filters: dict = field(default_factory=dict)  # B24: a refine button's search filters, never relaxed away
 
     def add_usage(self, reply: LLMReply) -> None:
         self.usage.input_tokens += reply.input_tokens
@@ -49,6 +54,12 @@ WatchStatus = Literal["open", "fixed", "not_affected", "accepted", "not_watched"
 PriorityLevel = Literal["urgent", "high", "normal", "low"]
 
 
+class PackageFix(ToolResult):
+    """One package's newest fixed version (B67): listed when OSV gives the CVE's fix under more than one package."""
+    package: str
+    fixed_version: str | None
+
+
 class Category(ToolResult):
     """An OWASP Top 10 category."""
     code: str
@@ -63,6 +74,8 @@ class ToolSpec:
     args_model: type[BaseModel]
     result: Any  # a ToolResult model, or a union of them (Annotated with a discriminator where there is one)
     run: Callable  # (args, deps, ctx) -> dict, in the shape of `result`
+    offered: Callable = lambda deps: True  # (deps) -> bool: an off tool isn't offered to the model, nor run (B08)
+    calls_out: bool = False  # it asks the model or the network: Try again counts it as a chat message (B11)
 
     def __post_init__(self):
         self.results = TypeAdapter(self.result)
@@ -86,32 +99,57 @@ def register(spec: ToolSpec) -> ToolSpec:
     return spec
 
 
-def tool_schemas() -> list[dict]:
-    return [t.schema() for t in TOOLS.values()]
+def tool_schemas(deps=None) -> list[dict]:
+    """The tools offered to the model. Without deps, every tool."""
+    return [t.schema() for t in TOOLS.values() if deps is None or t.offered(deps)]
+
+
+def offered_tool(name: str, deps) -> ToolSpec | None:
+    """The chat tool by that name if it's offered to this user now (research_web needs its key), else None."""
+    spec = TOOLS.get(name)
+    return spec if spec is not None and spec.offered(deps) else None
+
+
+# Errors that may pass on a second try (B20): the tool card offers "Try again" for these only. A bad argument or an
+# unknown id gives the same error every time.
+RETRYABLE = {"timeout", "rate_limited", "tool_failed", "unavailable", "web_unavailable"}
+# Steps that stopped short without a mistake in the call: the answer must say so. The web research cap is one, but
+# not retryable: it counts per day.
+UNFINISHED = RETRYABLE | {"web_limit"}
+
+
+def failed_on_purpose(call: ToolCall) -> ToolCallRecord:
+    """The tool-failure switch (FAIL_TOOLS, the dev panel; B20): the step times out without running the tool."""
+    return ToolCallRecord(id=call.id, name=call.name, args=call.args, status="error", duration_ms=0.0, retryable=True,
+                          error={"code": "timeout", "message": f"{call.name} timed out before it answered."})
 
 
 def _plain(e: ValidationError) -> str:
     return "; ".join(f"{'.'.join(map(str, err['loc'])) or 'arguments'}: {err['msg']}" for err in e.errors())
 
 
-def run_tool(call: ToolCall, deps, ctx: Context) -> ToolCallRecord:
+def run_tool(call: ToolCall, deps, ctx: Context, tools: dict[str, ToolSpec] | None = None) -> ToolCallRecord:
+    """`tools`: the specs to run from; the chat's TOOLS by default (the MCP server passes its own, B23)."""
     start = time.perf_counter()
 
     def record(status, result=None, error=None):
         ms = round((time.perf_counter() - start) * 1000, 2)
         return ToolCallRecord(id=call.id, name=call.name, args=call.args, status=status,
-                              result=result, error=error, duration_ms=ms)
+                              result=result, error=error, duration_ms=ms,
+                              retryable=bool(error) and error["code"] in RETRYABLE)
 
-    spec = TOOLS.get(call.name)
+    spec = (TOOLS if tools is None else tools).get(call.name)
     if spec is None:
         return record("error", error={"code": "unknown_tool", "message": f"There is no tool called {call.name!r}."})
+    if not spec.offered(deps):  # a model may name a tool it wasn't offered
+        return record("error", error={"code": "tool_off", "message": f"The {call.name} tool is off."})
     try:
         args = spec.args_model.model_validate(call.args)
     except ValidationError as e:
         return record("error", error={"code": "bad_arguments", "message": _plain(e)})
     try:
         result = spec.run(args, deps, ctx)
-    except ToolError as e:
+    except (ToolError, InputError) as e:  # B27: an InputError from any tool is its error, with its code
         return record("error", error={"code": e.code, "message": e.message})
     except LLMError:
         raise  # search_security calls the LLM; its failure is an HTTP 502, not a tool error (V6)
@@ -126,4 +164,4 @@ def run_tool(call: ToolCall, deps, ctx: Context) -> ToolCallRecord:
 
 
 # Importing the tool modules registers them.
-from app.tools import affected, cve, prioritise, search, watchlist, weakness  # noqa: E402,F401
+from app.tools import affected, cve, decision, prioritise, search, updates, watchlist, weakness, web  # noqa: E402,F401

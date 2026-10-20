@@ -11,6 +11,9 @@ import re
 import pytest
 from playwright.sync_api import Browser, Page, expect
 
+from test_shell import LateLoads
+from reduced_motion import scene, still
+
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
 
@@ -32,10 +35,12 @@ def settings_page(browser: Browser, ui_url: str):
     """Opens the Settings page in a fresh context, after resetting the throwaway state through the page's API."""
     contexts = []
 
-    def _open(width=DESKTOP, scheme="light", reduced=False) -> Page:
+    def _open(width=DESKTOP, scheme="light", reduced=False, setup=None) -> Page:
         ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme,
                                   reduced_motion="reduce" if reduced else "no-preference")
         contexts.append(ctx)
+        if setup:
+            setup(ctx)  # routes that must be in place before the first request
         page = ctx.new_page()
         page.goto(ui_url)
         page.get_by_role("button", name="Settings", exact=True).click()
@@ -56,7 +61,7 @@ def fresh_state(browser: Browser, ui_url: str):
     page.goto(ui_url)
     page.get_by_role("button", name="Settings", exact=True).click()
     page.get_by_label("Type reset to confirm").fill("reset")
-    page.get_by_role("button", name="Reset demo data").click()
+    page.get_by_role("button", name="Reset all my data").click()
     expect(page.get_by_text("Reset to the defaults.")).to_be_visible()
     ctx.close()
 
@@ -79,15 +84,16 @@ def panel(page: Page, title: str):
     return page.locator("section.card", has=page.get_by_role("heading", name=title, exact=True))
 
 
-# --- A13.2: alert rules; each panel says live, saved for later, or mock -------------------------------------------
+# --- A13.2: alert rules; no "Live" chip on any card (B50: every card said it, so it told you nothing) ----------------
 
-def test_a13_2_each_panel_says_whether_it_is_live_saved_for_later_or_a_mock(settings_page):
+def test_a13_2_no_card_has_a_status_chip_and_the_data_card_points_to_check_now(settings_page):
     page = settings_page()
-    for title, chip in (("Alerts", "Saved for later"), ("Delivery", "Live"), ("Watchlist", "Live"), ("Data", "Live")):
-        expect(panel(page, title).locator(".status-chip")).to_have_text(chip)
-    check_now = page.get_by_role("button", name="Check for new CVEs now")
-    expect(check_now).to_be_disabled()
-    expect(panel(page, "Data")).to_contain_text("Not built yet")
+    expect(page.locator("main section.card .status-chip")).to_have_count(0)
+    # BR.13: no dead button; the Data card points to the dashboard's Check now and the Refresh runs card
+    expect(page.get_by_role("button", name="Check for new CVEs now")).to_have_count(0)
+    expect(panel(page, "Data")).not_to_contain_text("Not built yet")
+    expect(panel(page, "Data").get_by_role("link", name="dashboard's Data freshness card")).to_have_attribute("href", "/")
+    expect(panel(page, "Data").get_by_role("link", name="Refresh runs")).to_have_attribute("href", "#schedule")
     expect(page.get_by_role("heading", level=1)).to_have_text("Settings")
     expect(page.get_by_role("heading", name="Settings", level=2)).to_have_count(0)  # the top bar names the page
 
@@ -123,6 +129,17 @@ def test_a13_2_discard_brings_back_the_saved_values(settings_page):
     expect(page.get_by_role("button", name="Save changes")).to_be_disabled()
 
 
+def test_a13_2_a_late_load_never_resets_an_edit(settings_page, api_url):
+    # The saved settings can answer twice (React's double effect in development) or late: an edit made once the
+    # card shows must survive the later answer (the Dev page's race, CI run 38847853994).
+    late = []
+    page = settings_page(setup=lambda ctx: late.append(LateLoads(ctx, f"{api_url}/settings")))
+    page.get_by_label("Minimum severity").select_option("CRITICAL")
+    late[0].wait_all(page)
+    expect(page.get_by_label("Minimum severity")).to_have_value("CRITICAL")
+    expect(page.locator(".save-bar").get_by_role("status")).to_contain_text("Unsaved changes")
+
+
 def test_a13_2_the_watchlist_card_edits_the_watchlist(settings_page):
     # Since A15b the card holds the editor; its checks are in test_watchlist.py.
     page = settings_page()
@@ -138,10 +155,12 @@ def test_a13_3_channels_show_whether_they_are_set_up_and_how(settings_page):
     page = settings_page()
     email = page.locator(".channel", has_text="Email")
     expect(email.locator(".setup-pill")).to_have_text("not set up")
-    expect(email).to_contain_text("SMTP_HOST")
+    expect(email).to_contain_text("Set the mail server and the address to send to under Email (SMTP), below.")
     ntfy = page.locator(".channel", has_text="Phone push (ntfy)")
     expect(ntfy.locator(".setup-pill")).to_have_text("not set up")
-    expect(ntfy).to_contain_text("NTFY_TOPIC")
+    expect(ntfy).to_contain_text("Set a topic (a long random name) under Phone push (ntfy), below.")
+    for name in ("SMTP_HOST", "ALERT_EMAIL_TO", "NTFY_TOPIC", "notify-send", "backend/.env"):  # B50: plain words
+        expect(panel(page, "Delivery")).not_to_contain_text(name)
     expect(page.locator(".channel", has_text="Desktop notification").locator(".setup-pill")).to_have_text(
         re.compile("^(ready|not set up)$"))
     for name in ("Desktop notification", "Email", "Phone push (ntfy)"):
@@ -167,7 +186,7 @@ def test_a13_3_preview_shows_the_alert_and_logs_it(settings_page):
 def test_a13_3_test_on_a_channel_that_is_not_set_up_says_so_and_is_logged(settings_page):
     page = settings_page()
     page.get_by_role("button", name="Send test alert by email").click()
-    expect(page.get_by_role("alert")).to_contain_text("SMTP_HOST")
+    expect(page.get_by_role("alert")).to_contain_text("under Email (SMTP)")
     log = page.get_by_role("list", name="Recent alerts")
     expect(log.get_by_role("listitem")).to_have_count(1)
     expect(log).to_contain_text("email")
@@ -182,7 +201,7 @@ def test_a13_5_reset_needs_the_word_and_restores_the_defaults(settings_page):
     page.get_by_role("button", name="Save changes").click()
     page.get_by_role("button", name="Preview an alert (send nothing)").click()
     expect(page.get_by_role("list", name="Recent alerts").get_by_role("listitem")).to_have_count(1)
-    reset = page.get_by_role("button", name="Reset demo data")
+    reset = page.get_by_role("button", name="Reset all my data")
     expect(reset).to_be_disabled()
     page.get_by_label("Type reset to confirm").fill("Reset")
     expect(reset).to_be_disabled()
@@ -205,7 +224,7 @@ def test_a13_6_settings_parts_as_designed(settings_page, scheme):
         assert style(fieldset, "backgroundColor") == nested
         assert style(fieldset, "borderTopStyle") == "none"  # nested cards have no border
     channels = page.locator(".channel").all()
-    assert len(channels) == 3
+    assert len(channels) == 4  # desktop, email, ntfy, Telegram (B57)
     for channel in channels:
         assert style(channel, "borderTopLeftRadius") == "18px"
         assert style(channel, "backgroundColor") == nested
@@ -213,9 +232,9 @@ def test_a13_6_settings_parts_as_designed(settings_page, scheme):
         card = channel.bounding_box()
         assert pill and card and pill["width"] < 100 < card["width"]  # the pill hugs its text
     assert style(page.locator(".callout").first, "borderTopLeftRadius") == "14px"
-    danger = page.locator(".danger-zone")
-    assert style(danger, "borderTopLeftRadius") == "18px"
-    assert style(danger, "borderTopColor") == resolved(page, css_var(page, "--error"), "color")
+    danger = panel(page, "Start over")  # B50: its own warning card, a 2px --error edge inside
+    assert resolved(page, css_var(page, "--error"), "color") in style(danger, "boxShadow")
+    assert "inset" in style(danger, "boxShadow")
     for card in page.locator("section.card").all():
         assert style(card, "backgroundColor") == resolved(page, css_var(page, "--surface"))
         assert style(card, "borderTopLeftRadius") == "26px"
@@ -225,10 +244,11 @@ def test_a13_6_settings_parts_as_designed(settings_page, scheme):
 def test_a13_6_save_bar_floats_at_the_bottom_clear_of_patch(settings_page, width):
     page = settings_page(width=width)
     bar = page.locator(".save-bar")
+    page.get_by_label("Minimum severity").select_option("LOW")  # the bar shows wherever the page is scrolled
+    expect(bar).to_contain_text("Unsaved changes")  # B50: on a phone it shows only now
     assert style(bar, "position") == "sticky"
     assert style(bar, "borderTopLeftRadius") == "20px"
     assert "rgba(108, 76, 245, 0.16)" in style(bar, "boxShadow")
-    page.get_by_label("Minimum severity").select_option("LOW")  # the bar shows wherever the page is scrolled
     page.evaluate("window.scrollTo(0, 0)")
     box = bar.bounding_box()
     assert box and box["y"] + box["height"] <= 900
@@ -245,7 +265,7 @@ def test_a13_6_save_bar_floats_at_the_bottom_clear_of_patch(settings_page, width
 
 # --- A13.7: reduced motion --------------------------------------------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a13_7).
+# Reduced motion: scene a13_7 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A13.8: light and dark, phone and desktop -------------------------------------------------------------------------
@@ -256,7 +276,8 @@ def test_a13_8_works_in_both_themes_at_both_widths(settings_page, browser_name, 
     page = settings_page(width=width, scheme=scheme, reduced=True)
     assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
     cards = page.locator("section.card")
-    expect(cards).to_have_count(6)  # with "Patch's answers" (A19) and "Priority and due dates" (A16)
+    expect(cards).to_have_count(9)  # with "Patch's answers" (A19), "Priority and due dates" (A16), "Refresh runs" (B19),
+    # "Profile" and "Demo data" (B48; "Start over" since B50)
     one_column = len({round(c.bounding_box()["x"]) for c in cards.all()}) == 1
     assert one_column == (width == PHONE)  # one column of cards at ≤ 900px (DESIGN.md §4.2)
     SHOTS.mkdir(exist_ok=True)
@@ -271,7 +292,7 @@ def test_a13_9_every_control_reachable_by_keyboard_with_visible_focus(settings_p
     page.keyboard.press("Shift+Tab")
     page.keyboard.press("Tab")  # focus by keyboard, so :focus-visible applies
     seen = []
-    for _ in range(40):
+    for _ in range(70):  # B26: the owner's server settings add about 20 stops
         seen.append(page.evaluate("""(() => { const a = document.activeElement;
             const label = a.labels && a.labels[0] ? a.labels[0].textContent : '';
             return (a.getAttribute('aria-label') || label || a.textContent || '').trim() })()"""))
@@ -292,8 +313,20 @@ def test_a13_9_buttons_have_accessible_names(settings_page):
     page = settings_page()
     for name in ("Send test alert by desktop notification", "Send test alert by email",
                  "Send test alert by phone push (ntfy)", "Preview an alert (send nothing)",
-                 "Check for new CVEs now", "Reset demo data", "Discard", "Save changes"):
+                 "Reset all my data", "Discard", "Save changes"):
         expect(page.get_by_role("button", name=name, exact=True)).to_have_count(1)
     unnamed = page.evaluate("""[...document.querySelectorAll('main button')].filter(b =>
         !(b.getAttribute('aria-label') || b.textContent).trim()).length""")
     assert unnamed == 0
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a13_7_settings(fx):
+    page = fx("settings_page")(reduced=True)
+    page.get_by_label("Minimum severity").select_option("LOW")
+    page.get_by_role("button", name="Preview an alert (send nothing)").click()
+    expect(page.locator(".push-preview")).to_be_visible()
+    page.get_by_role("button", name="Discard").hover()
+    still(page, "the settings page")

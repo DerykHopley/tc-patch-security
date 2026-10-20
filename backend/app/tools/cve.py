@@ -1,19 +1,21 @@
 """lookup_cve (T2): one CVE from the snapshot, with OWASP, KEV and watchlist context."""
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel
 
 from app.errors import ToolError
+from app.proposals import ProposalSource
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
 from app.status import JUSTIFICATIONS, STATUSES
-from app.tools.registry import (Category, PriorityLevel, Severity, ToolResult, ToolSpec, Verdict, WatchStatus,
-                                WhoActs, register)
-from app.watched import WatchedCves
+from app.schemas import CveId
+from app.tools.registry import (Category, PackageFix, PriorityLevel, Severity, ToolResult, ToolSpec, Verdict,
+                                WatchStatus, WhoActs, register)
+from app.watched import WatchedCves, package_fixes
 
 
 class CveArgs(BaseModel):
-    cve_id: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, pattern=r"(?i)^CVE-\d{4}-\d{4,}$")]
+    cve_id: CveId
 
 
 class Kev(ToolResult):
@@ -40,6 +42,8 @@ class Decision(ToolResult):
     decided_at: str | None  # None: recorded before decision records
     decided_by: str | None
     via: str | None
+    proposal: str | None = None  # the proposal you approved, for a change Patch proposed (B21)
+    sources: list[ProposalSource] | None = None  # what that proposal cited (B22)
 
 
 class Priority(ToolResult):
@@ -71,12 +75,13 @@ class CveResult(ToolResult):
     verdict: Verdict
     verdict_reason: str
     fixed_version: str | None
+    package_fixes: list[PackageFix]  # each package's fix when OSV lists more than one; else []
     who_acts: WhoActs
     no_fix: bool
     decision: Decision | None
     review_due: bool
     open_days: int
-    priority: Priority | None  # None off the watchlist
+    priority: Priority | None  # None off the watchlist, or closed (B33)
 
 
 def run(args: CveArgs, deps, ctx) -> dict:
@@ -84,7 +89,7 @@ def run(args: CveArgs, deps, ctx) -> dict:
     cve = k.cves.get(args.cve_id)
     if cve is None:
         raise ToolError(f"{args.cve_id} isn't in my snapshot ({len(k.cves.all())} CVEs for "
-                        f"{len(k.products)} LLM products, as of {deps.settings.as_of}).", "cve_not_in_snapshot")
+                        f"{len(k.products)} LLM products, as of {deps.as_of}).", "cve_not_in_snapshot")
     kev = k.cves.kev.get(cve["id"])
     a = WatchedCves.of(deps).assess(cve["id"])  # verdict (advice, never the status), decision, priority
     v, p = a.verdict, a.priority
@@ -102,10 +107,11 @@ def run(args: CveArgs, deps, ctx) -> dict:
         "epss": k.epss_of(cve["id"]),  # EPSS by FIRST, as of the snapshot date
         "product_match": k.product_match(cve["id"]),  # None when the product came from the CPE
         "possible_match": k.possible_match(cve["id"]),
-        "verdict": v.verdict, "verdict_reason": v.reason, "fixed_version": v.fixed_version, "who_acts": v.who_acts,
+        "verdict": v.verdict, "verdict_reason": v.reason, "fixed_version": v.fixed_version,
+        "package_fixes": package_fixes(v), "who_acts": v.who_acts,
         "no_fix": a.no_fix,  # OSV lists no fixed version: "no fix yet", not overdue (A16b)
         "decision": a.decision, "review_due": a.review_due, "open_days": a.open_days,
-        # The rules' priority and your due date (A16); None off the watchlist. The KEV deadline is under "kev".
+        # The rules' priority and your due date (A16); None off the watchlist or closed (B33). KEV deadline: "kev".
         "priority": None if p is None else {
             "level": p.level, "reasons": list(p.reasons), "due_date": p.due_date,
             "due_from": p.due_from, "overdue": p.overdue, "alert_priority": p.alert_priority},
@@ -117,9 +123,11 @@ register(ToolSpec(
     description="Look up one CVE by id (e.g. CVE-2024-8309): severity, CWEs, OWASP category, CISA KEV status, "
                 "EPSS score and percentile, whether the product is only a possible match (guessed from the "
                 "description), whether it's open on the user's watchlist, and the version check's verdict "
-                "(affected, not affected, unknown) with its reason, the fixed version and who acts. For a watched CVE, "
-                "also the priority set by the rules (urgent, high, normal, low) with its reasons, the user's due "
-                "date and whether it's overdue; the KEV deadline is CISA's date, separate from the due date. "
+                "(affected, not affected, unknown) with its reason, the fixed version (package_fixes: each "
+                "package's fix, when OSV lists more than one package) and who acts. For an open "
+                "watched CVE, also the priority set by the rules (urgent, high, normal, low) with its reasons, the "
+                "user's due date and whether it's overdue (a closed one has none); the KEV deadline is CISA's date, "
+                "separate from the due date. "
                 "Explain the priority from its reasons; never change it. Also the user's decision (status, reason or "
                 "justification, review date) and no_fix: true when no fixed version exists yet, so it isn't overdue; "
                 "the user may accept the risk on the CVEs page. You may suggest that, never set it.",

@@ -15,15 +15,17 @@ ignored here: this measures the order.
 
 Each run also records what the off-topic threshold (`vector.min_score`) is tuned on (A20): the top-1 vector score of
 every question above, threshold ignored; the same for the fixed OFF_TOPIC questions; and the threshold in use. A good
-threshold sits between the two groups. For each off-topic question it also counts BM25's matches: keyword search has
-no threshold, so this shows what hybrid search lets through.
+threshold sits between the two groups. For each off-topic question it also counts BM25's matches (keyword search has
+no threshold of its own). `gated`, per question: the off-topic gate (#53) would drop its keyword hits, with the threshold
+in use. On-topic questions should never be gated, off-topic ones always.
 """
 import re
 import time
 
-from app.evals.runs import LISTED, RunStore, new_id, now
+from app.evals.runs import LISTED, new_id, now
 from app.rag.chunking import build_chunks
 from app.rag.fusion import rrf
+from app.rag.pipeline import is_off_topic
 
 KIND = "retrieval"
 TOP = 5  # hit rate at 5
@@ -134,10 +136,19 @@ def _top(hits) -> float | None:
     return round(hits[0].score, 4) if hits else None
 
 
+def _gated(question: str, top: float | None, vector, keyword) -> bool:
+    return is_off_topic(top is not None and top >= vector.min_score, keyword, [question])
+
+
 def off_topic_scores(vector, keyword) -> list[dict]:
-    """Each off-topic question's top-1 vector score (threshold ignored) and how many chunks BM25 matches at all."""
-    return [{"question": q, "score": _top(vector.search(q, 1, None, min_score=-1.0)),
-             "keyword_hits": len(keyword.search(q, len(keyword.chunks)))} for q in OFF_TOPIC]
+    """Each off-topic question's top-1 vector score (threshold ignored), how many chunks BM25 matches at all, and
+    whether the gate drops them."""
+    rows = []
+    for q in OFF_TOPIC:
+        top = _top(vector.search(q, 1, None, min_score=-1.0))
+        rows.append({"question": q, "score": top, "keyword_hits": len(keyword.search(q, len(keyword.chunks))),
+                     "gated": _gated(q, top, vector, keyword)})
+    return rows
 
 
 def run(deps, vector, keyword) -> dict:
@@ -149,22 +160,22 @@ def run(deps, vector, keyword) -> dict:
     for q in retrieval_questions(deps.knowledge):
         ranked, top = rank(q["question"], vector, keyword, doc_of)
         rows.append({k: q[k] for k in ("id", "kind", "question", "expected")} | {"ranked": ranked})
-        on_topic.append({"id": q["id"], "score": top})
+        on_topic.append({"id": q["id"], "score": top, "gated": _gated(q["question"], top, vector, keyword)})
     modes = {m: metrics([r | {"ranked": r["ranked"][m]} for r in rows]) for m in MODES}
     threshold = {"min_score": vector.min_score, "on_topic": on_topic, "off_topic": off_topic_scores(vector, keyword)}
     result = {"id": new_id(), "kind": "retrieval", "embedder": vector.embedder_name, "dim": vector.dim,
               "chunks": len(vector.chunks), "started": started, "finished": now(),
               "seconds": round(time.perf_counter() - clock, 3), "questions": len(rows), "modes": modes,
               "threshold": threshold, "results": rows}
-    RunStore.for_settings(deps.settings).save(KIND, result)
+    deps.runs.save(KIND, result)
     return result
 
 
 def get(deps, run_id: str) -> dict | None:
-    return RunStore.for_settings(deps.settings).get(KIND, run_id)
+    return deps.runs.get(KIND, run_id)
 
 
 def listing(deps) -> list[dict]:
     """Saved runs, newest first, without the per-question rankings."""
     return [{k: v for k, v in r.items() if k != "results"}
-            for r in RunStore.for_settings(deps.settings).all(KIND)[:LISTED]]
+            for r in deps.runs.all(KIND)[:LISTED]]

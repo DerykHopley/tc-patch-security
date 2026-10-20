@@ -5,8 +5,11 @@ and the merged settings) and the as-of date. It answers three questions:
 
 - assess(cve_id): one CVE's assessment: the verdict (A15), your decision record (A16b), its priority and due date
   (A16). A CVE whose product isn't on your watchlist is a normal answer: watched False, no status, no priority.
+  A closed CVE (app.status.is_closed: fixed, not affected, accepted before its review) has no priority either (B33).
 - rows(...): the CVEs page's rows for a view (its filters), sorted by priority.
 - most_urgent(): the open CVE at the top of the priority order, or None.
+- page(cve_id): the page for one CVE (B35): the full facts, the affected versions, the links out, and its row from
+  the CVEs page when it's watched (so the two pages never disagree).
 
 The steps (verdict, then decision, then priority, which needs the decision's review date) and the policy merge stay
 inside: callers never compose them.
@@ -15,10 +18,16 @@ import datetime as dt
 from dataclasses import dataclass
 
 from app.knowledge import SEVERITY_ORDER
-from app.priority import CveFacts, Priority, priority, sort_key
+from app.priority import LEVELS, CveFacts, Priority, priority, sort_key
 from app.state import ProductFields, State
-from app.status import is_open, review_due
+from app.status import is_closed, is_open, review_due
 from app.verdict import Verdict, no_fix, verdict
+
+# The list an OWASP category belongs to, by its kind in owasp.json. The page names it, since "A05" alone doesn't say
+# which Top 10 it comes from (#25: both lists are called "Top 10").
+OWASP_LISTS = {"owasp_web": "OWASP Top 10 2025 (web applications)",
+               "owasp_llm": "OWASP Top 10 for LLM Applications 2025"}
+OSV_URL = "https://osv.dev/vulnerability/{}"  # OSV.dev's page for a CVE id
 
 
 @dataclass(frozen=True)
@@ -38,7 +47,9 @@ class Assessment:
     open: bool  # open, or accepted with its review due
     review_due: bool
     open_days: int  # days since publication, at the as-of date
-    priority: Priority | None  # the rules' level, reasons and your due date; None off the watchlist
+    priority: Priority | None  # the rules' level, reasons and your due date; None off the watchlist or closed (B33)
+    alert_priority: int | None  # the rules' level as an alert priority (5/4/3/2), closed too: kev_recheck alerts a
+    # fixed CVE (B04). None off the watchlist
 
 
 class WatchedCves:
@@ -51,7 +62,7 @@ class WatchedCves:
 
     @classmethod
     def of(cls, deps) -> "WatchedCves":
-        return cls(deps.knowledge, deps.state, deps.settings.as_of)
+        return cls(deps.knowledge, deps.state, deps.as_of)
 
     @property
     def watchlist(self) -> list[str]:
@@ -70,18 +81,20 @@ class WatchedCves:
         return self._assess(cve)
 
     def rows(self, product: str | None = None, severity: str | None = None, status: str = "open",
-             kev: bool | None = None, since: str | None = None, verdict: str | None = None) -> list[dict]:
+             kev: bool | None = None, since: str | None = None, verdict: str | None = None,
+             new: bool | None = None) -> list[dict]:
         """The CVEs page's rows for a view, most urgent first. Only watched products have rows. The filters are the
         CVE view's (app.cve_filters.CveView, checked there; pass `**view.filters()`): `product` one id or several,
         comma-separated (`langflow,ollama`, A15b); `severity` LOW..CRITICAL, this or worse; `status` open (open, or
         accepted with its review due: A16b), all, or one CVE status; `kev`; `since` YYYY-MM-DD, inclusive;
-        `verdict`."""
-        k, watch = self.k, set(self._stack.watchlist)
+        `verdict`; `new`, found new by a check and not seen yet (B05, B40)."""
+        k, watch, fresh = self.k, set(self._stack.watchlist), self._stack.new
         products = set(product.split(",")) if product else None
 
         def keep(c: dict) -> bool:  # the filters that need only the snapshot: applied before the assessment
             return (c["product"] in watch
                     and (kev is None or bool(k.cves.kev.get(c["id"])) == kev)
+                    and (new is None or (c["id"] in fresh) == new)
                     # inclusive: the dashboard's "new in 30 days" tile links here with kpis.new_since
                     and (not since or c["published"] >= since)
                     and (not products or c["product"] in products)
@@ -101,6 +114,37 @@ class WatchedCves:
         """The open CVE at the top of the priority order: the CVEs page's first row (with its due date)."""
         return next(iter(self.rows()), None)
 
+    def page(self, cve_id: str) -> dict:
+        """The page for one CVE (B35). KeyError when the CVE isn't in the snapshot. `row` is the CVEs page's row
+        (status, decision, history, priority, due date), or None off the watchlist; the rest is there either way."""
+        a = self.assess(cve_id)
+        k, cve, v = self.k, a.cve, a.verdict
+        kev = k.cves.kev.get(cve["id"])
+        cat = k.category(cve["owasp"])
+        return {
+            "id": cve["id"], "product": cve["product"], "product_name": k.products[cve["product"]],
+            "severity": cve["severity"], "cvss": cve["cvss"], "published": cve["published"], "cwes": cve["cwes"],
+            "description": cve["description"],  # in full: the list cuts it to 220 characters
+            "owasp": {**cat, "list": self._owasp_list(cve["owasp"])} if cat else None,
+            "kev": {"date_added": kev["dateAdded"], "deadline": kev["dueDate"], "required_action": kev["requiredAction"],
+                    "ransomware": kev["knownRansomwareCampaignUse"]} if kev else None,
+            "epss": k.epss_of(cve["id"]), "possible_match": k.possible_match(cve["id"]),
+            "affected": [{"package": e["package"], "ecosystem": e["ecosystem"], "advisory": e["advisory"],
+                          "ranges": e["ranges"]}
+                         for e in k.osv["cves"].get(cve["id"], []) if e["product"] == cve["product"]],
+            "verdict": v.verdict, "verdict_reason": v.reason, "fixed_version": v.fixed_version,
+            "package_fixes": package_fixes(v), "who_acts": v.who_acts,
+            "no_fix": a.no_fix, "usage": a.usage, "version": a.version, "internet_facing": a.internet_facing,
+            "url": cve["url"], "osv_url": OSV_URL.format(cve["id"]),
+            "watched": a.watched, "row": self._row(a) if a.watched else None,
+        }
+
+    def _owasp_list(self, code: str | None) -> str | None:
+        """The OWASP list a category belongs to ("OWASP Top 10 2025 (web applications)"), or None without one."""
+        if not self.k.category(code):
+            return None
+        return OWASP_LISTS.get(self.k.owasp["categories"][code].get("kind", ""))
+
     def _row(self, a: Assessment) -> dict:
         k, cve, p = self.k, a.cve, a.priority
         kev = k.cves.kev.get(cve["id"])
@@ -109,16 +153,21 @@ class WatchedCves:
             "id": cve["id"], "product": cve["product"], "product_name": k.products[cve["product"]],
             "severity": cve["severity"], "cvss": cve["cvss"], "published": cve["published"],
             "owasp": cve["owasp"], "owasp_title": cat["title"] if cat else None,
+            "owasp_list": self._owasp_list(cve["owasp"]),  # B44: the list's OWASP tooltip names it, as the page does
+            "new": cve["id"] in self._stack.new,  # B40: a check found it new and you haven't seen it yet
             "kev": bool(kev), "kev_deadline": kev["dueDate"] if kev else None,  # CISA's, a fact; not your due date
             "status": a.status, "summary": cve["description"][:220], "url": cve["url"],
             "epss": k.epss_of(cve["id"]), "possible_match": k.possible_match(cve["id"]),
             "verdict": a.verdict.verdict, "verdict_reason": a.verdict.reason, "fixed_version": a.verdict.fixed_version,
+            "package_fixes": package_fixes(a.verdict),
             "who_acts": a.verdict.who_acts, "usage": a.usage, "version": a.version,
             "internet_facing": a.internet_facing, "no_fix": a.no_fix,
             "open": a.open, "review_due": a.review_due, "review_date": a.review_date, "decision": a.decision,
             "history": a.history, "open_days": a.open_days,
-            "priority": p.level, "priority_reasons": list(p.reasons), "priority_rule": p.rule,
-            "alert_priority": p.alert_priority, "due_date": p.due_date, "due_from": p.due_from, "overdue": p.overdue,
+            # B33: a closed CVE has no priority or due date (None, never overdue); the KEV deadline above stays
+            "priority": p and p.level, "priority_reasons": list(p.reasons) if p else [],
+            "priority_rule": p and p.rule, "alert_priority": a.alert_priority, "due_date": p and p.due_date,
+            "due_from": p and p.due_from, "overdue": bool(p and p.overdue),
         }
 
     def _assess(self, cve: dict) -> Assessment:
@@ -148,10 +197,17 @@ class WatchedCves:
             open=watched and is_open(status, review_date, as_of),
             review_due=watched and review_due(status, review_date, as_of),
             open_days=(dt.date.fromisoformat(as_of) - dt.date.fromisoformat(cve["published"])).days,
-            priority=p)
+            priority=None if is_closed(status, review_date, as_of) else p,
+            alert_priority=p and p.alert_priority)
 
 
 def _sort_key(r: dict):
-    # By priority (A16): most urgent first, then the earliest due date, then the highest CVSS, then newest
-    return (*sort_key(r["priority"], r["due_date"]), -(r["cvss"] or 0),
+    # By priority (A16): most urgent first, then the earliest due date, then the highest CVSS, then newest. Closed
+    # CVEs (no priority, B33) come after every open one
+    return (*(sort_key(r["priority"], r["due_date"]) if r["priority"] else (len(LEVELS), "")), -(r["cvss"] or 0),
             -dt.date.fromisoformat(r["published"]).toordinal())
+
+
+def package_fixes(v: Verdict) -> list[dict]:
+    """The verdict's fix per package (B67), as every tool and page gives it: [] when OSV lists one package."""
+    return [{"package": f.package, "fixed_version": f.fixed_version} for f in v.fixes]

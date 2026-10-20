@@ -112,7 +112,7 @@ def test_a12_1_fakellm_passes_every_question(client):
 
 def test_a12_1_runs_on_a_copy_of_the_state(client, deps):
     before = deps.state.read()
-    run_check(client)  # Q9 adds Ollama to the watchlist, Q10 marks a CVE fixed: on the copy only
+    run_check(client)  # Q9 and Q10 only propose (B21); a misbehaving model would write to the copy only
     assert deps.state.read() == before
 
 
@@ -120,7 +120,7 @@ def test_a12_1_uses_the_saved_dev_settings(client):
     body = client.get("/dev/settings").json()["settings"] | {"max_steps": 1}
     client.put("/dev/settings", json=body)
     q2 = run_check(client, {"ids": ["Q2"]})["results"][0]
-    assert q2["steps"] == 1 and "I stopped after 1 steps" in q2["answer"]  # the saved limit, not the default 4
+    assert q2["steps"] == 1 and "I stopped after 1 steps" in q2["answer"]  # the saved limit, not the default 6
 
 
 def test_a12_2_a_run_is_saved_with_model_scores_cost_and_time(client):

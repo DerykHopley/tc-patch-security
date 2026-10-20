@@ -13,11 +13,13 @@ import pytest
 from playwright.sync_api import Browser, Locator, Page, expect
 
 from test_chat import ask
+from test_shell import LateLoads
 from test_cves_page import focused, no_sideways_scroll, params, visible_focus, window  # noqa: F401
 from test_dashboard import (  # noqa: F401 (fixtures)
     DEFAULT_WATCHLIST, DESKTOP, PHONE, SHOTS, TILES, api, clean_state, contrast, open_dash, rgb_list, tile, tile_value,
 )
 from test_fix_first import chat_bodies, chip, open_chat
+from reduced_motion import scene, still
 
 LANGFLOW_KEV = "CVE-2025-3248"  # Langflow, critical, in KEV; fixed in 1.3.0
 
@@ -27,10 +29,12 @@ def open_watchlist(browser: Browser, ui_url: str, clean_state):
     """Opens Settings in a fresh context and waits for the Watchlist card's product fields."""
     contexts = []
 
-    def _open(width=DESKTOP, scheme="light", reduced=False) -> Page:
+    def _open(width=DESKTOP, scheme="light", reduced=False, setup=None) -> Page:
         ctx = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme,
                                   reduced_motion="reduce" if reduced else "no-preference")
         contexts.append(ctx)
+        if setup:
+            setup(ctx)  # routes that must be in place before the first request
         page = ctx.new_page()
         page.goto(f"{ui_url}/settings")
         expect(card(page).get_by_role("group", name="Langflow")).to_be_visible()
@@ -104,6 +108,17 @@ def test_a15b_1_discard_brings_back_the_saved_watchlist(open_watchlist, api_url)
     expect(card(page).get_by_role("group", name="Langflow").get_by_label("Version")).to_have_value("")
     expect(bar(page)).to_have_text("All changes saved")
     assert api(api_url, "/watchlist")["watchlist"] == DEFAULT_WATCHLIST
+
+
+def test_a15b_1_a_late_load_never_resets_a_pick(open_watchlist, api_url):
+    # The saved watchlist can answer twice (React's double effect in development) or late: a pick made once the
+    # card shows must survive the later answer (the Dev page's race, CI run 38847853994).
+    late = []
+    page = open_watchlist(setup=lambda ctx: late.append(LateLoads(ctx, f"{api_url}/watchlist")))
+    card(page).get_by_label("Dify", exact=True).check()
+    late[0].wait_all(page)
+    expect(card(page).get_by_label("Dify", exact=True)).to_be_checked()
+    expect(bar(page)).to_have_text("Unsaved changes")
 
 
 def test_a15b_1_usage_version_and_internet_facing_per_product(open_watchlist, api_url):
@@ -244,26 +259,31 @@ def test_a15b_2_chips_flag_open_kev_and_link_to_settings(open_dash):
     expect(card(page).get_by_role("group", name="Langflow")).to_be_visible()
 
 
+def approve(answer) -> None:
+    """Approve the change Patch proposed in this answer (B21) and wait until it's done."""
+    card = answer.locator(".proposal-card")
+    card.get_by_role("button", name="Approve", exact=True).click()
+    expect(card.locator("output.proposal-line")).to_contain_text("Done:")
+
+
 # --- A15b.4: one truth: Settings, Patch and the dashboard ---------------------------------------------------------------
 
 def test_a15b_4_a_product_patch_adds_shows_on_the_dashboard_at_once(open_dash, api_url, ui_url):
-    api(api_url, "/watchlist", "PUT", {"products": [p for p in DEFAULT_WATCHLIST if p != "ollama"]})
     page = open_dash()
     page.goto(f"{ui_url}/?product=langflow")
-    expect(chip_button(page, "Ollama")).to_have_count(0)
+    expect(chip_button(page, "vLLM")).to_have_count(0)
     open_chat(page)
-    ask(page, "Add Ollama to my watchlist")
-    expect(chip_button(page, "Ollama")).to_have_attribute("aria-pressed", "false")  # no reload needed
+    approve(ask(page, "Add vLLM to my watchlist"))  # Patch proposes; it lands once you approve (B21)
+    expect(chip_button(page, "vLLM")).to_have_attribute("aria-pressed", "false")  # no reload needed
     expect(chip_button(page, "Langflow")).to_have_attribute("aria-pressed", "true")  # the filter stays
 
 
 def test_a15b_4_a_product_patch_adds_shows_in_the_settings_card_at_once(open_watchlist, api_url):
-    api(api_url, "/watchlist", "PUT", {"products": [p for p in DEFAULT_WATCHLIST if p != "ollama"]})
     page = open_watchlist()
-    expect(card(page).get_by_label("Ollama", exact=True)).not_to_be_checked()
+    expect(card(page).get_by_label("vLLM", exact=True)).not_to_be_checked()
     open_chat(page)
-    ask(page, "Add Ollama to my watchlist")
-    expect(card(page).get_by_label("Ollama", exact=True)).to_be_checked()
+    approve(ask(page, "Add vLLM to my watchlist"))  # Patch proposes; it lands once you approve (B21)
+    expect(card(page).get_by_label("vLLM", exact=True)).to_be_checked()
     expect(bar(page)).to_have_text("All changes saved")  # the saved state moved, not a draft
 
 
@@ -364,3 +384,23 @@ def test_a15b_8_settings_card_and_dashboard_filter_at_both_widths_in_both_themes
     assert contrast(rgb_list(picked[0])[0], rgb_list(picked[1])[0]) >= 4.5, picked
     card(dash).screenshot(path=SHOTS / f"a15b-{browser_name}-{width}-{scheme}-filter.png")
     dash.screenshot(path=SHOTS / f"a15b-{browser_name}-{width}-{scheme}-dashboard.png", full_page=True)
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a15b_8_watchlist(fx):
+    open_board, open_stack = fx("open_dash"), fx("open_watchlist")
+    dash = open_board(reduced=True)
+    for name in ("Langflow", "Ollama", "All"):
+        chip_button(dash, name).click()
+        expect(chip_button(dash, name)).to_have_attribute("aria-pressed", "true")
+        still(dash, f"the product filter at {name}")
+    settings = open_stack(reduced=True)
+    card(settings).get_by_label("vLLM", exact=True).check()
+    expect(card(settings).get_by_role("group", name="vLLM")).to_be_visible()
+    still(settings, "a new product's fields")
+    card(settings).get_by_role("group", name="Ollama").get_by_label("Version").fill("latest")
+    settings.get_by_role("button", name="Save changes").click()
+    expect(card(settings).get_by_role("alert")).to_be_visible()
+    still(settings, "the card's error")

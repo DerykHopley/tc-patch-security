@@ -8,7 +8,9 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from test_chat import box, fab, window
+from test_dashboard import ask_about
 from test_shell import DESKTOP, PHONE, SHOTS, contrast, eventually, no_sideways_scroll, open_app, settled  # noqa: F401
+from reduced_motion import scene, still
 
 REM = 15  # px: the base font size (DESIGN.md §3.4)
 HEIGHT = 900  # the viewport height open_app uses
@@ -218,6 +220,22 @@ def test_a07_3_ctrl_or_cmd_k_opens_the_chat_on_any_page(open_app, page_name, key
     expect(message_box(page)).to_be_focused()
 
 
+# Presses Ctrl+K the moment the shell is in the page: a MutationObserver runs right after React puts the shell in the
+# DOM, before React's ordinary (passive) effects run. A listener bound in one of those lost this press (#67).
+CTRL_K_ON_MOUNT = """
+new MutationObserver((_, obs) => {
+  if (!document.querySelector('.side-ask')) return
+  obs.disconnect()
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }))
+}).observe(document, { childList: true, subtree: true })
+"""
+
+
+def test_a07_3_ctrl_k_works_the_moment_the_shell_appears(open_app):
+    page = open_app(init_script=CTRL_K_ON_MOUNT)
+    expect(window(page)).to_be_visible()
+
+
 def test_a07_3_esc_closes_the_bubble_and_returns_focus_to_patch(open_app):
     page = open_app()
     open_chat(page)
@@ -303,7 +321,7 @@ def first_row_cve(page: Page) -> str:
 def test_a07_5_ask_about_this_opens_the_chat_over_the_cves_page_and_asks(open_app):
     page = open_app(query="/cves")  # the table moved to the CVEs page (A04b)
     cve = first_row_cve(page)
-    button = page.get_by_role("button", name=f"Ask about this: {cve}")
+    button = ask_about(page, cve)
     expect(button).to_have_text("Ask about this")
     button.focus()
     page.keyboard.press("Enter")  # reachable by keyboard
@@ -323,54 +341,42 @@ def test_a07_5_ask_about_this_uses_a_pinned_chat_when_pinned(open_app):
     page = open_app(init_script="localStorage.setItem('pinned', '1')", query="/cves")
     cve = first_row_cve(page)
     head_button(page, "Close the chat").click()
-    page.get_by_role("button", name=f"Ask about this: {cve}").click()
+    ask_about(page, cve).click()
     expect(head_button(page, UNPIN)).to_be_visible()
     expect(window(page).locator(".message.user")).to_have_text(f"Explain {cve} and how to defend against it.")
 
 
 # --- A07.6: an alert link #cve=CVE-… (DESIGN.md §6.4) ------------------------------------------------------------
+# Since B35 (#85) an alert opens the CVE's own page instead of a banner. Links already sent (`#cve=…`) still work:
+# they open that page. The page itself is checked in test_cve_page.py.
 
 ALERT_CVE = "CVE-2024-8309"
 
 
-def alert_banner(page: Page) -> Locator:
-    return page.get_by_role("region", name="Alert")
+def page_title(page: Page) -> Locator:
+    return page.get_by_role("heading", level=1)
 
 
-def test_a07_6_alert_link_shows_a_banner_and_explain_it_asks_patch(open_app):
+def test_a07_6_an_old_alert_link_opens_the_cve_page_and_asks_nothing(open_app):
     page = open_app(query=f"#cve={ALERT_CVE.lower()}")
-    banner = alert_banner(page)
-    expect(banner).to_contain_text(f"You opened an alert for {ALERT_CVE}.")
+    expect(page_title(page)).to_have_text(ALERT_CVE)
+    assert page.evaluate("location.pathname") == f"/cves/{ALERT_CVE}" and "cve=" not in page.url
     expect(window(page)).to_have_count(0)  # nothing asked until the user says so
-    banner.get_by_role("button", name="Explain it").click()
-    expect(window(page).locator(".message.user")).to_have_text(f"Explain {ALERT_CVE} and how to defend against it.")
-    expect(window(page).locator(".message.assistant")).to_have_count(1, timeout=10_000)
-    expect(alert_banner(page)).to_have_count(0)
-    assert "cve=" not in page.url  # a reload doesn't ask again
     page.reload()
-    expect(page.get_by_role("heading", level=1)).to_be_visible()
-    expect(alert_banner(page)).to_have_count(0)
-
-
-def test_a07_6_dismiss_closes_the_banner_without_asking(open_app):
-    page = open_app(query=f"#cve={ALERT_CVE}")
-    alert_banner(page).get_by_role("button", name="Dismiss").click()
-    expect(alert_banner(page)).to_have_count(0)
-    expect(window(page)).to_have_count(0)
-    assert "cve=" not in page.url
+    expect(page_title(page)).to_have_text(ALERT_CVE)  # a reload stays on the page
 
 
 def test_a07_6_alert_link_followed_while_the_app_is_open(open_app):
     page = open_app()
-    expect(alert_banner(page)).to_have_count(0)
     page.evaluate(f"location.hash = 'cve={ALERT_CVE}'")
-    expect(alert_banner(page)).to_contain_text(ALERT_CVE)
+    expect(page_title(page)).to_have_text(ALERT_CVE)
+    assert page.evaluate("location.pathname") == f"/cves/{ALERT_CVE}"
 
 
 def test_a07_6_a_malformed_alert_link_is_ignored(open_app):
     page = open_app(query="#cve=<img src=x onerror=alert(1)>")
-    expect(page.locator("h1")).to_be_visible()
-    expect(alert_banner(page)).to_have_count(0)
+    expect(page_title(page)).to_have_text("Dashboard")
+    assert page.evaluate("location.pathname") == "/"
 
 
 # --- A07.7, A07.8: motion (DESIGN.md §7.1) -----------------------------------------------------------------------
@@ -401,7 +407,7 @@ def test_a07_7_pin_icon_rotates_from_35_degrees_to_0_when_pinned(open_app):
     assert any(s not in ("0deg", "35deg", "none") for s in seen), seen  # in between: it turns
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a07_8).
+# Reduced motion: scene a07_8 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A07.9: light and dark, phone and desktop (DESIGN.md §9, §4.2) -----------------------------------------------
@@ -414,16 +420,14 @@ def colour(page: Page, value: str) -> str:
 @pytest.mark.parametrize("width", [PHONE, DESKTOP])
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 def test_a07_9_layouts_work_in_light_and_dark_at_phone_and_desktop_width(open_app, browser_name, width, scheme):
-    page = open_app(width=width, scheme=scheme, reduced=True, query=f"#cve={ALERT_CVE}")
+    page = open_app(width=width, scheme=scheme, reduced=True, query=f"/cves/{ALERT_CVE}")  # an alert's page (B35)
     SHOTS.mkdir(exist_ok=True)
     shot = lambda name: page.screenshot(path=SHOTS / f"a07-{browser_name}-{width}-{scheme}-{name}.png")  # noqa: E731
-    banner = alert_banner(page)
-    text = banner.locator("p").evaluate("el => getComputedStyle(el).color")
-    fill = banner.evaluate("el => getComputedStyle(el).backgroundColor")
-    assert contrast(text, fill) >= 4.5  # the banner reads in both modes
+    ask = page.get_by_role("button", name=f"Ask Patch about {ALERT_CVE}")
+    expect(ask).to_be_visible()
     assert no_sideways_scroll(page)
     shot("alert")
-    banner.get_by_role("button", name="Explain it").click()
+    ask.click()
     chat = window(page)
     expect(chat.locator(".message.assistant")).to_have_count(1, timeout=10_000)
     if width == PHONE:  # the full-screen sheet: nothing to enlarge or pin
@@ -489,3 +493,32 @@ def test_a07_10_layout_controls_by_keyboard_with_names_and_visible_focus(open_ap
     page.keyboard.press("Escape")
     expect(window(page)).to_have_count(0)
     expect(fab(page)).to_be_focused()
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a07_8_chat_layout(fx):
+    page = fx("open_app")(reduced=True, query=f"/cves/{ALERT_CVE}")
+    expect(page.get_by_role("heading", name="Your assessment")).to_be_visible()
+    still(page, "an alert's CVE page")
+    page.keyboard.press("Control+k")
+    expect(window(page)).to_be_visible()
+    still(page, "no pop")
+    window(page).get_by_role("group", name="Explain level").get_by_role("radio", name="Deep dive").check()
+    still(page, "the explain-level switch's pills")
+    head_button(page, "Make larger").click()
+    still(page, "Make larger")
+    head_button(page, PIN).click()
+    expect(head_button(page, UNPIN)).to_be_visible()
+    still(page, "the pin icon jumps to 0°")
+    assert head_button(page, UNPIN).locator("svg").evaluate("el => getComputedStyle(el).transitionDuration") == "0s"
+    divider(page).hover()
+    divider(page).focus()
+    page.keyboard.press("ArrowLeft")
+    still(page, "the divider's colour")
+    head_button(page, UNPIN).click()
+    still(page, "Unpin")
+    page.keyboard.press("Escape")
+    expect(window(page)).to_have_count(0)
+    still(page, "closed")

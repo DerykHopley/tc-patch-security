@@ -4,10 +4,12 @@ Runs in Firefox and Chromium (run.sh). Expected values come from docs/design/DES
 """
 import pathlib
 import re
+import time
 from collections.abc import Callable
 
 import pytest
-from playwright.sync_api import Browser, Locator, Page, expect
+from playwright.sync_api import Browser, BrowserContext, Error, Locator, Page, Request, Route, expect
+from reduced_motion import scene, still
 
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
@@ -38,8 +40,25 @@ def open_app(browser: Browser, ui_url: str):
         ctx.close()
 
 
+def canonical_colours(value: str) -> str:
+    """Hex colours in the source's form: #rrggbb, or rgba(r, g, b, a) when not opaque. The build's minifier writes
+    #ffffff as #fff and rgba(108, 76, 245, 0.12) as #6c4cf51f; the dev server serves tokens.css as written (#72)."""
+    def one(m: re.Match) -> str:
+        h = m.group(1).lower()
+        if len(h) in (3, 4):
+            h = "".join(c * 2 for c in h)
+        if len(h) == 6 or h[6:] == "ff":
+            return "#" + h[:6]
+        r, g, b, a = (int(h[i:i + 2], 16) for i in (0, 2, 4, 6))
+        return f"rgba({r}, {g}, {b}, {round(a / 255, 2):g})"
+
+    return re.sub(r"#([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b", one, value)
+
+
 def css_var(page: Page, name: str) -> str:
-    return page.evaluate(f"getComputedStyle(document.documentElement).getPropertyValue('{name}').trim()")
+    """A custom property's value, its colours in the source's form (canonical_colours)."""
+    value = page.evaluate(f"getComputedStyle(document.documentElement).getPropertyValue('{name}').trim()")
+    return canonical_colours(value)
 
 
 def sidebar_width(page: Page) -> float:
@@ -57,8 +76,19 @@ SETTLED = ("el => el.getAnimations({ subtree: true }).every(a => a.playState !==
 
 def settled(loc: Locator, timeout: float = 5000) -> None:
     """Wait until the element's finite animations and transitions (its own and its children's) have finished.
-    Endless ones (Patch idling, the KEV tile's wiggle) don't count."""
-    loc.page.wait_for_function(SETTLED, arg=loc.element_handle(), timeout=timeout)
+    Endless ones (Patch idling, the KEV tile's wiggle) don't count.
+
+    The element can be replaced while it animates (the signed-out front door remounts `.landing`, #100). A detached
+    element has no animations, so a wait on it alone would pass at once. The browser polls the element found; when
+    that one leaves the page, the locator finds the new one and the wait goes on. It ends only on the element the
+    locator still points at."""
+    end = time.monotonic() + timeout / 1000
+    while True:
+        left = max(1.0, (end - time.monotonic()) * 1000)
+        el = loc.element_handle(timeout=left)
+        loc.page.wait_for_function(f"el => !el.isConnected || ({SETTLED})(el)", arg=el, timeout=left)
+        if loc.evaluate("(now, found) => now === found", el, timeout=left):
+            return
 
 
 def eventually(page: Page, check: Callable[[], bool], timeout: float = 5000, step: float = 50) -> None:
@@ -68,6 +98,41 @@ def eventually(page: Page, check: Callable[[], bool], timeout: float = 5000, ste
             return
         page.wait_for_timeout(step)  # allowed: the poll step of the wait on the real condition
     assert check()
+
+
+class LateLoads:
+    """Holds every GET of one API path after the first by `ms`, and counts the loads still on their way.
+
+    A page that loads its saved values in an effect asks twice in development (React's StrictMode runs effects
+    twice), and a slow network can answer in any order. The page must show its form from one load and never let a
+    later one reset what the user typed (the Dev page's race, CI run 38847853994). Install before the first request:
+    `LateLoads(ctx, f"{api_url}/dev/settings")`, then `late.wait_all(page)` before checking the edit survived."""
+
+    def __init__(self, ctx: BrowserContext, url: str, ms: float = 1500):
+        self.url, self.ms, self.started, self.done = url, ms, 0, 0
+        ctx.route(url, self._hold)
+        ctx.on("requestfinished", self._finished)
+        ctx.on("requestfailed", self._finished)
+
+    def _hold(self, route: Route) -> None:
+        if route.request.method != "GET":
+            route.fallback()
+            return
+        self.started += 1
+        if self.started > 1:
+            try:
+                route.request.frame.page.wait_for_timeout(self.ms)  # allowed: the late answer is the point
+            except Error:  # the test closed its page while the answer was held
+                return
+        route.fallback()  # on to slow mode's route, if any, then the network
+
+    def _finished(self, request: Request) -> None:
+        if request.method == "GET" and request.url == self.url:
+            self.done += 1
+
+    def wait_all(self, page: Page) -> None:
+        """Wait until every load the page started has answered: nothing can reset the form after this."""
+        eventually(page, lambda: self.started > 0 and self.done == self.started, timeout=self.ms + 10_000)
 
 
 def contrast(a: str, b: str) -> float:
@@ -108,6 +173,18 @@ SHAPE = {
     "--shadow-sidebar": "0 16px 40px rgba(108, 76, 245, 0.12)", "--shadow-card": "0 12px 30px rgba(108, 76, 245, 0.09)",
     "--shadow-primary": "0 6px 14px rgba(108, 76, 245, 0.3)",
 }
+
+
+def test_a02_2_tokens_read_the_same_from_the_source_and_the_build():
+    """The build's CSS minifier writes the same colours shorter (#fff, #6c4cf51f); css_var reads them back in the
+    source's form, so one expected table fits the dev server and the build (#72). No browser needed."""
+    assert canonical_colours("#fff") == "#ffffff"
+    assert canonical_colours("#DFE5FD") == "#dfe5fd"
+    assert canonical_colours("0 16px 40px #6c4cf51f") == "0 16px 40px rgba(108, 76, 245, 0.12)"
+    assert canonical_colours("0 6px 14px #6c4cf54d") == "0 6px 14px rgba(108, 76, 245, 0.3)"
+    assert canonical_colours("#6c4cf5ff") == "#6c4cf5"
+    assert canonical_colours("0 12px 30px rgba(108, 76, 245, 0.09)") == "0 12px 30px rgba(108, 76, 245, 0.09)"
+    assert canonical_colours("999px") == "999px"
 
 
 @pytest.mark.parametrize(("scheme", "expected"), [("light", LIGHT), ("dark", DARK)])
@@ -177,8 +254,10 @@ def test_a02_3_primary_gradient_passes_with_white_text_at_both_ends(open_app):
 def test_a02_4_sidebar_has_brand_sections_snapshot_card_and_collapse(open_app):
     page = open_app()
     side = page.get_by_role("complementary", name="Main")
-    expect(side.get_by_text("LLM Security", exact=True)).to_be_visible()
-    expect(side.get_by_text("assistant", exact=True)).to_be_visible()
+    brand = side.locator(".brand")  # B32.1: one name, Patch, with what he is under it
+    expect(brand.get_by_text("Patch", exact=True)).to_be_visible()
+    expect(brand.get_by_text("LLM-security assistant", exact=True)).to_be_visible()
+    expect(side).not_to_contain_text("LLM Security")
     expect(side.get_by_text("Monitor", exact=True)).to_be_visible()
     expect(side.get_by_text("Assistant", exact=True)).to_be_visible()
     for name in ("Dashboard", "CVEs", "Settings", "Dev", "Ask Patch"):
@@ -197,7 +276,7 @@ def test_a02_4_collapsed_rail_keeps_names_and_is_remembered(open_app):
     expect(page.get_by_role("button", name="Expand the sidebar")).to_be_visible()
     page.wait_for_function("document.querySelector('.sidenav').getBoundingClientRect().width === 78")
     expect(page.locator(".side-card")).to_be_hidden()
-    expect(page.get_by_text("LLM Security", exact=True)).to_be_hidden()
+    expect(page.locator(".brand-name")).to_be_hidden()
     side = page.get_by_role("complementary", name="Main")  # Patch's own button is also "Ask Patch" (A06)
     for name in ("Dashboard", "CVEs", "Settings", "Dev", "Ask Patch"):
         expect(side.get_by_role("button", name=name, exact=True)).to_be_visible()
@@ -210,7 +289,7 @@ def test_a02_4_collapsed_rail_keeps_names_and_is_remembered(open_app):
 
 def test_a02_5_pages_reachable_and_active_page_shown_everywhere(open_app):
     page = open_app()
-    for name, title in (("CVEs", "CVEs"), ("Settings", "Settings"), ("Dev", "Dev panel"), ("Dashboard", "Dashboard")):
+    for name, title in (("CVEs", "CVEs"), ("Settings", "Settings"), ("Dev", "Dev"), ("Dashboard", "Dashboard")):
         page.get_by_role("button", name=name, exact=True).click()
         expect(page.get_by_role("heading", level=1)).to_have_text(title)
         expect(page.locator(".crumb-path")).to_have_text(f"Pages / {title}")
@@ -245,7 +324,12 @@ def test_a02_5_ask_patch_is_named_and_reachable(open_app):
 
 
 def test_a02_4_snapshot_card_says_offline_without_backend(open_app):
-    page = open_app(init_script="window.fetch = () => Promise.reject(new TypeError('offline'))")
+    # The loading screen's /health answers, then the backend is gone. Since B46 a /health that fails
+    # outright keeps the loading screen's "Backend offline — retrying" (B69.9) instead of showing the app.
+    # (Until one /health has answered: the dev server's StrictMode asks twice and drops the first.)
+    page = open_app(init_script="const f = window.fetch; let up = false; window.fetch = (url, ...a) => {"
+                                " if (!up && String(url).endsWith('/health')) return f(url, ...a).then(r => (up = true, r));"
+                                " return Promise.reject(new TypeError('offline')) }")
     expect(page.locator(".side-card").get_by_text("Backend offline")).to_be_visible()
     expect(page.get_by_role("button", name="Dev", exact=True)).to_have_count(0)
 
@@ -274,9 +358,12 @@ def test_a02_6_theme_is_set_before_the_app_runs(browser: Browser, ui_url: str):
     # Set by an inline script in <head>, so the first frame is already dark: no flash of the light theme.
     ctx = browser.new_context(color_scheme="dark")
     page = ctx.new_page()
-    page.route("**/src/main.tsx", lambda route: route.abort())  # the app never starts
+    # The app never starts: no script file loads (the dev server's src/main.tsx, or the build's bundle; matching
+    # only src/main.tsx let the built app start and set the theme itself, #72), only the inline one in <head>.
+    page.route("**/*", lambda route: route.abort() if route.request.resource_type == "script" else route.continue_())
     page.goto(ui_url)
     assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    assert page.locator("#root").inner_html() == ""  # the app really didn't run
     ctx.close()
 
 
@@ -369,7 +456,7 @@ def test_a02_9_normal_motion_cursor_blinks_and_sidebar_width_animates(open_app):
     assert chevron == "0.2s"
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a02_10).
+# Reduced motion: scene a02_10 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- Keyboard and names (DESIGN.md §10) ---------------------------------------------------------------------------
@@ -415,3 +502,14 @@ def test_a02_12_screenshots(open_app, browser_name, scheme):
     phone = open_app(width=PHONE, scheme=scheme, reduced=True)
     phone.screenshot(path=SHOTS / f"a02-{browser_name}-400-{scheme}-tabbar.png", full_page=False)
     assert len(list(SHOTS.glob(f"a02-{browser_name}-*-{scheme}-*.png"))) == 3
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a02_10_shell(fx):
+    page = fx("open_app")(reduced=True)
+    assert page.evaluate(CURSOR_OPACITIES)["seen"] == ["1"]  # the cursor stays put
+    widths = page.evaluate(WIDTHS_DURING_COLLAPSE)
+    assert all(w == 78 for w in widths), widths  # jumps straight to the rail
+    still(page, "Patch, the sidebar")

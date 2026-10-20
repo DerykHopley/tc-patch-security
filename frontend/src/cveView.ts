@@ -1,10 +1,10 @@
-import type { CveStatus, PageContext, Severity, Verdict } from './api.ts'
+import type { CveStatus, Justification, PageContext, Severity, Verdict } from './api.ts'
 import { SEVERITIES, sevLabel } from './severity.ts'
 import { VERDICT_LABEL, VERDICTS } from './verdict.ts'
 
 // The CVE view: what the CVEs page shows, its filters. One set of names everywhere: the page's URL
-// (`/cves?product=langflow&severity=CRITICAL&status=all&verdict=affected&kev=1&since=2026-09-14`), the /cves query
-// and the page context Patch is told (A18) all say product, severity, status, verdict, kev, since, the same names as
+// (`/cves?product=langflow&severity=CRITICAL&status=all&verdict=affected&kev=1&since=2026-09-14&new=1`), the /cves
+// query and the page context Patch is told (A18) all say product, severity, status, verdict, kev, since, new, the same names as
 // the backend's CveView (app/cve_filters.py). Plain TypeScript, so it runs under node --test (cveView.test.ts).
 
 export type StatusFilter = CveStatus | 'all'
@@ -16,7 +16,12 @@ export interface CveView {
   verdict?: Verdict // A15
   kev?: true // only CVEs in CISA KEV (the KEV tile's link)
   since?: string // YYYY-MM-DD, published on or after (the "new in 30 days" tile's link)
+  new?: true // only CVEs a check found new that you haven't seen yet (B05, B40)
 }
+
+/** "New" (B40, GLOSSARY.md): a check found the CVE new and you haven't opened its page or marked all as seen. */
+export const NEW_LABEL = 'New, not seen yet'
+export const NEW_TITLE = "New: a check found it, and you haven't opened it yet"
 
 /** The defaults: every watched product, any severity, open. They need no parameters. */
 export const OPEN_VIEW: CveView = { status: 'open' }
@@ -32,6 +37,14 @@ export const STATUS_LABEL: Record<CveStatus, string> = {
   fixed: 'Fixed',
   not_affected: 'Not affected',
   accepted: 'Accepted',
+}
+// The five VEX justifications for "not affected" (A16b), as the decision dialog and the records say them.
+export const JUSTIFICATION_LABEL: Record<Justification, string> = {
+  component_not_present: 'Component not present',
+  vulnerable_code_not_present: 'Vulnerable code not present',
+  vulnerable_code_not_in_execute_path: 'Vulnerable code not in execute path',
+  vulnerable_code_cannot_be_controlled_by_adversary: 'Vulnerable code cannot be controlled by adversary',
+  inline_mitigations_already_exist: 'Inline mitigations already exist',
 }
 /** The status filter's options, in order: the statuses, then all of them ("All"; the chip says "All statuses"). */
 export const STATUS_FILTERS: StatusFilter[] = ['open', 'fixed', 'not_affected', 'accepted', 'all']
@@ -58,6 +71,7 @@ export function viewFromSearch(search: string): CveView {
     ...(VERDICTS.includes(verdict) && { verdict }),
     ...(p.get('kev') === '1' && { kev: true as const }),
     ...(DATE.test(since) && { since }),
+    ...(p.get('new') === '1' && { new: true as const }),
   }
 }
 
@@ -69,6 +83,7 @@ function params(v: CveView): URLSearchParams {
   if (v.verdict) p.set('verdict', v.verdict)
   if (v.kev) p.set('kev', '1')
   if (v.since) p.set('since', v.since)
+  if (v.new) p.set('new', '1')
   return p
 }
 
@@ -79,6 +94,12 @@ const readable = (p: URLSearchParams) => p.toString().replaceAll('%2C', ',')
 export function viewToSearch(v: CveView): string {
   const s = readable(params(v))
   return s ? `?${s}` : ''
+}
+
+/** The phone's folded filters (B44 L4): "Filters (2 on)", counting each filter the URL carries (the defaults carry
+ *  none), so the fold says whether the list is narrowed before you open it. */
+export function filtersLabel(v: CveView): string {
+  return `Filters (${[...params(v).keys()].length} on)`
 }
 
 /** The /cves request for the view: the same names as the URL, plus the page. */
@@ -98,6 +119,7 @@ export function viewToContext(v: CveView): PageContext {
     ...(v.verdict && { verdict: v.verdict }),
     ...(v.kev && { kev: true }),
     ...(v.since && { since: v.since }),
+    ...(v.new && { new: true }),
   }
 }
 
@@ -110,6 +132,7 @@ export function contextWords(ctx: PageContext, productName?: string): string[] {
     ctx.verdict && VERDICT_LABEL[ctx.verdict],
     ctx.kev && 'In KEV',
     ctx.since && `Since ${ctx.since}`,
+    ctx.new && NEW_LABEL,
     ctx.cve,
   ].filter((w): w is string => !!w)
 }

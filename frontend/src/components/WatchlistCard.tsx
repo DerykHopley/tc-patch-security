@@ -18,7 +18,7 @@ export function WatchlistCard({ w }: { w: WatchlistDraft }) {
   const ticked = w.picked.flatMap((id) => saved?.products.find((p) => p.product === id) ?? [])
 
   return (
-    <Card title="Watchlist" kind="live" why="Alerts, the dashboard and Patch all use it" className="watchlist-card">
+    <Card title="Watchlist" className="watchlist-card">
       <p className="meta">The products you use. Alerts, the dashboard, the CVEs page and Patch count only these.</p>
       {!saved ? (
         <p className="meta">{w.error ?? 'Loading the watchlist…'}</p>

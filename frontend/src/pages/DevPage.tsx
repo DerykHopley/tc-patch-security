@@ -12,18 +12,21 @@ import {
   type Hit,
   type SearchOptions,
 } from '../api.ts'
+import { devView, type UserRole } from '../access.ts'
 import { SaveBar } from '../components/SaveBar.tsx'
 import { Card } from '../components/StatusCard.tsx'
 import { useDevSettings } from '../components/useDevSettings.ts'
 import { EmbeddingMap } from '../dev/EmbeddingMap.tsx'
 import { ModelCheck } from '../dev/ModelCheck.tsx'
 import { OpenRouterModelField } from '../dev/OpenRouterModelField.tsx'
+import { modelChoices, OWNER_INTRO, searchChoices, type Choice } from '../dev/ownersChoices.ts'
 import { RetrievalCheck } from '../dev/RetrievalCheck.tsx'
 import '../styles/dev.css'
+import { count } from '../plural.ts'
 
-// The Dev panel (A11, DESIGN.md §5.3, §5.5–5.7): who answers, the agent's limits and search tuning, saved and applied
+// The Dev page (A11, DESIGN.md §5.3, §5.5–5.7): who answers, the agent's limits and search tuning, saved and applied
 // on the next call; a playground that shows every retrieval step; the embedding map. Only shown when the backend
-// allows the dev panel (it shows internals).
+// allows it (it shows internals) and, since B45, by role.
 
 const LOCAL_PRESETS = [
   { name: 'Ollama', url: 'http://localhost:11434/v1' },
@@ -117,6 +120,20 @@ function Radio({ id, label, hint, checked, disabled, onChange }: {
   )
 }
 
+/** The owner's choices for anyone else (B29): read-only, with the editable form's labels. */
+function Choices({ choices }: { choices: Choice[] }) {
+  return (
+    <dl className="owners-choices">
+      {choices.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
 function HitList({ hits }: { hits: Hit[] }) {
   if (hits.length === 0) return <p className="meta">No hits.</p>
   return (
@@ -153,7 +170,7 @@ function Playground({ result, rrfK }: { result: DevSearch; rrfK: number }) {
           ))}
           {filters.length === 0 && <span>none</span>}
         </p>
-        {(q.dropped_filters.length > 0 || q.relaxed) && (
+        {(q.dropped_filters.length > 0 || q.relaxed || q.off_topic) && (
           <p>
             <span className="meta">Dropped</span>
             {q.dropped_filters.map((f) => (
@@ -162,6 +179,7 @@ function Playground({ result, rrfK }: { result: DevSearch; rrfK: number }) {
               </span>
             ))}
             {q.relaxed && <span className="chip warn">no hits with filters: searched without them</span>}
+            {q.off_topic && <span className="chip warn">off-topic: keyword hits dropped</span>}
           </p>
         )}
       </div>
@@ -234,13 +252,19 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
   if (!s.draft || !s.reply) {
     return (
       <div className="page">
-        <p className="muted">{s.error ?? 'Loading the dev panel…'}</p>
+        <p className="muted">{s.error ?? 'Loading the Dev page…'}</p>
       </div>
     )
   }
   const d = s.draft
   const set = s.set
   const hasKey = s.reply.openrouter_key
+  // B45: the role decides the page. The owner's choices are everyone's; a reviewer changes their own copy; a Trusted
+  // person reads the owner's (B29's read-only page) and may use the playground. Viewers never get here (no menu
+  // item, and the server refuses them).
+  const role: UserRole = s.reply.role ?? (s.reply.yours === false ? 'trusted' : 'owner')
+  const view = devView(role, !!s.reply.own_copy)
+  const yours = view.change
 
   async function findModels() {
     setFinding(true)
@@ -282,10 +306,24 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
 
   return (
     <div className="page dev-page">
-      <p className="page-intro">
-        Tune the model, the agent and search, then try a query to see each step. Turn this page off with{' '}
-        <code>DEV_PANEL=false</code>: it shows internals.
-      </p>
+      {role === 'owner' ? (
+        <div className="page-intro" data-testid="owner-intro">
+          {OWNER_INTRO.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
+      ) : role === 'reviewer' ? (
+        <div className="reviewer-note" role="note" data-testid="reviewer-note">
+          <p>{view.note}</p>
+          {s.reply.own_copy && (
+            <button type="button" onClick={() => void s.backToOwners()} disabled={s.saving}>
+              Back to the owner's settings
+            </button>
+          )}
+        </div>
+      ) : (
+        <p className="page-intro" role="note" data-testid="owners-choices">{view.note}</p>
+      )}
       {s.dirty && (
         <p className="callout" role="note">
           The playground and the chat use the <strong>saved</strong> settings. Save to try your changes.
@@ -293,106 +331,119 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
       )}
 
       <div className="settings-grid">
-        <Card title="Model" kind="live" why="Saved choices apply on the next question, with no restart">
-          <fieldset>
-            <legend>Who answers</legend>
-            <Radio id="prov-fake" label="FakeLLM" hint="scripted, free, the same every run" checked={d.provider === 'fake'}
-              onChange={() => set({ provider: 'fake' })} />
-            <Radio id="prov-openrouter" label="OpenRouter" checked={d.provider === 'openrouter'} disabled={!hasKey}
-              hint={hasKey ? 'hosted models, paid per token' : 'needs OPENROUTER_API_KEY in backend/.env'}
-              onChange={() => set({ provider: 'openrouter' })} />
-            <Radio id="prov-local" label="Local model" hint="Ollama, LM Studio or llama.cpp on this machine"
-              checked={d.provider === 'local'} onChange={() => set({ provider: 'local' })} />
-          </fieldset>
-
-          {d.provider === 'openrouter' && (
-            <OpenRouterModelField value={d.openrouter_model} defaultId={s.reply.defaults.openrouter_model}
-              onChange={(id) => set({ openrouter_model: id })} />
-          )}
-
-          {d.provider === 'local' && (
+        <Card title="Model">
+          {yours ? (
             <>
-              <div className="field-row">
-                <label htmlFor="dev-local-url">Server URL</label>
-                <input id="dev-local-url" className="mono-input" value={d.local_url} spellCheck={false}
-                  onChange={(e) => setLocalUrl(e.target.value.trim())} />
-              </div>
-              <fieldset className="plain presets">
-                <legend className="visually-hidden">Local server presets</legend>
-                {LOCAL_PRESETS.map((p) => (
-                  <button key={p.url} type="button" aria-pressed={d.local_url === p.url} onClick={() => setLocalUrl(p.url)}>
-                    {p.name}
-                  </button>
-                ))}
+              <fieldset>
+                <legend>Who answers</legend>
+                <Radio id="prov-fake" label="FakeLLM" hint="scripted, free, the same every run" checked={d.provider === 'fake'}
+                  onChange={() => set({ provider: 'fake' })} />
+                <Radio id="prov-openrouter" label="OpenRouter" checked={d.provider === 'openrouter'} disabled={!hasKey}
+                  hint={hasKey ? 'hosted models, paid per token' : 'needs OPENROUTER_API_KEY in backend/.env'}
+                  onChange={() => set({ provider: 'openrouter' })} />
+                <Radio id="prov-local" label="Local model" hint="Ollama, LM Studio or llama.cpp on this machine"
+                  checked={d.provider === 'local'} onChange={() => set({ provider: 'local' })} />
               </fieldset>
-              <div className="field-row">
-                <label htmlFor="dev-local-model">Model name</label>
-                {models && models.length > 0 ? (
-                  <select id="dev-local-model" value={d.local_model} onChange={(e) => set({ local_model: e.target.value })}>
-                    <option value="">Choose…</option>
-                    {models.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
+
+              {d.provider === 'openrouter' && (
+                <OpenRouterModelField value={d.openrouter_model} defaultId={s.reply.defaults.openrouter_model}
+                  onChange={(id) => set({ openrouter_model: id })} />
+              )}
+
+              {d.provider === 'local' && (
+                <>
+                  <div className="field-row">
+                    <label htmlFor="dev-local-url">Server URL</label>
+                    <input id="dev-local-url" className="mono-input" value={d.local_url} spellCheck={false}
+                      onChange={(e) => setLocalUrl(e.target.value.trim())} />
+                  </div>
+                  <fieldset className="plain presets">
+                    <legend className="visually-hidden">Local server presets</legend>
+                    {LOCAL_PRESETS.map((p) => (
+                      <button key={p.url} type="button" aria-pressed={d.local_url === p.url} onClick={() => setLocalUrl(p.url)}>
+                        {p.name}
+                      </button>
                     ))}
-                  </select>
-                ) : (
-                  <input id="dev-local-model" className="mono-input" value={d.local_model} placeholder="e.g. qwen3:8b"
-                    spellCheck={false} onChange={(e) => set({ local_model: e.target.value.trim() })} />
-                )}
-                <button type="button" onClick={findModels} disabled={finding}>
-                  {finding ? 'Looking…' : 'Find models'}
-                </button>
-              </div>
-              {modelsError && (
-                <p role="alert" className="form-error">
-                  {modelsError}
-                </p>
+                  </fieldset>
+                  <div className="field-row">
+                    <label htmlFor="dev-local-model">Model name</label>
+                    {models && models.length > 0 ? (
+                      <select id="dev-local-model" value={d.local_model} onChange={(e) => set({ local_model: e.target.value })}>
+                        <option value="">Choose…</option>
+                        {models.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input id="dev-local-model" className="mono-input" value={d.local_model} placeholder="e.g. qwen3:8b"
+                        spellCheck={false} onChange={(e) => set({ local_model: e.target.value.trim() })} />
+                    )}
+                    <button type="button" onClick={findModels} disabled={finding}>
+                      {finding ? 'Looking…' : 'Find models'}
+                    </button>
+                  </div>
+                  {modelsError && (
+                    <p role="alert" className="form-error">
+                      {modelsError}
+                    </p>
+                  )}
+                  {models && models.length === 0 && <p className="meta">The server is running but has no models.</p>}
+                  {models && models.length > 0 && (
+                    <output className="meta found">
+                      Found {count(models.length, 'model')}.
+                    </output>
+                  )}
+                  <p className="meta">
+                    Start the server first (<code>ollama serve</code>, then <code>ollama pull &lt;model&gt;</code>). The backend
+                    only calls this machine.
+                  </p>
+                </>
               )}
-              {models && models.length === 0 && <p className="meta">The server is running but has no models.</p>}
-              {models && models.length > 0 && (
-                <output className="meta found">
-                  Found {models.length} model{models.length === 1 ? '' : 's'}.
-                </output>
+              {d.provider === 'fake' ? (
+                <p className="meta">Scripted answers: model and temperature don't apply.</p>
+              ) : (
+                <Slider id="dev-temp" label="Temperature" hint="lower = steadier answers" value={d.temperature} min={0} max={2}
+                  step={0.1} format={(v) => v.toFixed(1)} onChange={(v) => set({ temperature: v })} />
               )}
-              <p className="meta">
-                Start the server first (<code>ollama serve</code>, then <code>ollama pull &lt;model&gt;</code>). The backend
-                only calls this machine.
-              </p>
             </>
-          )}
-          {d.provider === 'fake' ? (
-            <p className="meta">Scripted answers: model and temperature don't apply.</p>
           ) : (
-            <Slider id="dev-temp" label="Temperature" hint="lower = steadier answers" value={d.temperature} min={0} max={2}
-              step={0.1} format={(v) => v.toFixed(1)} onChange={(v) => set({ temperature: v })} />
+            <Choices choices={modelChoices(d)} />
           )}
         </Card>
 
-        <Card title="Agent and search" kind="live" why="The chat and the playground read the saved values">
-          <Slider id="dev-steps" label="Max agent steps" hint="tool rounds before it stops" value={d.max_steps} min={1}
-            max={8} onChange={(v) => set({ max_steps: v })} />
-          <Slider id="dev-topn" label="Sources per search" hint="top-n after fusion" value={d.top_n} min={1} max={10}
-            onChange={(v) => set({ top_n: v })} />
-          <Slider id="dev-k" label="Results per query" hint="each list, before fusion" value={d.per_query_k} min={1}
-            max={30} onChange={(v) => set({ per_query_k: v })} />
-          <Slider id="dev-cap" label="Chunks per document" hint="per-document cap" value={d.per_doc_cap} min={1} max={5}
-            onChange={(v) => set({ per_doc_cap: v })} />
-          <Slider id="dev-rrf" label="RRF constant k" hint="higher = flatter fusion" value={d.rrf_k} min={1} max={200}
-            onChange={(v) => set({ rrf_k: v })} />
-          <Slider id="dev-kw" label="Keyword vs vector" hint="0 = vector only, 1 = keyword (BM25) only"
-            value={d.keyword_weight} min={0} max={1} step={0.05} format={(v) => v.toFixed(2)}
-            onChange={(v) => set({ keyword_weight: v })} />
-          <Switch id="dev-rewrites" label="Multi-query rewrites" checked={d.use_rewrites}
-            hint="Off: one search for the semantic query only." onChange={(v) => set({ use_rewrites: v })} />
-          <Switch id="dev-filters" label="Self-query filters" checked={d.use_filters}
-            hint="Off: the model's filters are listed as dropped, not applied." onChange={(v) => set({ use_filters: v })} />
-          <button type="button" onClick={resetSearch}>
-            Reset to the defaults
-          </button>
+        <Card title="Agent and search"
+          className="span-rows">
+          {yours ? (
+            <>
+              <Slider id="dev-steps" label="Max agent steps" hint="tool rounds before it stops" value={d.max_steps} min={1}
+                max={8} onChange={(v) => set({ max_steps: v })} />
+              <Slider id="dev-topn" label="Sources per search" hint="top-n after fusion" value={d.top_n} min={1} max={10}
+                onChange={(v) => set({ top_n: v })} />
+              <Slider id="dev-k" label="Results per query" hint="each list, before fusion" value={d.per_query_k} min={1}
+                max={30} onChange={(v) => set({ per_query_k: v })} />
+              <Slider id="dev-cap" label="Chunks per document" hint="per-document cap" value={d.per_doc_cap} min={1} max={5}
+                onChange={(v) => set({ per_doc_cap: v })} />
+              <Slider id="dev-rrf" label="RRF constant k" hint="higher = flatter fusion" value={d.rrf_k} min={1} max={200}
+                onChange={(v) => set({ rrf_k: v })} />
+              <Slider id="dev-kw" label="Keyword vs vector" hint="0 = vector only, 1 = keyword (BM25) only"
+                value={d.keyword_weight} min={0} max={1} step={0.05} format={(v) => v.toFixed(2)}
+                onChange={(v) => set({ keyword_weight: v })} />
+              <Switch id="dev-rewrites" label="Multi-query rewrites" checked={d.use_rewrites}
+                hint="Off: one search for the semantic query only." onChange={(v) => set({ use_rewrites: v })} />
+              <Switch id="dev-filters" label="Self-query filters" checked={d.use_filters}
+                hint="Off: the model's filters are listed as dropped, not applied." onChange={(v) => set({ use_filters: v })} />
+              <button type="button" onClick={resetSearch}>
+                Reset to the defaults
+              </button>
+            </>
+          ) : (
+            <Choices choices={searchChoices(d)} />
+          )}
         </Card>
 
-        <Card title="Index" kind="live" why="The Chroma index the app loaded at start-up">
+        <Card title="Index">
           {info ? (
             <>
               <p>
@@ -425,7 +476,8 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
         </Card>
       </div>
 
-      <Card title="Search playground" kind="live" why="Runs search_security with the saved settings" className="playground">
+      <Card title="Search playground" className="playground">
+        {/* B45: everyone who sees this page may run it (Trusted too), with their own effective settings */}
         <form className="play-form" onSubmit={run}>
           <input aria-label="Search query" value={query} maxLength={500} onChange={(e) => setQuery(e.target.value)} />
           <button type="submit" disabled={running || !query.trim()}>
@@ -451,7 +503,7 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
         {result && <Playground result={result} rrfK={result.options.rrf_k} />}
       </Card>
 
-      <Card title="Embedding map" kind="live" why="PCA of the vectors stored in the index">
+      <Card title="Embedding map">
         {map ? (
           <EmbeddingMap data={map} search={result} />
         ) : (
@@ -459,13 +511,14 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
         )}
       </Card>
 
-      <ModelCheck modelLabel={savedModel(s.reply.settings)} dirty={s.dirty} compared={comparedModels}
-        onCompare={setComparedModels} />
+      <ModelCheck modelLabel={savedModel(s.reply.settings)} dirty={s.dirty} canRun={view.runChecks}
+        compared={comparedModels} onCompare={setComparedModels} />
 
-      <RetrievalCheck embedder={info?.embedder ?? 'the loaded embedder'} compared={comparedEmbedders}
+      <RetrievalCheck embedder={info?.embedder ?? 'the loaded embedder'} canRun={view.runChecks}
+        compared={comparedEmbedders}
         onCompare={setComparedEmbedders} />
 
-      <Card title="Evaluation report" kind="live" why="One self-contained HTML page from the saved runs">
+      <Card title="Model-check report">
         <p className="meta">
           Models and embedders side by side, every failure, and room for the findings. With nothing ticked it shows the
           latest run per model and per embedder. For the published copy with written findings, use{' '}
@@ -481,7 +534,10 @@ export function DevPage({ onSaved }: { onSaved: () => void }) {
         </a>
       </Card>
 
-      <SaveBar dirty={s.dirty} saving={s.saving} saved={s.saved} error={s.error} onSave={s.save} onDiscard={s.discard} />
+      {yours && (
+        <SaveBar dirty={s.dirty} saving={s.saving} saved={s.saved} error={s.error} onSave={s.save}
+          onDiscard={s.discard} />
+      )}
     </div>
   )
 }

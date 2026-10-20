@@ -1,6 +1,27 @@
 /* The app shell (docs/design/DESIGN.md §4): floating sidebar (an icon rail when collapsed, a bottom tab bar on
    phones), the top bar with breadcrumb, title and theme toggle, and the content column. Tokens only. */
 
+/* Patch's button (DESIGN.md §6.1) floats over the page, so its footprint is one set of values: the button (chat.css)
+   and the space every page keeps clear for it (B43) read the same ones. --fab-reach: the robot's head, 8px above it.
+   --fab-clearance: how far from the window's bottom a page's end sits, so its last row scrolls clear of Patch with
+   a 0.5rem gap (the page's own 1rem padding counts). --fab-side: how much of a card's right edge it covers when the
+   page is one column (the page's 1rem and a card's 1.3rem padding sit under it). */
+:root {
+  --fab-right: 1.25rem;
+  --fab-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  --fab-width: 84px;
+  --fab-height: 66px;
+  --fab-reach: 8px;
+  --fab-clearance: calc(var(--fab-bottom) + var(--fab-height) + var(--fab-reach) + 0.5rem - 1rem);
+  --fab-side: calc(var(--fab-right) + var(--fab-width) - 1rem - 1.3rem);
+}
+
+@media (max-width: 800px) {
+  :root {
+    --fab-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)); /* above the bottom tab bar */
+  }
+}
+
 .app {
   display: flex;
   min-height: 100vh;
@@ -54,6 +75,7 @@
   font-size: 0.95rem;
   line-height: 1.2;
   white-space: nowrap;
+  text-align: start; /* name and line align as in the sidebar, also on the centred cards (B32) */
 }
 
 .brand-name small {
@@ -229,6 +251,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  padding-bottom: var(--fab-clearance); /* B43: the page's end scrolls clear of Patch's button (and the tab bar) */
 }
 
 .topbar {
@@ -367,8 +390,9 @@
     height: 28px;
   }
 
+  /* Nothing hides behind the tab bar (4.4rem): --fab-clearance is more, since Patch's button sits above the bar */
   .main-col {
-    padding-bottom: 4.4rem; /* nothing hides behind the tab bar */
+    padding-bottom: max(4.4rem, var(--fab-clearance));
   }
 
   .topbar {

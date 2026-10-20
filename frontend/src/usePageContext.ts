@@ -8,7 +8,7 @@ import {
   type ShownView,
   type PageContextAction,
 } from './pageContext.ts'
-import type { Route } from './route.ts'
+import { isCveId, type Route } from './route.ts'
 
 /** The page context (A18) for the app shell: the rules live in pageContext.ts's reducer; this hook only follows the
  *  route and keeps the latest state for the chat. */
@@ -21,12 +21,14 @@ export interface PageContextHandle {
 }
 
 export function usePageContext(route: Route): PageContextHandle {
-  const [state, setState] = useState(() => startPageContext(route.page, route.visit))
+  // One CVE's page (B35): Patch is told its CVE, when the id is one (a malformed one would be dropped as crafted)
+  const cvePage = route.cve && isCveId(route.cve) ? route.cve : null
+  const [state, setState] = useState(() => startPageContext(route.page, route.visit, cvePage))
   // A navigation starts a new visit. Applied during render (React's "adjust state when a prop changes"), so the new
   // page's first render never shows the last visit's view.
   let now = state
   if (state.visit !== route.visit) {
-    now = reducePageContext(state, { type: 'visit', page: route.page, visit: route.visit })
+    now = reducePageContext(state, { type: 'visit', page: route.page, visit: route.visit, cve: cvePage })
     setState(now)
   }
   const latest = useRef(now)

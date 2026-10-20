@@ -13,8 +13,10 @@ from playwright.sync_api import Browser, Locator, Page, expect
 from test_affected import set_stack
 from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cves, pin, visible_focus, window  # noqa: F401
 from test_dashboard import (  # noqa: F401 (fixtures)
-    DESKTOP, PHONE, SHOTS, api, clean_state, contrast, expect_rows, open_dash, rgb_list, rows, tile,
+    DESKTOP, PHONE, SHOTS, api, clean_state, confirm, contrast, cve_row, expect_rows, more_actions, open_dash, rgb_list,
+    rows, tile,
 )
+from reduced_motion import scene, still
 
 LANGFLOW_KEV = "CVE-2025-3248"  # Langflow, critical, in KEV since 2025-05-05; KEV deadline 2025-05-26
 EPSS_HIGH = "CVE-2026-21445"  # Langflow, high severity, EPSS 98th percentile, fixed in 1.7.1; not in KEV
@@ -61,7 +63,7 @@ def cell(page: Page, cve: str, label: str) -> Locator:
 
 
 def api_row(api_url: str, cve: str, product: str = "langflow") -> dict:
-    return next(r for r in api(api_url, f"/cves?status=all&product={product}&limit=200")["rows"] if r["id"] == cve)
+    return cve_row(api_url, cve, product)
 
 
 # --- A16.9: the CVEs page: priority with reasons, due date, overdue, KEV deadline; sorted by priority -------------
@@ -84,7 +86,8 @@ def test_a16_9_cves_page_shows_priority_reasons_due_date_and_overdue(open_cves, 
     expect(due.locator(".overdue")).to_have_text("Overdue")
     expect(due.locator(".overdue svg")).to_have_attribute("aria-hidden", "true")
     expect(due.locator(".due-from")).to_have_text("by your policy: KEV deadline")
-    expect(due.locator(".kev-deadline")).to_have_text("CISA KEV deadline 2025-05-26")  # CISA's date, its own fact
+    # Your due date is CISA's date here: said once (B36). Another due date keeps it as its own fact (A16.10).
+    expect(due.locator(".kev-deadline")).to_have_count(0)
     levels = [r["priority"] for r in api(api_url, "/cves?limit=200")["rows"]]
     assert levels == sorted(levels, key=["urgent", "high", "normal", "low"].index)
 
@@ -182,9 +185,55 @@ def test_a16_11_lookup_cve_card_shows_priority_and_due_date(open_cves):
     expect(card.locator(".overdue")).to_have_text("Overdue")
 
 
+# --- B33: a closed CVE shows no priority or due date; reopened, it gets them back -----------------------------------
+
+CLOSED = {
+    "fixed": {"status": "fixed"},
+    "not_affected": {"status": "not_affected", "justification": "component_not_present"},
+    "accepted": {"status": "accepted", "reason": "behind our VPN", "review_date": "2027-01-11"},
+}
+
+
+@pytest.mark.parametrize("status", CLOSED)
+def test_b33_5_a_closed_cve_shows_no_priority_or_due_date(open_cves, api_url, status):
+    api(api_url, f"/cves/{LANGFLOW_KEV}", "PATCH", CLOSED[status])  # urgent and overdue while open
+    page = open_cves(f"?status={status}&product=langflow")
+    priority, due = cell(page, LANGFLOW_KEV, "Priority"), cell(page, LANGFLOW_KEV, "Due")
+    expect(priority).to_contain_text("—")
+    expect(priority.locator(".chip.priority")).to_have_count(0)
+    expect(due).to_contain_text("—")
+    expect(due).not_to_contain_text("Overdue")
+    expect(due).not_to_contain_text("by your policy")
+    expect(due.locator(".kev-deadline")).to_have_text("CISA KEV deadline 2025-05-26")  # CISA's fact stays
+    expect(priority.get_by_text("No priority: closed")).to_be_attached()  # a screen reader hears why
+    more_actions(page, LANGFLOW_KEV)  # Reopen is under More when accepted (B36)
+    row(page, LANGFLOW_KEV).get_by_role("button", name=f"Reopen {LANGFLOW_KEV}").click()
+    confirm(page)
+    expect(page.get_by_role("dialog")).to_have_count(0)  # saved: the dialog closes
+    page = open_cves("?product=langflow&kev=1")
+    expect(cell(page, LANGFLOW_KEV, "Priority").locator(".chip.priority")).to_have_text("Urgent")
+    expect(cell(page, LANGFLOW_KEV, "Due")).to_contain_text("2025-05-26")
+    expect(cell(page, LANGFLOW_KEV, "Due").locator(".overdue")).to_have_text("Overdue")
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_b33_6_the_dash_reads_in_light_and_dark_at_phone_width(open_cves, api_url, scheme):
+    api(api_url, f"/cves/{LANGFLOW_KEV}", "PATCH", CLOSED["fixed"])
+    page = open_cves("?status=fixed&product=langflow", width=PHONE, scheme=scheme, reduced=True)
+    assert no_sideways_scroll(page)
+    dash = cell(page, LANGFLOW_KEV, "Priority").locator(".no-priority")
+    expect(dash).to_be_visible()
+    text, bg = dash.evaluate("""el => {
+        let p = el  // the first ancestor with a background of its own
+        while (p.parentElement && getComputedStyle(p).backgroundColor === 'rgba(0, 0, 0, 0)') p = p.parentElement
+        return [getComputedStyle(el).color, getComputedStyle(p).backgroundColor]
+    }""")
+    assert contrast(rgb_list(text)[0], rgb_list(bg)[0]) >= 4.5
+
+
 # --- A16.12: reduced motion ---------------------------------------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a16_12).
+# Reduced motion: scene a16_12 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A16.13: light and dark, phone and desktop --------------------------------------------------------------------
@@ -257,3 +306,22 @@ def test_a16_14_keyboard_reaches_every_policy_field_with_visible_focus(open_sett
     page.keyboard.press("Space")  # the KEV-deadline checkbox, by keyboard
     expect(page.get_by_label(re.compile("^Use CISA's KEV deadline"))).not_to_be_checked()
     expect(page.locator(".save-bar").get_by_role("status")).to_contain_text("Unsaved changes")
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a16_12_priority(fx):
+    open_page, open_board, open_policy = fx("open_cves"), fx("open_dash"), fx("open_settings")  # before set_stack
+    set_stack(fx("api_url"), langflow={"internet_facing": True, "version": "99.0.0"})
+    page = open_page(reduced=True)
+    expect(page.locator("table.cves .chip.priority").first).to_be_visible()
+    expect(page.locator("table.cves .overdue").first).to_be_visible()
+    still(page, "priority chips, overdue")
+    dash = open_board(reduced=True)
+    expect(dash.locator(".top-cves .chip.priority").first).to_be_visible()
+    still(dash, "the Top 5")
+    settings = open_policy(reduced=True)
+    settings.get_by_label("Urgent", exact=True).fill("60")
+    expect(settings.get_by_role("alert").filter(has_text="urgent ≤ high")).to_be_visible()
+    still(settings, "the policy card's error")

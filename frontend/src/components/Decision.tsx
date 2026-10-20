@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import type { CveRow, CveStatus, Decision, DecisionInput, Justification } from '../api.ts'
-import { STATUS_LABEL } from '../cveView.ts'
+import { JUSTIFICATION_LABEL, STATUS_LABEL } from '../cveView.ts'
+import type { DecisionRequest } from '../cveActions.ts'
+import { whoDecided } from '../decisionWho.ts'
 
 // Decision records (A16b, DESIGN.md §5.9): the dialog every status change goes through, the current decision under
 // the status, the append-only history, and the "No fix yet" mark. Only the user decides: nothing here is clicked for
@@ -13,13 +15,6 @@ export const JUSTIFICATIONS: Justification[] = [
   'vulnerable_code_cannot_be_controlled_by_adversary',
   'inline_mitigations_already_exist',
 ]
-export const JUSTIFICATION_LABEL: Record<Justification, string> = {
-  component_not_present: 'Component not present',
-  vulnerable_code_not_present: 'Vulnerable code not present',
-  vulnerable_code_not_in_execute_path: 'Vulnerable code not in execute path',
-  vulnerable_code_cannot_be_controlled_by_adversary: 'Vulnerable code cannot be controlled by adversary',
-  inline_mitigations_already_exist: 'Inline mitigations already exist',
-}
 
 const REVIEW_DAYS = 90 // the default review date: the as-of date + 90 days
 
@@ -30,12 +25,7 @@ export function addDays(iso: string, days: number): string {
 }
 
 /** What the dialog asks for. `preset`: "Mark not affected?" pre-selects a justification and the verdict's reason. */
-export interface DecisionRequest {
-  cve: string
-  status: CveStatus
-  again?: boolean // re-accepting: a new review date for an accepted CVE
-  preset?: { justification: Justification; note: string }
-}
+export type { DecisionRequest } // defined in cveActions.ts, so `npm test` can check the actions that build one
 
 const TITLE: Record<CveStatus, (cve: string, again?: boolean) => string> = {
   accepted: (cve, again) => (again ? `Accept the risk of ${cve} again` : `Accept the risk of ${cve}`),
@@ -56,6 +46,106 @@ const NOTE_HINT: Partial<Record<CveStatus, string>> = {
 }
 
 const FOCUSABLE = 'button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])'
+
+/** A status's decision record fields as the form sends them: blank ones left out. */
+export function readDecision(formEl: HTMLFormElement, status: CveStatus): DecisionInput {
+  const form = new FormData(formEl)
+  const text = (name: string) => {
+    const v = form.get(name)
+    return typeof v === 'string' && v.trim() ? v.trim() : undefined
+  }
+  const body: DecisionInput = { status }
+  if (status === 'accepted') {
+    body.reason = text('reason')
+    body.review_date = text('review_date')
+    body.compensating_control = text('compensating_control')
+  } else {
+    body.note = text('note')
+    if (status === 'not_affected') body.justification = text('justification') as Justification | undefined
+  }
+  return body
+}
+
+/** The fields a status's decision record takes, with the same limits everywhere: the CVEs page's dialog and the
+ *  chat's proposal card when you edit it (B21). `values`: what to start from. The first field has data-autofocus. */
+export function DecisionFields({ status, asOf, values }: {
+  status: CveStatus
+  asOf: string
+  values?: Partial<Pick<Decision, 'justification' | 'reason' | 'note' | 'review_date' | 'compensating_control'>> | null
+}) {
+  if (status === 'accepted') {
+    return (
+      <>
+        <p className="meta">
+          It leaves the open list and the counts until its review date. Then it comes back as "review due".
+        </p>
+        <label>
+          Reason (required)
+          <input
+            name="reason"
+            required
+            maxLength={300}
+            data-autofocus
+            defaultValue={values?.reason ?? undefined}
+            placeholder="Why the risk is acceptable for now"
+          />
+        </label>
+        <label>
+          Review date (required)
+          <input
+            name="review_date"
+            type="date"
+            required
+            min={addDays(asOf, 1)}
+            defaultValue={values?.review_date ?? addDays(asOf, REVIEW_DAYS)}
+          />
+        </label>
+        <label>
+          Compensating control (optional)
+          <input
+            name="compensating_control"
+            maxLength={300}
+            defaultValue={values?.compensating_control ?? undefined}
+            placeholder='For example "behind auth", "WAF rule"'
+          />
+        </label>
+      </>
+    )
+  }
+  return (
+    <>
+      {status === 'not_affected' && (
+        <fieldset className="justifications">
+          <legend>Why isn't it affected? (required)</legend>
+          {JUSTIFICATIONS.map((j, i) => (
+            <label key={j}>
+              <input
+                type="radio"
+                name="justification"
+                value={j}
+                required
+                defaultChecked={values?.justification === j}
+                data-autofocus={(values?.justification ? values.justification === j : i === 0) || undefined}
+              />
+              {JUSTIFICATION_LABEL[j]}
+            </label>
+          ))}
+        </fieldset>
+      )}
+      <label>
+        Note (optional)
+        <textarea
+          name="note"
+          rows={2}
+          maxLength={500}
+          defaultValue={values?.note ?? undefined}
+          placeholder={NOTE_HINT[status]}
+          data-autofocus={status === 'fixed' || status === 'open' || undefined}
+        />
+      </label>
+    </>
+  )
+}
 
 /** A modal dialog: focus stays inside (Tab wraps), Esc closes it, focus goes back to the button that opened it. */
 export function DecisionDialog({ request, asOf, onSubmit, onClose }: {
@@ -97,20 +187,7 @@ export function DecisionDialog({ request, asOf, onSubmit, onClose }: {
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const form = new FormData(e.currentTarget)
-    const text = (name: string) => {
-      const v = form.get(name)
-      return typeof v === 'string' && v.trim() ? v.trim() : undefined
-    }
-    const body: DecisionInput = { status }
-    if (status === 'accepted') {
-      body.reason = text('reason')
-      body.review_date = text('review_date')
-      body.compensating_control = text('compensating_control')
-    } else {
-      body.note = text('note')
-      if (status === 'not_affected') body.justification = text('justification') as Justification | undefined
-    }
+    const body = readDecision(e.currentTarget, status)
     setBusy(true)
     try {
       await onSubmit(body)
@@ -135,62 +212,7 @@ export function DecisionDialog({ request, asOf, onSubmit, onClose }: {
     >
       <form method="dialog" onSubmit={submit}>
         <h2 id={titleId}>{TITLE[status](cve, again)}</h2>
-        {status === 'accepted' && (
-          <>
-            <p className="meta">
-              It leaves the open list and the counts until its review date. Then it comes back as "review due".
-            </p>
-            <label>
-              Reason (required)
-              <input name="reason" required maxLength={300} data-autofocus placeholder="Why the risk is acceptable for now" />
-            </label>
-            <label>
-              Review date (required)
-              <input
-                name="review_date"
-                type="date"
-                required
-                min={addDays(asOf, 1)}
-                defaultValue={addDays(asOf, REVIEW_DAYS)}
-              />
-            </label>
-            <label>
-              Compensating control (optional)
-              <input name="compensating_control" maxLength={300} placeholder='For example "behind auth", "WAF rule"' />
-            </label>
-          </>
-        )}
-        {status === 'not_affected' && (
-          <fieldset className="justifications">
-            <legend>Why isn't it affected? (required)</legend>
-            {JUSTIFICATIONS.map((j, i) => (
-              <label key={j}>
-                <input
-                  type="radio"
-                  name="justification"
-                  value={j}
-                  required
-                  defaultChecked={preset?.justification === j}
-                  data-autofocus={(preset ? preset.justification === j : i === 0) || undefined}
-                />
-                {JUSTIFICATION_LABEL[j]}
-              </label>
-            ))}
-          </fieldset>
-        )}
-        {status !== 'accepted' && (
-          <label>
-            Note (optional)
-            <textarea
-              name="note"
-              rows={2}
-              maxLength={500}
-              defaultValue={preset?.note}
-              placeholder={NOTE_HINT[status]}
-              data-autofocus={status === 'fixed' || status === 'open' || undefined}
-            />
-          </label>
-        )}
+        <DecisionFields status={status} asOf={asOf} values={preset} />
         {error && (
           <p className="dialog-error" role="alert">
             {error}
@@ -230,6 +252,10 @@ function facts(d: Decision): string[] {
     d.compensating_control ? `Control: ${d.compensating_control}` : null,
     d.review_date ? `review ${d.review_date}` : null,
     d.note,
+    // what a decision Patch proposed rested on (B22); a web source stays marked unverified
+    d.sources?.length
+      ? `Sources: ${d.sources.map((s) => `[${s.n}] ${s.title}${s.kind === 'web' ? ' (web result, unverified)' : ''}`).join('; ')}`
+      : null,
   ].filter((x): x is string => !!x)
 }
 
@@ -262,20 +288,27 @@ export function DecisionHistory({ row }: { row: CveRow }) {
       <summary aria-label={`History of ${row.id}: ${row.history.length} decisions`}>
         History ({row.history.length})
       </summary>
-      <ol>
-        {row.history.map((h, i) => (
-          <li key={i}>
-            <span className="history-when num">{when(h)}</span>
-            <strong>{STATUS_LABEL[h.status]}</strong>
-            {facts(h).length > 0 && <span> · {facts(h).join(' · ')}</span>}
-            <span className="history-who">
-              {' '}
-              · by {h.decided_by ?? 'unknown'}
-              {h.via === 'chat' ? ', in the chat' : h.via === 'page' ? ', on the CVEs page' : ''}
-            </span>
-          </li>
-        ))}
-      </ol>
+      <HistoryList history={row.history} />
     </details>
+  )
+}
+
+/** The decision records, oldest first: when (UTC), the status, its facts, and who decided where. The CVEs list shows
+ *  it behind a disclosure; the page for one CVE (B35) shows it open. */
+export function HistoryList({ history }: { history: Decision[] }) {
+  return (
+    <ol>
+      {history.map((h, i) => (
+        <li key={i}>
+          <span className="history-when num">{when(h)}</span>
+          <strong>{STATUS_LABEL[h.status]}</strong>
+          {facts(h).length > 0 && <span> · {facts(h).join(' · ')}</span>}
+          <span className="history-who">
+            {' '}
+            · {whoDecided(h)}
+          </span>
+        </li>
+      ))}
+    </ol>
   )
 }

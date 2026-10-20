@@ -1,4 +1,4 @@
-# LLM-security assistant (Patch)
+# Patch, the LLM-security assistant
 
 A security assistant for people building LLM apps: it answers questions about risks, attacks and CVEs from public sources, and tracks the CVEs in the products you use. Decisions and their reasons are in [DECISIONS.md](./DECISIONS.md); this file only fixes the words.
 
@@ -18,8 +18,32 @@ _Avoid_: package, vendor, tool
 The knowledge base frozen on one date, so answers and tests repeat exactly.
 _Avoid_: fixtures (that's the folder), cache
 
+**Live data**:
+The CVE data in live mode (`DATA_MODE=live`): the snapshot's files, refreshed from the feeds, kept as whole versions. Starts as a copy of the snapshot. OWASP and ATLAS stay snapshot data.
+_Avoid_: real-time data, cache
+
+**Refresh**:
+One run that fetches the feeds (NVD, KEV, EPSS, OSV), builds a new version of the live data and moves *last checked*. Check now, the CLI and later the chat and the schedule all start the same refresh.
+_Avoid_: sync, update, poll
+
+**Partial run**:
+A refresh where some feeds answered and some didn't (B20). What answered is written; a failed feed keeps its data; *last checked* stays. A **failed run** is one where no feed answered: nothing is written.
+_Avoid_: half refresh, degraded run
+
+**Skipped run**:
+A refresh that was asked for but refused by the 5-minute rule (or because one was running): nothing was fetched. Shown in the run history as "Skipped: too soon"; the same refusal again counts up instead of adding a line (B19).
+_Avoid_: failed run (a failed run did ask the feeds)
+
+**Paused schedule**:
+The scheduled refresh switched off on Settings (B19). No scheduled run starts; Check now, the CLI and `check_updates` still run one, and alerts held through quiet hours still go out.
+_Avoid_: disabled refresh, alerts off (that's a different switch)
+
+**Didn't finish** (a step):
+A tool call that stopped short in an answer and may pass on a second try: a timeout, a rate limit, a service that's down. Its card says "Didn't finish" and offers **Try again**, which runs that step only. The answer says the step is missing, never that it worked.
+_Avoid_: partial answer, skipped
+
 **As-of date**:
-The date "today" means for the data: the snapshot date in snapshot mode.
+The date "today" means for the data: the snapshot date in snapshot mode, today (UTC) in live mode.
 _Avoid_: now, current date
 
 **KEV**:
@@ -38,11 +62,15 @@ _Avoid_: exploit score, risk score
 A numbered piece of the knowledge base that an answer cites as `[n]`.
 _Avoid_: reference, document, chunk (a chunk is how it's stored)
 
+**Web source**:
+A numbered web page from `research_web` (B08), cited as `[n]` like a source but always marked "Web result, unverified". It's untrusted text.
+_Avoid_: search result, link
+
 ### Your stack
 
 **Watchlist**:
 The products you say you use. Only CVEs for watched products count as yours.
-_Avoid_: stack, subscriptions
+_Avoid_: stack, subscriptions. One exception (owner, 2026-10-19): the landing page's pitch to signed-out visitors may say "your LLM stack", since "watchlist" means nothing to them yet; inside the app (the About page included) it's "watchlist".
 
 **CVE status**:
 Your mark on a CVE for a watched product: open, fixed, not affected or accepted. Open until you say otherwise. Only you set it: never a rule, the verdict or Patch.
@@ -56,12 +84,16 @@ _Avoid_: active CVE, unresolved CVE
 Your status for a CVE you've decided to live with for now (risk accepted), with a reason, a review date and optionally a compensating control. Not open, not overdue, not in the priority order until its review date.
 _Avoid_: ignored, waived, snoozed
 
+**Closed CVE**:
+A CVE for a product on your watchlist that isn't open: fixed, not affected, or accepted before its review date. It has no priority and no due date, and is never overdue; reopen it and they come back. The KEV deadline still shows: it's a fact about the CVE.
+_Avoid_: resolved, done, inactive
+
 **Review due**:
 An accepted CVE whose review date has come (at the as-of date). It's back in the open list and counts, its acceptance shown, until you accept it again, fix it, mark it not affected or reopen it.
 _Avoid_: expired, lapsed
 
 **Decision record**:
-What you decided about one CVE and why: the status, its justification or reason, a note, the review date and compensating control, when, and who. Every status change appends one to the CVE's history; none is ever edited or removed (only the full reset clears them).
+What you decided about one CVE and why: the status, its justification or reason, a note, the review date and compensating control, when, and who. Every status change appends one to the CVE's history; none is ever edited or removed (only **Start over** clears them).
 _Avoid_: audit log, comment
 
 **Justification**:
@@ -110,6 +142,10 @@ _Avoid_: exposed, public
 Everything Patch knows about one CVE for your stack: the verdict, your decision record, the priority and the due date. A CVE whose product isn't on your watchlist still gets one: not watched, no status, no priority.
 _Avoid_: evaluation, report, row (that's the CVEs page's view of it)
 
+**CVE page**:
+The page for one CVE, `/cves/CVE-…`: its facts in full, its assessment with the actions, and its decision history. The CVEs page is the list; the CVE page is one of them.
+_Avoid_: detail panel, drawer, CVE view (that's the list's filters)
+
 ### Safety
 
 **Untrusted text**:
@@ -119,6 +155,10 @@ _Avoid_: external content
 **Flag**:
 To mark a message as looking like an injection attempt, log it, and still answer it.
 _Avoid_: block, reject (a flagged message is never blocked)
+
+**Proposal** (proposed change):
+A change Patch suggests to your watchlist, a CVE's status or a product's details. It has four kinds: **watch** a product, **unwatch** a product, **set status** (a CVE's status and its decision record), **set details** (how you run a product: usage, version, internet-facing). Nothing changes until you approve it; you can edit a set status or set details proposal, or cancel any of them. It expires after an hour. A **proposed decision** (B22) is a proposal of a CVE's decision record at the end of web research: it lists the sources it rests on.
+_Avoid_: action, pending change, request
 
 ### Alerts
 
@@ -131,17 +171,101 @@ Why an alert fired, for example new, kev, now critical. Each CVE and reason aler
 _Avoid_: trigger, type
 
 **Channel**:
-Where alerts are delivered: desktop, email or ntfy.
+Where alerts are delivered: desktop, email, ntfy or Telegram (a message from the owner's own bot, B57).
 _Avoid_: notifier (that's the code), sink
+
+**Digest**:
+One message for many alerts: more than the digest limit in one check (default 5), or what quiet hours held. It gives counts by alert reason, never the CVE ids. When it mixes what the check found with reminders, the reminders are one count ("1 new · 272 reminders").
+_Avoid_: summary, batch
+
+**Reminder**:
+An alert about a due date, not about something a check found: due soon or overdue. A user's first check sends none (B34); overdue repeats weekly.
+_Avoid_: nag, follow-up
+
+**New**:
+A CVE a refresh run found that wasn't in the data before, and that you haven't seen yet: you haven't opened its page or pressed "Mark all as seen". Each user's own. A later check that finds nothing leaves it new (B40). Rescored or newly-KEV CVEs aren't new. The CVEs list's "New" chip and "New, not seen yet" filter.
+_Avoid_: new since last check (B05's rule, until B40), unread, fresh
+
+**Seen**:
+You opened the CVE's page, or pressed "Mark all as seen" on the CVEs list. A row shown on the dashboard or in the list isn't seen.
+_Avoid_: read, viewed, acknowledged
+
+**First check**:
+A user's first refresh run that writes data, with no earlier run in their state. It alerts only what it found, never reminders.
+
+**Quiet hours**:
+A daily time window in which alerts are held, then sent as one digest when it ends.
+_Avoid_: do not disturb, mute
+
+**Alerts log**:
+The record of every alert message: when, why, and what each channel did with it (sent, recorded only, not set up, failed). A failed send is tried again on the next check, at most 3 tries; its entry shows the tries. The dashboard's "Recent alerts" card shows the last 20.
+_Avoid_: history (that's a CVE's decisions), notifications
+
+**Owner**:
+The one user whose alerts go to the channels, named by `OWNER` in the server's environment (locally the default user; required with sign-in on). Every other user's alerts are shown in the app only, and their Settings have only "Yours" (B48). The owner's schedule runs the shared refresh, and only the owner can change it or use the demo switches.
+_Avoid_: admin, account holder
+
+**Profile**:
+What a user tells Patch about themselves: only an optional **display name**, empty by default (anonymous). Kept in their own state, never taken from Clerk; used only in their user menu (B50, owner 2026-10-19: decision records always say "you"; between B48 and B50 new records held the name, and keep it). Nobody else sees it, and **Start over** keeps it (B48, #77). On Settings it is the first card of **Yours**, the part every user has; **This Patch** is the owner's part.
+_Avoid_: account (that's Clerk's), user name, nickname
+
+**Start over**:
+The reset on Settings, the last card of **Yours**: it deletes the user's own state (watchlist, CVE statuses with their whole decision history, alert rules, policy, alerts log; the owner's also the channels, the schedule and the Dev page's choices) and keeps the profile and the server settings. The button is "Reset all my data" (B50, #95).
+_Avoid_: reset demo data (it isn't demo data: it is the user's own decisions), factory reset
+
+**Default user**:
+The one user while sign-in is off (locally and in the tests). Their state is the state file.
+_Avoid_: local user, guest
+
+**Sign-in**:
+Clerk, switched by `AUTH` (off locally and in the tests). On, every API route but `/health` needs a signed-in user; a signed-out visitor sees the landing page, and the sign-in screen at `/sign-in` (B42). Sign-up is open; using Patch needs the owner's approval (B38).
+_Avoid_: login, auth (except the setting's name)
+
+**Landing page**:
+What a visitor who isn't signed in sees first (with sign-in on): the problem Patch solves, what Patch is, three screenshots on example data, then Sign in or Request access. No API call, no live data. Inside the app the same page is **About** (`/about`) (B42).
+_Avoid_: home page, marketing page, splash screen
+
+**Access request**:
+A new account's request to use Patch, with an optional note for the owner (at most 280 characters). It is waiting until the owner approves or refuses it on the Requests card. A refusal is final until the owner undoes it. Patch keeps only the Clerk user id, the status, when and by whom, and the note (B38).
+_Avoid_: invitation (Patch sends none any more), waitlist (Clerk's own feature, not used), application
+
+**Approved**:
+An account the owner let in: it may use Patch. The owner is always approved, and so is everyone while sign-in is off.
+_Avoid_: whitelisted, allowed, invited
+
+**Role**:
+What the owner lets an approved person do, set on the Requests card (when approving, or later). One of **Viewer**, **Trusted** or **Reviewer**; Viewer by default, and for everyone approved before roles. The owner is `OWNER` from the server's environment, never a stored role (B45).
+_Avoid_: permission level, group, admin
+
+**Viewer**:
+The default role: the dashboard, the CVEs, the chat and their own watchlist. No Dev page; the server refuses them its routes too.
+_Avoid_: read-only user, guest
+
+**Trusted**:
+A role that also sees the Dev page read-only (the owner's choices, the index, the map, the saved runs) and may use the search playground. Can't change the Dev settings: one change would alter everyone's chat.
+_Avoid_: power user, insider
+
+**Reviewer**:
+A role that may also change the Dev settings, but only their own copy: their chat and playground use it, everyone else keeps the owner's. The copy starts from the owner's; "Back to the owner's settings" drops it. Can't run the model check (it spends the owner's key).
+_Avoid_: tester, editor, admin
+
+**Connected account**:
+Another sign-in method (Google, Discord) linked to the account you're signed in with, on Settings, so it signs in as the same user even when its email differs.
+_Avoid_: social login, linked identity
+
+**Session token**:
+The short-lived (60 s) token Clerk gives the signed-in browser. The frontend sends a fresh one with every API call; the backend checks it with the instance's JWT public key.
+_Avoid_: JWT (it is one, but say what it's for), API key
 
 ### The assistant
 
 **Patch**:
-The assistant, and the robot that is its face in the UI.
-_Avoid_: the bot, the chatbot, the agent
+The product name, and the robot that is its face in the UI. The brand reads "Patch", with "LLM-security assistant" as the small line under it (B32).
+_Avoid_: the bot, the chatbot, the agent; "LLM Security assistant" as a name
+Patch is "it", never "he" or "she" (owner, 2026-10-19), or rephrase without a pronoun.
 
 **Page context**:
-What Patch is told about the view under the chat: the page, the CVEs page's filters (product, severity, status, verdict, KEV, since) and the selected CVE. Fixed fields only, each checked against a fixed list; anything else is dropped and listed. Never free text.
+What Patch is told about the view under the chat: the page, the CVEs page's filters (product, severity, status, verdict, KEV, since) and the selected CVE; on a CVE page, that CVE. Fixed fields only, each checked against a fixed list; anything else is dropped and listed. Never free text.
 _Avoid_: page state, screen text
 
 **Selected CVE**:
@@ -165,5 +289,5 @@ Questions whose right source comes from structured fields (a CVE id → that CVE
 _Avoid_: embedding eval, recall test
 
 **Run**:
-One saved model check or retrieval check: who or what was checked, when, every score. The evaluation report is built from runs.
+One saved model check or retrieval check: who or what was checked, when, every score. The model-check report is built from runs.
 _Avoid_: result, session

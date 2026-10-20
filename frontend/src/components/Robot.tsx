@@ -4,9 +4,9 @@
 // Parts outside the body (thought dots, sparkles, notes, hearts, the "!" badge, the siren beam) carry `bot-extra`,
 // so the browser check can keep them clear of the controls around Patch.
 import type { ReactNode } from 'react'
-import { VARIANTS, type Mood, type Variant } from './patchPose.ts'
+import { VARIANTS, type Mood, type Pose, type Variant } from './patchPose.ts'
 
-export type { Mood, Variant } from './patchPose.ts'
+export type { Mood, Pose, Variant } from './patchPose.ts'
 
 const BODY = '#9483FF'
 const VISOR = '#2A2457'
@@ -383,15 +383,18 @@ const DRAWINGS: { [M in Mood]: Record<(typeof VARIANTS)[M][number], () => ReactN
   },
 }
 
-export function Robot({ mood = 'idle', variant, size = 64, className = '' }: {
-  mood?: Mood
-  /** One of the mood's four animations; the mood's first (option A) when not given. */
-  variant?: Variant
+/**
+ * Patch in `pose`: its mood and one of that mood's four animations, given together so a variant never arrives
+ * without its mood (#98: a happy variant alone was looked up among the idle drawings). A variant that isn't one of
+ * the mood's falls back to the mood's first (option A).
+ */
+export function Robot({ pose: { mood, variant }, size = 64, className = '' }: {
+  pose: Pose
   size?: number
   className?: string
 }) {
   const drawings: Record<string, () => ReactNode> = DRAWINGS[mood]
-  const pick: Variant = variant && variant in drawings ? variant : VARIANTS[mood][0]
+  const pick: Variant = variant in drawings ? variant : VARIANTS[mood][0]
   const draw = drawings[pick]
   return (
     <svg

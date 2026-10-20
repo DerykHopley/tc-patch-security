@@ -40,7 +40,7 @@ export function usePatch(
   }, [answered])
   const happy = answered !== null && calmed !== answered
 
-  const mood: Mood = pending ? 'thinking' : last?.error ? 'alert' : happy || unread ? 'happy' : 'idle'
+  const mood: Mood = pending ? 'thinking' : last?.error && !last.quiet ? 'alert' : happy || unread ? 'happy' : 'idle'
 
   // A new pick only when the mood changes, kept up to date while rendering like `seen` above.
   const [pose, setPose] = useState<Pose>(() => pickPose(mood, random))

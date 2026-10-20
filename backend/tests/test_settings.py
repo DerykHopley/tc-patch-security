@@ -30,8 +30,8 @@ def no_desktop():
 def test_a13_1_defaults_when_nothing_is_saved(client):
     s = client.get("/settings").json()["settings"]["alerts"]
     assert s == {"enabled": True, "min_severity": "HIGH", "kev": True, "kev_recheck": True, "unscored": True,
-                 "now_critical": True, "digest_over": 5, "schedule_hours": 6, "quiet_start": None, "quiet_end": None,
-                 "channels": ["desktop"]}
+                 "now_critical": True, "digest_over": 5, "schedule_hours": 6, "schedule_paused": False,
+                 "quiet_start": None, "quiet_end": None, "channels": ["desktop"]}
 
 
 def test_a13_1_channels_set_up_in_the_environment_are_on_by_default(settings, knowledge):
@@ -92,10 +92,15 @@ def test_a13_1_saving_keeps_the_watchlist_statuses_and_parts_saved_by_other_page
 def test_a13_3_each_channel_says_whether_it_is_set_up_and_how(settings, knowledge):
     c, _ = make_client(settings, knowledge, desktop_command=no_desktop)
     channels = c.get("/settings").json()["channels"]
-    assert set(channels) == {"desktop", "email", "ntfy"}
+    assert set(channels) == {"desktop", "email", "ntfy", "telegram"}
     assert not any(ch["configured"] for ch in channels.values())
-    assert "SMTP_HOST" in channels["email"]["detail"] and "NTFY_TOPIC" in channels["ntfy"]["detail"]
-    assert "notify-send" in channels["desktop"]["detail"]
+    assert "under Email (SMTP)" in channels["email"]["detail"]
+    assert "under Phone push (ntfy)" in channels["ntfy"]["detail"]
+    assert "under Telegram" in channels["telegram"]["detail"]
+    assert "desktop notifications" in channels["desktop"]["detail"]
+    # B50 (#95): plain words, never the server's names for them (README.md maps those)
+    for name in ("SMTP_HOST", "ALERT_EMAIL_TO", "NTFY_TOPIC", "notify-send", "osascript", "backend/.env"):
+        assert not any(name in ch["detail"] for ch in channels.values()), name
 
 
 def test_a13_3_settings_never_return_a_secret(settings, knowledge):
@@ -231,7 +236,7 @@ def test_a13_4_alert_text_never_contains_the_description(knowledge, cve_id):
     text = json.dumps(msg)
     for i in range(0, len(cve["description"]) - 30, 15):  # no 30-character run of the description anywhere
         assert cve["description"][i:i + 30] not in text
-    assert msg["body"].startswith(cve_id) and msg["click"] == f"http://localhost:5173/#cve={cve_id}"
+    assert msg["body"].startswith(cve_id) and msg["click"] == f"http://localhost:5173/cves/{cve_id}"
 
 
 # --- A13.5: reset ---------------------------------------------------------------------------------------------------

@@ -22,21 +22,22 @@ export interface PageContextState {
   visit: number
   view: ShownView | null // what the page reported last (CVEs page or dashboard), during this visit
   selected: string | null // the CVE last asked about with "Ask about this" (CVEs page), under the current filters
+  cve: string | null // the CVE whose own page is open (B35, /cves/<id>): Patch is told that CVE, without filters
 }
 
 export type PageContextAction =
-  | { type: 'visit'; page: Page; visit: number } // a navigation: another page, or the same page again
+  | { type: 'visit'; page: Page; visit: number; cve?: string | null } // a navigation; cve: one CVE's page (B35)
   | { type: 'view'; visit: number; view: ShownView } // a page reports its view (on every filter change)
   | { type: 'select'; cve: string; pending: boolean } // "Ask about this"; pending: a reply is still coming
 
-export function startPageContext(page: Page, visit: number): PageContextState {
-  return { page, visit, view: null, selected: null }
+export function startPageContext(page: Page, visit: number, cve: string | null = null): PageContextState {
+  return { page, visit, view: null, selected: null, cve }
 }
 
 export function reducePageContext(s: PageContextState, a: PageContextAction): PageContextState {
   switch (a.type) {
     case 'visit':
-      return startPageContext(a.page, a.visit)
+      return startPageContext(a.page, a.visit, a.cve ?? null)
     case 'view': {
       if (a.visit !== s.visit) return s // from a visit that has ended
       // The selection belongs to the filters it was made under: any filter change clears it.
@@ -52,6 +53,7 @@ export function reducePageContext(s: PageContextState, a: PageContextAction): Pa
 
 /** What the chat sends with a message now. */
 export function currentContext(s: PageContextState): PageContext {
+  if (s.cve) return { page: 'cves', cve: s.cve } // one CVE's page (B35): that CVE, no list filters
   return pageContext(s.page, s.view, s.selected)
 }
 
@@ -68,6 +70,7 @@ function filtersKey(view: ShownView): string {
 /** The context sent with a message. Filters and the selected CVE only on the CVEs page; the dashboard sends its
  *  product filter (several products: `langflow,ollama`), and nothing more, since its tiles mix statuses. */
 function pageContext(page: Page, view: ShownView | null, selected: string | null): PageContext {
+  if (page === 'notFound') return {} // B49: no page of the app, so no page to tell
   if (page === 'dashboard' && view?.filters.product) return { page, product: view.filters.product }
   if (page !== 'cves' || !view) return { page }
   return { page, ...viewToContext(view.filters), ...(selected && { cve: selected }) }

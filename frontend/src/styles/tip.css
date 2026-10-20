@@ -1,0 +1,52 @@
+/* Tooltips by mouse, keyboard and touch (B44, DESIGN.md §5.18). The bubble is the charts' tooltip (§5.4): --text
+   fill, --surface text, 4px radius; it wraps at 18rem instead of one line, since these tips are sentences. Tokens only.
+   Nothing moves: no fade, so nothing for reduced motion to stop. */
+
+/* The anchor: a dotted underline says "there's an explanation here" (an <abbr>'s look), and only words that have one
+   get it. A chip already looks like a thing: no underline (plain). The global focus ring shows by keyboard.
+   The anchor is a <button> (a Tab stop a tap and a screen reader know), so the pill look of every button (§5.3) is
+   taken off: it reads as the words around it. A chip anchor (plain) keeps the chip's own padding, fill and type. */
+button.tip-anchor {
+  border: none;
+  border-radius: 0;
+  color: inherit;
+  line-height: inherit;
+  cursor: help;
+}
+
+button.tip-anchor:not(.plain) {
+  padding: 0;
+  background: none;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+button.tip-anchor.plain {
+  border-radius: var(--radius-pill);
+}
+
+.tip {
+  position: fixed;
+  z-index: 60; /* over the page, the tab bar, the chat and Patch's button */
+  max-width: min(18rem, calc(100vw - 16px));
+  padding: 0.3rem 0.55rem;
+  border-radius: 4px;
+  background: var(--text);
+  color: var(--surface);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-transform: none;
+  letter-spacing: normal;
+  overflow-wrap: anywhere;
+  box-shadow: var(--shadow-card);
+}
+
+.tip[hidden] {
+  display: none;
+}

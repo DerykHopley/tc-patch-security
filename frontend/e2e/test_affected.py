@@ -13,10 +13,12 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from test_chat import ask
-from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cves, params, pin, visible_focus, window  # noqa: F401
+from test_cves_page import actions_in_view, focused, no_sideways_scroll, open_cves, open_filters, params, pin, visible_focus, window  # noqa: F401
 from test_dashboard import (  # noqa: F401 (fixtures)
     DEFAULT_WATCHLIST, DESKTOP, PHONE, SHOTS, api, clean_state, confirm, contrast, expect_rows, open_dash, rgb_list, rows,
 )
+from reduced_motion import scene, still
+from test_watchlist import card, open_watchlist, save  # noqa: F401 (fixture)
 
 LANGFLOW_KEV = "CVE-2025-3248"  # Langflow, critical, in KEV; fixed in 1.3.0
 
@@ -118,7 +120,7 @@ def test_a15_7_am_i_affected_shows_the_verdict_card_and_changes_nothing(open_cve
 
 # --- A15.9: reduced motion -----------------------------------------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a15_9).
+# Reduced motion: scene a15_9 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A15.10: light and dark, phone and desktop -------------------------------------------------------------------
@@ -132,6 +134,7 @@ def test_a15_10_light_dark_phone_and_desktop(open_cves, api_url, browser_name, w
     page.screenshot(path=SHOTS / f"a15-{browser_name}-{width}-{scheme}-cves.png")
     assert no_sideways_scroll(page)
     actions_in_view(page)
+    open_filters(page)  # folded on a phone (B44)
     for value, name in (("affected", "Affected"), ("not_affected", "Not affected"), ("unknown", "Unknown")):
         page.get_by_role("combobox", name="Verdict").select_option(value)
         chip = page.locator("table.cves .verdict").first
@@ -182,3 +185,63 @@ def test_a15_11_keyboard_reaches_the_verdict_filter_and_the_suggestion(open_cves
 
 
 # The watchlist fields by keyboard (A15.11) moved to the Settings card: test_watchlist.py (A15b.5).
+
+
+# --- B67.5 (#109): a fix under more than one package shows each package's fix ----------------------------------------
+MOVED_FIX = "CVE-2024-8309"  # OSV: langchain fixed in 0.2.0, then langchain-community from 0.2.0, fixed in 0.2.19
+BOTH_FIXES = "Fixed in langchain 0.2.0, langchain-community 0.2.19"
+UPGRADE_PATH = ("0.1.5 is before the fixed version 0.2.0 (langchain); "
+                "OSV also lists langchain-community from 0.2.0, fixed in 0.2.19")
+
+
+@pytest.mark.parametrize("width", [PHONE, DESKTOP])
+def test_b67_5_each_packages_fix_on_the_cve_page_and_one_fix_stays_as_before(open_cves, api_url, ui_url, width):
+    set_stack(api_url, langchain={"version": "0.1.5"}, langflow={"version": "1.2.0"})
+    page = open_cves(width=width)
+    page.goto(f"{ui_url}/cves/{MOVED_FIX}")
+    cell = page.locator("dd.verdict-cell")
+    expect(cell.locator(".verdict")).to_have_text("Affected")
+    expect(cell.locator(".verdict-reason")).to_have_text(UPGRADE_PATH)
+    expect(cell.locator(".verdict-fact").first).to_have_text(BOTH_FIXES)
+    assert no_sideways_scroll(page)  # long package names wrap on a phone
+    page.goto(f"{ui_url}/cves/{LANGFLOW_KEV}")  # one package: reads as before
+    expect(page.locator("dd.verdict-cell .verdict-fact").first).to_have_text("Fixed in 1.3.0")
+
+
+@pytest.mark.parametrize("width", [PHONE, DESKTOP])
+def test_b67_5_the_cves_list_shows_each_packages_fix(open_cves, api_url, width):
+    """The list's verdict cell (B36: "Fixed in … · Who acts: …" on one line) and a phone card. Patch's
+    check_affected card uses the same VerdictFacts; its tool output is checked in backend/tests/test_affected.py."""
+    set_stack(api_url, langchain={"version": "0.1.5"})
+    page = open_cves("?product=langchain&severity=CRITICAL&verdict=affected", width=width)
+    cell = verdict_cell(page, MOVED_FIX)
+    expect(cell).to_contain_text(UPGRADE_PATH)
+    expect(cell.locator(".verdict-fact").first).to_have_text(BOTH_FIXES)
+    expect(cell).to_contain_text("Who acts: you")
+    assert no_sideways_scroll(page)
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a15_9_verdict(fx):
+    open_page, open_stack = fx("open_cves"), fx("open_watchlist")  # first: their set-up resets the watchlist
+    set_stack(fx("api_url"), langflow={"version": "99.0.0"})
+    page = open_page("?product=langflow", reduced=True)
+    page.get_by_role("combobox", name="Verdict").select_option("not_affected")
+    # The filter reloads the table: a row read before that may be an unfiltered one with no suggestion (CI race, run #62).
+    expect(page).to_have_url(re.compile(r"verdict=not_affected"))
+    first_suggestion = page.locator("table.cves tbody tr").first.get_by_role(
+        "button", name=re.compile(r"Suggested by the version check$"))
+    expect(first_suggestion).to_be_visible()
+    first_suggestion.click()
+    expect(page.get_by_role("dialog")).to_be_visible()
+    still(page, "the decision dialog (A16b)")
+    confirm(page)
+    expect(page.locator("table.cves tbody tr").first).to_be_visible()
+    still(page, "after the decision")
+    settings = open_stack(reduced=True)  # the watchlist's fields, on Settings since A15b
+    card(settings).get_by_label("Dify", exact=True).check()
+    card(settings).get_by_role("group", name="Langflow").get_by_label("Internet-facing").check()
+    save(settings)
+    still(settings, "the watchlist card")

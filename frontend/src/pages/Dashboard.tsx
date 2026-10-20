@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { cves as fetchCves, dashboard as fetchDashboard, type CveRow, type Dashboard as DashboardData } from '../api.ts'
+import { CveLink } from '../components/CveLink.tsx'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
+import { Tip as HelpTip } from '../components/Tip.tsx'
 import { Bars, ChartCard, Columns, SeverityLegend, StackedBars, Tooltip, type Tip } from '../components/charts.tsx'
+import { AlertsCard } from '../components/AlertsLog.tsx'
+import { FreshnessCard } from '../components/Freshness.tsx'
 import { WarningIcon } from '../components/Icons.tsx'
 import { OverdueMark, PriorityChip, PriorityReasons } from '../components/Priority.tsx'
 import { NoFixMark } from '../components/Decision.tsx'
@@ -11,15 +15,23 @@ import { WelcomeBanner } from '../components/WelcomeBanner.tsx'
 import { OPEN_VIEW, productIds, viewToSearch, type CveView } from '../cveView.ts'
 import type { ShownView } from '../pageContext.ts'
 import { followLink } from '../route.ts'
+import { newCvesLink } from '../freshness.ts'
+import { owaspBar } from '../owasp.ts'
 import { SEVERITIES, sevLabel } from '../severity.ts'
 import { useWatchlistChanged } from '../watchlistEvents.ts'
 import '../styles/dashboard.css'
 
 // The dashboard (DESIGN.md §5): "how exposed am I?". Patch's welcome banner, four candy tiles (each a link to the
 // CVEs page with its filter), three charts and the top 5 open CVEs; beside them the watchlist as a product filter,
-// the latest ATLAS incidents and the data's freshness. The full CVE table is the CVEs page (A04b).
+// recent alerts, the data's freshness and, last, the latest ATLAS incidents (to read, not to act on: B43).
+// The full CVE table is the CVEs page (A04b).
 // The watchlist is edited on Settings (A15b); here its chips narrow the tiles, charts and Top 5 to some products.
 // The filter lives in the URL only (`/?product=langflow,ollama`): a fresh dashboard shows every watched product.
+// B43: the filter card comes before the tiles in the page, so on a phone (≤ 1000px, one column) you set the filter
+// before you read the numbers; over 1000px the grid puts it at the top of the side column, as before.
+
+// B43 (#25): the chart is OWASP's web list; in an LLM-security app "OWASP category" read like LLM01–LLM10
+const OWASP_TITLE = 'Open CVEs by OWASP Top 10 (web, 2025)'
 
 const message = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Try again.')
 
@@ -76,9 +88,7 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
       (e: unknown) => setError(message(e)),
     )
   }, [load])
-  useWatchlistChanged(() => {
-    load().catch((e: unknown) => setError(message(e)))
-  })
+  useWatchlistChanged(() => load().catch((e: unknown) => setError(message(e))))
 
   const names = data ? filter.flatMap((id) => data.watched.find((w) => w.product === id)?.name ?? []) : []
   const productName = names.join(' + ')
@@ -112,8 +122,9 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
           </button>
         </p>
       )}
-      <Tiles data={data} filter={filter} onNavigate={onNavigate} />
       <div className="dash-grid">
+        <ProductFilter data={data} filter={filter} onChoose={choose} onNavigate={onNavigate} />
+        <Tiles data={data} filter={filter} onNavigate={onNavigate} />
         <div className="dash-main">
           <ChartCard
             id="chart-product"
@@ -175,9 +186,11 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
           </ChartCard>
           <ChartCard
             id="chart-owasp"
-            title="Open CVEs by OWASP category"
+            title={OWASP_TITLE}
             note={
-              data.owasp_unmapped > 0 ? `${data.owasp_unmapped} open CVEs have no CWE in OWASP's lists.` : undefined
+              // B43 (#25): the web list, not the LLM Top 10 (that one lists no CWEs, so no CVE maps to it)
+              `The web list, not the LLM Top 10: CVEs reach it through their CWEs, and a CVE in two categories counts in both.${
+                data.owasp_unmapped > 0 ? ` ${data.owasp_unmapped} open CVEs have no CWE in OWASP's lists.` : ''}`
             }
             table={
               <table className="data">
@@ -198,14 +211,21 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
               </table>
             }
           >
-            <Bars data={data.by_owasp.map((o) => ({ label: o.title.replace(':2025', ''), count: o.count }))} onTip={setTip} />
+            <Bars data={data.by_owasp.map(owaspBar)} onTip={setTip} />
           </ChartCard>
           <TopCves rows={top} filter={filter} onNavigate={onNavigate} />
         </div>
         <aside className="dash-side" aria-label="Dashboard side panels">
-          <ProductFilter data={data} filter={filter} onChoose={choose} onNavigate={onNavigate} />
-          <section className="card" aria-labelledby="incidents-title">
+          <AlertsCard data={data.data} onNavigate={onNavigate} />
+          <FreshnessCard data={data.data} asOf={data.as_of} sources={data.freshness} onNavigate={onNavigate}
+            newCves={newCvesLink(data.kpis.new_unseen, filter)} />
+          {/* B43: last in the side column: it's background to read, while the cards above it are what you act on */}
+          <section className="card incidents" aria-labelledby="incidents-title">
             <h2 id="incidents-title">Latest AI incidents (MITRE ATLAS)</h2>
+            <p className="meta intro">
+              Real attacks on AI systems, as MITRE ATLAS writes them up, newest first. Nothing to act on: they show how
+              the kinds of flaws in your CVEs get used.
+            </p>
             <ul className="side-list">
               {data.latest_incidents.map((c) => (
                 <li key={c.id}>
@@ -215,24 +235,6 @@ export function DashboardPage({ search, onNavigate, onAskPatch, onView, patchVar
                   <span className="meta">
                     {c.date} · {c.id}
                   </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-          <section className="card" aria-labelledby="freshness-title">
-            <h2 id="freshness-title">Data freshness</h2>
-            <ul className="side-list">
-              {data.freshness.map((s) => (
-                <li key={s.id}>
-                  <a href={s.url} target="_blank" rel="noreferrer">
-                    {s.name}
-                  </a>
-                  <span className="meta">
-                    {s.count.toLocaleString('en')} items · {s.licence} ·{' '}
-                    {s.as_of && s.as_of !== s.retrieved ? `as of ${s.as_of}, ` : ''}retrieved {s.retrieved}
-                  </span>
-                  <span className="meta attribution">{s.attribution}</span>
-                  {s.notice && <span className="meta freshness-notice">{s.notice}</span>}
                 </li>
               ))}
             </ul>
@@ -302,13 +304,11 @@ function TopCves({ rows, filter, onNavigate }: {
           {rows.map((r) => (
             <li key={r.id}>
               <span className="top-id">
-                <a className="cve-id" href={r.url} target="_blank" rel="noreferrer">
-                  {r.id}
-                </a>
+                <CveLink className="cve-id" id={r.id} />
                 {r.kev && (
-                  <span className="chip kev" title={`In CISA KEV: known exploited. KEV deadline ${r.kev_deadline}`}>
+                  <HelpTip text={`In CISA KEV: known exploited. KEV deadline ${r.kev_deadline}`} className="chip kev" plain>
                     KEV
-                  </span>
+                  </HelpTip>
                 )}
                 {r.possible_match && <PossibleMatch />}
               </span>

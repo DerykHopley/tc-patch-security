@@ -1,0 +1,20 @@
+# The image gets only what it needs (B12): everything is left out, then the parts the Dockerfile copies are let back
+# in. So a key, a .env file, local state or a stray build can never reach the image.
+*
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/index.html
+!frontend/tsconfig*.json
+!frontend/vite.config.ts
+!frontend/public/
+!frontend/src/
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/app/
+!backend/fixtures/
+!backend/data/index-image/
+# Never, even inside the folders let in above
+**/.env
+**/*.env
+**/__pycache__
+**/node_modules

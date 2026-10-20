@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type AnimationEvent, type CSSProperties, t
 import type { ProductCounts } from '../api.ts'
 import { SEVERITIES, sevLabel } from '../severity.ts'
 import '../styles/charts.css'
+import { monthAxis } from '../monthAxis.ts'
 
 export interface Tip {
   x: number
@@ -224,14 +225,15 @@ export function Columns({ data, onTip }: { data: { month: string; count: number 
                     {d.count}
                   </text>
                 )}
-                {(d.month.endsWith('-01') || i === data.length - 1) && (
-                  <text x={x + bw / 2} y={h - 6} className="axis-label" textAnchor={i === data.length - 1 ? 'end' : 'start'}>
-                    {d.month.endsWith('-01') ? d.month.slice(0, 4) : d.month}
-                  </text>
-                )}
               </g>
             )
           })}
+          {/* The years and the latest month, kept apart on a phone (B49, monthAxis.ts) */}
+          {monthAxis(data.map((d) => d.month), { left: pad.l, slot }).map((l) => (
+            <text key={l.i} x={l.x} y={h - 6} className="axis-label" textAnchor={l.anchor}>
+              {l.text}
+            </text>
+          ))}
           <line x1={pad.l} x2={width - pad.r} y1={pad.t + plotH} y2={pad.t + plotH} className="baseline" />
         </svg>
       )}
@@ -239,19 +241,13 @@ export function Columns({ data, onTip }: { data: { month: string; count: number 
   )
 }
 
-// Labels are 11px text: about 6.2px a character. Too narrow for the name → just the code ("A08").
-function fit(label: string, px: number) {
-  const max = Math.floor(px / 6.2)
-  if (label.length <= max) return label
-  return max >= 14 ? label.slice(0, max - 1) + '…' : label.split(' ')[0]
-}
-
-// Open CVEs per OWASP web category: one series, horizontal bars, the value at the end.
-export function Bars({ data, onTip }: { data: { label: string; count: number }[]; onTip: OnTip }) {
+// Open CVEs per OWASP web category: one series, horizontal bars, the value at the end. The axis shows the code only
+// ("A05"), so no label is ever cut off; the tooltip and the bar's name give the category in full (B43, owasp.ts).
+export function Bars({ data, onTip }: { data: { label: string; tip: string; count: number }[]; onTip: OnTip }) {
   const [ref, width] = useWidth<HTMLDivElement>()
   const grow = useGrowOnce()
   const roving = useRoving()
-  const labelW = Math.min(230, Math.max(48, width * 0.4))
+  const labelW = 40 // "A10" at 11px, and the 8px gap before the axis
   const endW = 40
   const max = Math.max(1, ...data.map((d) => d.count))
   const plotW = Math.max(0, width - labelW - endW)
@@ -259,7 +255,7 @@ export function Bars({ data, onTip }: { data: { label: string; count: number }[]
   return (
     <div ref={ref} className={`chart-box hbars${grow.className}`} onAnimationEnd={grow.onAnimationEnd}>
       {width > 0 && (
-        <svg width={width} height={data.length * (row + 8)} aria-label="Open CVEs by OWASP category"
+        <svg width={width} height={data.length * (row + 8)} aria-label="Open CVEs by OWASP Top 10 (web) category"
           style={{ '--x0': `${labelW}px` } as CSSProperties}>
           {data.map((d, i) => {
             const y = i * (row + 8) + 2
@@ -267,10 +263,10 @@ export function Bars({ data, onTip }: { data: { label: string; count: number }[]
             return (
               <g key={d.label}>
                 <text x={labelW - 8} y={y + row / 2} className="axis-label" textAnchor="end" dominantBaseline="middle">
-                  {fit(d.label, labelW - 12)}
+                  {d.label}
                 </text>
                 <path d={hbar(labelW, y, w, row, true)} className="fill series-1"
-                  {...tipHandlers(`${d.label}: ${d.count} open`, onTip, i, roving)} />
+                  {...tipHandlers(d.tip, onTip, i, roving)} />
                 <text x={labelW + w + 6} y={y + row / 2} className="value-label" dominantBaseline="middle">
                   {d.count}
                 </text>

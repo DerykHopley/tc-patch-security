@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import type { DevSearch, DocType, EmbeddingMapData } from '../api.ts'
 import { Tooltip, type Tip } from '../components/charts.tsx'
+import { placeLabels } from './mapLabels.ts'
 
 type Group = 'owasp' | 'atlas' | 'cve'
 const GROUPS: { id: Group; label: string; shape: string }[] = [
@@ -82,21 +83,14 @@ export function EmbeddingMap({ data, search }: { data: EmbeddingMapData; search:
       a.y += p.y
       a.n += 1
     }
-    const labels = GROUPS.map((g) => ({
-      ...g,
-      x: toX(acc[g.id].x / (acc[g.id].n || 1)),
-      y: toY(acc[g.id].y / (acc[g.id].n || 1)) - 10,
-    }))
-    // Labels that would overlap are nudged apart vertically.
-    labels.sort((a, b) => a.y - b.y)
-    for (let i = 1; i < labels.length; i++) {
-      const prev = labels[i - 1]
-      const c = labels[i]
-      if (Math.abs(c.x - prev.x) < 110 && c.y - prev.y < 18) c.y = prev.y + 18
-    }
+    // Each group's label just above its centre; zoomed to a query, a group whose centre is off the map has none.
+    // placeLabels keeps them apart and inside the map (B50: they overlapped with a real embedder).
+    const centres = GROUPS.filter((g) => acc[g.id].n > 0 && !hidden.has(g.id))
+      .map((g) => ({ id: g.id, text: g.label, x: toX(acc[g.id].x / acc[g.id].n), y: toY(acc[g.id].y / acc[g.id].n) - 10 }))
+      .filter((c) => c.x >= 0 && c.x <= width && c.y >= 0 && c.y <= height)
     const n = Object.fromEntries(GROUPS.map((g) => [g.id, acc[g.id].n])) as Record<Group, number>
-    return { sx: toX, sy: toY, centroids: labels, counts: n }
-  }, [points, width, height, zoom, queries, finalIds])
+    return { sx: toX, sy: toY, centroids: placeLabels(centres, width, height), counts: n }
+  }, [points, width, height, zoom, queries, finalIds, hidden])
 
   const finalSet = new Set(finalIds)
   const byId = new Map(points.map((p) => [p.id, p]))
@@ -155,13 +149,11 @@ export function EmbeddingMap({ data, search }: { data: EmbeddingMapData; search:
                 </g>
               ))}
             </g>
-            {centroids
-              .filter((c) => !hidden.has(c.id))
-              .map((c) => (
-                <text key={c.id} x={c.x} y={c.y} className="emap-label" textAnchor="middle">
-                  {c.label}
-                </text>
-              ))}
+            {centroids.map((c) => (
+              <text key={c.id} x={c.x} y={c.y} className="emap-label" textAnchor="middle">
+                {c.text}
+              </text>
+            ))}
             {search && q0 && (
               <g className="overlay">
                 {finalIds.map((id) => {

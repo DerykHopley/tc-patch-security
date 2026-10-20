@@ -1,8 +1,9 @@
 // The backend's HTTP API. Every call goes through request(), so a server that isn't
 // running gives one plain message instead of a raw network error.
 
+import type { Access, AccessStatus, RequestsReply, StoredRole, UserRole } from './access.ts'
 import { cvesQuery, type CveView } from './cveView.ts'
-import type { NamedResult } from './toolResults.ts'
+import type { NamedResult, PackageFix, Proposal, ProposalSource } from './toolResults.ts'
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
@@ -12,29 +13,101 @@ export interface Health {
   model: string // the model in use, as shown to the user
   as_of: string // the as-of date, YYYY-MM-DD
   dev_panel: boolean // the Dev page is shown only when this is true
+  mode: DataMode // B02: frozen snapshot or live data
+  last_checked: string | null // B02: when the live data was last checked (ISO 8601, UTC); null before the first check
+  auth: AuthConfig // B10: whether to sign in
+}
+
+// B10: sign-in. Off locally: no sign-in, one default user. On: the Clerk instance's publishable key (not a secret),
+// read at run time so one built frontend fits any instance.
+export interface AuthConfig {
+  on: boolean
+  publishable_key: string | null
+}
+
+// B02: the data mode. "snapshot": frozen data, as of the snapshot date. "live": refreshed by Check now, as of today.
+export type DataMode = 'snapshot' | 'live'
+
+export interface DataStatus {
+  mode: DataMode
+  last_checked: string | null
+  last_result?: RefreshResult | null // /dashboard only (B20): the last run, for the partial or failed banner
+  schedule?: ScheduleStatus // /dashboard only (B19): "Schedule paused", and Resume
+  feeds?: Feeds | null // /dashboard only (B28): which feeds live mode reads; null for anyone but the owner
+}
+
+/** B28: where live data comes from (FEEDS, set in backend/.env): the real services, or the made-up test data. */
+export type Feeds = 'real' | 'fake'
+
+// B10: with sign-in on, every call carries a fresh Clerk session token (they live 60 s; Clerk's getToken refreshes
+// one before it expires). Set by the signed-in app (auth/ClerkApp.tsx); null with sign-in off.
+type TokenGetter = () => Promise<string | null>
+let sessionToken: TokenGetter | null = null
+export function setSessionToken(getter: TokenGetter | null): void {
+  sessionToken = getter
+}
+
+// B46 (#81): any call the backend refuses with 403 not_approved (the owner removed or refused this account while the
+// app was open) tells the access gate at once, so it swaps the app for the access card. Set by auth/AccessGate.tsx.
+let notApproved: ((status: AccessStatus) => void) | null = null
+export function onNotApproved(listener: ((status: AccessStatus) => void) | null): void {
+  notApproved = listener
+}
+
+/** The backend's refusal or failure: its plain message, its error code, and (B11) when to try again. */
+export class ApiError extends Error {
+  readonly status: number
+  readonly code: string | undefined
+  readonly retryAt: string | undefined // B11, a 429: ISO 8601, UTC
+  readonly body: unknown // the whole reply: a refused Check now still carries the last run
+
+  constructor(message: string, status: number, body: unknown) {
+    super(message)
+    const error = (body as { error?: { code?: string; retry_at?: string } } | null)?.error
+    this.status = status
+    this.code = error?.code
+    this.retryAt = error?.retry_at
+    this.body = body
+  }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
+  const headers = new Headers(init?.headers)
+  if (sessionToken) {
+    const token = await sessionToken().catch(() => null)
+    if (!token) throw new Error("You're signed out. Reload the page to sign in again.")
+    headers.set('Authorization', `Bearer ${token}`)
+  }
   try {
-    res = await fetch(`${API_URL}${path}`, init)
+    res = await fetch(`${API_URL}${path}`, { ...init, headers })
   } catch {
     throw new Error(`Can't reach the backend at ${API_URL}. Is it running?`)
   }
   const body: unknown = await res.json().catch(() => null)
   if (!res.ok) {
+    const error = (body as { error?: { code?: string; status?: string } } | null)?.error
+    if (res.status === 403 && error?.code === 'not_approved') notApproved?.((error.status ?? 'none') as AccessStatus)
     const message = (body as { error?: { message?: string } } | null)?.error?.message
-    throw new Error(message ?? `The backend answered ${res.status}.`)
+    throw new ApiError(message ?? `The backend answered ${res.status}.`, res.status, body)
   }
   return body as T
 }
 
-export const health = () => request<Health>('/health')
+// #69: the wait before the first paint passes a signal, to give up on a /health that doesn't answer
+export const health = (signal?: AbortSignal) => request<Health>('/health', { signal })
 
 // --- Chat (A06). Shapes written by hand from backend/app/schemas.py. Severity is the dashboard's, below.
 
 export type Role = 'user' | 'assistant'
-export type DocType = 'owasp_llm' | 'owasp_web' | 'atlas_technique' | 'atlas_mitigation' | 'atlas_case' | 'cve'
+export type DocType =
+  | 'owasp_llm'
+  | 'owasp_web'
+  | 'atlas_technique'
+  | 'atlas_mitigation'
+  | 'atlas_case'
+  | 'cve'
+  | 'web' // a web result from research_web (B08): unverified
 
 export interface Turn {
   role: Role
@@ -56,6 +129,8 @@ export interface Source {
   severity: Severity | null
   cvss: number | null
   kev: boolean | null
+  site?: string | null // web only (B08): the page's site
+  flags?: string[] // web only: "injection_phrasing" when the page tries to give instructions
 }
 
 export interface QueryInfo {
@@ -65,6 +140,7 @@ export interface QueryInfo {
   filters: Record<string, string>
   dropped_filters: string[]
   relaxed: boolean
+  off_topic?: boolean // #53: no vector hit reached the threshold, so keyword (BM25) hits were dropped too
   found_by: Record<string, string[]> // source n → the retrievers that found it: "keyword" (BM25), "vector"
 }
 
@@ -75,6 +151,7 @@ export type ToolCallRecord = NamedResult & {
   status: 'ok' | 'error'
   error: { code: string; message: string } | null
   duration_ms: number
+  retryable: boolean // B20: an error a second try may pass (a timeout, a rate limit): the card offers Try again
 }
 
 export interface Usage {
@@ -92,23 +169,25 @@ export interface ChatReply {
   query: QueryInfo | null
   usage: Usage
   steps: number
-  flags: string[] // "injection_phrasing": flagged, still answered
+  flags: string[] // "injection_phrasing": flagged, still answered; "web_injection_phrasing": a web result was
   bad_citations: number[] // [n] removed from the answer: no source n
   no_citations: boolean // has sources but cites none of them
   explain_level: ExplainLevel // the level this answer was pitched at (A19)
   page_context: PageContext // the checked page context Patch had (A18)
   dropped_context: string[] // page-context values the backend dropped: "key=value"
+  search_reused: boolean // #51: answered from the earlier answer's search at another level: the same sources
 }
 
 // Page context (A18): fixed fields only, each checked by the backend (app/page_context.py). Never free text.
 export interface PageContext {
-  page?: 'dashboard' | 'cves' | 'settings' | 'dev'
+  page?: 'dashboard' | 'cves' | 'settings' | 'dev' | 'about'
   product?: string // one id, or the dashboard's several (A15b): `langflow,ollama`
   severity?: Severity
   status?: CveStatus | 'all'
   verdict?: Verdict
   kev?: boolean
   since?: string // YYYY-MM-DD
+  new?: boolean // new and not seen yet (B05, B40)
   cve?: string // the selected CVE
 }
 
@@ -134,6 +213,42 @@ export const chat = (message: string, history: Turn[], explainLevel?: ExplainLev
     body: JSON.stringify({ message, history, ...(explainLevel && { explain_level: explainLevel }), ...(page && { page }) }),
   })
 
+/** Try again on a tool card (B20): that one step, run again with the same arguments. Its result is the card's only. */
+export const retryTool = (call: ToolCallRecord, page: PageContext) =>
+  request<ToolCallRecord>('/chat/tool', json('POST', { name: call.name, args: call.args, page }))
+
+// Buttons on tool cards (B24): a structured action, never free text. A change only proposes (B21); a refine runs the
+// card's search again with a fixed filter.
+export type RefineFilter = 'only_cves' | 'only_critical'
+export type CardAction =
+  | {
+      action: 'propose'
+      change: 'watch' | 'set_details' | 'set_status'
+      product?: string
+      cve_id?: string
+      status?: 'not_affected' | 'accepted'
+      justification?: Justification
+      reason?: string
+      review_date?: string
+      compensating_control?: string
+      note?: string
+      version?: string
+    }
+  | { action: 'refine'; tool: 'search_security'; query: string; filters: RefineFilter[]; page?: PageContext }
+export interface Proposed {
+  proposal: Proposal | null // null: it's already so, and `message` says it
+  message: string
+}
+export interface Refined {
+  applied: string[] // the chips: "Only CVEs", "Only critical"
+  call: ToolCallRecord
+}
+export function cardAction(body: Extract<CardAction, { action: 'propose' }>): Promise<Proposed>
+export function cardAction(body: Extract<CardAction, { action: 'refine' }>): Promise<Refined>
+export function cardAction(body: CardAction): Promise<Proposed | Refined> {
+  return request<Proposed | Refined>('/chat/action', json('POST', body))
+}
+
 export const examples = () => request<Example[]>('/examples')
 
 // --- Dashboard (A04)
@@ -158,8 +273,10 @@ export interface Decision {
   review_date: string | null // accepted
   compensating_control: string | null // accepted, optional
   decided_at: string | null // ISO date and time (UTC); null for a status saved before decision records
-  decided_by: string | null // "owner" until there are users
+  decided_by: string | null // the display name when the record was made, else "you" (B48; "owner" on older records)
   via: 'page' | 'chat' | null
+  proposal?: string // the proposal you approved, for a change Patch proposed in the chat (B21)
+  sources?: ProposalSource[] // what that proposal cited (B22)
 }
 
 /** What the user enters when changing a status. Which fields a status takes is checked by the backend. */
@@ -191,13 +308,16 @@ export interface Dashboard {
     accepted: number // accepted and not yet due for review
     new_30d: number
     new_since: string // the first of those 30 days, YYYY-MM-DD: the tile's link filters on it
+    new_unseen: number // B43: new CVEs you haven't seen yet (B40), any status: "See the N new CVEs →"
   }
   by_product: ProductCounts[] // open CVEs per watched product, in watchlist order
   per_month: { month: string; count: number }[] // all statuses, by publication month (YYYY-MM)
-  by_owasp: { code: string; title: string; count: number }[] // open CVEs per OWASP web category
-  owasp_unmapped: number // open CVEs whose CWE isn't in OWASP's lists
+  by_owasp: { code: string; title: string; count: number }[] // open CVEs per OWASP web category: under each one
+  // their CWEs map to, so the counts can add up to more than the open CVEs (B43, #25)
+  owasp_unmapped: number // open CVEs none of whose CWEs is in OWASP's lists
   latest_incidents: Incident[] // the 5 latest MITRE ATLAS incidents
   freshness: SnapshotSource[] // one per snapshot source
+  data: DataStatus // B02: Live or Snapshot, and the last check, for the freshness panel
 }
 
 /** A watched product's open CVEs and how many of them are in CISA KEV (A15b: the dashboard filter's chips). */
@@ -247,8 +367,10 @@ export interface CveRow {
   published: string
   owasp: string | null
   owasp_title: string | null
+  owasp_list: string | null // "OWASP Top 10 2025 (web applications)": the code's tooltip names it (B44)
   kev: boolean
   kev_deadline: string | null // CISA's remediation date: a fact, not your due date
+  new: boolean // a check found it new and the user hasn't seen it yet (B05, B40): the "New" chip
   status: CveStatus
   summary: string
   url: string
@@ -258,17 +380,19 @@ export interface CveRow {
   verdict: Verdict
   verdict_reason: string // e.g. "1.2.0 is before the fixed version 1.3.0 (langflow)", or why it's unknown
   fixed_version: string | null
+  package_fixes: PackageFix[] // each package's fix when OSV lists more than one (B67); else []
   who_acts: WhoActs
   usage: ProductUsage
   version: string | null
   internet_facing: boolean
   // Priority by rules (A16): the level, its reasons, and your due date from your policy. Rules decide the order.
-  priority: PriorityLevel
+  // A closed CVE (fixed, not affected, accepted before its review: B33) has none: null, [] and never overdue.
+  priority: PriorityLevel | null
   priority_reasons: string[] // e.g. ["in KEV", "EPSS 99th percentile", "internet-facing"]
-  priority_rule: number // the rule table's row that matched
-  alert_priority: 5 | 4 | 3 | 2 // the level as an alert priority (spec B)
-  due_date: string
-  due_from: string // "KEV deadline", "published + 90 days", "added to KEV + 7 days"
+  priority_rule: number | null // the rule table's row that matched
+  alert_priority: 5 | 4 | 3 | 2 // the rules' level as an alert priority (spec B), closed CVEs too
+  due_date: string | null
+  due_from: string | null // "KEV deadline", "published + 90 days", "added to KEV + 7 days"
   overdue: boolean // open, a fix exists, and past the due date at the as-of date (A16b)
   // Your decision (A16b). `open`: status open, or accepted with its review due. "No fix yet": OSV lists no fixed
   // version, so it can't be overdue; the due date is the "decide by" date.
@@ -310,7 +434,53 @@ export interface Watchlist {
 export interface CvePage {
   total: number
   rows: CveRow[]
+  new_total: number // B40: every new row you haven't seen, whatever the filters ("Mark all as seen" shows above 0)
 }
+
+/** One OSV package's affected versions: introduced → fixed, or up to last_affected when no fix is listed. */
+export interface AffectedPackage {
+  package: string
+  ecosystem: string
+  advisory: string
+  ranges: { introduced: string | null; fixed: string | null; last_affected: string | null }[]
+}
+
+/** The page for one CVE (B35, GET /cves/{id}): the facts in full, and its CVEs-page row when it's watched. */
+export interface CveDetail {
+  id: string
+  product: string
+  product_name: string
+  severity: Severity | null
+  cvss: number | null
+  published: string
+  cwes: string[]
+  description: string // in full: the list cuts it to 220 characters
+  owasp: { code: string; title: string; url: string; list: string | null } | null
+  kev: { date_added: string; deadline: string; required_action: string; ransomware: string } | null
+  epss: Epss | null
+  possible_match: boolean
+  affected: AffectedPackage[]
+  verdict: Verdict
+  verdict_reason: string
+  fixed_version: string | null
+  package_fixes: PackageFix[]
+  who_acts: WhoActs
+  no_fix: boolean
+  usage: ProductUsage
+  version: string | null
+  internet_facing: boolean
+  url: string // NVD
+  osv_url: string
+  watched: boolean
+  row: CveRow | null // status, decision, history, priority, due date: null off the watchlist
+}
+
+export const cve = (id: string) => request<CveDetail>(`/cves/${encodeURIComponent(id)}`)
+
+// B40: "New" until you've seen it. The CVE page marks its CVE seen; the list's "Mark all as seen" marks them all.
+export const markSeen = (id: string) =>
+  request<{ id: string; new_total: number }>(`/cves/${encodeURIComponent(id)}/seen`, { method: 'POST' })
+export const markAllSeen = () => request<{ new_total: number }>('/cves/seen', { method: 'POST' })
 
 function json(method: string, body: unknown): RequestInit {
   return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
@@ -323,8 +493,122 @@ export const dashboard = (products: string[] = []) =>
 /** One page of the CVE view's rows: the view's names are the query's (cveView.ts). */
 export const cves = (view: CveView, limit: number, offset = 0) => request<CvePage>(cvesQuery(view, limit, offset))
 
+// --- Live data (B02): Check now. The backend's app/refresh.py has the same shapes (RefreshResult, CheckReply).
+
+export interface RefreshCounts {
+  new: number // CVEs not there before
+  updated: number // CVEs whose record changed (rescored and added to KEV included)
+  kev_added: number // CVEs newly in CISA KEV
+  rescored: number // CVEs whose severity or CVSS score changed
+}
+
+/** One feed's step in a refresh (B20): it answered, or why it didn't. */
+export interface FeedResult {
+  source: string // nvd, kev, osv or epss
+  ok: boolean
+  message: string | null
+}
+
+export interface RefreshResult {
+  trigger: string // button, chat, schedule or cli
+  started: string // ISO 8601, UTC
+  finished: string
+  ok: boolean // true: a version was written (every feed answered, or some did: see status); false: nothing changed
+  counts: RefreshCounts
+  new_cves: string[]
+  version: number | null
+  errors: { source: string; message: string }[] // the feeds that failed, and failed alerts (source "alerts")
+  alerts?: Record<string, AlertLogEntry[]> // this run's alerts (B04), under your own user id only (B37)
+  status: 'ok' | 'partial' | 'failed' // B20: every feed answered, some did (and were written), or none did
+  feeds: FeedResult[] // B20: each feed's step, in the order asked; empty in runs logged before B20
+}
+
+/** B34: one run's alerts for you, by what happened (app.alerts.alert_counts). Each alert in a digest counts. */
+export interface AlertCounts {
+  sent: number // at least one channel sent it
+  recorded: number // recorded only: the dry run, no channel picked, or in the app only (another user's)
+  failed: number // no channel sent it, and one failed or wasn't set up
+  held: number // held for quiet hours
+}
+
+export interface CheckReply {
+  ran: boolean
+  result: RefreshResult | null // this run's result; when refused, the last run's (null before any run)
+  refusal: { reason: 'too_soon' | 'running'; next_allowed: string; message: string } | null
+  alerts_for_you?: AlertCounts | null // B34: Check now's reply only, when it ran
+}
+
+// B11: a refused check is a 429 that still carries the reply (the refusal and the last run), so it reads as one.
+export const checkNow = () =>
+  request<CheckReply>('/refresh', { method: 'POST' }).catch((e: unknown) => {
+    if (e instanceof ApiError && e.status === 429 && (e.body as Partial<CheckReply> | null)?.refusal) {
+      return e.body as CheckReply
+    }
+    throw e
+  })
+
+// --- The schedule and the run history (B19). The backend's app/refresh.py `history` and main.py `schedule_status`.
+
+export interface ScheduleStatus {
+  hours: number // every N hours (Settings' schedule_hours)
+  paused: boolean
+  next_due: string | null // ISO 8601, UTC; null when paused, in snapshot mode, or never checked (the next tick runs)
+  // The caller is the owner, so may change it: the schedule is the owner's (B09). /dashboard, /refresh/runs and
+  // /settings say it; check_updates' copy doesn't.
+  yours?: boolean
+}
+
+export type RunTrigger = 'button' | 'chat' | 'schedule' | 'cli'
+
+/** One line of the "Refresh runs" card: a run (ok, partial, failed) or a refused one (skipped). */
+export interface RunRow {
+  trigger: RunTrigger
+  started: string // ISO 8601, UTC
+  finished: string | null // null for a skip
+  result: 'ok' | 'partial' | 'failed' | 'skipped'
+  duration_s: number | null
+  counts: RefreshCounts | null // null for a skip
+  new_cves: string[]
+  version: number | null
+  feeds: FeedResult[]
+  errors: { source: string; message: string }[]
+  // B34: your alerts by what happened (each one in a digest counts): sent on a channel, recorded only (dry run, no
+  // channel picked, or in the app only), failed on every channel tried, held for quiet hours
+  alerts_sent: number
+  alerts_recorded: number
+  alerts_failed: number
+  alerts_held: number
+  reason: 'too_soon' | 'running' | null // a skip's reason
+  next_allowed: string | null // a skip's next allowed time
+  times: number // a skip asked again before the next allowed time counts up
+}
+
+export interface RunsReply extends DataStatus {
+  schedule: ScheduleStatus
+  runs: RunRow[] // newest first, at most 20
+}
+
+export const refreshRuns = () => request<RunsReply>('/refresh/runs')
+
+/** Resume (or pause) the schedule from the dashboard: the saved settings with schedule_paused changed. */
+export async function setSchedulePaused(paused: boolean): Promise<AppSettings> {
+  const { settings } = await getSettings()
+  return (await saveSettings({ ...settings, alerts: { ...settings.alerts, schedule_paused: paused } })).settings
+}
+
 export const setStatus = (id: string, body: DecisionInput) =>
   request<{ id: string; status: CveStatus; decision: Decision }>(`/cves/${encodeURIComponent(id)}`, json('PATCH', body))
+
+// Changes Patch proposes (B21): nothing changes until you approve. Approving again returns the first result.
+/** Your corrections to a proposal: a status's decision fields, or a product's usage, version, internet-facing. */
+export type ProposalEdit =
+  | DecisionInput
+  | { usage?: ProductUsage; version?: string; internet_facing?: boolean }
+const proposalPath = (id: string) => `/proposals/${encodeURIComponent(id)}`
+export const getProposal = (id: string) => request<Proposal>(proposalPath(id))
+export const approveProposal = (id: string) => request<Proposal>(`${proposalPath(id)}/approve`, { method: 'POST' })
+export const cancelProposal = (id: string) => request<Proposal>(`${proposalPath(id)}/cancel`, { method: 'POST' })
+export const editProposal = (id: string, body: ProposalEdit) => request<Proposal>(proposalPath(id), json('PATCH', body))
 
 export const getWatchlist = () => request<Watchlist>('/watchlist')
 
@@ -334,7 +618,7 @@ export const setWatchlist = (products: (string | ProductFields)[]) =>
 
 // --- Settings page (A13): alert rules, channels, test alerts, the alerts log, reset
 
-export type Channel = 'desktop' | 'email' | 'ntfy'
+export type Channel = 'desktop' | 'email' | 'ntfy' | 'telegram'
 
 export interface AlertSettings {
   enabled: boolean
@@ -345,6 +629,7 @@ export interface AlertSettings {
   now_critical: boolean
   digest_over: number
   schedule_hours: 1 | 3 | 6 | 12 | 24
+  schedule_paused: boolean // B19: no scheduled check starts; Check now and Patch still check
   quiet_start: string | null // HH:MM
   quiet_end: string | null
   channels: Channel[]
@@ -373,7 +658,56 @@ export interface ChannelStatus {
 
 export interface SettingsReply {
   settings: AppSettings
+  channels: Record<Channel, ChannelStatus> | null // the owner's channels; null for anyone else (B50: they're not theirs)
+  alert_tz?: string // the time zone of quiet hours (ALERT_TZ or Settings, B04, B26)
+  schedule?: ScheduleStatus // the owner's schedule, with `yours` (BR.9)
+  server?: ServerStatus | null // B26: the owner's server settings; null for anyone else
+  owner?: boolean // B48: the caller is the owner, so Settings shows "This Patch" too
+}
+
+// --- B26: what the owner sets on Settings instead of .env. The environment wins when it sets one.
+
+export type SettingSource = 'env' | 'saved' | 'default'
+
+export interface ServerFields {
+  data_mode: DataMode
+  alert_tz: string // an IANA time zone, e.g. Europe/London
+  app_url: string // alerts link back to the CVE at this address
+  ntfy_url: string
+  smtp_port: number
+  smtp_starttls: boolean
+  telegram_chat_id: string // B57: a chat's id (a group's is negative) or a channel's @username; '' when not set
+}
+
+export type SecretName =
+  | 'ntfy_topic'
+  | 'ntfy_token'
+  | 'smtp_host'
+  | 'smtp_user'
+  | 'smtp_password'
+  | 'alert_email_from'
+  | 'alert_email_to'
+  | 'nvd_api_key'
+  | 'telegram_bot_token' // B57: it controls the bot, and it is part of every Bot API address
+
+/** The server settings as Settings shows them. A secret is never sent back: only whether it's set, and where from. */
+export interface ServerStatus {
+  fields: { [K in keyof ServerFields]: { value: ServerFields[K]; source: SettingSource } }
+  secrets: Record<SecretName, { set: boolean; source: SettingSource }>
+  env_names: Record<keyof ServerFields | SecretName, string> // the environment variable of each
+  app_url_reachable: boolean
+  feeds: Feeds // B28: the Data card says where live data comes from
+}
+
+/** A change: a field left out stays as saved, a value saves it, null removes the saved one. */
+export type ServerUpdate = { [K in keyof ServerFields]?: ServerFields[K] | null } & {
+  [K in SecretName]?: string | null
+}
+
+export interface ServerReply {
+  server: ServerStatus
   channels: Record<Channel, ChannelStatus>
+  alert_tz: string
 }
 
 export interface AlertMessage {
@@ -384,12 +718,34 @@ export interface AlertMessage {
   click: string | null
 }
 
-export interface AlertLogEntry extends AlertMessage {
-  at: string // ISO time, UTC
+// The alert reasons (B04; the table in ALERTS-PLAN.md)
+export type AlertReason = 'kev' | 'kev_recheck' | 'new' | 'new_unscored' | 'now_critical' | 'due_soon' | 'overdue'
+
+/** One channel's result for one message: sent, recorded only (not sent, no error), not set up, or failed. */
+export interface ChannelResult {
   channel: Channel | 'preview'
   sent: boolean
   error: string | null
   error_code: 'not_configured' | 'notify_failed' | null
+  // B41: a failed send is tried again on the next check, at most 3 tries in all. None of these on a first try that
+  // went through, a channel not set up, or an entry saved before B41.
+  tries?: number // the tries so far
+  retry?: boolean // another try is due at the next check
+  dropped?: boolean // not tried again: the alert is no longer true, or the channel was unticked
+}
+
+/** One message in the alerts log (app/alerts.py): one alert, a digest of several, a test alert from Settings, or
+ * (in a refresh result only) an alert held through quiet hours. */
+export interface AlertLogEntry extends AlertMessage {
+  at: string // ISO time, UTC
+  kind: 'alert' | 'digest' | 'held' | 'test'
+  cve: string | null // one alert's CVE; null for a digest or a test
+  reason: AlertReason | null
+  alerts: { cve: string; reason: AlertReason; priority: number }[]
+  channels: ChannelResult[]
+  in_app_only?: boolean // B09: another user's alert: recorded and shown here, never sent (the channels are the owner's)
+  id?: string // B41: the entry a retry updates in place; none on entries saved before B41
+  retry?: boolean // B41, in a refresh result only: this run's try again of an earlier entry, its retried channels only
 }
 
 export interface TestAlertReply {
@@ -397,13 +753,29 @@ export interface TestAlertReply {
   channel: Channel | 'preview'
   sent: boolean
   note: string
+  tap: string // B26: what tapping the phone alert does
+  tap_link: string | null // the link a phone alert or an email carries; null while a phone can't open the app
 }
 
 export const getSettings = () => request<SettingsReply>('/settings')
+// B48 (#77): your profile, anonymous by default: an optional display name, in your own state
+export const getProfile = () => request<{ name: string | null }>('/profile')
+export const saveProfile = (name: string | null) => request<{ name: string | null }>('/profile', json('PUT', { name }))
 export const saveSettings = (s: AppSettings) => request<{ settings: AppSettings }>('/settings', json('PUT', s))
+export const saveServerSettings = (u: ServerUpdate) => request<ServerReply>('/settings/server', json('PUT', u))
 export const alertsLog = () => request<{ alerts: AlertLogEntry[] }>('/alerts')
 export const testAlert = (channel: Channel | 'preview') =>
   request<TestAlertReply>('/alerts/test', json('POST', { channel }))
+/** B57: a chat that wrote to the bot lately, from Telegram's getUpdates (asked by the server, owner only). */
+export interface TelegramChat {
+  id: string // as Telegram's sendMessage takes it
+  name: string
+  kind: string // private, group, supergroup or channel
+}
+
+/** B57, Find my chat id: with the token typed in the box (not saved), else the one that applies. Never sent back. */
+export const findTelegramChats = (botToken?: string) =>
+  request<{ chats: TelegramChat[] }>('/settings/telegram/chats', json('POST', botToken ? { bot_token: botToken } : {}))
 export const resetState = () =>
   request<{ reset: boolean; watchlist: string[] }>('/state/reset', json('POST', { confirm: 'reset' }))
 
@@ -431,6 +803,9 @@ export interface DevSettingsReply {
   settings: DevSettings
   defaults: DevSettings // from the backend's .env
   openrouter_key: boolean // whether OPENROUTER_API_KEY is set; the key itself never leaves the server
+  yours?: boolean // false: the caller may not change them, so sees the owner's choices read-only (B29)
+  role?: UserRole // B45: the caller's role; settings are their effective ones (a reviewer's copy, else the owner's)
+  own_copy?: boolean // B45: a reviewer saved their own copy ("Back to the owner's settings" drops it)
 }
 
 export interface DevInfo {
@@ -481,7 +856,9 @@ export interface EmbeddingMapData {
 }
 
 export const getDevSettings = () => request<DevSettingsReply>('/dev/settings')
-export const saveDevSettings = (s: DevSettings) => request<{ settings: DevSettings }>('/dev/settings', json('PUT', s))
+export const saveDevSettings = (s: DevSettings) => request<DevSettingsReply>('/dev/settings', json('PUT', s))
+/** B45: a reviewer drops their own copy; the owner's settings apply to them again. */
+export const backToOwnersDevSettings = () => request<DevSettingsReply>('/dev/settings/owners', { method: 'POST' })
 export const devInfo = () => request<DevInfo>('/dev/info')
 export const devModels = (url: string) => request<{ models: string[] }>(`/dev/models?${new URLSearchParams({ url })}`)
 
@@ -601,3 +978,14 @@ export function reportUrl(models: string[], retrieval: string[]): string {
   const s = q.toString()
   return `${API_URL}/dev/report${s ? `?${s}` : ''}`
 }
+
+// --- Sign-up requests (B38, #81): the caller's own status and request; the owner's Requests card
+export const getAccess = () => request<Access>('/access')
+export const requestAccess = (note: string) =>
+  request<Access>('/access/request', json('POST', note.trim() ? { note } : {}))
+export const accessRequests = () => request<RequestsReply>('/access/requests')
+/** B38: approve, refuse or undo a refusal; B45: and the role (when approving, or alone to change it later). */
+export const changeAccess = (userId: string, change: { status?: 'waiting' | 'approved' | 'refused'; role?: StoredRole }) =>
+  request<unknown>(`/access/requests/${encodeURIComponent(userId)}`, json('PUT', change))
+export const removeAccess = (userId: string) =>
+  request<unknown>(`/access/requests/${encodeURIComponent(userId)}/remove`, { method: 'POST' })

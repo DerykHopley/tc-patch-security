@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 # The browser check, end to end: start a throwaway backend (FakeLLM, hash embedder, temp state file and
 # index) and the frontend on two free ports, run the checks in Firefox and Chromium, stop both servers.
-# Never touches the user's app on 8000/5173. Used locally and in CI.
+# A second pair runs in live mode on the fake feeds (B02), for Check now: its refresh changes the CVE data, so it
+# never shares a backend with the snapshot checks (DECISIONS.md, 2026-10-15).
+# Web research (B08) is on, against a fake Tavily (backend/tests/fake_tavily.py) on its own free port: no network.
+# Never touches the user's app on 8000/5173. Used locally and in CI. NOTIFY_DRY_RUN=1: alerts (a refresh's, B04)
+# are recorded, never sent, so no desktop notification pops up on the machine running the check. The chat limits
+# (B11) are raised: the check sends hundreds of messages as one user; test_rate_limits.py routes its own 429.
+# Both pairs run with sign-in off (AUTH=off). A third pair with sign-in on (B10) starts only when the Clerk test
+# instance's keys and a test user are exported: CLERK_SECRET_KEY, CLERK_PUBLISHABLE_KEY, CLERK_JWT_KEY,
+# E2E_CLERK_USER_USERNAME, E2E_CLERK_USER_PASSWORD. Then test_sign_in.py signs in with Clerk's testing tokens (that
+# check, and only it, calls Clerk); without them it skips. Sign-in on needs an OWNER (BR.11): E2E_CLERK_OWNER, the
+# test user's id to make them the owner, else a made-up id, so the test user is an invited user.
 #
 #   frontend/e2e/run.sh                      # both browsers
 #   frontend/e2e/run.sh -k a02               # extra arguments go to pytest; still both browsers
@@ -9,6 +19,11 @@
 #   E2E_API_PORT=8011 E2E_UI_PORT=5184 frontend/e2e/run.sh   # a fixed pair instead of two free ports
 #   E2E_LATENCY_MS=300 frontend/e2e/run.sh   # slow mode: every API response 300 ms late, to find timing races
 #                                            # before CI's slower runner does (conftest.py)
+#   E2E_BUILT=1 frontend/e2e/run.sh          # the built frontend (#72, CI sets it): one `vite build` with the API
+#                                            # at /api, served by each backend (FRONTEND_DIR) as the container
+#                                            # serves it. No Vite dev server: no StrictMode double effects, no
+#                                            # unbundled modules. Without it, the dev server, to catch dev-only
+#                                            # problems before pushing.
 #
 # Needs: backend deps (uv), frontend deps (npm ci), python3, and the browsers:
 #   uv run --project frontend/e2e playwright install firefox chromium
@@ -16,23 +31,6 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
-# Two free ports from the OS, both held open until both are known, so they differ. Parallel runs and worktrees
-# then never collide, and the ports are never 8000/5173 (the OS hands out ports above 32767).
-read -r FREE_API FREE_UI < <(python3 -c '
-import socket
-a, b = socket.socket(), socket.socket()
-a.bind(("127.0.0.1", 0)); b.bind(("127.0.0.1", 0))
-print(a.getsockname()[1], b.getsockname()[1])')
-API_PORT="${E2E_API_PORT:-$FREE_API}"
-UI_PORT="${E2E_UI_PORT:-$FREE_UI}"
-
-for port in "$API_PORT" "$UI_PORT"; do
-  if (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
-    echo "Port $port is already in use. Stop that server first: the check needs its own pair." >&2
-    exit 1
-  fi
-done
-
 STATE_DIR="$(mktemp -d)"
 LOG_DIR="${E2E_LOG_DIR:-$STATE_DIR}"
 PIDS=()
@@ -43,14 +41,92 @@ cleanup() {
 }
 trap cleanup EXIT
 
-(cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/state.json" AS_OF= \
+# The built frontend (E2E_BUILT=1): built once, then each backend serves it and the API moves under /api (B12's
+# one port). The UI's address is then the backend's; the pair's UI port stays free. Built into the temp folder, so
+# frontend/dist (the developer's own build) is untouched. No `tsc -b` here: CI's type check job runs it.
+# Built before the ports are picked, so no other run takes them meanwhile.
+BUILT="${E2E_BUILT:-}"
+DIST=""  # FRONTEND_DIR for each backend: empty is off
+if [ -n "$BUILT" ]; then
+  DIST="$STATE_DIR/dist"
+  echo "Building the frontend (E2E_BUILT=1)"
+  (cd "$ROOT/frontend" && VITE_API_URL=/api node_modules/.bin/vite build --logLevel warn --outDir "$DIST")
+fi
+
+# Two free ports from the OS, both held open until both are known, so they differ. Parallel runs and worktrees
+# then never collide, and the ports are never 8000/5173 (the OS hands out ports above 32767).
+read -r FREE_API FREE_UI LIVE_API_PORT LIVE_UI_PORT TAVILY_PORT < <(python3 -c '
+import socket
+socks = [socket.socket() for _ in range(5)]
+for s in socks: s.bind(("127.0.0.1", 0))
+print(*(s.getsockname()[1] for s in socks))')
+API_PORT="${E2E_API_PORT:-$FREE_API}"
+UI_PORT="${E2E_UI_PORT:-$FREE_UI}"
+
+for port in "$API_PORT" "$UI_PORT" "$LIVE_API_PORT" "$LIVE_UI_PORT"; do
+  if (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
+    echo "Port $port is already in use. Stop that server first: the check needs its own pair." >&2
+    exit 1
+  fi
+done
+
+# The addresses the check uses, and starts the dev server for a pair unless the backend serves the build:
+#   frontend <api port> <ui port> <log name>   sets UI and API
+frontend() {
+  if [ -n "$BUILT" ]; then
+    UI="http://localhost:$1" API="http://localhost:$1/api"
+  else
+    UI="http://localhost:$2" API="http://localhost:$1"
+    (cd "$ROOT/frontend" && VITE_API_URL="$API" exec node_modules/.bin/vite --port "$2" --strictPort) >"$LOG_DIR/$3.log" 2>&1 &
+    PIDS+=($!)
+  fi
+}
+
+(cd "$ROOT/backend" && exec uv run python tests/fake_tavily.py --port "$TAVILY_PORT") >"$LOG_DIR/tavily.log" 2>&1 &
+PIDS+=($!)
+(cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/state.json" AS_OF= NOTIFY_DRY_RUN=1 AUTH=off FEEDS=fake \
+  LIVE_PATH="$STATE_DIR/snapshot-live" \
   EMBEDDER=hash INDEX_PATH="$STATE_DIR/index" SEARCH_MIN_SCORE= \
   CORS_ORIGINS="http://localhost:$UI_PORT,http://127.0.0.1:$UI_PORT" \
+  TAVILY_API_KEY=tvly-fake-e2e TAVILY_MCP_URL="http://127.0.0.1:$TAVILY_PORT/mcp/" \
+  TAVILY_API_URL="http://127.0.0.1:$TAVILY_PORT" WEB_RESEARCH_DAILY_CAP=1000 WEB_RESEARCH_USER_DAILY_CAP=1000 \
+  CHAT_PER_MINUTE=10000 CHAT_PER_DAY=100000 FRONTEND_DIR="$DIST" \
   exec uv run uvicorn app.main:app --port "$API_PORT") >"$LOG_DIR/backend.log" 2>&1 &
 PIDS+=($!)
-(cd "$ROOT/frontend" && VITE_API_URL="http://localhost:$API_PORT" \
-  exec node_modules/.bin/vite --port "$UI_PORT" --strictPort) >"$LOG_DIR/frontend.log" 2>&1 &
+frontend "$API_PORT" "$UI_PORT" frontend
+UI_URL="$UI" API_URL="$API"
+# The live pair (B02): live mode, the fake feeds on day 2, its own state, live folder and index.
+(cd "$ROOT/backend" && LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/live-state.json" AS_OF= NOTIFY_DRY_RUN=1 AUTH=off \
+  DATA_MODE=live FEEDS=fake FAKE_FEEDS_DAY=2 LIVE_PATH="$STATE_DIR/live" CHAT_PER_MINUTE=10000 CHAT_PER_DAY=100000 \
+  EMBEDDER=hash INDEX_PATH="$STATE_DIR/live-index" SEARCH_MIN_SCORE= \
+  CORS_ORIGINS="http://localhost:$LIVE_UI_PORT,http://127.0.0.1:$LIVE_UI_PORT" FRONTEND_DIR="$DIST" \
+  exec uv run uvicorn app.main:app --port "$LIVE_API_PORT") >"$LOG_DIR/live-backend.log" 2>&1 &
 PIDS+=($!)
+frontend "$LIVE_API_PORT" "$LIVE_UI_PORT" live-frontend
+LIVE_UI_URL="$UI" LIVE_API_URL="$API"
+
+# The sign-in pair (B10): sign-in on against a real Clerk development instance, only when its keys and a test
+# user are in the environment (a laptop with them exported, or CI with the secrets). Without them its check skips.
+AUTH_PAIR=""
+if [ -n "${CLERK_SECRET_KEY:-}" ] && [ -n "${CLERK_PUBLISHABLE_KEY:-}" ] && [ -n "${CLERK_JWT_KEY:-}" ] \
+  && [ -n "${E2E_CLERK_USER_USERNAME:-}" ] && [ -n "${E2E_CLERK_USER_PASSWORD:-}" ]; then
+  read -r AUTH_API_PORT AUTH_UI_PORT < <(python3 -c '
+import socket
+socks = [socket.socket() for _ in range(2)]
+for s in socks: s.bind(("127.0.0.1", 0))
+print(*(s.getsockname()[1] for s in socks))')
+  AUTH_PAIR=1
+  # Sign-in checks the token's azp against the page's origin: the backend's own with the build
+  if [ -n "$BUILT" ]; then AUTH_ORIGIN="http://localhost:$AUTH_API_PORT"; else AUTH_ORIGIN="http://localhost:$AUTH_UI_PORT"; fi
+  (cd "$ROOT/backend" && env -u CLERK_SECRET_KEY LLM_PROVIDER=fake STATE_PATH="$STATE_DIR/auth-state.json" AS_OF= \
+    NOTIFY_DRY_RUN=1 FEEDS=fake EMBEDDER=hash INDEX_PATH="$STATE_DIR/auth-index" SEARCH_MIN_SCORE= \
+    CORS_ORIGINS="http://localhost:$AUTH_UI_PORT" AUTH=on AUTH_ALLOWED_ORIGINS="$AUTH_ORIGIN" \
+    OWNER="${E2E_CLERK_OWNER:-user_e2e_owner}" FRONTEND_DIR="$DIST" \
+    exec uv run uvicorn app.main:app --port "$AUTH_API_PORT") >"$LOG_DIR/auth-backend.log" 2>&1 &
+  PIDS+=($!)
+  frontend "$AUTH_API_PORT" "$AUTH_UI_PORT" auth-frontend
+  AUTH_UI_URL="$UI" AUTH_API_URL="$API"
+fi
 
 wait_for() {
   for _ in $(seq 1 60); do
@@ -61,14 +137,22 @@ wait_for() {
   cat "$LOG_DIR"/*.log >&2
   return 1
 }
-wait_for "http://localhost:$API_PORT/health"
-wait_for "http://localhost:$UI_PORT/"
+wait_for "$API_URL/health"
+wait_for "$UI_URL/"
+wait_for "$LIVE_API_URL/health"
+wait_for "$LIVE_UI_URL/"
+if [ -n "$AUTH_PAIR" ]; then
+  wait_for "$AUTH_API_URL/health"
+  wait_for "$AUTH_UI_URL/"
+  export AUTH_API_URL AUTH_UI_URL
+fi
 
 # Both browsers unless the arguments pick one: `run.sh -k a02` runs Firefox and Chromium.
 case " $* " in
   *" --browser "* | *" --browser="*) ;;
   *) set -- --browser firefox --browser chromium "$@" ;;
 esac
-echo "Browser check on API port $API_PORT, UI port $UI_PORT${E2E_LATENCY_MS:+, slow mode ${E2E_LATENCY_MS} ms}: pytest $*"
+echo "Browser check on $UI_URL, API $API_URL${BUILT:+ (the built frontend)}${E2E_LATENCY_MS:+, slow mode ${E2E_LATENCY_MS} ms}: pytest $*"
 cd "$HERE"
-API_URL="http://localhost:$API_PORT" UI_URL="http://localhost:$UI_PORT" uv run --project "$HERE" pytest -q "$@"
+export API_URL UI_URL LIVE_API_URL LIVE_UI_URL
+uv run --project "$HERE" pytest -q "$@"

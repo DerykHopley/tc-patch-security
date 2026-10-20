@@ -1,19 +1,20 @@
 """Page context (A18): what the user is looking at when they ask, as fixed fields only.
 
 The chat request may carry the page name, the CVEs page's filters (the CVE view, app.cve_filters: product, severity,
-status, verdict, kev, since, under the same names as the page's URL and GET /cves) and the selected CVE id; on the dashboard, its product filter (A15b). Each is checked against a fixed list or an id pattern here; anything else (a value not on
+status, verdict, kev, since, new, under the same names as the page's URL and GET /cves) and the selected CVE id; on the dashboard, its product filter (A15b). Each is checked against a fixed list or an id pattern here; anything else (a value not on
 the list, another type, an unknown field) is dropped and listed in the reply. So the context can narrow a view but
 never carry free text to Patch: an instruction can't ride in on it.
 
 | Field    | Allowed                                                       | Kept as              |
 |----------|---------------------------------------------------------------|----------------------|
-| page     | dashboard, cves, settings, dev                                | as is                |
+| page     | dashboard, cves, settings, dev, about                         | as is                |
 | product  | products I track, comma-separated (the dashboard's filter, A15b) | ids: `langflow,ollama` |
 | severity | LOW, MEDIUM, HIGH, CRITICAL (any case): "this or worse"       | upper case           |
 | status   | open, fixed, not_affected, accepted, all                      | as is                |
 | verdict  | affected, not_affected, unknown                               | as is                |
 | kev      | true, 1, "1", "true" (false, 0: no filter)                    | true                 |
 | since    | a date, YYYY-MM-DD                                            | the date             |
+| new      | as kev: new and not seen yet by the user (B05, B40)           | true                 |
 | cve      | CVE-YYYY-NNNN…                                                | upper case           |
 """
 import json
@@ -21,8 +22,8 @@ import re
 
 from app import cve_filters, guard
 
-PAGES = ("dashboard", "cves", "settings", "dev")
-FIELDS = ("page", "product", "severity", "status", "verdict", "kev", "since", "cve")
+PAGES = ("dashboard", "cves", "settings", "dev", "about")  # about: the landing page in the app (B42)
+FIELDS = ("page", "product", "severity", "status", "verdict", "kev", "since", "new", "cve")
 CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d{4,7}$", re.IGNORECASE)
 SHOWN = 40  # characters of a dropped value listed back
 
@@ -32,7 +33,7 @@ def _check(key: str, value, resolve_product) -> tuple[bool, object]:
     use its rules (app.cve_filters), the same as the CVEs page's query."""
     if key in cve_filters.FIELDS:
         kept = cve_filters.check(key, value, resolve_product)
-        return (True, None) if kept is False else (kept is not None, kept)  # kev false: no filter
+        return (True, None) if kept is False else (kept is not None, kept)  # kev or new false: no filter
     if not isinstance(value, str):
         return False, None
     v = value.strip()

@@ -6,11 +6,11 @@
 
 .patch-fab {
   position: fixed;
-  right: 1.25rem;
-  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  right: var(--fab-right); /* the footprint's values: shell.css (B43), so pages keep the same space clear */
+  bottom: var(--fab-bottom);
   z-index: 21;
-  width: 84px;
-  height: 66px;
+  width: var(--fab-width);
+  height: var(--fab-height);
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -18,6 +18,8 @@
   overflow: visible;
 }
 
+/* Patch is 68px here (58px until 2026-10-16). His top stays 8px above the button, where the 58px Patch's was, so
+   he covers no more of the page: the extra 10px go down, and he stands lower on the pill, his shadow still on it. */
 .patch-fab .robot {
   position: absolute;
   left: 50%;
@@ -55,7 +57,12 @@
   border-radius: var(--radius-input); /* the global focus ring, rounded around Patch and his pill */
 }
 
-/* Open: Patch steps off; the pill turns purple with a white ✕. */
+/* Open: Patch steps off; the pill turns purple with a white ✕. The button shrinks to the pill (B65, #112): its
+   empty top would lie over the window's bottom-right corner, where Send sits, and take Send's clicks. */
+.patch-fab.open {
+  height: 30px;
+}
+
 .patch-fab.open .patch-pill {
   border-color: transparent;
   background: var(--gradient-primary);
@@ -93,7 +100,7 @@
   flex-direction: column;
   width: min(400px, calc(100vw - 2.5rem));
   height: min(600px, calc(100vh - var(--chat-bottom) - 1.25rem));
-  overflow: hidden;
+  overflow: clip; /* never a scroll container: `hidden` still lets scrollIntoView scroll it (B65, #112) */
   border-radius: var(--radius-card);
   background: var(--surface);
   box-shadow: var(--shadow-bubble);
@@ -257,7 +264,10 @@
   min-height: 0;
 }
 
+/* Only the list scrolls. Positioned, so its absolute children (the .visually-hidden spans) overflow the list, not
+   the window: otherwise the window had something to scroll and Firefox's scrollIntoView scrolled it (B65, #112). */
 .messages {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -286,7 +296,7 @@
   margin: 0;
 }
 
-/* Patch as on the chat button (58px, in front), over the bubble's top-left corner. He floats high enough that
+/* Patch (58px) in front, as on the chat button, over the bubble's top-left corner. He floats high enough that
    only the first line of text sits beside him; the rest runs under him. */
 .greeting .robot-slot {
   float: left;
@@ -352,6 +362,18 @@
   border-color: var(--error);
   background: var(--error-soft);
   color: var(--error);
+}
+
+/* B11: a limit or the spending cap. Quiet: muted text under the question, right-aligned with it, no fill. */
+.chat-limit {
+  display: block;
+  align-self: flex-end;
+  max-width: 85%;
+  margin: -0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .message p,
@@ -494,7 +516,7 @@
   min-width: 1.4rem;
   border-radius: 8px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--text); /* --accent on --accent-soft is 4.48:1 in light mode, under 4.5 (B06) */
   font-size: 0.75rem;
   text-align: center;
 }
@@ -561,6 +583,38 @@
 
 .tool-error {
   margin: 0.3rem 0;
+  font-size: 0.85rem;
+}
+
+/* B20: Try again on a step that didn't finish: a plain pill (§5.3), "Trying again…" with the Check now spinner. */
+.try-again-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.3rem 0;
+}
+
+button.try-again {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2rem;
+}
+
+button.try-again:disabled {
+  opacity: 1; /* "Trying again…" stays readable, as Check now's "Checking…" */
+  cursor: progress;
+}
+
+.retry-note {
+  display: block;
+  margin: 0.3rem 0;
+  padding: 0.3rem 0.55rem;
+  border-left: 3px solid var(--ok);
+  border-radius: var(--radius-input);
+  background: var(--accent-soft);
+  color: var(--text);
   font-size: 0.85rem;
 }
 
@@ -638,10 +692,7 @@
 /* ---------- Phones: Patch's button sits above the bottom tab bar (§4.2) ---------- */
 
 @media (max-width: 800px) {
-  .patch-fab {
-    bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
-  }
-
+  /* .patch-fab moves up through --fab-bottom (shell.css) */
   .chat-window {
     --chat-bottom: calc(7.35rem + env(safe-area-inset-bottom, 0px));
   }
@@ -720,33 +771,6 @@
   rotate: 0deg;
 }
 
-/* ---------- Alert link banner (§6.4): over the page, "Explain it" asks Patch ---------- */
-
-.alert-banner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
-  width: calc(100% - 2rem);
-  max-width: calc(1280px - 2rem);
-  margin: 0.8rem auto 0;
-  padding: 0.6rem 1rem;
-  border-radius: var(--radius-input);
-  background: var(--warn-soft);
-  box-shadow: var(--shadow-card);
-}
-
-.alert-banner > svg {
-  flex: none;
-  color: var(--warn);
-}
-
-.alert-banner p {
-  flex: 1;
-  min-width: 12rem;
-  margin: 0;
-}
-
 /* ---------- Phones (§6.5, ≤ 700px): every layout is a full-screen sheet; no pin, no divider ---------- */
 
 @media (max-width: 700px) {
@@ -806,6 +830,68 @@
 }
 
 .fix-list .chip {
+  margin: 0;
+}
+
+/* research_web's card and web sources (B08, DESIGN.md §6.2). "Web result, unverified" in --text on the surface
+   with a --muted edge: set apart from knowledge sources without a warning colour. "Flagged" like "Possible match":
+   --text on --warn-soft with a --warn edge (--warn on --warn-soft is under 4.5:1 for small text). */
+.web-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+}
+
+.web-list a {
+  overflow-wrap: anywhere;
+}
+
+.web-facts .meta {
+  overflow-wrap: anywhere;
+}
+
+.chip.web-unverified {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--muted);
+  color: var(--text);
+}
+
+.chip.web-flagged {
+  background: var(--warn-soft);
+  box-shadow: inset 0 0 0 1px var(--warn);
+  color: var(--text);
+}
+
+/* check_updates' card (B06, DESIGN.md §6.2): two short lists, each row the source number, the id and its chips,
+   wrapping at the chat's 400px. Nothing moves. */
+.updates-head {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.updates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+}
+
+.updates-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.updates-list .chip {
   margin: 0;
 }
 

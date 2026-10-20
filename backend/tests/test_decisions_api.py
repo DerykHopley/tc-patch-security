@@ -145,7 +145,7 @@ def test_a16b_6_every_change_is_appended_with_who_and_when(client):
     assert [(h["status"], h["note"] or h["reason"]) for h in history] == [
         ("fixed", "Upgraded"), ("open", "Rolled back"), ("accepted", "Behind our VPN; vendor has no fix")]
     for h in history:
-        assert h["decided_by"] == "owner" and h["via"] == "page"
+        assert h["decided_by"] == "you" and h["via"] == "page"
         assert h["decided_at"][:4] >= "2026" and "T" in h["decided_at"]  # date and time, UTC
     assert history[0]["decided_at"] <= history[-1]["decided_at"]
 
@@ -230,7 +230,7 @@ def test_a16b_8_lookup_cve_returns_the_decision_and_no_fix(client, deps):
     r = rec.result
     assert (r["watch_status"], r["no_fix"], r["review_due"], r["open_days"]) == ("accepted", True, False, 263)
     assert r["decision"]["reason"] == ACCEPT["reason"]
-    assert r["priority"]["overdue"] is False
+    assert r["priority"] is None  # accepted, review not due: closed, so no priority or due date (B33)
 
 
 def test_a16b_8_not_affected_from_the_chat_needs_a_justification_and_is_recorded_as_chat(deps):
@@ -238,11 +238,15 @@ def test_a16b_8_not_affected_from_the_chat_needs_a_justification_and_is_recorded
         return run_tool(ToolCall(id="1", name="update_watchlist", args={"action": "set_status", "cve_id": FIXABLE,
                                                                        **args}), deps, Context())
 
+    from app import proposals
+
     assert call(status="not_affected").status == "error"
-    assert call(status="not_affected", justification="component_not_present").status == "ok"
+    rec = call(status="not_affected", justification="component_not_present")
+    assert rec.status == "ok"
+    proposals.approve(deps, rec.result["proposal_id"])  # you approve Patch's proposal (B21)
     h = deps.state.read().decision(FIXABLE)
     assert (h["status"], h["justification"], h["via"], h["decided_by"]) == (
-        "not_affected", "component_not_present", "chat", "owner")
+        "not_affected", "component_not_present", "chat", "you")
 
 
 def test_a16b_8_patch_explains_a_no_fix_cve_and_only_suggests_accepting(client):

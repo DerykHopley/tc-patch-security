@@ -10,6 +10,7 @@ export interface AffectedOne {
   verdict: 'affected' | 'not_affected' | 'unknown'
   reason: string
   fixed_version: string | null
+  package_fixes: PackageFix[]
   who_acts: 'you' | 'upstream' | 'vendor'
   usage: string
   version: string | null
@@ -30,6 +31,12 @@ export interface AffectedProduct {
   note: string
 }
 
+/** One package's newest fixed version (B67): listed when OSV gives the CVE's fix under more than one package. */
+export interface PackageFix {
+  package: string
+  fixed_version: string | null
+}
+
 export interface VerdictCounts {
   affected: number
   unknown: number
@@ -42,6 +49,7 @@ export interface AffectedRow {
   verdict: 'affected' | 'not_affected' | 'unknown'
   reason: string
   fixed_version: string | null
+  package_fixes: PackageFix[]
 }
 
 /** lookup_cve: one CVE with its OWASP, KEV, EPSS and watchlist context, the verdict and the priority. */
@@ -64,6 +72,7 @@ export interface CveResult {
   verdict: 'affected' | 'not_affected' | 'unknown'
   verdict_reason: string
   fixed_version: string | null
+  package_fixes: PackageFix[]
   who_acts: 'you' | 'upstream' | 'vendor'
   no_fix: boolean
   decision: Decision | null
@@ -103,6 +112,8 @@ export interface Decision {
   decided_at: string | null
   decided_by: string | null
   via: string | null
+  proposal?: string | null
+  sources?: ProposalSource[] | null
 }
 
 export interface Priority {
@@ -112,6 +123,60 @@ export interface Priority {
   due_from: string
   overdue: boolean
   alert_priority: number
+}
+
+/** A source a proposed decision cites (B22): what it rests on, so you can check it before you approve. A web
+source is always marked "web result, unverified". */
+export interface ProposalSource {
+  n: number
+  kind: 'knowledge' | 'web'
+  label: 'knowledge base' | 'web result, unverified'
+  title: string
+  url: string
+  site: string | null
+}
+
+/** update_watchlist (B21) or propose_decision (B22): a proposed change, not made yet. What, why, before and
+after, and for a proposed decision the sources it rests on; you approve, edit or cancel it in the chat's card. */
+export interface Proposal {
+  proposal_id: string
+  action: 'watch' | 'unwatch' | 'set_status' | 'set_details'
+  title: string
+  why: string | null
+  cve_id: string | null
+  product: string | null
+  product_name: string | null
+  before: string
+  after: string
+  fields: ProposalFields
+  state: 'proposed' | 'approved' | 'cancelled' | 'expired'
+  message: string
+  as_of: string
+  created_at: string
+  expires_at: string
+  approved_at: string | null
+  approved_by: string | null
+  sources: ProposalSource[]
+  editable: ('status' | 'justification' | 'note' | 'reason' | 'review_date' | 'compensating_control' | 'usage' | 'version' | 'internet_facing')[]
+  link_to: 'cve' | 'watchlist'
+}
+
+/** propose_decision when the CVE already has that status: nothing to propose, and why (B27). */
+export interface DecisionAlreadySo {
+  message: string
+}
+
+/** What a proposal would set. Only the fields its action takes are filled; the others are null. */
+export interface ProposalFields {
+  status: 'open' | 'fixed' | 'not_affected' | 'accepted' | null
+  justification: 'component_not_present' | 'vulnerable_code_not_present' | 'vulnerable_code_not_in_execute_path' | 'vulnerable_code_cannot_be_controlled_by_adversary' | 'inline_mitigations_already_exist' | null
+  note: string | null
+  reason: string | null
+  review_date: string | null
+  compensating_control: string | null
+  usage: 'self_hosted' | 'library' | 'transitive' | 'hosted' | null
+  version: string | null
+  internet_facing: boolean | null
 }
 
 /** prioritise: the top open CVEs in the rules' order, and the view they come from. */
@@ -166,6 +231,7 @@ export interface QueryInfo {
   filters: Record<string, string>
   dropped_filters: string[]
   relaxed: boolean
+  off_topic?: boolean
   found_by?: Record<string, string[]>
 }
 
@@ -183,7 +249,64 @@ export interface FoundSource {
   text: string
 }
 
-/** update_watchlist: what changed, and the watchlist after it. */
+/** check_updates: this check, or the last one when refused, with what it found for this user. */
+export interface UpdatesResult {
+  mode: 'live' | 'snapshot'
+  as_of: string
+  ran: boolean
+  refusal: UpdatesRefusal | null
+  last_checked: string | null
+  trigger: string | null
+  ok: boolean | null
+  status: 'ok' | 'partial' | 'failed' | null
+  problems: string[]
+  counts: UpdateCounts
+  new_cves: NewCve[]
+  alerts: UpdateAlert[]
+  alerts_total: number
+  schedule: UpdatesSchedule
+  note: string
+}
+
+export interface UpdatesRefusal {
+  reason: 'too_soon' | 'running' | 'snapshot'
+  next_allowed: string | null
+  message: string
+}
+
+export interface UpdateCounts {
+  new: number
+  updated: number
+  kev_added: number
+  rescored: number
+}
+
+export interface NewCve {
+  n: number | null
+  id: string
+  product: string | null
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' | null
+  kev: boolean
+  watched: boolean
+  priority: 'urgent' | 'high' | 'normal' | 'low' | null
+}
+
+export interface UpdateAlert {
+  n: number | null
+  cve: string
+  reason: string
+  priority: number
+  held: boolean
+}
+
+/** B19: the scheduled check, as the user set it on Settings. */
+export interface UpdatesSchedule {
+  hours: number
+  paused: boolean
+  next_due: string | null
+}
+
+/** update_watchlist when there's nothing to change (B21): why not, and the watchlist as it is. */
 export interface WatchlistResult {
   message: string
   watchlist: string[]
@@ -231,14 +354,38 @@ export interface CitedBy {
   title: string
 }
 
+/** research_web: what was searched, how, and the numbered web results. */
+export interface ResearchResult {
+  query: string
+  via: 'mcp' | 'api' | 'canned'
+  results: WebHit[]
+  flagged: number
+  searches_left: number
+  note: string
+}
+
+/** One web result: a numbered source. */
+export interface WebHit {
+  n: number
+  title: string
+  site: string
+  url: string
+  date: string | null
+  snippet: string
+  flagged: boolean
+}
+
 /** Each tool's result, by the tool's name. */
 export interface ToolResults {
   check_affected: AffectedOne | AffectedProduct
   lookup_cve: CveResult
+  propose_decision: Proposal | DecisionAlreadySo
   prioritise: FixFirstResult
   search_security: SearchResult
-  update_watchlist: WatchlistResult
+  check_updates: UpdatesResult
+  update_watchlist: Proposal | WatchlistResult
   explain_weakness: CweResult | TechniqueResult
+  research_web: ResearchResult
 }
 
 export type ToolName = keyof ToolResults

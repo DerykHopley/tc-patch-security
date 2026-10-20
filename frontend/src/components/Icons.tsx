@@ -18,6 +18,10 @@ export const ChatIcon = () => (
 export const ShieldIcon = () => (
   <svg {...base}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></svg>
 );
+// B48: the user menu's button while the user has no display name (anonymous by default, #77)
+export const PersonIcon = () => (
+  <svg {...base}><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+);
 export const ChevronIcon = () => (
   <svg {...base}><path d="m15 18-6-6 6-6" /></svg>
 );
@@ -35,6 +39,10 @@ export const MoonIcon = () => (
 // A bulleted list: the CVEs page, the work list (A04b).
 export const ListIcon = () => (
   <svg {...base}><path d="M9 6h12M9 12h12M9 18h12" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></svg>
+);
+// An "i" in a circle: the About page (B42).
+export const InfoIcon = () => (
+  <svg {...base}><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>
 );
 // A drawing pin (filled); the chat header tilts it 35° until the chat is pinned (DESIGN.md §7.1).
 export const PinIcon = () => (

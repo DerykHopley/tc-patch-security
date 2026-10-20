@@ -34,7 +34,8 @@ class SearchResult(ToolResult):
 
 def run(args: SearchArgs, deps, ctx) -> dict:
     res = search_security(args.query, deps.llm, deps.retrievers, deps.knowledge.resolve_product,
-                          start_n=len(ctx.sources) + 1, opts=deps.search_options())  # the dev panel's tuning (A11)
+                          start_n=len(ctx.sources) + 1, opts=deps.search_options(),
+                          force=ctx.force_filters)  # the dev panel's tuning (A11)
     ctx.add_usage(res.reply)
     ctx.sources.extend(res.sources)
     ctx.query = res.query
@@ -53,4 +54,5 @@ register(ToolSpec(
     args_model=SearchArgs,
     result=SearchResult,
     run=run,
+    calls_out=True,  # the model translates the query (rewrites, filters)
 ))

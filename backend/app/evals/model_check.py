@@ -1,7 +1,7 @@
 """Run the scripted questions against the saved model and score each answer with the exact checks (checks.py).
 
-A run happens in a background thread, on a copy of the state: Q9 and Q10 change the watchlist, and the real one must
-not change. The model is fixed when the run starts, so switching models on the Dev page mid-run doesn't mix two
+A run happens in a background thread, on a copy of the state: Q9 and Q10 only propose changes now (B21), but a model
+that misbehaves must still never reach the real state. It has no refresher, so check_updates never fetches (B15). The model is fixed when the run starts, so switching models on the Dev page mid-run doesn't mix two
 models in one run. Each run is saved (runs.py) with model, provider, per-check scores, per-question cost and time,
 and totals.
 
@@ -18,10 +18,12 @@ from pathlib import Path
 from app.chat_turn import turn
 from app.config import FIXTURES
 from app.errors import InputError, LLMError
-from app.evals.checks import cited, fix_first_lists, score, score_levels
+from app.evals.checks import cited, fix_first_lists, score, score_levels, state_unchanged
 from app.evals.readability import flesch_reading_ease
 from app.evals.runs import LISTED, RunStore, new_id, now
 from app.schemas import ChatRequest
+from app.search_memory import SearchMemory
+from app.web_research import CannedWeb
 
 KIND = "models"
 # These errors fail every question the same way: stop instead of waiting through the rest.
@@ -62,12 +64,19 @@ def _ask(q: dict, deps) -> dict:
            "answer": "", "seconds": 0.0, "cost": 0.0, "tokens_in": 0, "tokens_out": 0, "llm_calls": 0, "steps": 0,
            "sources": 0, "bad_citations": [], "no_citations": False, "estimated": False, "error": None}
     start = time.perf_counter()
+    if q.get("web"):  # B22: the web question searches the saved results, the same for every run and model
+        deps = dataclasses.replace(deps, web=CannedWeb())
     try:
-        levels = q["expect"].get("levels") or ["normal"]  # A19: asked once per explain level, never the saved one
-        replies = {lv: turn(ChatRequest(message=q["question"], explain_level=lv, page=q.get("page")), deps)
-                   for lv in levels}  # the same turn as /chat, with the question's page context if it has one
+        # A19: asked once per explain level, never the saved one; the first level's search serves the rest (#51)
+        levels = q["expect"].get("levels") or ["normal"]
+        before = deps.state.read()
+        # the same turn as /chat, with the question's page context if it has one, and its tools made to fail (B20)
+        replies = {lv: turn(ChatRequest(message=q["question"], explain_level=lv, page=q.get("page")), deps,
+                            fail_tools=q.get("fail_tools", ())) for lv in levels}
         reply = replies["normal"] if "normal" in replies else next(iter(replies.values()))
         checks = score_levels(q["expect"], replies) if len(replies) > 1 else score(q["expect"], reply)
+        if unchanged := state_unchanged(q["expect"], before, deps.state.read()):  # B21: needs the state
+            checks.append(unchanged)
         every = list(replies.values())
         row |= {"checks": {c.name: c.passed for c in checks},
                 "failures": [c.to_dict() for c in checks if not c.passed],
@@ -121,7 +130,12 @@ def _run(run: dict, qs: list[dict], deps, store: RunStore) -> None:
     status = "done"
     try:
         state = deps.state.fork(Path(tmp.name) / "state.json")  # a copy: the watchlist questions write here
-        run_deps = dataclasses.replace(deps, state=state, llm=_pinned(deps.llm))
+        # No refresher: check_updates answers as on the snapshot, so a run never fetches or changes the live data
+        # that everyone's dashboard reads (B15), and its answer repeats.
+        # Its own search memory (#51): Q12's levels reuse its first search as the chat's would, and a run never
+        # reuses or replaces a search from the chat.
+        run_deps = dataclasses.replace(deps, state=state, llm=_pinned(deps.llm), refresher=None,
+                                       searches=SearchMemory())
         for q in qs:
             row = _ask(q, run_deps)
             with _lock:
@@ -144,7 +158,7 @@ def _run(run: dict, qs: list[dict], deps, store: RunStore) -> None:
 def start(deps, ids: list[str] | None = None, wait: bool = False) -> dict:
     """Start a run in the background and return it (status "running"). One run at a time."""
     qs = _pick(ids)
-    store = RunStore.for_settings(deps.settings)
+    store = deps.runs
     llm = _pinned(deps.llm)
     dev = deps.dev()
     with _lock:
@@ -165,13 +179,13 @@ def get(deps, run_id: str) -> dict | None:
     with _lock:
         if run_id in _live:
             return json.loads(json.dumps(_live[run_id]))
-    return RunStore.for_settings(deps.settings).get(KIND, run_id)
+    return deps.runs.get(KIND, run_id)
 
 
 def openrouter_scores(deps) -> dict[str, dict]:
     """Each OpenRouter model's latest finished run: questions passed of those asked (the Dev page's dropdown)."""
     scores: dict[str, dict] = {}
-    for r in RunStore.for_settings(deps.settings).all(KIND):  # newest first: the first seen per model is the latest
+    for r in deps.runs.all(KIND):  # newest first: the first seen per model is the latest
         if r.get("provider") != "openrouter" or r.get("status") != "done" or not r.get("summary"):
             continue
         model = (r.get("settings") or {}).get("openrouter_model") or str(r.get("model", "")).removeprefix(
@@ -185,4 +199,4 @@ def listing(deps) -> list[dict]:
     """Saved runs, newest first, without the per-question rows (the dev panel's list and comparison)."""
     keep = ("id", "kind", "model", "provider", "started", "finished", "status", "total", "error", "summary",
             "embedder")
-    return [{k: r.get(k) for k in keep} for r in RunStore.for_settings(deps.settings).all(KIND)[:LISTED]]
+    return [{k: r.get(k) for k in keep} for r in deps.runs.all(KIND)[:LISTED]]

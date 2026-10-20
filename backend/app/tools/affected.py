@@ -10,9 +10,11 @@ from pydantic import BaseModel, StringConstraints, model_validator
 from app.errors import ToolError
 from app.rag.chunking import chunk_cve
 from app.rag.pipeline import to_source
-from app.tools.registry import Severity, ToolResult, ToolSpec, Verdict, WatchStatus, WhoActs, register
+from app.schemas import CveId
+from app.tools.registry import (PackageFix, Severity, ToolResult, ToolSpec, Verdict, WatchStatus, WhoActs,
+                                register)
 from app.verdict import USAGE_LABELS
-from app.watched import WatchedCves
+from app.watched import WatchedCves, package_fixes
 
 ORDER = ("affected", "unknown", "not_affected")  # what needs you first
 LISTED = 10
@@ -20,8 +22,7 @@ NOTE = "The verdict is advice from the version check. The CVE's status stays the
 
 
 class AffectedArgs(BaseModel):
-    cve_id: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True,
-                                             pattern=r"(?i)^CVE-\d{4}-\d{4,}$")] | None = None
+    cve_id: CveId | None = None
     product: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)] | None = None
 
     @model_validator(mode="after")
@@ -40,6 +41,7 @@ class AffectedOne(ToolResult):
     verdict: Verdict
     reason: str
     fixed_version: str | None
+    package_fixes: list[PackageFix]  # each package's fix when OSV lists more than one; else []
     who_acts: WhoActs
     usage: str  # in words: "self-hosted app"
     version: str | None
@@ -60,6 +62,7 @@ class AffectedRow(ToolResult):
     verdict: Verdict
     reason: str
     fixed_version: str | None
+    package_fixes: list[PackageFix]
 
 
 class AffectedProduct(ToolResult):
@@ -83,7 +86,8 @@ def _one(cve: dict, deps, ctx, watched: WatchedCves) -> dict:
     return {
         "n": source.n, "id": cve["id"], "product": k.products[cve["product"]], "severity": cve["severity"],
         "verdict": v.verdict, "reason": v.reason, "fixed_version": v.fixed_version,
-        "who_acts": v.who_acts, "usage": USAGE_LABELS[a.usage], "version": a.version,
+        "package_fixes": package_fixes(v), "who_acts": v.who_acts, "usage": USAGE_LABELS[a.usage],
+        "version": a.version,
         "watch_status": a.status if a.watched else "not_watched", "possible_match": k.possible_match(cve["id"]), "note": NOTE,
     }
 
@@ -114,7 +118,8 @@ def run(args: AffectedArgs, deps, ctx) -> dict:
         "product": k.products[pid], "usage": USAGE_LABELS[f.usage], "version": f.version,
         "open": len(rows), "counts": {v: sum(r["verdict"] == v for r in rows) for v in ORDER},
         "cves": [{"id": r["id"], "severity": r["severity"], "verdict": r["verdict"], "reason": r["verdict_reason"],
-                  "fixed_version": r["fixed_version"]} for r in rows[:LISTED]],
+                  "fixed_version": r["fixed_version"], "package_fixes": r["package_fixes"]}
+                 for r in rows[:LISTED]],
         "who_acts": rows[0]["who_acts"] if rows else None, "note": NOTE,
     }
 
@@ -122,8 +127,9 @@ def run(args: AffectedArgs, deps, ctx) -> dict:
 register(ToolSpec(
     name="check_affected",
     description="Am I affected? The version check's verdict (affected, not affected, unknown) with its reason, "
-                "the fixed version and who acts (you, upstream, vendor), from the user's usage and version of the "
-                "product. Give cve_id for one CVE, or product for that watched product's open CVEs by verdict. "
+                "the fixed version (package_fixes: each package's fix, when OSV lists more than one package) and "
+                "who acts (you, upstream, vendor), from the user's usage and version of the product. Give cve_id "
+                "for one CVE, or product for that watched product's open CVEs by verdict. "
                 "Read-only: report the verdict, never mark a CVE not affected yourself.",
     args_model=AffectedArgs,
     result=AffectedOne | AffectedProduct,

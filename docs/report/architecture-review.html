@@ -7,29 +7,347 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+  mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose" });
+  // Draw only the panel on screen: a diagram drawn in a hidden panel comes out blank. The switch draws the other
+  // panel's diagrams the first time it shows that panel.
+  window.drawDiagrams = (panel) => mermaid.run({ nodes: [...panel.querySelectorAll(".mermaid:not([data-processed])")] });
+  for (const panel of document.querySelectorAll("[data-spec]")) if (!panel.hidden) window.drawDiagrams(panel);
 </script>
 <style>
   .seam { stroke-dasharray: 4 4; }
   .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #e2e8f0; }
   .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
-  .mermaid { display: flex; justify-content: center; }
+  /* A wide diagram scrolls inside its box on a phone; the page itself never scrolls sideways. */
+  .mermaid { display: flex; justify-content: safe center; overflow-x: auto; max-width: 100%; }
+  main { overflow-wrap: break-word; }
+  /* A grid cell may shrink below its table's width, so the table scrolls in its box instead of widening the page. */
+  #spec-b .grid > * { min-width: 0; }
+  .spec-tab[aria-selected="true"] { background: #312e81; color: #fff; border-color: #312e81; }
+  .spec-tab:focus-visible { outline: 3px solid #6366f1; outline-offset: 2px; }
+  /* Without JavaScript both specs show, one after the other. */
+  .js [data-spec][hidden] { display: none; }
 </style>
+<script>document.documentElement.classList.add("js");</script>
 </head>
 <body class="bg-stone-50 text-slate-900 font-sans">
-<main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+<main class="max-w-5xl mx-auto px-6 py-12 space-y-10">
 
 <header class="space-y-3">
-  <h1 class="font-serif text-3xl">Architecture review: <span class="text-indigo-700">tc-patch-security</span>, <code class="text-xl">spec-a</code> at 54cd6c9</h1>
-  <p class="text-sm"><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> All six candidates are built (2026-10-15). Each card shows its status and what was built. Made with the <code>improve-codebase-architecture</code> review; claims checked against the code on 2026-10-15. Companions: the <a class="underline text-indigo-700" href="./">model-check report</a> and the <a class="underline text-indigo-700" href="retro.html">retro</a>.</p>
-  <p class="text-sm text-slate-500">2026-10-15 · hot spots from the git log since 2026-10-13 · skips DECISIONS.md, ADR-0001, the 20 fixed review items, #25, #28, #50–#55</p>
+  <h1 class="font-serif text-3xl">Architecture review: <span class="text-indigo-700">tc-patch-security</span></h1>
+  <p class="text-sm">Where the code could be deeper: modules with a small interface and a lot behind it, so a change lands in one place and tests cross the same seam as callers. One review per spec, made with the <code>improve-codebase-architecture</code> review; claims checked against the code. Companions: the <a class="underline text-indigo-700" href="./">model-check report</a> and the <a class="underline text-indigo-700" href="retro.html">retro</a>.</p>
   <div class="flex flex-wrap gap-4 text-xs text-slate-600">
     <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 border border-slate-500 bg-white"></span> module</span>
     <span class="flex items-center gap-1"><svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="#64748b" class="seam" stroke-width="2"/></svg> seam</span>
     <span class="flex items-center gap-1"><svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="#dc2626" stroke-width="2"/></svg> leakage</span>
     <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 deep"></span> deep module</span>
   </div>
+  <div role="tablist" aria-label="Which spec" class="inline-flex flex-wrap rounded-lg border border-slate-300 bg-white p-1 gap-1 text-sm">
+    <button type="button" role="tab" id="tab-b" class="spec-tab px-3 py-1.5 rounded-md border border-transparent font-semibold" aria-controls="spec-b" aria-selected="true">Spec B · 2026-10-16</button>
+    <button type="button" role="tab" id="tab-a" class="spec-tab px-3 py-1.5 rounded-md border border-transparent font-semibold" aria-controls="spec-a" aria-selected="false" tabindex="-1">Spec A · 2026-10-15</button>
+  </div>
 </header>
+
+<div id="spec-b" role="tabpanel" aria-labelledby="tab-b" data-spec class="space-y-10">
+
+<div class="space-y-3">
+  <h2 class="font-serif text-2xl">Spec B: <code class="text-xl">spec-b</code> at 8db4e5f</h2>
+  <p class="text-sm"><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">For discussion</span> Six candidates: two done (one by the spec B review fixes, one built as #71 after a grilling session with the owner), four proposed. Made with the <code>improve-codebase-architecture</code> review; candidate 2's interface was then designed with the owner and built. Every claim checked against the code on 2026-10-16, with file:line at 8db4e5f; anything not checked says so.</p>
+  <p class="text-sm text-slate-500">2026-10-16 · hot spots from <code>git diff --stat origin/main origin/spec-b</code> (since 79362e9): refresh.py, proposals.py, main.py, the chat's cards, state, alerts, api.ts · skips ADR-0001 (thin LangChain; nothing here conflicts with it) and the decisions in DECISIONS.md's spec B rows</p>
+</div>
+
+<section id="b-glance" class="rounded-xl border border-slate-200 bg-white p-6">
+  <h2 class="font-serif text-xl mb-3">At a glance</h2>
+  <div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead class="text-left text-slate-500"><tr><th class="py-1 pr-3">#</th><th class="pr-3">Candidate</th><th class="pr-3">Strength</th><th>Status</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      <tr><td class="py-1.5 pr-3">1</td><td class="pr-3"><a class="underline" href="#b1">One definition each: CVE id, UTC time, proposal actions, card buttons</a></td><td class="pr-3">Strong</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> c16a9b2</td></tr>
+      <tr><td class="py-1.5 pr-3">2</td><td class="pr-3"><a class="underline" href="#b2">One way in for a proposal</a></td><td class="pr-3">Strong</td><td><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> ccd24d1 (B27, #71)</td></tr>
+      <tr><td class="py-1.5 pr-3">3</td><td class="pr-3"><a class="underline" href="#b3">The owner's share: what's shared, and who may change it</a></td><td class="pr-3">Strong</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span> top recommendation now (#70 merged)</td></tr>
+      <tr><td class="py-1.5 pr-3">4</td><td class="pr-3"><a class="underline" href="#b4">Starting a refresh: run, load, reply</a></td><td class="pr-3">Worth exploring</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
+      <tr><td class="py-1.5 pr-3">5</td><td class="pr-3"><a class="underline" href="#b5">Route replies with a declared shape</a></td><td class="pr-3">Worth exploring</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
+      <tr><td class="py-1.5 pr-3">6</td><td class="pr-3"><a class="underline" href="#b6">A tool's prompt lines travel with its spec</a></td><td class="pr-3">Speculative</td><td><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- B1 -->
+<article id="b1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">1 · One definition each: CVE id, UTC time, proposal actions, card buttons</h2>
+    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-16):</b> Built by the spec B review fixes, c16a9b2 (BR.3 to BR.7 in DECISIONS.md). <code>app/schemas.py:11</code> <code>CveId</code>, now used by 7 modules (was six copies); <code>app/times.py:5</code> <code>iso_utc</code>, used by 4; <code>proposals.py:212-239</code> <code>Change</code> and <code>CHANGES</code>: per action what it rests on, its preview, title, how approving applies it, the stale message and the editable fields; <code>card_actions.py:73-79</code> <code>BUTTONS</code>: what each change button needs and passes; <code>frontend/src/toolCalls.ts:7-10</code> <code>proposalOf</code>: a proposal is known by its shape (a <code>proposal_id</code>), not by a list of tool names. Approve, edit and view no longer switch on the action. Checked: each file and line above at 8db4e5f.</p>
+  <p class="font-mono text-sm text-slate-600">backend/app/schemas.py:11 · times.py · proposals.py:212-239, 307-350 · card_actions.py:73-93 · frontend/src/toolCalls.ts:7-10 · chat/Conversation.tsx:127 · chat/ToolCallCard.tsx:225</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">Before: each step switched on the action</div>
+<pre class="mermaid">
+flowchart LR
+  AP[approve] -.if action.-> X1[4 branches]
+  ED[edit] -.if action.-> X2[4 branches]
+  VW[view title] -.if action.-> X3[4 branches]
+  FE["frontend: tool names<br/>update_watchlist, propose_decision"]
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class X1,X2,X3,FE leak
+</pre></div>
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">After</div>
+<pre class="mermaid">
+flowchart LR
+  AP[approve] --> C
+  ED[edit] --> C
+  VW[view] --> C
+  C["CHANGES<br/>based on · preview · title · apply · editable"]
+  FE["proposalOf: by shape"]
+  classDef deep fill:#0f172a,color:#e2e8f0,stroke:#0f172a;
+  class C,FE deep
+</pre></div>
+  </div>
+  <p><b>Problem.</b> One concept had several definitions: the CVE id argument in six places, UTC timestamps written by hand, and each proposal action handled by a branch in every step of its life.</p>
+  <p><b>Solution.</b> One definition each, with the per-action handlers in one map.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Locality: a proposal action's approve, edit and title live in one entry</li>
+    <li>Leverage: one <code>CveId</code> for six tools and the button route</li>
+    <li>Tests: <code>test_review_fixes.py</code> and <code>toolCalls.test.ts</code> cover the shared definitions</li>
+    <li>What it left: making a proposal and the card's own switches, <a class="underline" href="#b2">candidate 2</a></li>
+  </ul>
+</article>
+
+<!-- B2 -->
+<article id="b2" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">2 · One way in for a proposal</h2>
+    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <p class="rounded border bg-emerald-100 text-emerald-800 border-emerald-200 px-3 py-2 text-sm"><b>Status (Done, 2026-10-16):</b> Built as B27 (#71), ccd24d1, on the owner's 13 decisions from the grilling session. <code>proposals.propose(action, deps, *, cve_id, product, fields, why, sources)</code> is the one way in: each <code>CHANGES</code> entry says what it <code>needs</code>, the fields it takes (<code>editable</code>) and where Done links (<code>link_to</code>); "already so" is a returned <code>NoChange</code>, and errors are <code>InputError</code>s (<code>cve_not_in_snapshot</code>, <code>bad_value</code>) that <code>run_tool</code> turns into the tool's error. Deleted: <code>WatchArgs.needs</code>, <code>card_actions.BUTTONS</code>, the callers' three-way error translation, the card's four action switches (now a field-to-input map), <code>PROPOSING</code> and FakeLLM's name branches (a proposal is known by its shape). <code>propose_decision</code>'s "already so" is just <code>{message}</code>; the button route's unknown CVE says <code>cve_not_in_snapshot</code>. Tests: a table through <code>propose</code>, one row per action (B27.1–B27.5); the callers' copies removed (named in the commit). <code>test_proposals.py</code> and the B21, B22 and B24 browser checks pass unchanged.</p>
+  <p class="font-mono text-sm text-slate-600">backend/app/proposals.py:249-281 · tools/watchlist.py:31-36, 45-61 · tools/decision.py:80-97 · card_actions.py:75-93 · evals/checks.py:133-150 · llm/fake.py:338-344 · frontend/src/chat/ProposalCard.tsx:33, 61, 75, 190 · chat/CardActions.tsx:39-44, 160-170 · cardActions.ts:19-27 · chat/ToolCallCard.tsx:417</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">Before: every caller does part of the job</div>
+<pre class="mermaid">
+flowchart TB
+  W[update_watchlist] -->|"fields · needs · 3 errors"| P
+  D[propose_decision] -->|"fields · 3 errors"| P
+  B[card button] -->|"fields · needs · 3 errors"| P
+  P["propose(action, **fields)<br/>its own per-action branches"]
+  PC["ProposalCard<br/>switches on the action x4"]
+  K["model check, FakeLLM<br/>proposing tools by name"]
+  P ~~~ PC & K
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class P,PC,K leak
+</pre></div>
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">After</div>
+<pre class="mermaid">
+flowchart TB
+  W[update_watchlist] --> P
+  D[propose_decision] --> P
+  B[card button] --> P
+  P["Proposals<br/>make one: needs · fields · already so<br/>CHANGES inside"]
+  P --> V["Proposal: says what's editable<br/>and where Done links"]
+  V --> PC[ProposalCard reads it]
+  classDef deep fill:#0f172a,color:#e2e8f0,stroke:#0f172a;
+  class P deep
+</pre></div>
+  </div>
+  <p><b>Problem.</b> Candidate 1 made each action's approve, edit and title one map, but <i>making</i> a proposal is still spread out.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700 space-y-1">
+    <li><code>proposals.propose</code> takes an action string and loose <code>**fields</code>, and has its own branches per action (<code>proposals.py:255-270</code>, <code>277</code>).</li>
+    <li>Its three callers each pick the fields for the action (<code>watchlist.py:45-50</code>, <code>decision.py:84-87</code>, <code>card_actions.py:75-79</code>) and check what it needs again (<code>watchlist.py:31-36</code>, <code>card_actions.py:83-85</code>).</li>
+    <li>Each turns the same three error modes (<code>NoChange</code>, <code>KeyError</code> for an unknown CVE, <code>InputError</code>) into its own (<code>watchlist.py:54-61</code>, <code>decision.py:91-97</code>, <code>card_actions.py:89-92</code>). <code>propose_decision</code>'s "already so" answer returns the watchlist (<code>decision.py:91-93</code>), copied from <code>update_watchlist</code>.</li>
+    <li>The card switches on the action four times (<code>ProposalCard.tsx:33, 61, 75, 190</code>), though <code>CHANGES</code> already knows which fields are editable (<code>proposals.py:221</code>) and doesn't send it.</li>
+    <li>The model check and FakeLLM still know proposing tools by name (<code>checks.py:133</code>, <code>fake.py:338-342</code>), and so does <code>ToolCallCard.tsx:417</code>; the chat itself moved to the shape (<code>toolCalls.ts:7</code>).</li>
+  </ul>
+  <p>Adding a fifth action touches about ten places across both tiers (counted from the list above).</p>
+  <p><b>Solution.</b> The proposals module takes the whole job of making a proposal: each action's entry also says what it needs and which fields it takes, and "already so" comes back as an answer, not an exception each caller translates. The proposal it returns says what the card may edit and where Done links, so the card reads it instead of switching. The model check and FakeLLM find a proposal by its shape, as the chat does.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Locality: a new action is one entry in <code>proposals.py</code>, plus its form fields on the card</li>
+    <li>Leverage: two tools and the button route make a proposal in one call</li>
+    <li>Tests: "needs" and "already so" tested once per action through the proposals interface; today B24.3 (<code>test_card_actions.py:106-131</code>) tests the button's copy, and the tools' copies are tested separately (not counted)</li>
+    <li>Behind unchanged HTTP and tool outputs, so <code>test_proposals.py</code> and the B21/B22/B24 browser checks pin the behaviour</li>
+  </ul>
+</article>
+
+<!-- B3 -->
+<article id="b3" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">3 · The owner's share: what's shared, and who may change it</h2>
+    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <p class="font-mono text-sm text-slate-600">backend/app/main.py:186-190, 322-327, 338-340, 392 · auth.py:86-92 · alerts.py:205-207 · deps.py:86-88, 121-123 · dev.py:68-82 · tools/updates.py:103, 144 · refresh.py:452-459 · app_settings.py:29</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">Before: four shared things, four ways to check the owner</div>
+      <div class="overflow-x-auto"><table class="w-full text-xs">
+        <thead class="text-left text-slate-500"><tr><th class="pr-2 py-1">Shared</th><th class="pr-2">Where it lives</th><th>Owner check</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="pr-2 py-1">Schedule</td><td class="pr-2">every user's alert settings</td><td class="text-amber-800">inline field compare (main.py:322)</td></tr>
+          <tr><td class="pr-2 py-1">Channels</td><td class="pr-2">environment</td><td class="text-amber-800">inline (main.py:338, alerts.py:205)</td></tr>
+          <tr><td class="pr-2 py-1">Demo switches</td><td class="pr-2">memory</td><td>route dependency (auth.py:86)</td></tr>
+          <tr><td class="pr-2 py-1">Model (dev panel)</td><td class="pr-2">owner's state</td><td class="text-red-700 font-semibold">none (dev.py:74)</td></tr>
+        </tbody>
+      </table></div>
+      <p class="text-xs text-slate-500">Plus a <code>yours</code> flag (main.py:190) and five readers of the owner's schedule.</p></div>
+    <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">After</div>
+      <div class="flex flex-wrap gap-2 text-xs"><div class="border border-slate-400 rounded px-2 py-1">routes</div><div class="border border-slate-400 rounded px-2 py-1">refresh</div><div class="border border-slate-400 rounded px-2 py-1">alerter</div><div class="border border-slate-400 rounded px-2 py-1">check_updates</div><div class="border border-slate-400 rounded px-2 py-1">dev panel</div></div>
+      <div class="text-center text-slate-400">↓</div>
+      <div class="deep rounded p-3 text-xs"><div class="lbl">the owner's share</div><div class="opacity-60">schedule · channels · model · switches · the owner rule</div><div class="border-t border-slate-600 pt-1 mt-1">answers: what is it? may this user change it?</div></div></div>
+  </div>
+  <p><b>Problem.</b> The <b>owner</b> decides four things every user shares. Each is checked or read its own way:</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700 space-y-1">
+    <li>A route dependency for the demo switches (<code>auth.py:86-92</code>), inline comparisons for the schedule (<code>main.py:322</code>), test alerts (<code>main.py:338</code>) and sending (<code>alerts.py:205</code>), and a <code>yours</code> flag (<code>main.py:190</code>).</li>
+    <li>No check at all on <code>PUT /dev/settings</code>, which sets the model for everyone (<code>dev.py:74-82</code>). DECISIONS.md lists it as still open (BR.12).</li>
+    <li>The schedule is stored in every user's alert settings (<code>app_settings.py:29</code>), though only the owner's counts. So <code>put_settings</code> compares two fields to refuse a change (<code>main.py:322-327</code>).</li>
+    <li>The owner's schedule is read in five places (<code>main.py:189, 392</code>; <code>tools/updates.py:103, 144</code>; <code>refresh.py:452-459</code>, which builds a whole <code>Users</code> just for it).</li>
+  </ul>
+  <p><b>Solution.</b> One module for the shared settings. It answers what the schedule, the channels and the model are, and whether this user may change each. It refuses anyone else's change in one place. Routes, the refresh, the alerter and <code>check_updates</code> ask it.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Locality: the owner rule lives once, so a missing check like <code>PUT /dev/settings</code> can't happen by omission</li>
+    <li>Leverage: five readers of the schedule, one call</li>
+    <li>Tests: one table, "user × shared setting → may change?", through the module; today it's per route (<code>test_review_fixes.py</code> BR.9, BR.12)</li>
+  </ul>
+  <p class="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-sm"><b>#70 has landed</b> (f7cc59b, 2026-10-16). It moved env settings into Settings: the owner's server settings now live in <code>app/server_settings.py</code>, with write-only secrets and an owner-only <code>PUT /settings/server</code> (403 <code>not_owner</code>), and the refresh CLI reads them too. That adds a fifth place the owner rule is checked, so this candidate grew. The file:line pointers on this card are from 8db4e5f, before #70: re-check them before designing (<i>unverified</i> at the current <code>spec-b</code>).</p>
+</article>
+
+<!-- B4 -->
+<article id="b4" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">4 · Starting a refresh: run, load, reply</h2>
+    <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">local-substitutable</span>
+  </div>
+  <p class="font-mono text-sm text-slate-600">backend/app/refresh.py:189-370 (Refresher), 372-391 (history rows), 413-474 (the schedule), 495-503 (CLI) · main.py:156-164, 365-376, 381-396, 410-419 · tools/updates.py:108-110 · deps.py:99-119</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">Before: each starter finishes the job</div>
+<pre class="mermaid">
+flowchart TB
+  CN[Check now] --> R
+  SR[scheduled route] --> T[scheduled_tick: dict] --> R
+  CLI[CLI] --> T
+  CU[check_updates] --> R
+  R["Refresher.run<br/>lock · run log · 4 steps · alerts"]
+  CN -.then.-> S["deps.sync()"]
+  SR -.then.-> S
+  CU -.then.-> S
+  CN -.refusal to 429.-> Q[re-parse next_allowed]
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class S,T,Q leak
+</pre></div>
+    <div class="rounded-lg border border-slate-200 p-3"><div class="lbl text-slate-500 mb-1">After</div>
+<pre class="mermaid">
+flowchart TB
+  CN[Check now] --> F
+  SR[scheduled route] --> F
+  CLI[CLI] --> F
+  CU[check_updates] --> F
+  F["Refresh<br/>start one by its trigger<br/>loads the new version itself"]
+  F --> O["one reply: ran · refused · skipped"]
+  F -.inside.-> L["run log<br/>last checked · runs · skipped"]
+  classDef deep fill:#0f172a,color:#e2e8f0,stroke:#0f172a;
+  class F deep
+</pre></div>
+  </div>
+  <p><b>Problem.</b> Four starters (Check now, the scheduled route, the CLI, <code>check_updates</code>) each finish part of the job themselves.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700 space-y-1">
+    <li>After a run, three must call <code>deps.sync()</code> so the new CVEs can be found (<code>main.py:371, 394</code>; <code>updates.py:110</code>; and after a reset, <code>main.py:418</code>). The interface doesn't show this ordering rule. A missed call costs one stale reply, not data: live mode's middleware loads the new version before the next request (<code>main.py:156-164</code>).</li>
+    <li>A run's reply comes in three forms. <code>CheckReply</code>; <code>scheduled_tick</code>'s dict with <code>skipped</code> (<code>refresh.py:462-474</code>), which the CLI turns back into a <code>CheckReply</code> (<code>refresh.py:495-499</code>) and the route reads as <code>body["result"]["status"]</code> (<code>main.py:395</code>); and the 429, which re-parses the refusal's time (<code>main.py:373-376</code>).</li>
+    <li>In <code>refresh.py</code> (507 lines), <code>Refresher</code> mixes the file lock, the run log's rules (<code>refresh.json</code>: runs, skipped runs, last checked; <code>refresh.py:199-235</code>, <code>372-391</code>) and the four steps.</li>
+  </ul>
+  <p><b>Solution.</b> A refresh module whose interface is "start one, by this trigger". It loads the new version itself and returns one reply: ran, refused or skipped. The run log becomes its own internal part.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Locality: the load-after-run rule and the reply's shape live once</li>
+    <li>Leverage: four starters, one call; the scheduled route and the CLI stop translating</li>
+    <li>Tests: the run log's rules (a repeated skip counts up, the 5-minute rule, history order) tested directly; today they go through <code>Refresher.run</code> with fake feeds (<code>test_pause_history.py</code>)</li>
+    <li>Keep: <code>build_version</code> (<code>refresh.py:115-184</code>) is pure and table-tested from <code>test_alerts.py:35-45</code></li>
+  </ul>
+  <p class="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-sm">Why only worth exploring: the friction is real but cheap today, since the middleware covers a missed load. It grows with every new starter. The schedule's owner part belongs to <a class="underline" href="#b3">candidate 3</a>.</p>
+</article>
+
+<!-- B5 -->
+<article id="b5" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">5 · Route replies with a declared shape</h2>
+    <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">cross-tier</span>
+  </div>
+  <p class="font-mono text-sm text-slate-600">frontend/src/api.ts:428-505 · backend/app/refresh.py:52-110, 372-386, 425-432 · tools/updates.py:33-68 · tools/typescript.py · alerts.py:242-246 · main.py:203, 207, 221, 365 (the only response_model routes)</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">Before: one shape, declared up to four times</div>
+      <div class="overflow-x-auto"><table class="w-full text-xs">
+        <thead class="text-left text-slate-500"><tr><th class="pr-2 py-1">Shape</th><th class="pr-2">refresh.py</th><th class="pr-2">updates.py</th><th class="pr-2">toolResults.ts</th><th>api.ts</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="pr-2 py-1">Counts</td><td class="pr-2">:52 model</td><td class="pr-2">:33 copy</td><td class="pr-2">generated</td><td class="text-red-700">:430 by hand</td></tr>
+          <tr><td class="pr-2 py-1">Schedule</td><td class="pr-2">:431 dict</td><td class="pr-2">:64 copy</td><td class="pr-2">generated</td><td class="text-red-700">:475 by hand</td></tr>
+          <tr><td class="pr-2 py-1">Refusal</td><td class="pr-2">:100 model</td><td class="pr-2">:58 copy</td><td class="pr-2">generated</td><td class="text-red-700">:461 by hand</td></tr>
+          <tr><td class="pr-2 py-1">Run row</td><td class="pr-2">:372 dict</td><td class="pr-2">–</td><td class="pr-2">–</td><td class="text-red-700">:487 by hand</td></tr>
+        </tbody>
+      </table></div>
+      <p class="text-xs text-slate-500">api.ts:428: "The backend's app/refresh.py has the same shapes". Nothing fails when they drift.</p></div>
+    <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">After</div>
+      <div class="deep rounded p-3 text-xs"><div class="lbl">one pydantic model per reply</div><div class="opacity-60">refresh · schedule · runs · alerts log · settings</div><div class="border-t border-slate-600 pt-1 mt-1">response_model on the route · the same generator writes the TypeScript</div></div>
+      <div class="flex flex-wrap gap-2 text-xs"><div class="border border-slate-400 rounded px-2 py-1">check_updates reuses them</div><div class="border border-slate-400 rounded px-2 py-1">api.ts imports them</div></div></div>
+  </div>
+  <p><b>Problem.</b> Spec A gave tool results a declared shape and generated their TypeScript (<a class="underline" href="#c6">spec A, candidate 6</a>). Route replies didn't follow. <code>api.ts</code> copies them by hand, with comments pointing at the backend (<code>api.ts:428, 473</code>). The refresh's counts, the schedule and a refusal are each declared three or four times (table). A run history row and an alerts-log entry are plain dicts (<code>refresh.py:372-386</code>, <code>alerts.py:242-246</code>). Only four routes declare a <code>response_model</code> (<code>main.py:203, 207, 221, 365</code>).</p>
+  <p><b>Solution.</b> The route replies the frontend reads get pydantic models on their routes. The same generator that writes <code>toolResults.ts</code> writes their TypeScript types. <code>check_updates</code> reuses the refresh's models instead of its own copies.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Locality: a field is added once, on the backend</li>
+    <li>Leverage: the generator (<code>tools/typescript.py</code>) already exists and is tested</li>
+    <li>Tests: the "stale generated file" test covers the routes too, and a route that drifts fails its <code>response_model</code></li>
+  </ul>
+  <p class="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-sm">Do it a slice at a time: the refresh and schedule replies first, where the copies are. Not checked: whether any copy has drifted yet; none was found in the four shapes above.</p>
+</article>
+
+<!-- B6 -->
+<article id="b6" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">6 · A tool's prompt lines travel with its spec</h2>
+    <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-xs font-semibold">Speculative</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <p class="font-mono text-sm text-slate-600">backend/app/agent.py:61-73, 95-96 · tools/web.py:84 · tools/decision.py:112 · main.py:232-234 · tools/registry.py:64-72, 161 · docs/agents/adding-a-tool.md</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3 space-y-1 text-xs"><div class="lbl text-slate-500 mb-1">Before: "is web research on?" asked three ways</div>
+      <div class="h-7 border-l-4 border-slate-400 pl-2 flex items-center">ToolSpec.offered: deps.web is not None (web.py:84, decision.py:112)</div>
+      <div class="h-7 border-l-4 border-red-400 pl-2 flex items-center text-red-700">agent.py:96: "research_web" in the offered names → WEB_LINES</div>
+      <div class="h-7 border-l-4 border-red-400 pl-2 flex items-center text-red-700">main.py:234: examples(web=deps.web is not None)</div></div>
+    <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">After</div>
+      <div class="deep rounded p-3 text-xs"><div class="lbl">ToolSpec</div><div class="opacity-60">args · result · offered · calls out · its prompt lines</div><div class="border-t border-slate-600 pt-1 mt-1">the prompt is built from the offered tools</div></div></div>
+  </div>
+  <p><b>Problem.</b> Whether web research is on is decided by <code>ToolSpec.offered</code>, then decided again twice: the agent loop looks for <code>research_web</code> by name to add <code>WEB_LINES</code>, which also cover <code>propose_decision</code> (<code>agent.py:61-73, 96</code>), and <code>/examples</code> passes its own test (<code>main.py:234</code>). The tool guide lists nine places to wire a new tool; the spec B retro (finding 5, e57ab90) documented them rather than removing any.</p>
+  <p><b>Solution.</b> A tool's lines for the system prompt sit on its <code>ToolSpec</code>, so the prompt is built from the offered tools, and an off tool's lines drop out with it.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Locality: one fewer place per tool; the on/off rule once</li>
+    <li>Tests: "an off tool isn't in the prompt" follows from the same rule as <code>tool_schemas</code></li>
+  </ul>
+  <p class="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-sm">Why speculative: only one pair of tools can be off today, so the seam has one real case. The other places in the guide (the card, FakeLLM, DESIGN.md, the model check) are each tool's own content and would stay.</p>
+</article>
+
+<article id="b-fine" class="rounded-xl border border-slate-200 bg-white p-6 space-y-2 text-sm">
+  <h2 class="font-serif text-xl">Looked at and fine</h2>
+  <ul class="list-disc pl-6 text-slate-700 space-y-1">
+    <li><b><code>Context.force_filters</code> (registry.py:34):</b> one writer (<code>card_actions.py:101</code>), one reader (<code>search.py:38</code> into <code>pipeline.py:64-84</code>). Deletion test: without it, a refine either calls the search pipeline directly and loses <code>run_tool</code>'s check and record, or the filters go in the tool's arguments, where the model could set them. One field is the cheaper choice.</li>
+    <li><b><code>store.py</code> <code>Store</code>:</b> a real seam with three adapters (<code>LocalStore</code>, <code>MemoryStore</code>, <code>GcsStore</code>) and one version check. <code>LiveData</code> and <code>Users</code> sit on it.</li>
+    <li><b><code>feeds.py</code> <code>Feeds</code>, <code>notify.py</code> <code>Notifier</code>, <code>web_research.py</code>:</b> real seams: two feed adapters (fake, HTTP), four notifiers plus test transports, <code>WebResearch</code> and <code>CannedWeb</code>.</li>
+    <li><b>Pure rules:</b> <code>build_version</code>, <code>cve_build.py</code>, <code>alerts.diff</code> and <code>alerts.rules</code> are deep, table-tested, and each called from one place, so no locality is lost.</li>
+    <li><b><code>Decision.tsx</code>:</b> <code>DecisionFields</code> and <code>readDecision</code> are one form for three uses: the CVE dialog, the proposal card's Edit and the card buttons.</li>
+    <li><b>Watch, not yet a candidate:</b> <code>State</code> keeps growing (23 public methods, <code>state.py:111-397</code>). Each is one transaction on the file, and spec A's read model covers the reads. Eight are alert bookkeeping (log, claim, hold, take held, note new CVEs, clear, read the log); five of them are called only by the alerter (<code>alerts.py:201-238</code>).</li>
+    <li><b>Watch:</b> the MCP server's <code>NoStack</code> overrides <code>State</code>'s private <code>_read</code> and <code>_write</code> (<code>mcp_server.py:38-52</code>): an adapter past the interface, but small and read-only.</li>
+  </ul>
+</article>
+
+<section id="b-top" class="rounded-xl deep p-8 space-y-2">
+  <div class="lbl text-slate-400">Top recommendation</div>
+  <h2 class="font-serif text-2xl"><a href="#b3" class="underline decoration-indigo-400">3 · The owner's share: what's shared, and who may change it</a></h2>
+  <p class="text-slate-300">Candidate 2 is done (#71, ccd24d1). Next is candidate 3. It waited for #70, which has now landed and added one more place that checks "is this the owner?" (the server settings), so the friction is bigger than when the review was written. One module answering "what's shared, and may this user change it?" would also close the open hole: <code>PUT /dev/settings</code> still has no owner check. Re-check its file:line pointers at the current <code>spec-b</code> first; they're from before #70.</p>
+  <p class="text-slate-400 text-sm">Was: candidate 2, one way in for a proposal. Picked by the owner on 2026-10-16, designed in a grilling session (13 decisions, #71) and built.</p>
+</section>
+</div>
+
+<div id="spec-a" role="tabpanel" aria-labelledby="tab-a" data-spec class="space-y-12">
+
+<div class="space-y-3">
+  <h2 class="font-serif text-2xl">Architecture review: <span class="text-indigo-700">tc-patch-security</span>, <code class="text-xl">spec-a</code> at 54cd6c9</h2>
+  <p class="text-sm"><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span> All six candidates are built (2026-10-15). Each card shows its status and what was built. Made with the <code>improve-codebase-architecture</code> review; claims checked against the code on 2026-10-15. Companions: the <a class="underline text-indigo-700" href="./">model-check report</a> and the <a class="underline text-indigo-700" href="retro.html">retro</a>.</p>
+  <p class="text-sm text-slate-500">2026-10-15 · hot spots from the git log since 2026-10-13 · skips DECISIONS.md, ADR-0001, the 20 fixed review items, #25, #28, #50–#55</p>
+</div>
 
 <section id="candidates" class="space-y-10">
 
@@ -291,7 +609,39 @@ flowchart LR
   <h2 class="font-serif text-2xl"><a href="#c1" class="underline decoration-indigo-400">1 · Deepen the watched-CVE assessment</a></h2>
   <p class="text-slate-300">It's the domain's core concept, and every recent ticket changed it in several places at once. It's a backend change behind unchanged HTTP and tool outputs, so the existing tests pin the behaviour. It also does part of candidate 4 and gives B04 alerts (#37) one interface to use.</p>
 </section>
+</div>
 
 </main>
+<script>
+  // The switch: one spec at a time, chosen by the tab or by a link to a candidate (#b2, #c1).
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  function show(id, focus) {
+    for (const t of tabs) {
+      const on = t.getAttribute("aria-controls") === id;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+      const panel = document.getElementById(t.getAttribute("aria-controls"));
+      panel.hidden = !on;
+      if (on && window.drawDiagrams) window.drawDiagrams(panel);  // set by the Mermaid module once it has loaded
+      if (on && focus) t.focus();
+    }
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => show(t.getAttribute("aria-controls")));
+    t.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+      show(next.getAttribute("aria-controls"), true);
+    });
+  });
+  function fromHash() {
+    const el = location.hash && document.querySelector(location.hash);
+    const panel = el && el.closest("[data-spec]");
+    show(panel ? panel.id : "spec-b");
+    if (el) el.scrollIntoView();
+  }
+  window.addEventListener("hashchange", fromHash);
+  fromHash();
+</script>
 </body>
 </html>

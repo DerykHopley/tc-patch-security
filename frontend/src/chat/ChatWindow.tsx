@@ -3,6 +3,7 @@ import type { Example } from '../api.ts'
 import { PinIcon } from '../components/Icons.tsx'
 import { Robot, type Mood, type Variant } from '../components/Robot.tsx'
 import '../styles/chat.css'
+import { CardActionsContext, type CardActionsHandle } from './CardActions.tsx'
 import { Conversation } from './Conversation.tsx'
 import { LevelSwitch } from './LevelSwitch.tsx'
 import { useSavedLevel } from './savedLevel.ts'
@@ -15,8 +16,12 @@ import type { ChatLayout } from './useChatLayout.ts'
 // only), Make larger (not when pinned), close; under them the explain-level switch (A19). Empty: Patch (idle, in the
 // variant picked on page load) behind a speech bubble, with suggested questions.
 // The same element in every layout, so pinning never loses the conversation's scroll.
-export function ChatWindow({ chat, mood, variant, restVariant, pageTitle, words, suggestions, examples, layout, onClose }: {
+export function ChatWindow({
+  chat, mood, variant, restVariant, pageTitle, words, suggestions, examples, layout, asOf, onClose, showUsage,
+}: {
   chat: ChatState
+  showUsage: boolean // B49 C1: tokens and cost under each answer, for the owner and Reviewers only
+  asOf: string | null // the data's as-of date (B24: an accepted risk's review date must be after it)
   mood: Mood
   variant: Variant // the mood's animation, the same as on the button
   restVariant: Variant // the greeting's idle animation
@@ -30,15 +35,22 @@ export function ChatWindow({ chat, mood, variant, restVariant, pageTitle, words,
   const { expanded, pinned } = layout
   const savedLevel = useSavedLevel()
   const chipText = [`on ${pageTitle}`, ...words].join(' · ')
+  // B24: what the tool cards' buttons need. "Ask about this" asks with the saved level, as on the CVEs page.
+  const cardActions: CardActionsHandle = {
+    ask: (cve, page) => void chat.send(`Explain ${cve} and how to defend against it.`, { savedLevel: true, page }),
+    addRefined: chat.addRefined,
+    pending: chat.pending,
+    asOf,
+  }
   const greeting = (
     <div className="greeting">
       <div className="greeting-bubble">
         {/* The chat button's Patch, on the bubble's top-left corner; the first line wraps beside him (§8.2) */}
         <span className="robot-slot">
-          <Robot size={58} variant={restVariant} />
+          <Robot size={58} pose={{ mood: 'idle', variant: restVariant }} />
         </span>
         <p>
-          Hi, I'm <strong>Patch</strong>! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack.
+          Hi, I'm <strong>Patch</strong>! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs on your watchlist.
           What shall we look at?
         </p>
       </div>
@@ -52,7 +64,7 @@ export function ChatWindow({ chat, mood, variant, restVariant, pageTitle, words,
     >
       <header className="chat-head">
         <div className="chat-title">
-          <Robot mood={mood} variant={variant} size={34} />
+          <Robot pose={{ mood, variant }} size={34} />
           <strong>Patch</strong>
           <span
             className="context-chip"
@@ -93,14 +105,17 @@ export function ChatWindow({ chat, mood, variant, restVariant, pageTitle, words,
         </button>
         <LevelSwitch saved={savedLevel} next={chat.nextLevel} onPick={chat.setNextLevel} />
       </header>
-      <Conversation
-        messages={chat.messages}
-        pending={chat.pending}
-        onSend={chat.send}
-        greeting={greeting}
-        suggestions={suggestions}
-        examples={examples}
-      />
+      <CardActionsContext value={cardActions}>
+        <Conversation
+          messages={chat.messages}
+          pending={chat.pending}
+          onSend={chat.send}
+          greeting={greeting}
+          suggestions={suggestions}
+          examples={examples}
+          showUsage={showUsage}
+        />
+      </CardActionsContext>
     </aside>
   )
 }

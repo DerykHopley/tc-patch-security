@@ -11,8 +11,9 @@ import pytest
 from playwright.sync_api import Page, Route, expect
 
 from test_chat import Q2, ask, open_chat
-from test_cves_page import open_cves  # noqa: F401 (fixture)
+from test_cves_page import open_cves, open_filters  # noqa: F401 (fixture)
 from test_dashboard import DESKTOP, PHONE, SHOTS, api, clean_state, contrast, open_dash, rgb_list  # noqa: F401 (fixtures)
+from reduced_motion import scene, still
 
 
 def epss_text(e: dict) -> tuple[str, str]:
@@ -63,7 +64,8 @@ def test_a14_10_possible_match_badge_only_on_unconfirmed_guesses(open_cves, api_
     expect(badges).to_have_count(len(flagged))
     badge = row(page, flagged[0]).locator(".chip.possible")
     expect(badge).to_have_text("Possible match")
-    assert "guessed from the description" in (badge.get_attribute("title") or "")
+    # its tooltip (B44: mouse, keyboard and touch) is its description: matched on text, not a CPE
+    expect(badge).to_have_accessible_description(re.compile(r"matched the product on the description's text"))
 
 
 def test_a14_10_lookup_cve_card_shows_epss_and_possible_match(open_dash, api_url):
@@ -110,13 +112,14 @@ def test_a14_11_freshness_lists_every_licence_attribution_and_the_nvd_notice(ope
 
 # --- Motion, themes, widths, keyboard ----------------------------------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a14_12).
+# Reduced motion: scene a14_12 at the end of this file, in the shared check (reduced_motion.py).
 
 
 @pytest.mark.parametrize("width", [PHONE, DESKTOP])
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 def test_a14_13_light_dark_phone_and_desktop(open_cves, browser_name, width, scheme):
     page = open_cves(RECENT, width=width, scheme=scheme, reduced=True)
+    open_filters(page)  # folded on a phone (B44)
     page.get_by_role("combobox", name="Product").select_option(label="Langflow")
     badge = table(page).locator(".chip.possible").first
     expect(badge).to_be_visible()
@@ -147,7 +150,9 @@ def test_a14_14_keyboard_reaches_the_epss_credit_and_the_source_links(open_cves,
                             " return [s.outlineStyle, s.outlineWidth] })()")
     assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
     dash = open_dash()  # the freshness panel's EPSS source link, on the dashboard
-    dash.get_by_role("link", name="Edit watchlist in Settings").focus()
+    summary = dash.get_by_role("region", name="Data freshness").get_by_text("Sources and licences")
+    summary.focus()  # folded since B43: opened by keyboard, then Tab into the sources
+    dash.keyboard.press("Enter")
     seen = []
     for _ in range(40):
         dash.keyboard.press("Tab")
@@ -155,3 +160,23 @@ def test_a14_14_keyboard_reaches_the_epss_credit_and_the_source_links(open_cves,
         if seen[-1].startswith("EPSS"):
             break
     assert seen[-1].startswith("EPSS"), seen
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a14_12_snapshot_additions(fx):
+    page = fx("open_cves")(RECENT, reduced=True)
+    page.get_by_role("combobox", name="Product").select_option(label="Langflow")
+    # Wait for Langflow's rows: the page opens on every product's recent CVEs, which have possible matches too, and
+    # styles read from rows React is replacing come back empty.
+    expected = api(fx("api_url"), "/cves?product=langflow&published_since=2026-09-14&limit=25")["rows"]
+    expect(table(page).locator("tbody tr td:first-child a")).to_have_text([r["id"] for r in expected])
+    expect(table(page).locator(".chip.possible").first).to_be_visible()
+    expect(page.locator(".epss-credit")).to_be_visible()
+    still(page, "possible match, EPSS")
+    moving = page.locator(".chip.possible, td.epss, .epss-credit, .freshness-notice").evaluate_all(
+        "els => els.filter(el => { const s = getComputedStyle(el);"
+        " return s.animationName !== 'none' || (s.transitionDuration.split(',').some(d => parseFloat(d) > 0)"
+        " && s.transitionProperty !== 'none') })")
+    assert moving == []

@@ -28,8 +28,9 @@ function Misses({ m, label }: { m: RetrievalMetrics; label: string }) {
   )
 }
 
-export function RetrievalCheck({ embedder, compared, onCompare }: {
+export function RetrievalCheck({ embedder, canRun, compared, onCompare }: {
   embedder: string
+  canRun: boolean // false: not the owner (B29), so the saved runs only
   compared: string[]
   onCompare: (ids: string[]) => void
 }) {
@@ -60,7 +61,7 @@ export function RetrievalCheck({ embedder, compared, onCompare }: {
   const toggle = (id: string) => onCompare(compared.includes(id) ? compared.filter((x) => x !== id) : [...compared, id])
 
   return (
-    <Card title="Retrieval check" kind="live" why="Hit rate at 5 and MRR for the embedder the index was built with"
+    <Card title="Retrieval check"
       className="retrieval-check">
       <p className="meta">
         Asks {runs[0]?.questions ?? 'about 40'} questions whose right source comes from the data itself, of the loaded
@@ -68,11 +69,15 @@ export function RetrievalCheck({ embedder, compared, onCompare }: {
         a right document in the top 5. MRR: mean of 1 / rank of the first right one. To compare another embedder,
         build its index and restart the backend with it.
       </p>
-      <form className="eval-run" onSubmit={run}>
-        <button type="submit" disabled={running}>
-          {running ? 'Running…' : 'Run retrieval check'}
-        </button>
-      </form>
+      {canRun ? (
+        <form className="eval-run" onSubmit={run}>
+          <button type="submit" disabled={running}>
+            {running ? 'Running…' : 'Run retrieval check'}
+          </button>
+        </form>
+      ) : (
+        <p className="meta" data-testid="owner-runs">Only the owner can run it: it saves the run for everyone.</p>
+      )}
       {error && (
         <p role="alert" className="form-error">
           {error}

@@ -13,7 +13,13 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { EXPLAIN_LEVELS, type ChatReply, type Example, type ExplainLevel } from '../api.ts'
 import { AnswerDetails, firstTab, sourceId, type DetailTab } from './AnswerDetails.tsx'
-import type { Message } from './useChat.ts'
+import { proposalOf } from '../toolCalls.ts'
+import { remarkCveLinks } from '../cveLinks.ts'
+import { followLink, openPath } from '../route.ts'
+import { ProposalCard } from './ProposalCard.tsx'
+import { ToolCallCard } from './ToolCallCard.tsx'
+import type { Message, RefinedResult } from './useChat.ts'
+import { count } from '../plural.ts'
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 const scrollTo = (el: Element | null, block: ScrollLogicalPosition) =>
@@ -33,8 +39,8 @@ function Usage({ reply }: { reply: ChatReply }) {
   const u = reply.usage
   return (
     <p className="usage">
-      {u.input_tokens.toLocaleString()} in · {u.output_tokens.toLocaleString()} out · {u.llm_calls} LLM calls ·{' '}
-      {reply.steps} steps · {dollars(u.cost)}
+      {u.input_tokens.toLocaleString('en')} in · {u.output_tokens.toLocaleString('en')} out ·{' '}
+      {count(u.llm_calls, 'LLM call')} · {count(reply.steps, 'step')} · {dollars(u.cost)}
       {u.estimated && <span className="chip">estimated</span>}
     </p>
   )
@@ -56,10 +62,18 @@ function CitationNote({ reply }: { reply: ChatReply }) {
 // The answer a citation belongs to: Markdown renders the links, the answer handles the click.
 const CiteContext = createContext<(n: number) => void>(() => {})
 
-// Links in an answer: a citation opens its source; anything else opens in a new tab. Raw HTML is never rendered
-// (react-markdown escapes it), so an answer can't inject markup.
+// Links in an answer: a citation opens its source; a CVE id opens its page in the app, the chat staying open (B35);
+// anything else opens in a new tab. Raw HTML is never rendered (react-markdown escapes it), so an answer can't
+// inject markup.
 function AnswerLink({ href = '', children }: { href?: string; children?: ReactNode }) {
   const cite = useContext(CiteContext)
+  if (/^\/cves\/CVE-\d{4}-\d{4,7}$/.test(href)) {
+    return (
+      <a href={href} className="cve-link" onClick={(e) => followLink(e, openPath)}>
+        {children}
+      </a>
+    )
+  }
   if (!href.startsWith('#source-')) {
     return (
       <a href={href} target="_blank" rel="noreferrer">
@@ -82,9 +96,11 @@ function AnswerLink({ href = '', children }: { href?: string; children?: ReactNo
 }
 
 const MARKDOWN_PARTS = { a: AnswerLink }
+const REMARK = [remarkGfm, remarkCveLinks]
 
-/** One answer with its inline details. A citation opens the details on Sources and scrolls to that source. */
-function Answer({ reply }: { reply: ChatReply }) {
+/** One answer with its inline details. A citation opens the details on Sources and scrolls to that source.
+ *  `usage`: show the usage line (tokens, cost): the owner and Reviewers only (B49 C1, access.ts seesUsage). */
+function Answer({ reply, usage, restored }: { reply: ChatReply; usage: boolean; restored: boolean }) {
   const prefix = useId().replace(/:/g, '')
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<DetailTab>(() => firstTab(reply))
@@ -114,13 +130,21 @@ function Answer({ reply }: { reply: ChatReply }) {
     <>
       <div className="answer-text">
         <CiteContext value={cite}>
-          <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_PARTS}>
+          <Markdown remarkPlugins={REMARK} components={MARKDOWN_PARTS}>
             {linkCitations(reply.answer, ns)}
           </Markdown>
         </CiteContext>
       </div>
+      {reply.tool_calls.map((c) => {
+        // A change Patch proposes (B21, B22): its card under the answer, not folded in the details
+        const proposal = proposalOf(c)
+        return proposal ? <ProposalCard key={c.id} proposal={proposal} restored={restored} /> : null
+      })}
       {reply.flags.includes('injection_phrasing') && (
         <p className="flag-note">This message looks like an injection attempt. It was answered, and logged.</p>
+      )}
+      {reply.flags.includes('web_injection_phrasing') && (
+        <p className="flag-note">A web result tries to give instructions. It's shown as data, and Patch ignored it.</p>
       )}
       <CitationNote reply={reply} />
       {reply.dropped_context?.length > 0 && (
@@ -135,12 +159,12 @@ function Answer({ reply }: { reply: ChatReply }) {
             {levelLabel(reply.explain_level)}
           </span>
         )}
-        <Usage reply={reply} />
+        {usage && <Usage reply={reply} />}
       </div>
       {hasDetails && (
         <>
           <button type="button" className="details-toggle" aria-expanded={open} onClick={toggle}>
-            {open ? 'Hide' : 'Show'} {reply.sources.length} sources · {reply.tool_calls.length} tool calls
+            {open ? 'Hide' : 'Show'} {count(reply.sources.length, 'source')} · {count(reply.tool_calls.length, 'tool call')}
           </button>
           {open && (
             <div id={`${prefix}-details`}>
@@ -153,11 +177,44 @@ function Answer({ reply }: { reply: ChatReply }) {
   )
 }
 
+// Refined results already shown once: focus goes to a new one only, not again when the chat opens again.
+const focused = new Set<number>()
+
+/** A refine button's result (B24): chips saying what was applied, then the search card run again. No model text:
+ *  the answer above stays as it was, and asking again has Patch explain the narrower list. */
+function RefinedAnswer({ id, refined, restored }: { id: number; refined: RefinedResult; restored: boolean }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (focused.has(id)) return
+    focused.add(id)
+    // the conversation scrolls to the end itself; one read back after a reload (B49) was shown before: no focus
+    if (!restored) ref.current?.focus({ preventScroll: true })
+  }, [id, restored])
+  const n = (refined.call.result as { sources?: unknown[] } | null)?.sources?.length ?? 0
+  return (
+    <>
+      <div className="refined-head" ref={ref} tabIndex={-1}>
+        <span className="visually-hidden">Applied: </span>
+        {refined.applied.map((a) => (
+          <span key={a} className="chip applied">
+            {a}
+          </span>
+        ))}
+      </div>
+      <p className="meta">
+        Searched again with {refined.applied.length === 1 ? 'this filter' : 'these filters'}: {count(n, 'source')}. Patch didn't write a new answer: ask him to explain these.
+      </p>
+      <ToolCallCard call={refined.call} page={refined.page} applied={refined.filters} />
+    </>
+  )
+}
+
 /** The message list, the greeting with suggestions while empty, and the message box. */
-export function Conversation({ messages, pending, onSend, greeting, suggestions, examples }: {
+export function Conversation({ messages, pending, onSend, greeting, suggestions, examples, showUsage }: {
   messages: Message[]
+  showUsage: boolean // B49 C1: the usage line under each answer, for the owner and Reviewers
   pending: boolean
-  onSend: (text: string) => void
+  onSend: (text: string) => Promise<boolean> // true: answered; false: the request failed (B20)
   greeting: ReactNode
   suggestions: string[]
   examples: Example[]
@@ -181,8 +238,12 @@ export function Conversation({ messages, pending, onSend, greeting, suggestions,
   function submit(e?: FormEvent) {
     e?.preventDefault()
     if (!canSend) return
-    onSend(draft.trim())
+    const text = draft.trim()
     setDraft('')
+    // B20: a failed send puts the message back in the box (unless something new was typed meanwhile), so it isn't lost
+    void onSend(text).then((sent) => {
+      if (!sent) setDraft((d) => d || text)
+    })
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -220,11 +281,26 @@ export function Conversation({ messages, pending, onSend, greeting, suggestions,
             )}
           </>
         )}
-        {messages.map((m) => (
-          <div key={m.id}className={`message ${m.role}${m.error ? ' error' : ''}`}>
-            {m.error ? <p role="alert">{m.error}</p> : m.reply ? <Answer reply={m.reply} /> : <p>{m.content}</p>}
-          </div>
-        ))}
+        {messages.map((m) =>
+          m.quiet ? (
+            // B11: a limit or the spending cap, a quiet note under the question (DESIGN.md §6.2)
+            <output key={m.id} className="chat-limit">
+              {m.error}
+            </output>
+          ) : (
+            <div key={m.id} className={`message ${m.role}${m.error ? ' error' : ''}`}>
+              {m.error ? (
+                <p role="alert">{m.error}</p>
+              ) : m.refined ? (
+                <RefinedAnswer id={m.id} refined={m.refined} restored={Boolean(m.restored)} />
+              ) : m.reply ? (
+                <Answer reply={m.reply} usage={showUsage} restored={Boolean(m.restored)} />
+              ) : (
+                <p>{m.content}</p>
+              )}
+            </div>
+          ),
+        )}
         {pending && (
           <output className="thinking-note">Patch is thinking…</output>
         )}

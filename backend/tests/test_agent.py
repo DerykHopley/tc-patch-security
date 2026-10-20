@@ -15,8 +15,8 @@ class LoopingLLM(FakeLLM):
 def test_a06_1_t7_loop_stops_after_max_steps(deps):
     deps.llm = LoopingLLM()
     reply = answer("look it up forever", [], deps)
-    assert reply.steps == 4 and len(reply.tool_calls) == 4
-    assert "stopped after 4 steps" in reply.answer
+    assert reply.steps == 6 and len(reply.tool_calls) == 6
+    assert "stopped after 6 steps" in reply.answer
 
 
 def test_a06_1_t6_every_tool_call_recorded(deps):

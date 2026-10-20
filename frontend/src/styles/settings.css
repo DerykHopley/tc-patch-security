@@ -6,17 +6,117 @@
   color: var(--muted);
 }
 
-.settings-grid {
+/* An intro of more than one line (the owner's Dev page, B50) */
+.page-intro > p {
+  margin: 0;
+}
+
+.page-intro > p + p {
+  margin-top: 0.3rem;
+}
+
+.settings-grid,
+.settings-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.2rem;
   align-items: start;
 }
 
-/* ≤ 900px: one column of cards (DESIGN.md §4.2). */
+/* Dev (DESIGN.md §5.6.3): Model and Index stacked on the left, Agent and search on the right spanning both rows, so
+   a short Model card never leaves a hole above Index (B39). DOM order stays Model, Agent and search, Index: Tab
+   order and the one-column order don't change. The second row is `1fr`, not `auto`: when Agent and search is taller
+   than Model and Index together, a spanning card's extra height goes to the flexible row only, so Model's row stays
+   Model's height (with `auto auto` the extra is split over both rows and a smaller hole opens under Model). */
+.settings-grid {
+  grid-template-rows: auto 1fr;
+}
+
+.settings-grid > .span-rows {
+  grid-row: span 2;
+}
+
+/* Settings: the Watchlist across the top, then two packed columns (DESIGN.md §5.7). Each column stacks its own
+   cards, so a short card never leaves a hole beside a tall one, as the grid's rows did (DECISIONS.md, 2026-10-16).
+   Two real columns, not CSS `columns`: that splits reading and Tab order unpredictably and can break a card in two. */
+.settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  min-width: 0;
+}
+
+/* B48 (#97): Settings in two parts, "Yours" and "This Patch" (the owner's), each a heading on the page background and
+   its own packed columns. */
+.settings-part {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.settings-part + .settings-part {
+  margin-top: 1rem;
+}
+
+.part-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.part-head h2 {
+  font-size: 1.3rem;
+  color: var(--text);
+}
+
+/* "This Patch": its right column (Requests first) comes first in the DOM, so a phone shows Requests first and an
+   alert's /settings#requests lands on it; over 900px it sits on the right. */
+.patch-layout > .column-right {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.patch-layout > .column-left {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+/* Anyone but the owner: their alerts show in Patch only (§5.7 edge rule: --text, a 3px edge) */
+.in-patch-note {
+  margin: 0.3rem 0 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-input);
+  background: var(--nested-fill);
+  color: var(--text);
+}
+
+.profile-row input {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+/* ≤ 900px: one column of cards (DESIGN.md §4.2); on Settings the left column, then the right ("This Patch": the
+   column with Requests first). */
 @media (max-width: 900px) {
-  .settings-grid {
+  .patch-layout > .column-right,
+  .patch-layout > .column-left {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .settings-grid,
+  .settings-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* One column: no span and no fixed rows, so no empty row or extra gap. */
+  .settings-grid {
+    grid-template-rows: none;
+  }
+
+  .settings-grid > .span-rows {
+    grid-row: auto;
   }
 }
 
@@ -28,7 +128,15 @@
   margin-bottom: 0.3rem;
 }
 
-.settings-card h3 {
+/* A card's title is h2, or h3 on Settings under its parts' headings (B48): the same look either way */
+.card-head .card-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Headings inside a card (Recent alerts, Last 20 runs): h3 on the Dev page, h4 on Settings */
+.settings-card :is(h3, h4):not(.card-title) {
   margin: 1rem 0 0.4rem;
   font-family: var(--font-display);
   font-size: 0.95rem;
@@ -43,7 +151,9 @@
   font-size: 0.85em;
 }
 
-/* "Live", "Saved for later", "Mock" (DESIGN.md §5.2). Text stays --text or --accent: both pass on their fills. */
+/* The dashboard's Data freshness chip, "Live" or "Snapshot" (DESIGN.md §5.10); Settings' and Dev's cards had one
+   too until B50 (#95). Text is --text, the tone an edge (§5.7): --accent on --accent-soft is 4.48:1 in light
+   mode, under 4.5:1 (measured by B49.20). */
 .status-chip {
   flex: none;
   padding: 0.1rem 0.55rem;
@@ -55,13 +165,8 @@
 
 .status-chip.live {
   background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.status-chip.saved {
-  background: var(--warn-soft);
   color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--warn);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .status-chip.mock {
@@ -211,7 +316,8 @@
 
 .setup-pill.ready {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--text); /* B49.20: --accent here was 4.48:1 in light mode */
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 /* ---------- Callouts, the preview, the log ---------- */
@@ -279,18 +385,24 @@
 
 /* ---------- The reset box: red outline ---------- */
 
-.danger-zone {
-  margin-top: 1rem;
-  padding: 0.7rem 0.9rem;
-  border: 1px solid var(--error);
-  border-radius: var(--radius-nested);
+/* Start over (B50, #95): its own warning card at the end of "Yours", across both columns. The warning is the card's
+   2px --error edge (inside, so the card keeps its size); the text stays --text and --muted (the §5.7 edge rule). It
+   was a red-outlined box inside the Data card, then the Demo data card. */
+.settings-card.danger-card {
+  grid-column: 1 / -1;
+  box-shadow: inset 0 0 0 2px var(--error), var(--shadow-card);
 }
 
-.settings-card .danger-zone h3 {
-  margin: 0 0 0.2rem;
+.reset-list {
+  margin: 0.3rem 0 0;
+  padding-left: 1.2rem;
 }
 
-.danger-zone input {
+.reset-list li + li {
+  margin-top: 0.15rem;
+}
+
+.danger-card input {
   flex: 1 1 8rem;
 }
 
@@ -353,9 +465,306 @@
        at its sticky height instead of floating over the last card (A12: the report link was hidden). */
     margin-bottom: calc(5rem + 66px + 0.6rem - 4.4rem);
   }
+
+  /* B50 (#95): on a phone the bar takes two rows, so it shows only when it has something to say (unsaved changes,
+     saving, the result of a save, an error). Idle, it leaves the page but stays in the accessibility tree, so its
+     status region is there to announce "Unsaved changes" on the first edit. Its buttons are disabled then, so
+     nothing hidden takes focus. */
+  .save-bar.idle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* The policy's days (A16): the four inputs line up under each other. */
 .policy-days .field-row > label:first-child {
   min-width: 4.5rem;
+}
+
+/* ---------- B26: the owner's server settings (DESIGN.md §5.7) ---------- */
+
+/* A box for an address or a secret takes the rest of its row, never under 12rem: on a phone it wraps under its
+   label instead of shrinking. */
+.field-row input[type='url'],
+.field-row input[type='password'],
+.field-row input.chat-id {
+  flex: 1 1 12rem;
+}
+
+/* B57: the Telegram block's one-time steps, in --text on the nested fill (as the summary) */
+.card .setup-steps {
+  margin: 0 0 0.5rem;
+  padding-left: 1.3rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.setup-steps li + li {
+  margin-top: 0.2rem;
+}
+
+.setup-steps code {
+  overflow-wrap: anywhere;
+}
+
+/* Delivery's setup blocks, folded by default (DESIGN.md §5.7): one nested card each, its summary line the header,
+   the fieldset under it in the same fill. A chevron turns when open, with no transition: nothing moves. */
+.setup-block {
+  margin: 0.5rem 0 0;
+  border-radius: var(--radius-nested);
+  background: var(--nested-fill);
+}
+
+.setup-block:last-of-type {
+  margin-bottom: 0.8rem; /* the callout's own gap below */
+}
+
+.setup-block summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.3rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-nested);
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+}
+
+.setup-block summary::-webkit-details-marker {
+  display: none;
+}
+
+.setup-block summary::before {
+  content: '';
+  flex: none;
+  align-self: center;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.35rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.setup-block[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.setup-block summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.setup-unsaved {
+  font-weight: 700;
+}
+
+.settings-card .setup-block fieldset {
+  margin: 0;
+  padding-top: 0;
+}
+
+.secret-field .field-row {
+  padding-bottom: 0;
+}
+
+.secret-field .meta,
+.env-note {
+  margin: 0 0 0.3rem;
+}
+
+/* Status text on the surface follows §5.7's edge rule: --text, with the status colour as an edge */
+.secret-state.removing,
+.tap-line {
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--warn);
+  color: var(--text);
+}
+
+.tap-line.reachable {
+  border-left-color: var(--ok);
+}
+
+/* B57: what Find my chat id found, the same edge rule: ok, warn (no message yet) or error (Telegram refused) */
+.card .chat-found { /* beats .card p (muted) */
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--ok);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.card .chat-found.warn {
+  border-left-color: var(--warn);
+}
+
+.card .chat-found.error {
+  border-left-color: var(--error);
+}
+
+/* B28: where live data comes from (the Data card; the freshness card when the feeds are fake). The edge rule: --text
+   with the status colour as a 3px edge; the fake feeds also get the warn fill, so the warning can't be missed. */
+.card .feeds-line { /* beats .card p (muted) */
+  margin: 0.3rem 0 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid var(--ok);
+  border-radius: var(--radius-input);
+  color: var(--text);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.card .feeds-line.warn {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+  font-weight: 600;
+}
+
+/* ---------- B38: the Requests card (the owner's) and Connected accounts. One nested card per person or method,
+   as the delivery channels (§5.7); the status as a word in a pill with an edge colour, never colour alone ---------- */
+
+/* A link to a card (/settings#requests) leaves a little room above it */
+.settings-card[id] {
+  scroll-margin-top: 1rem;
+}
+
+.request-list,
+.linked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+
+.request-row,
+.linked-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-nested);
+  background: var(--nested-fill);
+  font-size: 0.9rem;
+  min-width: 0;
+}
+
+.request-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.request-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.6rem;
+  min-width: 0;
+}
+
+.request-name,
+.linked-name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.request-email,
+.linked-detail {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.linked-detail {
+  flex: 1 1 8rem;
+}
+
+.request-status {
+  margin-left: auto;
+  padding: 0 0.5rem;
+  border-left: 3px solid var(--warn);
+  border-radius: 4px; /* a bar for the edge: a pill's round end bent it into a crescent */
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.request-status.approved {
+  border-left-color: var(--ok);
+}
+
+.request-status.refused {
+  border-left-color: var(--error);
+}
+
+.card .request-line {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+/* The note: a stranger's words, shown as plain text, kept apart from Patch's own words */
+.request-note {
+  margin: 0.1rem 0;
+  padding: 0.4rem 0.7rem;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* B45: the role choice: label, a native select, and what the picked role allows; wraps under the label on a phone */
+.request-role {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+  min-width: 0;
+}
+
+.request-role label {
+  font-weight: 700;
+}
+
+.request-role select {
+  flex: 0 1 10rem;
+  min-width: 0;
+}
+
+.request-role-hint {
+  flex: 1 1 14rem;
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.request-actions,
+.linked-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.linked-error,
+.linked-last {
+  flex-basis: 100%;
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--warn);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.linked-error {
+  border-left-color: var(--error);
 }

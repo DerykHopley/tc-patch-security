@@ -3,6 +3,7 @@ import datetime as dt
 from collections import Counter
 
 from app import cve_filters
+from app.cve_build import owasp_categories
 from app.watched import WatchedCves
 
 SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
@@ -43,9 +44,12 @@ def summary(k, watched: WatchedCves, products: list[str] | None = None) -> dict:
     month_counts = Counter(r["published"][:7] for r in rows if r["published"] <= as_of)
     per_month = [{"month": m, "count": month_counts.get(m, 0)} for m in _months("2024-01", as_of)]
 
-    owasp_counts = Counter(r["owasp"] for r in open_rows if r["owasp"])
+    # B43 (#25): a CVE counts under every web category its CWEs map to, so the bars can add up to more than the open
+    # CVEs. The row's single `owasp` (the lowest code) stays for the CVE table.
+    cats = {r["id"]: owasp_categories(k.cves.get(r["id"])["cwes"], k.owasp["cwe_to_web"]) for r in open_rows}
+    owasp_counts = Counter(c for found in cats.values() for c in found)
     by_owasp = [{"code": c, "title": k.category(c)["title"], "count": n} for c, n in sorted(owasp_counts.items())]
-    unmapped = sum(1 for r in open_rows if not r["owasp"])
+    unmapped = sum(1 for found in cats.values() if not found)
 
     incidents = sorted((c for c in k.atlas["case_studies"] if c["type"] == "incident"),
                        key=lambda c: c["date"], reverse=True)[:5]
@@ -73,6 +77,8 @@ def summary(k, watched: WatchedCves, products: list[str] | None = None) -> dict:
             "accepted": sum(r["status"] == "accepted" and not r["review_due"] for r in rows),
             "new_30d": sum(since < r["published"] <= as_of for r in rows),
             "new_since": first_new_day,  # the first of those 30 days: the tile's link filters on it
+            # B43: new and not seen yet (B40), any status, for "See the N new CVEs →" (/cves?status=all&new=1)
+            "new_unseen": sum(r["new"] for r in rows),
         },
         "by_product": by_product,
         "per_month": per_month,

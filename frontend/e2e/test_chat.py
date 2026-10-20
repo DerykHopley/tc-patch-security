@@ -10,13 +10,14 @@ from playwright.sync_api import Locator, Page, Route, expect
 
 from test_shell import (  # noqa: F401 (fixture)
     DESKTOP, PHONE, SHOTS, contrast, css_var, eventually, no_sideways_scroll, open_app, settled)
+from reduced_motion import scene, still
 
 Q2 = "Explain CVE-2024-8309 and how to prevent that kind of bug"
 Q3 = "Which OWASP category is CWE-918?"
 Q6 = 'What does an "ignore previous instructions" attack look like?'
-Q9 = "Add Ollama to my watchlist"
+Q9 = "Add vLLM to my watchlist"
 Q11 = "Look up CVE-1999-0001"
-GREETING = ("Hi, I'm Patch! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs in your LLM stack. "
+GREETING = ("Hi, I'm Patch! I know the OWASP LLM Top 10, MITRE ATLAS and the CVEs on your watchlist. "
             "What shall we look at?")
 REM = 15  # px: the base font size (DESIGN.md §3.4)
 
@@ -122,16 +123,18 @@ def test_a06_3_patch_on_the_chat_button_stands_in_front_of_the_pill(open_app):
     assert round(1400 - (b["x"] + b["width"])) == round(1.25 * REM)
     assert round(900 - (b["y"] + b["height"])) == round(1.25 * REM)
     robot, pill = fab_bot(page), button.locator(".patch-pill")
-    assert robot.get_attribute("width") == "58"
+    assert robot.get_attribute("width") == "68"  # the chat button's Patch (Deryk, 2026-10-16: 58 was a bit small)
     rb, pb = box(robot), box(pill)
     assert round(pb["height"]) == 30 and round(pb["width"]) == 84
     assert rb["y"] < pb["y"] < rb["y"] + rb["height"]  # overlaps the pill's top edge
+    assert round(b["y"] - rb["y"]) == 8  # no higher than the 58px Patch was: he covers no more of the page
+    assert rb["y"] + rb["height"] <= pb["y"] + pb["height"]  # the extra size goes down, still within the pill
     z = lambda loc: int(loc.evaluate("el => getComputedStyle(el).zIndex"))  # noqa: E731
     assert z(robot) > z(pill)  # Patch in front, the pill behind
 
 
 def test_a06_3_patch_in_the_header_and_at_the_greeting_bubble_s_corner(open_app):
-    """The greeting's Patch is the chat button's Patch (58px, in front), on the bubble's top-left corner; only the
+    """The greeting's Patch (58px, in front, as on the chat button) sits on the bubble's top-left corner; only the
     first line of text sits beside him (Deryk, 2026-10-15: at 92px behind the bubble, half of him was hidden)."""
     page = open_app()
     chat = open_chat(page)
@@ -279,6 +282,87 @@ def test_a06_5_sidebar_ask_patch_opens_the_chat(open_app):
     expect(window(page)).to_be_hidden()
 
 
+# --- B65 (#112): the open chat button never covers Send (DESIGN.md §6.2) -----------------------------------------
+# The open button was still 84 × 66px with only its 30px pill drawn. Its empty top lay over the window's bottom-right
+# corner (z 21 over the window's 20), where Send sits: a click on Send's lower half closed the chat. 750px is the
+# tab-bar layout's bubble (701–800px); at 390px the sheet covers the button.
+
+def send_button(page: Page) -> Locator:
+    return window(page).get_by_role("button", name="Send", exact=True)
+
+
+# Which element a click at the top, middle and bottom of Send (3px in from each edge) lands on: Send or inside it.
+SEND_HITS = """send => {
+  const b = send.getBoundingClientRect(), x = b.left + b.width / 2
+  return [b.top + 3, b.top + b.height / 2, b.bottom - 3].map(y => send.contains(document.elementFromPoint(x, y)))
+}"""
+
+
+@pytest.mark.parametrize("width", [PHONE, 750, DESKTOP])
+@pytest.mark.parametrize("enlarged", [False, True])
+def test_b65_1_send_takes_a_click_at_its_top_middle_and_bottom(open_app, width, enlarged):
+    page = open_app(width=width)
+    chat = open_chat(page)
+    if enlarged and width > 700:  # a phone's sheet has no Make larger
+        chat.locator(".chat-head").get_by_role("button", name="Make larger", exact=True).click()
+    settled(chat)
+    assert send_button(page).evaluate(SEND_HITS) == [True, True, True]
+
+
+@pytest.mark.parametrize("width", [PHONE, DESKTOP])
+def test_b65_2_a_click_on_send_s_lower_edge_sends_and_the_chat_stays_open(open_app, width):
+    page = open_app(width=width)
+    chat = open_chat(page)
+    settled(chat)
+    chat.get_by_role("textbox", name="Message").fill(Q3)
+    b = box(send_button(page))
+    # The mouse itself, as a person clicks: Playwright's click would wait for the covering button to move away.
+    page.mouse.click(b["x"] + b["width"] / 2, b["y"] + b["height"] - 3)
+    expect(chat.locator(".message.user").last).to_have_text(Q3)
+    expect(chat.locator(".message.assistant")).to_have_count(1, timeout=10_000)
+    expect(chat).to_be_visible()
+    ask(page, Q2)  # Enter still sends
+    expect(chat.locator(".message.user")).to_have_count(2)
+    expect(chat).to_be_visible()
+
+
+# Opening an answer's details scrolled the window itself in Firefox (#112, the owner's v7 screenshot): the header went
+# up out of the frame and an empty band opened under the message box, over Send's lower half. Why: the message list
+# scrolls but wasn't positioned, so its absolute children (`.visually-hidden` spans) overflowed the window instead,
+# and scrollIntoView scrolls every scrollable ancestor, an `overflow: hidden` window too. Only the list may scroll.
+WINDOW_PARTS = """win => {
+  const b = el => el.getBoundingClientRect(), w = b(win)
+  return { scrollTop: win.scrollTop, overflows: win.scrollHeight > win.clientHeight,
+           headTop: Math.round(b(win.querySelector('.chat-head')).top - w.top),
+           composerBottom: Math.round(w.bottom - b(win.querySelector('.composer')).bottom) }
+}"""
+
+# Resolves once the window and its list have kept their scroll position for 10 frames: a smooth scroll has ended.
+SCROLL_STILL = """win => new Promise(done => {
+  const list = win.querySelector('.messages'), at = () => win.scrollTop + ',' + list.scrollTop
+  let last = at(), still = 0
+  const frame = () => { const now = at(); still = now === last ? still + 1 : 0; last = now
+                        still >= 10 ? done() : requestAnimationFrame(frame) }
+  requestAnimationFrame(frame)
+})"""
+
+
+@pytest.mark.parametrize("width", [PHONE, 750, DESKTOP])
+def test_b65_3_opening_an_answer_s_details_never_moves_the_window(open_app, width):
+    page = open_app(width=width)
+    chat = open_chat(page)
+    settled(chat)
+    for _ in range(2):  # enough to make the list scroll
+        ask(page, Q2)
+    assert chat.evaluate(WINDOW_PARTS) == {"scrollTop": 0, "overflows": False, "headTop": 0, "composerBottom": 0}
+    details = chat.get_by_role("button", name=re.compile(r"^Show \d+ source")).last
+    details.click()
+    expect(chat.get_by_role("button", name=re.compile(r"^Hide"))).to_have_count(1)
+    chat.evaluate(SCROLL_STILL)  # the smooth scroll has ended
+    assert chat.evaluate(WINDOW_PARTS) == {"scrollTop": 0, "overflows": False, "headTop": 0, "composerBottom": 0}
+    assert send_button(page).evaluate(SEND_HITS) == [True, True, True]
+
+
 # --- Inline details, citations, flags (DESIGN.md §6.2) -----------------------------------------------------------
 
 def in_view(page: Page, item: Locator) -> bool:
@@ -290,7 +374,7 @@ def test_a06_6_citation_opens_the_details_and_scrolls_to_its_source(open_app):
     page = open_app()
     open_chat(page)
     answer = ask(page, Q2)
-    toggle = answer.get_by_role("button", name=re.compile(r"(Show|Hide) \d+ sources · 2 tool calls"))
+    toggle = answer.get_by_role("button", name=re.compile(r"(Show|Hide) \d+ sources? · 2 tool calls"))
     expect(toggle).to_have_text(re.compile("^Show"))
     expect(toggle).to_have_attribute("aria-expanded", "false")
     cites = answer.locator("a.cite")
@@ -332,9 +416,9 @@ def test_a06_6_tool_cards_and_query_plan(open_app):
 
     watch = ask(page, Q9)
     watch.get_by_role("button", name=re.compile("Show")).click()
-    # The servers live for the whole run, so another test (or browser) may have added Ollama already.
+    # Patch only proposes (B21). The servers live for the whole run, so another test may have added vLLM already.
     expect(watch.locator(".tool-card .watchlist-card")).to_contain_text(
-        re.compile(r"(Added Ollama to|Ollama is already on) your watchlist\."))
+        re.compile(r"(Proposed: Add vLLM to your watchlist|vLLM is already on your watchlist)"))
 
 
 def test_a06_6_tool_errors_in_red(open_app):
@@ -389,7 +473,7 @@ def test_a06_8_normal_motion_patch_moves(open_app):
     assert running > 0
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scenes a06_8 and a06b_7).
+# Reduced motion: scenes a06_8 and a06b_7 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A06b: the squircle robot, four animations per mood, one picked at random (ticket #29) -----------------------
@@ -728,10 +812,61 @@ def test_a06_10_keyboard_open_ask_and_reach_every_chat_control(open_app):
                                    "return a.getAttribute('aria-label') || a.textContent.trim() })()"))
     for name in ("New chat", "Make larger", "Close the chat"):
         assert name in names, names
-    assert any(n.startswith("Show 0 sources · 1 tool calls") for n in names), names
+    assert any(n.startswith("Show 0 sources · 1 tool call") for n in names), names
     window(page).get_by_role("button", name=re.compile("Show")).focus()
     page.keyboard.press("Enter")
     expect(window(page).get_by_role("tab", name=re.compile("Tool calls"))).to_be_visible()
     outline = page.evaluate("(() => { const s = getComputedStyle(document.activeElement); "
                             "return [s.outlineStyle, s.outlineWidth] })()")
     assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a06_8_chat(fx):
+    page = fx("open_app")(reduced=True)
+    still(page, "Patch on the button")
+    chat = open_chat(page)
+    held = hold_chat(page)
+    send(page, Q3)
+    expect(head_bot(page)).to_have_class(re.compile("mood-thinking"))
+    still(page, "no pop, no thinking motion")
+    release(page, held)
+    expect(head_bot(page)).to_have_class(re.compile("mood-happy"))
+    still(page, "no waving")
+    page.route("**/chat", lambda route: route.fulfill(
+        status=502, headers={"Access-Control-Allow-Origin": "*"}, json={"error": {"code": "x", "message": "Down."}}))
+    send(page, Q3)
+    expect(head_bot(page)).to_have_class(re.compile("mood-alert"))
+    still(page, "no shake")
+    assert chat.evaluate("el => getComputedStyle(el).animationName") == "none"
+
+
+@scene
+def a06b_7_patch_variants(fx):
+    """All 16 of Patch's animations stand still, each in a pose that keeps its face (arc eyes, wide eyes, ...)."""
+    for option in range(4):
+        page = fx("open_app")(reduced=True, init_script=pick(option))
+        places = [page.locator(".patch-fab svg.robot"), page.locator(".hello svg.robot"),
+                  page.locator(".side-card svg.robot")]
+        for robot in places:
+            expect(robot).to_have_attribute("data-variant", OPTIONS["idle"][option])
+        still(page, f"idle {OPTIONS['idle'][option]}: the button, the banner, the snapshot card")
+        has_face(places[0], OPTIONS["idle"][option])
+        open_chat(page)
+        held = to_thinking(page)
+        still(page, f"thinking {OPTIONS['thinking'][option]}")
+        has_face(head_bot(page), OPTIONS["thinking"][option])
+        release(page, held)
+        expect(head_bot(page)).to_have_attribute("data-mood", "happy")
+        still(page, f"happy {OPTIONS['happy'][option]}")
+        has_face(head_bot(page), OPTIONS["happy"][option])
+        to_alert(page)
+        still(page, f"alert {OPTIONS['alert'][option]}")
+        has_face(head_bot(page), OPTIONS["alert"][option])
+        # The still pose shows every part: nothing is left at a keyframe's scale(0) or opacity 0.
+        hidden = head_bot(page).evaluate("""el => [...el.querySelectorAll('*')].filter(c => {
+            const s = getComputedStyle(c); return s.transform.startsWith('matrix(0, 0, 0, 0') || s.opacity === '0' })
+            .length""")
+        assert hidden == 0

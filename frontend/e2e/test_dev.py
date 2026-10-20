@@ -14,6 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 from playwright.sync_api import Browser, Page, expect
+from reduced_motion import scene, still
 
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
@@ -151,11 +152,16 @@ def test_a11_1_a_url_off_this_machine_is_refused(dev_page):
 def test_a11_2_sliders_and_switches_save_and_survive_a_reload(dev_page):
     page = dev_page()
     for label, value in (("Sources per search", "5"), ("Results per query", "10"), ("Chunks per document", "2"),
-                         ("RRF constant k", "60"), ("Keyword vs vector", "0.5"), ("Max agent steps", "4")):
+                         ("RRF constant k", "60"), ("Keyword vs vector", "0.5"), ("Max agent steps", "6")):
         expect(page.get_by_label(label)).to_have_value(value)
     page.get_by_label("Sources per search").fill("3")
-    page.get_by_label("RRF constant k").focus()
-    page.keyboard.press("ArrowRight")  # sliders move by keyboard
+    # Sliders move by keyboard. #67: Firefox on CI lost a keypress sent right after focus(): wait until the slider
+    # has the focus, press on the slider itself, and wait for the new value before the next field takes the focus.
+    rrf = page.get_by_label("RRF constant k")
+    rrf.focus()
+    expect(rrf).to_be_focused()
+    rrf.press("ArrowRight")
+    expect(rrf).to_have_value("61")
     page.get_by_label("Keyword vs vector").fill("0.75")
     page.get_by_label("Multi-query rewrites").uncheck()
     page.get_by_label("Self-query filters").uncheck()
@@ -288,8 +294,9 @@ def overlaps(a: dict, b: dict) -> bool:
 def test_a11_6_save_bar_floats_clear_of_patch(dev_page, width):
     page = dev_page(width=width)
     bar = page.locator(".save-bar")
-    assert style(bar, "position") == "sticky" and style(bar, "borderTopLeftRadius") == "20px"
     page.get_by_label("Sources per search").fill("7")
+    expect(bar).to_contain_text("Unsaved changes")  # B50: on a phone it shows only now
+    assert style(bar, "position") == "sticky" and style(bar, "borderTopLeftRadius") == "20px"
     page.evaluate("window.scrollTo(0, 0)")
     box = bar.bounding_box()
     assert box and box["y"] + box["height"] <= 900
@@ -320,7 +327,7 @@ def test_a11_6_sliders_buttons_and_cards_on_brand(dev_page, scheme):
 
 # --- A11.7: reduced motion ------------------------------------------------------------------------------------------
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a11_7).
+# Reduced motion: scene a11_7 at the end of this file, in the shared check (reduced_motion.py).
 
 
 def test_a11_7_nothing_on_the_dev_page_animates_even_with_normal_motion(dev_page):
@@ -537,3 +544,16 @@ def test_a11_10_the_dropdown_in_both_themes_at_both_widths(dev_page, api_url, br
     box = select.bounding_box()
     assert box and box["x"] + box["width"] <= card["x"] + card["width"]
     page.locator("section.card", has=select).screenshot(path=f"{shot}-listed.png")
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a11_7_dev_page(fx):
+    page = fx("dev_page")(reduced=True)
+    page.get_by_label("Sources per search").fill("4")
+    run_search(page)
+    page.get_by_role("button", name="Show all").click()
+    page.locator(".emap .hit").first.hover(force=True)
+    page.get_by_role("button", name="Discard").hover()
+    still(page, "the dev page")

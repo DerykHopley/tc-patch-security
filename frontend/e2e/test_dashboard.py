@@ -13,6 +13,7 @@ import urllib.request
 
 import pytest
 from playwright.sync_api import Browser, Page, expect
+from reduced_motion import scene, still
 
 SHOTS = pathlib.Path(__file__).parent / "screenshots"
 PHONE, DESKTOP = 400, 1400
@@ -32,6 +33,17 @@ def api(api_url: str, path: str, method: str = "GET", body: dict | None = None) 
     req = urllib.request.Request(api_url + path, data=data, method=method, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req) as r:
         return json.load(r)
+
+
+def cve_row(api_url: str, cve: str, product: str) -> dict:
+    """One CVE's row on the CVEs page, any status. Page by page: closed CVEs sort after the open ones (B33), so a
+    product with over 200 CVEs can put a fixed one past the first page."""
+    offset = 0
+    while rows := api(api_url, f"/cves?status=all&product={product}&limit=200&offset={offset}")["rows"]:
+        if found := next((r for r in rows if r["id"] == cve), None):
+            return found
+        offset += 200
+    raise KeyError(cve)
 
 
 @pytest.fixture
@@ -106,6 +118,22 @@ def contrast(a: tuple[int, ...], b: tuple[int, ...]) -> float:
 
 def rows(page: Page) -> list[str]:
     return page.locator("table.cves tbody tr td:first-child a").all_inner_texts()
+
+
+def more_actions(page: Page, cve: str) -> None:
+    """Opens a CVE row's "More" (B36): its status actions after the main one, and "Ask about this". Open stays open."""
+    summary = page.get_by_label(f"More actions for {cve}", exact=True)
+    if not summary.evaluate("el => el.parentElement.open"):
+        # By keyboard: the open chat's head may sit over the top row's More, and a click would land on it
+        summary.focus()
+        page.keyboard.press("Enter")
+    expect(summary.locator("xpath=..").get_by_role("button", name=f"Ask about this: {cve}")).to_be_visible()
+
+
+def ask_about(page: Page, cve: str):
+    """A CVE row's "Ask about this", in view: it's under the row's More (B36)."""
+    more_actions(page, cve)
+    return page.locator("table.cves").get_by_role("button", name=f"Ask about this: {cve}")
 
 
 def expect_rows(page: Page, ids: list[str]) -> None:
@@ -185,7 +213,7 @@ def test_a04_9_tiles_and_cards_fade_up_with_the_listed_delays(open_dash):
     assert card == ["fade-up", "0.45s", "0.12s", "cubic-bezier(0.2, 0.8, 0.2, 1)"]
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a04_9).
+# Reduced motion: scene a04_9 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- Light and dark, phone and desktop, keyboard ------------------------------------------------------------------
@@ -208,7 +236,7 @@ def test_a04_11_keyboard_reaches_the_watchlist_filter(open_dash):
     # The filters, row actions and paging moved to the CVEs page (test_cves_page.py keeps A04.11 for them); the
     # watchlist is a filter now (A15b): its chips and the link to Settings.
     page = open_dash()
-    page.get_by_role("link", name="See all CVEs").focus()
+    page.locator(".hello").get_by_role("button", name="Ask Patch").focus()  # B43: the filter comes right after the banner
     seen = []
     for _ in range(40):
         page.keyboard.press("Tab")
@@ -219,3 +247,18 @@ def test_a04_11_keyboard_reaches_the_watchlist_filter(open_dash):
     assert "LangChain" in seen and seen[-1].startswith("Edit watchlist in Settings"), seen
     outline = page.evaluate("(() => { const s = getComputedStyle(document.activeElement); return [s.outlineStyle, s.outlineWidth] })()")
     assert outline[0] != "none" and float(outline[1].rstrip("px")) >= 2
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a04_9_dashboard(fx):
+    from test_watchlist import chip_button  # here: test_watchlist imports this file
+    page = fx("open_dash")(reduced=True)
+    chip_button(page, "Langflow").click()  # a reload must not animate either (the product filter, A15b)
+    expect(page.locator(".chart").first.locator(".bar-row")).to_have_count(1)
+    still(page, "after a reload")
+    transforms = tile(page, TILES[2][0]).evaluate("""async el => { const seen = new Set();
+        for (let i = 0; i < 10; i++) { seen.add(getComputedStyle(el).transform); await new Promise(r => setTimeout(r, 50)) }
+        return [...seen] }""")
+    assert transforms == ["none"]  # the KEV tile doesn't wiggle

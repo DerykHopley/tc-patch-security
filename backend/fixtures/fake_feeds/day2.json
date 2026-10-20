@@ -1,0 +1,35 @@
+{
+ "_note": "The fake Feeds' day 2 (B02): everything of day 1, plus a new Ollama CVE, the day-1 Langflow CVE rescored to critical with a fixed version in OSV, and an old Langflow CVE added to KEV. Made up for tests: the ids CVE-2026-991xx and GHSA-fake-* are not real.",
+ "date": "2026-10-15",
+ "catalogVersion": "2026.10.15",
+ "nvd": [
+  {"id": "CVE-2026-99101", "published": "2026-10-14T08:15:00.000", "lastModified": "2026-10-15T06:40:00.000",
+   "status": "Analyzed",
+   "description": "Langflow before 1.9.2 lets an authenticated user escape the component sandbox with a crafted flow manifest upload and run code on the server.",
+   "cwes": ["CWE-94"], "score": 9.1, "severity": "CRITICAL", "vendor_products": ["langflow:langflow"], "keywords": ["langflow"]},
+  {"id": "CVE-2026-99102", "published": "2026-10-15T05:30:00.000", "lastModified": "2026-10-15T05:30:00.000",
+   "status": "Received",
+   "description": "Ollama before 0.40.5 follows symbolic links in a pulled model blob, so a malicious registry can overwrite files outside the models folder.",
+   "cwes": ["CWE-59"], "score": 7.5, "severity": "HIGH", "vendor_products": ["ollama:ollama"], "keywords": ["ollama"]}
+ ],
+ "kev": [
+  {"cveID": "CVE-2024-37014", "vendorProject": "Langflow", "product": "Langflow",
+   "vulnerabilityName": "Langflow Code Injection Vulnerability", "dateAdded": "2026-10-15",
+   "shortDescription": "Langflow contains a code injection vulnerability in its custom component endpoint.",
+   "requiredAction": "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.",
+   "dueDate": "2026-11-05", "knownRansomwareCampaignUse": "Unknown", "notes": "", "cwes": ["CWE-94"]}
+ ],
+ "epss": [
+  {"cve": "CVE-2026-99101", "epss": "0.310000000", "percentile": "0.970000000", "date": "2026-10-15"},
+  {"cve": "CVE-2026-99102", "epss": "0.004000000", "percentile": "0.320000000", "date": "2026-10-15"},
+  {"cve": "CVE-2024-37014", "epss": "0.920000000", "percentile": "0.998000000", "date": "2026-10-15"}
+ ],
+ "osv": {
+  "PyPI/langflow": [
+   {"id": "GHSA-fake-9910-0001", "aliases": ["CVE-2026-99101"], "published": "2026-10-15T07:00:00Z",
+    "modified": "2026-10-15T07:00:00Z",
+    "affected": [{"package": {"ecosystem": "PyPI", "name": "langflow"},
+                  "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "1.9.2"}]}]}]}
+  ]
+ }
+}

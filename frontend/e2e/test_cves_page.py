@@ -13,9 +13,11 @@ import pytest
 from playwright.sync_api import Browser, Locator, Page, expect
 
 from test_dashboard import (  # noqa: F401 (fixtures)
-    DESKTOP, PHONE, SHOTS, TILES, api, clean_state, confirm, expect_rows, open_dash, rows, tile, tile_value,
+    DESKTOP, PHONE, SHOTS, TILES, api, clean_state, confirm, expect_rows, more_actions, open_dash, rows, tile,
+    tile_value,
 )
 from test_shell import settled
+from reduced_motion import scene, still
 
 HEIGHT = 900
 PIN = "Pin: dock the chat beside the page"
@@ -44,6 +46,15 @@ def open_cves(browser: Browser, ui_url: str, clean_state):
         ctx.close()
 
 
+def open_filters(page: Page) -> None:
+    """B44: on a phone the filters fold behind "Filters (n on)": open them when folded.
+    On a desktop the button is hidden and the filters are always there."""
+    toggle = page.get_by_role("button", name=re.compile(r"^Filters \(\d+ on\)$"))
+    if toggle.is_visible() and toggle.get_attribute("aria-expanded") == "false":
+        toggle.click()
+        expect(toggle).to_have_attribute("aria-expanded", "true")
+
+
 def params(page: Page) -> dict[str, str]:
     return {k: v[0] for k, v in parse_qs(urlparse(page.url).query).items()}
 
@@ -70,13 +81,14 @@ def no_sideways_scroll(page: Page) -> bool:
 
 
 def actions_in_view(page: Page) -> None:
-    """Every row's actions sit inside the table's box and the window: nothing to scroll sideways to reach them."""
+    """Every row's actions sit inside the table's box and the window: nothing to scroll sideways to reach them. A row
+    shows its main action and More (B36); what More opens stacks under it, in the same column."""
     scroll = page.locator(".table-scroll")
     assert scroll.evaluate("el => el.scrollWidth <= el.clientWidth + 1"), "the table scrolls sideways"
     box = scroll.bounding_box()
     width = page.viewport_size["width"] if page.viewport_size else DESKTOP
-    for name in (re.compile(r"^Mark .* fixed$"), re.compile(r"^Ask about this: ")):
-        for button in page.get_by_role("button", name=name).all()[:5]:
+    for name in (re.compile(r"^Mark .* fixed$"), re.compile(r"^More actions for ")):
+        for button in page.get_by_label(name).all()[:5]:
             b = button.bounding_box()
             assert b and box and b["x"] >= box["x"] - 0.5 and b["x"] + b["width"] <= box["x"] + box["width"] + 0.5
             assert b["x"] + b["width"] <= width
@@ -89,7 +101,7 @@ def test_a04b_1_sidebar_lists_cves_and_shows_it_active(open_dash):
     side = page.get_by_role("complementary", name="Main")
     names = side.locator(".side-links .side-link").evaluate_all(
         "els => els.map(el => el.getAttribute('aria-label') || el.querySelector('.side-label').textContent.trim())")
-    assert names == ["Dashboard", "CVEs", "Settings", "Dev", "Ask Patch"]
+    assert names == ["Dashboard", "CVEs", "Settings", "Dev", "Ask Patch", "About"]  # About: B42
     side.get_by_role("button", name="CVEs", exact=True).click()
     expect(page.get_by_role("heading", level=1)).to_have_text("CVEs")
     expect(page.locator(".crumb-path")).to_have_text("Pages / CVEs")
@@ -106,7 +118,7 @@ def test_a04b_1_phone_tab_bar_has_five_tabs_that_fit(open_cves):
     page = open_cves(width=PHONE)
     bar = page.locator(".sidenav")
     labels = bar.locator(".side-label").evaluate_all("els => els.map(el => el.firstChild.textContent.trim())")
-    assert labels == ["Dashboard", "CVEs", "Settings", "Dev", "Ask"]
+    assert labels == ["Dashboard", "CVEs", "Settings", "Dev", "Ask", "About"]  # About since B42: six fit
     for link in bar.locator(".side-link").all():
         b = link.bounding_box()
         assert b and b["x"] >= 0 and b["x"] + b["width"] <= PHONE
@@ -156,6 +168,7 @@ def test_a04_7_row_actions_reload_the_table_and_the_tiles(open_cves, api_url):
     confirm(page)
     expect(page.get_by_role("link", name=top, exact=True)).to_have_count(0)
     second = rows(page)[0]
+    more_actions(page, second)
     page.get_by_role("button", name=f"Mark {second} not affected").click()
     confirm(page, "Component not present")
     expect(page.get_by_role("link", name=second, exact=True)).to_have_count(0)
@@ -265,24 +278,17 @@ def test_a04b_5_dashboard_keeps_its_other_parts(open_dash):
     expect(page.locator(".hello")).to_be_visible()
     expect(page.locator(".tile")).to_have_count(4)
     titles = page.locator(".dash-main > .card h2").all_inner_texts()
-    assert titles == ["Open CVEs by product and severity", "CVEs per month", "Open CVEs by OWASP category",
+    assert titles == ["Open CVEs by product and severity", "CVEs per month", "Open CVEs by OWASP Top 10 (web, 2025)",
                       "Top 5 open CVEs"]
     side = page.locator(".dash-side > .card h2").all_inner_texts()
-    assert side == ["Watchlist", "Latest AI incidents (MITRE ATLAS)", "Data freshness"]
+    assert side == ["Recent alerts", "Data freshness", "Latest AI incidents (MITRE ATLAS)"]  # B04; B43: the watchlist sits before the tiles, incidents last
 
 
-# --- A04b.6: "Ask about this" over the CVEs page; the alert link still works ------------------------------------------
+# --- A04b.6: "Ask about this" over the CVEs page ---------------------------------------------------------------
 
 # "Ask about this" itself (opens the chat over the CVEs page, "on CVEs", the pinned chat) is A07.5 in
-# test_chat_layout.py, which now runs on the CVEs page.
-
-def test_a04b_6_alert_link_works_on_the_cves_page(open_cves):
-    page = open_cves("#cve=CVE-2024-8309")
-    banner = page.get_by_role("region", name="Alert")
-    expect(banner).to_contain_text("You opened an alert for CVE-2024-8309.")
-    banner.get_by_role("button", name="Explain it").click()
-    expect(window(page).locator(".message.user")).to_have_text("Explain CVE-2024-8309 and how to defend against it.")
-    assert urlparse(page.url).path == "/cves" and "cve=" not in page.url
+# test_chat_layout.py, which now runs on the CVEs page. The alert link opens the CVE's own page since B35:
+# test_cve_page.py.
 
 
 # --- A04b.7: phone cards; A04b.8: the pinned chat -------------------------------------------------------------------
@@ -298,6 +304,7 @@ def test_a04b_7_phone_rows_are_stacked_cards(open_cves):
     for label in ("Product", "Severity", "EPSS", "Status"):
         expect(first.locator(f"td[data-label='{label}']")).to_be_visible()
     cve = rows(page)[0]
+    more_actions(page, cve)
     for name in (f"Mark {cve} fixed", f"Mark {cve} not affected", f"Ask about this: {cve}"):
         b = page.get_by_role("button", name=name).bounding_box()
         assert b and b["x"] >= 0 and b["x"] + b["width"] <= PHONE
@@ -340,7 +347,7 @@ def test_a04b_9_cves_card_and_top_5_card_fade_up(open_cves, open_dash):
     assert top == ["fade-up", "0.24s"]
 
 
-# Reduced motion: in the shared check, test_reduced_motion.py (scene a04b_9).
+# Reduced motion: scene a04b_9 at the end of this file, in the shared check (reduced_motion.py).
 
 
 # --- A04b.10: light and dark, phone and desktop, pinned -------------------------------------------------------------
@@ -389,8 +396,8 @@ def test_a04_11_keyboard_reaches_filters_actions_and_paging(open_cves):
         seen.append(focused(page))
         if seen[-1] == "Next page":
             break
-    for name in ("Severity", "Status", "In CISA KEV only", top, f"Mark {top} fixed", f"Mark {top} not affected",
-                 f"Ask about this: {top}", "FIRST", "Next page"):
+    for name in ("Severity", "Status", "In CISA KEV only", top, f"Mark {top} fixed", f"More actions for {top}",
+                 "FIRST", "Next page"):  # More's own buttons by keyboard: B36.7
         assert any(s.startswith(name) for s in seen), (name, seen)
     page.get_by_role("button", name=f"Mark {top} fixed").focus()
     assert visible_focus(page)
@@ -420,3 +427,19 @@ def test_a04b_11_keyboard_reaches_the_tile_links_and_the_top_5_card(open_dash):
     assert visible_focus(page)
     page.keyboard.press("Enter")
     expect(page.get_by_role("heading", level=1)).to_have_text("CVEs")
+
+
+# --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
+
+@scene
+def a04b_9_cves_page(fx):
+    open_page = fx("open_cves")
+    page = open_page(reduced=True)
+    still(page, "the page")
+    page.get_by_role("combobox", name="Severity").select_option("HIGH")
+    expect(page).to_have_url(re.compile("severity=HIGH"))
+    page.get_by_role("button", name=f"Mark {rows(page)[0]} fixed").click()
+    confirm(page)
+    expect(page.locator("table.cves tbody tr").first).to_be_visible()
+    still(page, "after Mark fixed")
+    still(open_page(width=400, reduced=True), "at phone width")

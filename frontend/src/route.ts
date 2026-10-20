@@ -2,35 +2,124 @@ import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 
 // Each page has a path, so a link (a tile, "See all CVEs", an alert) opens the right page and a reload stays on it.
 // The CVEs page also keeps its filters in the query string (A04b): `/cves?product=langflow&severity=CRITICAL`.
-// No router library: four paths and the browser's history are all the app needs.
+// One CVE has its own page under CVEs (B35): `/cves/CVE-2025-3248`, so a link to it can be shared, Back works, and
+// alerts and the chat link straight to it.
+// No router library: a handful of paths and the browser's history are all the app needs.
+// Any other address is "Page not found" (B49, #96 O1), with a link to the dashboard: it used to show the dashboard
+// under the bad address, so a mistyped link looked like it worked. Signed out with sign-in on, the front door shows
+// the landing page instead (auth/signInView.ts `frontDoor`): this is the signed-in (or sign-in off) side.
+import { takeTarget } from './auth/signInTarget.ts'
+import { SIGN_IN_PATH } from './auth/signInView.ts'
 
-export type Page = 'dashboard' | 'cves' | 'settings' | 'dev'
+/** A page with its own path: the sidebar's and the tab bar's. */
+export type NavPage = 'dashboard' | 'cves' | 'settings' | 'dev' | 'about'
+export type Page = NavPage | 'notFound'
 
-export const PATHS: Record<Page, string> = { dashboard: '/', cves: '/cves', settings: '/settings', dev: '/dev' }
-
-function pageOf(pathname: string): Page {
-  const path = pathname.replace(/\/+$/, '') || '/'
-  return (Object.keys(PATHS) as Page[]).find((p) => PATHS[p] === path) ?? 'dashboard'
+export const PATHS: Record<NavPage, string> = {
+  dashboard: '/',
+  cves: '/cves',
+  settings: '/settings',
+  dev: '/dev',
+  about: '/about', // the landing page inside the app (B42)
 }
+
+const CVE_ID = /^CVE-\d{4}-\d{4,7}$/i
+const SHOWN = 40 // characters of a CVE path segment kept: it's only shown back ("No such CVE")
+
+export const isCveId = (id: string) => CVE_ID.test(id)
+
+/** The link to one CVE's page (B35). */
+export function cvePath(id: string): string {
+  return `${PATHS.cves}/${encodeURIComponent(id.toUpperCase())}`
+}
+
+/** The page a path shows, and the CVE for /cves/<id>. Any segment there opens the CVE page: a malformed or unknown
+ *  id gets "No such CVE" with a link back to the list, not the dashboard. */
+export function locate(pathname: string): { page: Page; cve: string | null } {
+  const path = pathname.replace(/\/+$/, '') || '/'
+  const one = path.match(/^\/cves\/([^/]+)$/)
+  if (one) return { page: 'cves', cve: decoded(one[1]).toUpperCase().slice(0, SHOWN) }
+  // Signed in at the sign-in form's address (Clerk may land you there once you're in): the app opens as at `/`
+  if (path === SIGN_IN_PATH) return { page: 'dashboard', cve: null }
+  const page = (Object.keys(PATHS) as NavPage[]).find((p) => PATHS[p] === path) ?? 'notFound'
+  return { page, cve: null }
+}
+
+function decoded(segment: string): string {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return segment
+  }
+}
+
+/** An alert sent before B35 links to `#cve=CVE-…` on any path: it now opens that CVE's page. Only a well-formed id
+ *  is followed: the hash is text from outside. */
+export function alertLinkPath(hash: string): string | null {
+  const m = /^#cve=(.+)$/i.exec(hash)
+  return m && CVE_ID.test(m[1]) ? cvePath(m[1]) : null
+}
+
+const trimmed = (pathname: string) => pathname.replace(/\/+$/, '') || '/'
+
+/** The address a signed-out visitor asked for, which the front door keeps for after sign-in (B60, #107): an in-app
+ *  address (path, query and hash) other than the bare dashboard. An old alert link becomes its CVE page. Nothing at
+ *  `/` (the app opens there anyway), the sign-in form, Clerk's steps (`#/…`) or an unknown address. */
+export function signInTargetAt({ pathname, search, hash }: { pathname: string; search: string; hash: string }):
+  string | null {
+  const alert = alertLinkPath(hash)
+  if (alert) return alert
+  const path = trimmed(pathname)
+  if (hash.startsWith('#/') || path === SIGN_IN_PATH || locate(path).page === 'notFound') return null
+  const target = path + search + hash
+  return target === '/' ? null : target
+}
+
+/** Where the app opens after sign-in when a target was kept (B60): the target, when the app starts where Clerk lands
+ *  without one (`/`, its fallback, or the form's address); elsewhere null: Clerk already went there, or the person
+ *  chose that address. */
+export function afterSignIn(pathname: string, target: string | null): string | null {
+  const path = trimmed(pathname)
+  return target && (path === '/' || path === SIGN_IN_PATH) ? target : null
+}
+
+/** The history state of a CVE page opened from the CVEs list (B35): its back link then steps back to the list, in
+ *  place, instead of opening the list again at the top. */
+export const FROM_LIST = { cveFromList: true }
+export const openedFromList = () => (history.state as { cveFromList?: boolean } | null)?.cveFromList === true
 
 export interface Route {
   page: Page
+  cve: string | null // on /cves/<id>: the CVE whose page is open (B35); null on the list and every other page
   search: string // the query string when the page was opened: the CVEs page reads its filters from it
   visit: number // counts navigations, so a page opened again with other filters starts from them
 }
 
 function current(visit: number): Route {
-  return { page: pageOf(window.location.pathname), search: window.location.search, visit }
+  // An old alert link is replaced (not pushed): Back leaves the app as it would have before.
+  const alert = alertLinkPath(window.location.hash)
+  if (alert) history.replaceState(null, '', alert)
+  return { ...locate(window.location.pathname), search: window.location.search, visit }
 }
 
 /** The page in the address bar, and a function that opens another one (a new history entry; Back returns). */
 export function useRoute(): [Route, (href: string) => void] {
-  const [route, setRoute] = useState(() => current(0))
+  const [route, setRoute] = useState(() => {
+    // B60 (#107): the app's first page after sign-in is the address the visitor asked for while signed out, once
+    // (replaced, not pushed: Back doesn't return to the dashboard they never asked for)
+    const target = afterSignIn(window.location.pathname, takeTarget())
+    if (target) history.replaceState(null, '', target)
+    return current(0)
+  })
 
   useEffect(() => {
     const onPop = () => setRoute((r) => current(r.visit + 1))
     window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
+    window.addEventListener('hashchange', onPop) // an alert link followed while the app is open
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      window.removeEventListener('hashchange', onPop)
+    }
   }, [])
 
   const navigate = useCallback((href: string) => {
@@ -40,6 +129,15 @@ export function useRoute(): [Route, (href: string) => void] {
   }, [])
 
   return [route, navigate]
+}
+
+/** Opens an in-app path from a part that has no `navigate` (the chat's proposal card, B21; a CVE link, B35): a new
+ *  history entry, then the popstate useRoute listens to, so the page follows as for Back. `state`: the new entry's
+ *  history state (a CVE page opened from the list knows Back returns there). */
+export function openPath(href: string, state: unknown = null): void {
+  history.pushState(state, '', href)
+  window.scrollTo(0, 0)
+  window.dispatchEvent(new PopStateEvent('popstate'))
 }
 
 /** Follows an in-app link without a page load; a modified click (new tab, new window) is left to the browser. */

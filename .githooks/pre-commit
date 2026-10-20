@@ -1,0 +1,26 @@
+#!/bin/sh
+# Pre-commit: the two quick checks CI runs too, so a commit fails here before CI does (spec B retro, finding 1).
+#   1. No conflict-marker line in what is staged (the index, not the working tree): same pattern as CI's
+#      "No merge conflict markers". `=======` alone isn't checked: Markdown uses it to underline headings.
+#   2. No fixed wait in the browser check without `# allowed: <reason>` (frontend/e2e/check_waits.py).
+# Turn it on once per clone: git config core.hooksPath .githooks
+# Skip it once (CI still checks): git commit --no-verify
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+
+failed=0
+# git grep exits 0 on a match, 1 on none, higher on an error.
+status=0
+git grep --cached -nE '^(<<<<<<<|>>>>>>>)( |$)' || status=$?
+case "$status" in
+  0) echo "pre-commit: conflict markers are staged (lines above). Resolve them, then git add." >&2; failed=1 ;;
+  1) ;;
+  *) echo "pre-commit: git grep failed (exit $status)." >&2; exit "$status" ;;
+esac
+
+if ! python3 frontend/e2e/check_waits.py; then
+  echo "pre-commit: a fixed wait without a reason (above)." >&2
+  failed=1
+fi
+
+exit "$failed"
