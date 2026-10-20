@@ -42,7 +42,8 @@ ok()   { printf '  %s✓%s %s\n' "$G" "$N" "$1"; }
 info() { printf '  %s%s%s\n' "$D" "$1" "$N"; }
 stop() { printf '\n  %s✗ %s%s\n  %sNothing on the live app changed.%s\n\n' "$R" "$1" "$N" "$D" "$N"; exit 1; }
 # do_ "what" cmd...: runs it, or in a dry run prints it
-do_() { local what="$1"; shift; if [[ $DRY == yes ]]; then info "would run: $what"; else "$@"; fi; }
+# (to stderr: callers send the command's own output to a log or /dev/null)
+do_() { local what="$1"; shift; if [[ $DRY == yes ]]; then info "would run: $what" >&2; else "$@"; fi; }
 
 saved()  { grep -E "^${1}=" "$WIZARD_ENV" 2>/dev/null | tail -n1 | cut -d= -f2-; }
 local_() { grep -E "^${1}=" "$LOCAL_ENV" 2>/dev/null | tail -n1 | cut -d= -f2- | sed -E "s/^['\"]|['\"]$//g"; }
@@ -147,7 +148,7 @@ if [[ $REBUILD == yes ]]; then
        uv run --quiet python -m app.rag.build_index >/dev/null) || { KEY=; stop "The index build failed: see above."; }
   else info "would rebuild backend/data/index-image"; fi
   KEY=
-  ok "index rebuilt"
+  ok "index $([[ $DRY == yes ]] && echo 'would be rebuilt' || echo 'rebuilt')"
 else
   ok "the index is current"
 fi
@@ -163,7 +164,7 @@ rm -f "$LOG"
 grep -q "$REGION-docker.pkg.dev" "$HOME/.docker/config.json" 2>/dev/null \
   || do_ "gcloud auth configure-docker" gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet >/dev/null
 do_ "docker push $IMAGE:$TAG" docker push -q "$IMAGE:$TAG" >/dev/null || stop "The upload failed: see above."
-ok "$TAG built and uploaded"
+ok "$TAG $([[ $DRY == yes ]] && echo 'would be built and uploaded' || echo 'built and uploaded')"
 
 # ── 5. Secrets and settings ──────────────────────────────────────────────────────────────────────────────────────────
 # Each optional secret is added once, from backend/.env, and then left alone: an update never asks again. --rotate
