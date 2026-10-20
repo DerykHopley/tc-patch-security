@@ -191,7 +191,7 @@ By default the app runs on the frozen snapshot. Live mode refreshes the CVE data
 
 - The optional NVD key (50 requests per 30 s instead of 5; only matters after a long gap) is on the same card. `DATA_MODE=live` and `NVD_API_KEY` in `.env` still work, and win.
 
-- **Check now** on the dashboard runs a refresh. So does the command line: `cd backend && uv run --env-file .env python -m app.refresh`.
+- **Check now** runs a refresh. It is in two places: the dashboard's Data freshness card, for everyone, and Settings → Refresh runs, for the owner, above the list of runs (B59). So does the command line: `cd backend && uv run --env-file .env python -m app.refresh`.
 - **The schedule:** an hourly systemd user timer runs `python -m app.refresh --schedule`. That run skips (and fetches nothing) until the Settings schedule (every 1, 3, 6, 12 or 24 hours) has passed since the last check, so Settings controls the schedule without touching the timer. Install it from the repo root:
 
   ```bash

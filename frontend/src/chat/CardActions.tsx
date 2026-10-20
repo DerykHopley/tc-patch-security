@@ -6,6 +6,7 @@ import type { Proposal } from '../toolResults.ts'
 import { ProposalCard } from './ProposalCard.tsx'
 import type { RefinedResult } from './useChat.ts'
 import '../styles/cardActions.css'
+import '../styles/checkNow.css' // the spinner on a busy button, shared with Check now (§5.10)
 
 // Buttons on tool cards (B24, DESIGN.md §6.7): the next step is a click, sent as a structured action.
 // - A change (Watch this product, Set my version…, Mark not affected…, Mark accepted…) only proposes: its card shows
