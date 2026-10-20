@@ -8,6 +8,7 @@ carries the link back to the CVE only when a phone can open it (`tap_link`, B26)
 """
 import datetime as dt
 import html
+import http.client
 import ipaddress
 import json
 import logging
@@ -297,9 +298,9 @@ class TelegramNotifier:
             except (OSError, AttributeError):
                 raw = b""
             reply, refused = _json(raw), e.code
-        except OSError as e:
+        except (OSError, http.client.HTTPException) as e:  # no network, a timeout, a reply cut short
             reason = e.reason if isinstance(e, urllib.error.URLError) else e
-            raise NotifyError(f"Couldn't reach Telegram: {self._scrub(str(reason))}") from None
+            raise NotifyError(f"Couldn't reach Telegram: {self._scrub(str(reason)) or type(e).__name__}") from None
         if refused is None and reply.get("ok"):
             return reply.get("result")
         code = reply.get("error_code") or refused or 0

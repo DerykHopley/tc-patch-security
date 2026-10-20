@@ -186,6 +186,13 @@ def test_b57_5_an_unreachable_telegram_isnt_tried_again_here():
     assert len(tg.posts) == 1 and clock.waits == []  # B41's next-check retry handles it
 
 
+def test_b57_5_a_reply_cut_short_is_a_failure_not_a_crash():
+    import http.client
+
+    with pytest.raises(NotifyError, match="Couldn't reach Telegram: IncompleteRead"):
+        notifier(Telegram(http.client.IncompleteRead(b""))).send(**MSG)
+
+
 # --- B57.6: the token never shows: not in an error, its cause, or Telegram's quoted reply ----------------------------
 
 @pytest.mark.parametrize("reply", [
