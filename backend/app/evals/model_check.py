@@ -158,7 +158,7 @@ def _run(run: dict, qs: list[dict], deps, store: RunStore) -> None:
 def start(deps, ids: list[str] | None = None, wait: bool = False) -> dict:
     """Start a run in the background and return it (status "running"). One run at a time."""
     qs = _pick(ids)
-    store = RunStore.for_settings(deps.settings)
+    store = deps.runs
     llm = _pinned(deps.llm)
     dev = deps.dev()
     with _lock:
@@ -179,13 +179,13 @@ def get(deps, run_id: str) -> dict | None:
     with _lock:
         if run_id in _live:
             return json.loads(json.dumps(_live[run_id]))
-    return RunStore.for_settings(deps.settings).get(KIND, run_id)
+    return deps.runs.get(KIND, run_id)
 
 
 def openrouter_scores(deps) -> dict[str, dict]:
     """Each OpenRouter model's latest finished run: questions passed of those asked (the Dev page's dropdown)."""
     scores: dict[str, dict] = {}
-    for r in RunStore.for_settings(deps.settings).all(KIND):  # newest first: the first seen per model is the latest
+    for r in deps.runs.all(KIND):  # newest first: the first seen per model is the latest
         if r.get("provider") != "openrouter" or r.get("status") != "done" or not r.get("summary"):
             continue
         model = (r.get("settings") or {}).get("openrouter_model") or str(r.get("model", "")).removeprefix(
@@ -199,4 +199,4 @@ def listing(deps) -> list[dict]:
     """Saved runs, newest first, without the per-question rows (the dev panel's list and comparison)."""
     keep = ("id", "kind", "model", "provider", "started", "finished", "status", "total", "error", "summary",
             "embedder")
-    return [{k: r.get(k) for k in keep} for r in RunStore.for_settings(deps.settings).all(KIND)[:LISTED]]
+    return [{k: r.get(k) for k in keep} for r in deps.runs.all(KIND)[:LISTED]]

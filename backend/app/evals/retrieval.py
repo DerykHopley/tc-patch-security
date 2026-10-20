@@ -22,7 +22,7 @@ in use. On-topic questions should never be gated, off-topic ones always.
 import re
 import time
 
-from app.evals.runs import LISTED, RunStore, new_id, now
+from app.evals.runs import LISTED, new_id, now
 from app.rag.chunking import build_chunks
 from app.rag.fusion import rrf
 from app.rag.pipeline import is_off_topic
@@ -167,15 +167,15 @@ def run(deps, vector, keyword) -> dict:
               "chunks": len(vector.chunks), "started": started, "finished": now(),
               "seconds": round(time.perf_counter() - clock, 3), "questions": len(rows), "modes": modes,
               "threshold": threshold, "results": rows}
-    RunStore.for_settings(deps.settings).save(KIND, result)
+    deps.runs.save(KIND, result)
     return result
 
 
 def get(deps, run_id: str) -> dict | None:
-    return RunStore.for_settings(deps.settings).get(KIND, run_id)
+    return deps.runs.get(KIND, run_id)
 
 
 def listing(deps) -> list[dict]:
     """Saved runs, newest first, without the per-question rankings."""
     return [{k: v for k, v in r.items() if k != "results"}
-            for r in RunStore.for_settings(deps.settings).all(KIND)[:LISTED]]
+            for r in deps.runs.all(KIND)[:LISTED]]

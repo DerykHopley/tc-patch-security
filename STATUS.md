@@ -19,7 +19,7 @@ cd frontend && npm install && npm run dev                                    # h
 - **Defaults** (decided 2026-10-15, from the report): chat `anthropic/claude-haiku-5.5` on OpenRouter (the `OPENROUTER_MODEL` default); embedder `mxbai-embed-large` on Ollama (the Ollama default), off-topic threshold 0.58. FakeLLM and the hash embedder stay the no-setup defaults (`LLM_PROVIDER=fake`, `EMBEDDER=hash`), so tests and CI need no key and no service.
 - A real embedder needs its index built once: `uv run --env-file .env python -m app.rag.build_index`. Give each embedder its own `INDEX_PATH`; the app refuses to start on an index built with another embedder.
 - Your watchlist, statuses, decision history and settings: `backend/data/state.json` (git-ignored). Settings → Reset demo data goes back to the defaults.
-- Model-check and retrieval runs: `backend/data/evals/` (not in git). The published report shows the runs named in `docs/report-src/runs.json` ([how to rebuild it](./docs/report-src/README.md)).
+- Model-check and retrieval runs: `backend/data/evals/` (not in git); deployed (`STORE=gcs`), the bucket's `evals/` (B58, #104). The published report shows the runs named in `docs/report-src/runs.json` ([how to rebuild it](./docs/report-src/README.md)).
 - The owner's own app runs on 8000/5173. Anything that changes data (the browser check, screenshots) runs on its own servers: `frontend/e2e/run.sh` picks two free ports and a throwaway state file.
 
 ## How to test it

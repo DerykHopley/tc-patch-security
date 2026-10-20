@@ -17,7 +17,8 @@ data's). Callers (app.state) read, change and write, and on a Conflict read agai
   precondition (`if_generation_match`, 0 for "doesn't exist yet"). It takes a google-cloud-storage Bucket, or
   anything with its few calls (tests/fake_gcs.py). `open_bucket` makes the real one when STORE=gcs (B13, #44).
 
-Deployed (STORE=gcs), one bucket holds both stores: the users' state under `users/`, the live data under `live/`.
+Deployed (STORE=gcs), one bucket holds every store: the users' state under `users/`, the live data under `live/`,
+the saved check runs under `evals/` (app.evals.runs, B58).
 """
 import hashlib
 import json
@@ -199,6 +200,7 @@ class GcsStore:
 
 
 USERS_PREFIX, LIVE_PREFIX = "users/", "live/"  # the two stores' places in the bucket (B13)
+EVALS_PREFIX = "evals/"  # the saved model-check and retrieval runs (B58, #104)
 
 
 def open_bucket(settings, bucket=None):

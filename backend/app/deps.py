@@ -20,6 +20,7 @@ from app.app_settings import DevSettings, default_dev_settings, default_settings
 from app.clerk_people import People, clerk_people
 from app.config import DEFAULT_USER, Settings
 from app.status import DECIDED_BY
+from app.evals.runs import RunStore
 from app.feeds import Feeds, make_feeds
 from app.knowledge import Knowledge, load_knowledge
 from app.live_data import LiveData, MixedFeeds
@@ -107,6 +108,11 @@ class Deps:
     def owner_state(self) -> State:
         """The owner's state (OWNER; locally the default user): where the dev panel's server-wide choices live."""
         return self.users.state(self.settings.owner)
+
+    @property
+    def runs(self) -> RunStore:
+        """The saved model-check and retrieval runs: files locally, the bucket's `evals/` with STORE=gcs (B58)."""
+        return RunStore.for_settings(self.settings, self._bucket)
 
     @property
     def live(self) -> bool:
