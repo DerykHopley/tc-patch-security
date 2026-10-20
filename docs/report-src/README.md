@@ -34,7 +34,7 @@
 
 ## The new questions on a real model (B16, #47)
 
-B15 (#46) added the questions for spec B's tools. All 19 are FakeLLM-checked; real models haven't answered the new ones yet.
+B15 (#46) added the questions for spec B's tools. All 19 are FakeLLM-checked. **Done 2026-10-20:** Claude Haiku 5.5 answered them, run `20261020-074212-784-d4da` (16 of 19, 90 of 93 checks), in `findings.html` under "Spec B's new questions". The owner dropped gpt-oss-120b. The run was made on the live app and rescued by a download, because Cloud Run keeps runs only on the instance's disk. When two runs share a model, the report adds each run's day to its name (B16).
 
 - New or changed since the 2026-10-15 runs: `Q-updates` (`check_updates`), `Q-web` ("who's talking", `research_web`, the injection page), `Q-research` (the research workflow), `Q-partial` (a failed step), and Q9/Q10 (now proposals, B21). `Q-affected` and `Q12` keep their questions but have relaxed expectations (#54): the report's grid marks the 2026-10-15 runs "old expectation" on those rows.
 - The web questions search the saved results (`backend/fixtures/web_canned.json`): no Tavily key, no credits. `check_updates` never fetches in a model-check run, even in live mode.

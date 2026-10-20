@@ -13,6 +13,7 @@ published as one file. Everything from a model or the data is escaped: answers a
 """
 import datetime as dt
 import json
+from collections import Counter
 from html import escape
 from pathlib import Path
 
@@ -513,9 +514,18 @@ def _section(sid: str, title: str, body: str, intro: str = "") -> str:
     return f'<section id="{sid}" class="card" aria-labelledby="{sid}-h"><h2 id="{sid}-h">{title}</h2>{intro_html}{body}</section>'
 
 
+def _told_apart(runs: list[dict]) -> list[dict]:
+    """B16: a model with more than one run gets its run's day in its name ("… (2026-10-20)"), so the grid's columns
+    and the chart's points can be told apart. A model with one run keeps its plain name."""
+    counts = Counter(r["model"] for r in runs)
+    return [{**r, "model": f'{r["model"]} ({(r.get("started") or "")[:10]})'} if counts[r["model"]] > 1 else r
+            for r in runs]
+
+
 def build(model_runs: list[dict], retrieval_runs: list[dict], as_of: str, findings: str | None = None,
           generated: str | None = None) -> str:
     """The page. `findings` is HTML a person wrote (A20), put in as is."""
+    model_runs = _told_apart(model_runs)
     tokens = TOKENS.read_text()
     generated = generated or dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     placeholder = ('<p class="placeholder">Not run yet. {what} This section stays empty until that ticket adds its '
