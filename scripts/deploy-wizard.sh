@@ -523,8 +523,14 @@ pause
 # ── 12 ────────────────────────────────────────────────────────────────────
 stage "The hourly refresh, and the checks"
 say "Cloud Scheduler knocks on Patch; Patch refreshes only when your Settings schedule is due."
+# Retries: a call that finds no instance (scaled to zero, ~90 s to start) gets a 500 and would cost the whole day.
+# Two retries 2 min apart start by 08:04, inside the schedule's 10 min slack (backend/app/refresh.py SCHEDULE_SLACK),
+# so tomorrow's 08:00 tick is still due. A retry after a finished run is a harmless "not_due" skip.
+RETRY=(--max-retry-attempts=2 --min-backoff=120s --max-backoff=120s)
 if exists gcloud scheduler jobs describe patch-refresh --location="$REGION"; then
   say "The job patch-refresh exists."
+  run "Give it two retries, 2 minutes apart, for a cold start" \
+    gcloud scheduler jobs update http patch-refresh --location="$REGION" "${RETRY[@]}" --quiet
 else
   if confirm "Knock once a day (at 08:00 in $ALERT_TZ) instead of every hour?"; then
     CRON="0 8 * * *"; CRON_TZ="$ALERT_TZ"; note "Then set Settings → schedule to every 24 hours in the app."
@@ -535,7 +541,7 @@ else
     secret=$(gcloud secrets versions access latest --secret=scheduler-secret)
     gcloud scheduler jobs create http patch-refresh --location="$REGION" --schedule="$CRON" --time-zone="$CRON_TZ" \
       --uri="$URL/api/refresh/scheduled" --http-method=POST --headers="X-Scheduler-Secret=$secret" \
-      --attempt-deadline=600s >/dev/null && printf '  %s✓ done%s\n' "$GREEN" "$RESET" \
+      --attempt-deadline=600s "${RETRY[@]}" >/dev/null && printf '  %s✓ done%s\n' "$GREEN" "$RESET" \
       || { secret=""; warn "That failed: see above. Re-run the wizard to try again."; exit 1; }
     secret=""
   else

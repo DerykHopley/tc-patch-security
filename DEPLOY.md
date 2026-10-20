@@ -182,13 +182,14 @@ gcloud run services describe $SERVICE --region=$REGION --format='value(status.ur
 gcloud scheduler jobs create http patch-refresh --location=$REGION --schedule="0 * * * *" --time-zone=UTC \
   --uri="https://$SERVICE-$PROJECT_NUMBER.$REGION.run.app/api/refresh/scheduled" --http-method=POST \
   --headers="X-Scheduler-Secret=$(gcloud secrets versions access latest --secret=scheduler-secret)" \
-  --attempt-deadline=600s
+  --attempt-deadline=600s --max-retry-attempts=2 --min-backoff=120s --max-backoff=120s
 gcloud scheduler jobs run patch-refresh --location=$REGION     # one tick now, to check
 ```
 
 - The tick answers 200 with the run's result, or `{"ran": false, "skipped": "not_due"}` / `"paused"`. A run where no feed answered is a 502, so it shows as a failed attempt in the job's log. A missing or wrong secret is a 401 and runs nothing.
 - **Daily instead:** `--schedule="0 8 * * *" --time-zone="Europe/Berlin"` (the owner's choice on the first deploy, 2026-10-19). Then set Settings → schedule to every 24 hours, so the app's "next check" is honest. New CVEs and KEV alerts then arrive up to a day late; Check now still works.
 - How often the refresh really runs is set in the app: Settings → schedule (every 1, 3, 6, 12 or 24 hours, default 6), or Pause. The job only knocks every hour.
+- **Two retries, 2 minutes apart** (added 2026-10-20). The app scales to zero. On 2026-10-20 the 08:00 tick found no instance, got a 500 and wasn't retried, so that day had no refresh (*checked* in the logs; the instance took about 90 s to start). Retries start by 08:04, inside the schedule's 10-minute slack, so the next day's tick is still due. A doubling backoff would push the last retry past it. A retry after a finished run is a harmless `not_due` skip. For an older job: `gcloud scheduler jobs update http patch-refresh --location=$REGION --max-retry-attempts=2 --min-backoff=120s --max-backoff=120s`.
 - The secret is stored in the job's settings, readable by whoever can see the project's scheduler jobs (only you). If you change the secret, update the job: `gcloud scheduler jobs update http patch-refresh --location=$REGION --update-headers=X-Scheduler-Secret=<new>`.
 
 ## 9. Check it, redeploy, roll back, remove
