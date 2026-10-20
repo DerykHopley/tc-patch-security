@@ -54,6 +54,8 @@ const CHANNELS: { id: Channel; label: string; what: string }[] = [
   { id: 'desktop', label: 'Desktop notification', what: "Your OS's own notification, on the computer running the app." },
   { id: 'email', label: 'Email', what: 'A plain-text email with a link back to the CVE.' },
   { id: 'ntfy', label: 'Phone push (ntfy)', what: 'A push to the ntfy app on your phone; self-hostable.' },
+  // B57 (#102): limited per bot, not per address, so it works where ntfy.sh's shared-address quota runs out
+  { id: 'telegram', label: 'Telegram', what: 'A message from your own bot in the Telegram app; free. High and urgent ring, the rest arrive silently.' },
 ]
 
 // Your policy (A16): days per priority level. The rules set the level; the policy only sets the due date.
@@ -65,7 +67,7 @@ const POLICY_DAYS: { key: keyof PolicySettings & `${string}_days`; label: string
 ]
 // B26: the Delivery card's server settings, for its "Not saved" line
 const DELIVERY_KEYS = ['app_url', 'ntfy_url', 'smtp_port', 'smtp_starttls', 'ntfy_topic', 'ntfy_token', 'smtp_host',
-  'smtp_user', 'smtp_password', 'alert_email_from', 'alert_email_to'] as const
+  'smtp_user', 'smtp_password', 'alert_email_from', 'alert_email_to', 'telegram_bot_token', 'telegram_chat_id'] as const
 const clampDays = (v: string) => Math.max(1, Math.min(730, Math.round(Number(v)) || 1))
 
 /** B20: a failed save, shown in each card whose edits it didn't save. The edits stay; Save changes tries again. */
@@ -500,11 +502,15 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                       )
                     })}
                   </ul>
-                  {owner && <DeliveryFields f={owner} ready={{ ntfy: channels.ntfy.configured, email: channels.email.configured }} />}
+                  {owner && (
+                    <DeliveryFields f={owner} ready={{ ntfy: channels.ntfy.configured, telegram: channels.telegram.configured,
+                      email: channels.email.configured }} />
+                  )}
                   <NotSaved error={srv.error} show={srv.changed(DELIVERY_KEYS)} />
                   <div className="callout">
-                    <strong>Keep the ntfy topic secret.</strong> ntfy's docs say a topic name is "essentially a password", and your
-                    alerts show which products you run. No alert ever includes the CVE description.
+                    <strong>Keep the ntfy topic and the Telegram bot token secret.</strong> ntfy's docs say a topic name is
+                    "essentially a password", a bot token controls your bot, and your alerts show which products you run. No
+                    alert ever includes the CVE description.
                   </div>
                   <button type="button" onClick={() => sendTest('preview')} disabled={sending !== null}>
                     Preview an alert (send nothing)

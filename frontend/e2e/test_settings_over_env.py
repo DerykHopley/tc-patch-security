@@ -19,7 +19,7 @@ from reduced_motion import scene, still
 TOPIC = "patch-e2e-topic-7c1d"  # a made-up topic: never reaches ntfy (NOTIFY_DRY_RUN)
 CLEAR = {k: None for k in ("data_mode", "alert_tz", "app_url", "ntfy_url", "smtp_port", "smtp_starttls",
                            "ntfy_topic", "ntfy_token", "smtp_host", "smtp_user", "smtp_password", "alert_email_from",
-                           "alert_email_to", "nvd_api_key")}
+                           "alert_email_to", "nvd_api_key", "telegram_bot_token", "telegram_chat_id")}
 
 
 @pytest.fixture

@@ -492,8 +492,25 @@
 /* A box for an address or a secret takes the rest of its row, never under 12rem: on a phone it wraps under its
    label instead of shrinking. */
 .field-row input[type='url'],
-.field-row input[type='password'] {
+.field-row input[type='password'],
+.field-row input.chat-id {
   flex: 1 1 12rem;
+}
+
+/* B57: the Telegram block's one-time steps, in --text on the nested fill (as the summary) */
+.card .setup-steps {
+  margin: 0 0 0.5rem;
+  padding-left: 1.3rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.setup-steps li + li {
+  margin-top: 0.2rem;
+}
+
+.setup-steps code {
+  overflow-wrap: anywhere;
 }
 
 /* Delivery's setup blocks, folded by default (DESIGN.md §5.7): one nested card each, its summary line the header,
@@ -574,6 +591,22 @@
 
 .tap-line.reachable {
   border-left-color: var(--ok);
+}
+
+/* B57: what Find my chat id found, the same edge rule: ok, warn (no message yet) or error (Telegram refused) */
+.card .chat-found { /* beats .card p (muted) */
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--ok);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.card .chat-found.warn {
+  border-left-color: var(--warn);
+}
+
+.card .chat-found.error {
+  border-left-color: var(--error);
 }
 
 /* B28: where live data comes from (the Data card; the freshness card when the feeds are fake). The edge rule: --text

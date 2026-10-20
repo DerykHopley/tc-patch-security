@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react'
-import type { SecretName, ServerFields, ServerStatus } from '../api.ts'
+import { useState, type ReactNode } from 'react'
+import { findTelegramChats, type SecretName, type ServerFields, type ServerStatus } from '../api.ts'
 import {
   blockOf, browserZone, fieldsNamedIn, reachableFromPhone, secretLine, SETUP_KEYS, setupState, sourceLine, tapLine,
   type SetupBlock, type SetupKey,
 } from '../serverSettings.ts'
 import { feedsLine } from '../freshness.ts'
+import { chatsFound } from '../telegram.ts'
 import type { ServerSettingsForm } from './useServerSettings.ts'
 
 // B26: the owner's settings that used to need backend/.env and a restart, each in the Settings card it belongs to.
@@ -120,7 +121,7 @@ export function TimeZoneField({ f }: { f: Ready }) {
 }
 
 const SETUP_TITLE: Record<SetupBlock, string> = {
-  links: 'Alert links', ntfy: 'Phone push (ntfy)', email: 'Email (SMTP)',
+  links: 'Alert links', ntfy: 'Phone push (ntfy)', telegram: 'Telegram', email: 'Email (SMTP)',
 }
 const blockElement = (b: SetupBlock) => document.getElementById(`setup-${b}`) as HTMLDetailsElement | null
 
@@ -145,7 +146,7 @@ export function revealError(f: Ready, error: string) {
 }
 
 // A field's box: `srv-<name>` for a secret (SecretField), dashes for the plain fields
-const PLAIN: readonly SetupKey[] = ['app_url', 'ntfy_url', 'smtp_port', 'smtp_starttls']
+const PLAIN: readonly SetupKey[] = ['app_url', 'ntfy_url', 'smtp_port', 'smtp_starttls', 'telegram_chat_id']
 const fieldId = (k: SetupKey) => `srv-${PLAIN.includes(k) ? k.replaceAll('_', '-') : k}`
 
 /** One folded setup block (DESIGN.md §5.7): a summary naming it and its state, the fieldset under it. Folded, its
@@ -164,9 +165,63 @@ function Setup({ b, state, unsaved, children }: { b: SetupBlock; state: string; 
   )
 }
 
+/** B57 (#102): the Telegram block's fields. The owner's one-time steps first (checked against Telegram's docs,
+ *  docs/SOURCE-CHECKS.md), then the bot token (a secret) and the chat id with "Find my chat id": the server asks
+ *  Telegram's getUpdates with the typed token (else the saved one) and the newest private chat fills the box. */
+function TelegramFields({ f }: { f: Ready }) {
+  const [found, setFound] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(null)
+  const [finding, setFinding] = useState(false)
+  const chatEnv = f.status.fields.telegram_chat_id.source === 'env'
+  const typed = f.secrets.telegram_bot_token
+
+  async function find() {
+    setFinding(true)
+    setFound(null)
+    try {
+      const { chats } = await findTelegramChats(typeof typed === 'string' ? typed.trim() : undefined)
+      const r = chatsFound(chats)
+      if (r.fill) f.set({ telegram_chat_id: r.fill })
+      setFound({ tone: r.tone, text: r.text })
+    } catch (e) {
+      setFound({ tone: 'error', text: e instanceof Error ? e.message : String(e) })
+    } finally {
+      setFinding(false)
+    }
+  }
+
+  return (
+    <>
+      <ol className="setup-steps" aria-label="How to set up Telegram">
+        <li>In Telegram, open <strong>@BotFather</strong>, send <code>/newbot</code>, and pick a name and a username. It gives you the bot's token.</li>
+        <li>Paste the token under Bot token.</li>
+        <li>Open your new bot in Telegram, press <strong>Start</strong> or send it any message.</li>
+        <li><strong>Find my chat id</strong> fills in your chat. Save, then Send test.</li>
+      </ol>
+      <SecretField f={f} k="telegram_bot_token" label="Bot token"
+        why="From @BotFather. Anyone with it controls your bot: keep it secret. Lost or leaked? /token in @BotFather makes a new one." />
+      <div className="field-row">
+        <label htmlFor="srv-telegram-chat-id">Chat id</label>
+        <input id="srv-telegram-chat-id" className="chat-id" type="text" inputMode="text" spellCheck={false}
+          autoComplete="off" value={f.draft.telegram_chat_id} disabled={chatEnv}
+          aria-describedby="srv-telegram-chat-id-found srv-telegram-chat-id-env"
+          onChange={(e) => f.set({ telegram_chat_id: e.target.value })} />
+        {!chatEnv && (
+          <button type="button" disabled={finding} onClick={find}>
+            {finding ? 'Asking Telegram…' : 'Find my chat id'}
+          </button>
+        )}
+      </div>
+      <p id="srv-telegram-chat-id-found" aria-live="polite" className={found ? `meta chat-found ${found.tone}` : 'meta'}>
+        {found?.text ?? (chatEnv ? '' : 'Your own chat is a number; a group\'s starts with -. A channel can be @its_name.')}
+      </p>
+      <EnvNote f={f} k="telegram_chat_id" id="srv-telegram-chat-id-env" />
+    </>
+  )
+}
+
 /** Delivery card: where alert links point, and each channel's connection details, each block folded.
- *  `ready`: whether ntfy and email can send (the server's channel status). */
-export function DeliveryFields({ f, ready }: { f: Ready; ready: Record<'ntfy' | 'email', boolean> }) {
+ *  `ready`: whether ntfy, Telegram and email can send (the server's channel status). */
+export function DeliveryFields({ f, ready }: { f: Ready; ready: Record<'ntfy' | 'telegram' | 'email', boolean> }) {
   const appUrl = f.draft.app_url
   const here = window.location.origin
   const setup = (b: SetupBlock) => ({
@@ -202,6 +257,10 @@ export function DeliveryFields({ f, ready }: { f: Ready; ready: Record<'ntfy' | 
         <EnvNote f={f} k="ntfy_url" id="srv-ntfy-url-env" />
         <SecretField f={f} k="ntfy_topic" label="Topic" why="Letters, digits, - and _. Long and random: it works like a password." />
         <SecretField f={f} k="ntfy_token" label="Access token (optional)" />
+      </Setup>
+
+      <Setup {...setup('telegram')}>
+        <TelegramFields f={f} />
       </Setup>
 
       <Setup {...setup('email')}>

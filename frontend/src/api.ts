@@ -616,7 +616,7 @@ export const setWatchlist = (products: (string | ProductFields)[]) =>
 
 // --- Settings page (A13): alert rules, channels, test alerts, the alerts log, reset
 
-export type Channel = 'desktop' | 'email' | 'ntfy'
+export type Channel = 'desktop' | 'email' | 'ntfy' | 'telegram'
 
 export interface AlertSettings {
   enabled: boolean
@@ -674,6 +674,7 @@ export interface ServerFields {
   ntfy_url: string
   smtp_port: number
   smtp_starttls: boolean
+  telegram_chat_id: string // B57: a chat's id (a group's is negative) or a channel's @username; '' when not set
 }
 
 export type SecretName =
@@ -685,6 +686,7 @@ export type SecretName =
   | 'alert_email_from'
   | 'alert_email_to'
   | 'nvd_api_key'
+  | 'telegram_bot_token' // B57: it controls the bot, and it is part of every Bot API address
 
 /** The server settings as Settings shows them. A secret is never sent back: only whether it's set, and where from. */
 export interface ServerStatus {
@@ -762,6 +764,16 @@ export const saveServerSettings = (u: ServerUpdate) => request<ServerReply>('/se
 export const alertsLog = () => request<{ alerts: AlertLogEntry[] }>('/alerts')
 export const testAlert = (channel: Channel | 'preview') =>
   request<TestAlertReply>('/alerts/test', json('POST', { channel }))
+/** B57: a chat that wrote to the bot lately, from Telegram's getUpdates (asked by the server, owner only). */
+export interface TelegramChat {
+  id: string // as Telegram's sendMessage takes it
+  name: string
+  kind: string // private, group, supergroup or channel
+}
+
+/** B57, Find my chat id: with the token typed in the box (not saved), else the one that applies. Never sent back. */
+export const findTelegramChats = (botToken?: string) =>
+  request<{ chats: TelegramChat[] }>('/settings/telegram/chats', json('POST', botToken ? { bot_token: botToken } : {}))
 export const resetState = () =>
   request<{ reset: boolean; watchlist: string[] }>('/state/reset', json('POST', { confirm: 'reset' }))
 

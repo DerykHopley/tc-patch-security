@@ -224,7 +224,7 @@ def test_a13_6_settings_parts_as_designed(settings_page, scheme):
         assert style(fieldset, "backgroundColor") == nested
         assert style(fieldset, "borderTopStyle") == "none"  # nested cards have no border
     channels = page.locator(".channel").all()
-    assert len(channels) == 3
+    assert len(channels) == 4  # desktop, email, ntfy, Telegram (B57)
     for channel in channels:
         assert style(channel, "borderTopLeftRadius") == "18px"
         assert style(channel, "backgroundColor") == nested

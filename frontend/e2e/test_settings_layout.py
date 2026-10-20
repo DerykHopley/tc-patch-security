@@ -99,7 +99,8 @@ def test_sl_2_tab_order_is_the_reading_order(open_settings):
 # --- SL.3: Delivery's setup blocks are folded, each with a summary naming it and its state -------------------------
 
 TOPIC = "patch-e2e-topic-7c1d"  # a made-up topic: never reaches ntfy (NOTIFY_DRY_RUN)
-BLOCKS = {"Alert links": "App address for alert links", "Phone push (ntfy)": "Topic", "Email (SMTP)": "SMTP server"}
+BLOCKS = {"Alert links": "App address for alert links", "Phone push (ntfy)": "Topic", "Telegram": "Bot token",
+          "Email (SMTP)": "SMTP server"}  # B57 added Telegram
 
 
 def block(page: Page, name: str):
@@ -122,7 +123,7 @@ def save(page: Page) -> None:
 def test_sl_3_setup_blocks_are_folded_and_say_their_state(open_settings):
     page = open_settings(width=WIDE)
     d = panel(page, "Delivery")
-    expect(d.locator("details.setup-block")).to_have_count(3)
+    expect(d.locator("details.setup-block")).to_have_count(len(BLOCKS))
     for name, label in BLOCKS.items():
         expect(block(page, name)).not_to_have_attribute("open", "")
         expect(summary(page, name)).to_be_visible()
@@ -130,7 +131,8 @@ def test_sl_3_setup_blocks_are_folded_and_say_their_state(open_settings):
     expect(summary(page, "Phone push (ntfy)")).to_have_text("Phone push (ntfy) · not set up")
     expect(summary(page, "Email (SMTP)")).to_have_text("Email (SMTP) · not set up")
     expect(summary(page, "Alert links")).to_have_text("Alert links · this computer only")
-    for name in ("Desktop notification", "Email", "Phone push (ntfy)"):  # the channel rows stay in view
+    expect(summary(page, "Telegram")).to_have_text("Telegram · not set up")
+    for name in ("Desktop notification", "Email", "Phone push (ntfy)", "Telegram"):  # the channel rows stay in view
         row = d.locator(".channel").filter(has=page.get_by_role("checkbox", name=name, exact=True))
         expect(row.get_by_role("checkbox")).to_be_visible()
         expect(row.locator(".setup-pill")).to_be_visible()
@@ -224,7 +226,7 @@ def test_sl_7_unsaved_edits_survive_folding_and_the_summary_says_so(open_setting
 
 def test_sl_8_a_block_opens_and_folds_by_keyboard_with_visible_focus(open_settings):
     page = open_settings(width=WIDE)
-    page.get_by_role("button", name="Send test alert by phone push (ntfy)").focus()
+    page.get_by_role("button", name="Send test alert by telegram").focus()  # B57: Telegram's row is the last
     page.keyboard.press("Tab")  # from the last channel row to the first setup block
     first = summary(page, "Alert links")
     expect(first).to_be_focused()

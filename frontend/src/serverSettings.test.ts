@@ -14,6 +14,7 @@ const status = (over: Partial<ServerStatus['fields']> = {}): ServerStatus => ({
     ntfy_url: { value: 'https://ntfy.sh', source: 'default' },
     smtp_port: { value: 587, source: 'default' },
     smtp_starttls: { value: true, source: 'default' },
+    telegram_chat_id: { value: '', source: 'default' },
     ...over,
   },
   secrets: {
@@ -25,12 +26,14 @@ const status = (over: Partial<ServerStatus['fields']> = {}): ServerStatus => ({
     alert_email_from: { set: false, source: 'default' },
     alert_email_to: { set: false, source: 'default' },
     nvd_api_key: { set: false, source: 'default' },
+    telegram_bot_token: { set: false, source: 'default' },
   },
   env_names: {
     data_mode: 'DATA_MODE', alert_tz: 'ALERT_TZ', app_url: 'APP_URL', ntfy_url: 'NTFY_URL', smtp_port: 'SMTP_PORT',
     smtp_starttls: 'SMTP_STARTTLS', ntfy_topic: 'NTFY_TOPIC', ntfy_token: 'NTFY_TOKEN', smtp_host: 'SMTP_HOST',
     smtp_user: 'SMTP_USER', smtp_password: 'SMTP_PASSWORD', alert_email_from: 'ALERT_EMAIL_FROM',
-    alert_email_to: 'ALERT_EMAIL_TO', nvd_api_key: 'NVD_API_KEY',
+    alert_email_to: 'ALERT_EMAIL_TO', nvd_api_key: 'NVD_API_KEY', telegram_chat_id: 'TELEGRAM_CHAT_ID',
+    telegram_bot_token: 'TELEGRAM_BOT_TOKEN',
   },
   app_url_reachable: false,
   feeds: 'real',
@@ -106,4 +109,25 @@ test('SL.6 a failed save names the fields it refused; each belongs to its setup 
   assert.equal(blockOf('ntfy_token'), 'ntfy')
   assert.equal(blockOf('smtp_starttls'), 'email')
   assert.equal(blockOf('app_url'), 'links')
+})
+
+test('B57.13 Telegram has its own setup block: the token and the chat id, with its state', () => {
+  assert.equal(blockOf('telegram_bot_token'), 'telegram')
+  assert.equal(blockOf('telegram_chat_id'), 'telegram')
+  const msg = "The request isn't in the expected shape. telegram_chat_id: String should match pattern '…'"
+  assert.deepEqual(fieldsNamedIn(msg), ['telegram_chat_id'])
+  assert.equal(setupState(status(), 'telegram', false), 'not set up')
+  assert.equal(setupState(status(), 'telegram', true), 'set up')
+  const env = { ...status(), secrets: { ...status().secrets, telegram_bot_token: { set: true, source: 'env' as const } } }
+  assert.equal(setupState(env, 'telegram', true), "set in the server's environment")
+})
+
+test('B57.13 the chat id starts as the server says and is sent trimmed when changed', () => {
+  const s = status({ telegram_chat_id: { value: '42', source: 'saved' } })
+  const base = baselineOf(s, 'UTC', false)
+  assert.equal(base.telegram_chat_id, '42')
+  assert.deepEqual(serverChanges(s, base, { ...base, telegram_chat_id: ' 987654321 ' }, {}, false),
+    { telegram_chat_id: '987654321' })
+  assert.deepEqual(serverChanges(s, base, { ...base, telegram_chat_id: ' 42' }, {}, false), {})
+  assert.deepEqual(serverChanges(s, base, base, { telegram_bot_token: ' 1:abc ' }, false), { telegram_bot_token: '1:abc' })
 })

@@ -45,10 +45,14 @@ export function baselineOf(status: ServerStatus, zone: string, quietSaved: boole
     ntfy_url: f.ntfy_url.value,
     smtp_port: f.smtp_port.value,
     smtp_starttls: f.smtp_starttls.value,
+    telegram_chat_id: f.telegram_chat_id.value,
   }
 }
 
 const trimUrl = (v: string) => v.trim().replace(/\/+$/, '')
+// How a field is compared and sent: addresses without a trailing slash, the chat id trimmed, the rest as they are
+const clean = (k: keyof ServerFields, v: ServerFields[keyof ServerFields]) =>
+  k === 'app_url' || k === 'ntfy_url' ? trimUrl(String(v)) : k === 'telegram_chat_id' ? String(v).trim() : v
 
 /** What Save sends: the fields changed from the form's start, the secrets typed or removed, and the shown time zone
  *  when quiet hours are being saved while the server has none (so they mean what the owner saw). */
@@ -60,9 +64,8 @@ export function serverChanges(status: ServerStatus, base: ServerFields, draft: S
   }
   for (const k of Object.keys(draft) as (keyof ServerFields)[]) {
     if (status.fields[k].source === 'env') continue // the environment wins: never sent
-    const v = k === 'app_url' || k === 'ntfy_url' ? trimUrl(String(draft[k])) : draft[k]
-    const before = k === 'app_url' || k === 'ntfy_url' ? trimUrl(String(base[k])) : base[k]
-    if (v !== before) put(k, v)
+    const v = clean(k, draft[k]) as ServerFields[typeof k]
+    if (v !== clean(k, base[k])) put(k, v)
   }
   const tz = status.fields.alert_tz
   if (quietSet && tz.source === 'default' && draft.alert_tz !== tz.value) put('alert_tz', draft.alert_tz)
@@ -92,13 +95,14 @@ export function secretLine(status: ServerStatus, key: SecretName, edit: string |
 
 // --- Delivery's setup blocks: folded by default, one summary line each (DESIGN.md §5.7, DECISIONS.md 2026-10-16) ---
 
-export type SetupBlock = 'links' | 'ntfy' | 'email'
+export type SetupBlock = 'links' | 'ntfy' | 'telegram' | 'email'
 export type SetupKey = keyof ServerFields | SecretName
 
 /** Each block's settings, in the order its fields show. */
 export const SETUP_KEYS: Record<SetupBlock, readonly SetupKey[]> = {
   links: ['app_url'],
   ntfy: ['ntfy_url', 'ntfy_topic', 'ntfy_token'],
+  telegram: ['telegram_bot_token', 'telegram_chat_id'],
   email: ['smtp_host', 'smtp_port', 'smtp_starttls', 'smtp_user', 'smtp_password', 'alert_email_from', 'alert_email_to'],
 }
 const ALL_SETUP_KEYS: readonly string[] = Object.values(SETUP_KEYS).flat()
@@ -114,10 +118,15 @@ export function fieldsNamedIn(error: string): SetupKey[] {
   return [...error.matchAll(/\b([a-z_]+):/g)].map((m) => m[1]).filter((k) => ALL_SETUP_KEYS.includes(k)) as SetupKey[]
 }
 
+// The secret that decides whether a channel's block is "set in the server's environment"
+const SETUP_SECRET: Record<Exclude<SetupBlock, 'links'>, SecretName> = {
+  ntfy: 'ntfy_topic', telegram: 'telegram_bot_token', email: 'smtp_host',
+}
+
 /** The state on a folded block's summary. `ready`: the block's channel can send (the server's `configured`). */
 export function setupState(status: ServerStatus, block: SetupBlock, ready: boolean): string {
   const fromEnv = block === 'links' ? status.fields.app_url.source === 'env'
-    : status.secrets[block === 'ntfy' ? 'ntfy_topic' : 'smtp_host'].source === 'env'
+    : status.secrets[SETUP_SECRET[block]].source === 'env'
   if (fromEnv) return "set in the server's environment"
   if (block === 'links') return status.app_url_reachable ? 'phones can open it' : 'this computer only'
   return ready ? 'set up' : 'not set up'
