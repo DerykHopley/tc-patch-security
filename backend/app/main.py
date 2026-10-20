@@ -674,7 +674,10 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     # --- One port (B12): with FRONTEND_DIR set (the container), the built frontend too, and the API under /api
     if deps.settings.frontend_dir is not None:
-        return one_port(app, deps.settings.frontend_dir)
+        # B61: the app address as the alerts use it (B26: the environment's, else the owner's saved one), read when a
+        # page is asked for: a link fetcher may be the first request after a cold start, before any API call syncs
+        return one_port(app, deps.settings.frontend_dir,
+                        lambda: server_effective(deps.env, deps.owner_state.server_settings()).app_url)
     return app
 
 
