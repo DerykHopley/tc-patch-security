@@ -178,7 +178,7 @@ gcloud run services describe $SERVICE --region=$REGION --format='value(status.ur
    ```
 4. **Sign-up is open; you approve each account** (B38, README "Sign-in"): set Clerk's sign-up mode to Public and turn on "Challenge suspicious sign-ups" (Clerk dashboard), as for the local app. Names on the Requests card come from the `clerk-secret-key` secret (step 4). *Checked* locally on 2026-10-19 against the dev instance; *unverified* on Google Cloud.
 
-## 8. The hourly schedule
+## 8. The schedule
 
 ```bash
 gcloud scheduler jobs create http patch-refresh --location=$REGION --schedule="0 * * * *" --time-zone=UTC \
@@ -201,7 +201,7 @@ The checks for #45:
 1. Sign in, set your watchlist. In a private window, a second account asks for access (B38): you get the alert (if Telegram or ntfy is set), approve it on Settings → Requests with a role (B45), and they see the default watchlist, not yours, and only their "Yours" part of Settings (B48).
 2. Dashboard → **Check now**: it runs and says what it found.
 3. Ask Patch "Who's talking about CVE-2025-3248?" (needs the Tavily secret): an answer with web sources.
-4. After the next hourly tick: `gcloud scheduler jobs describe patch-refresh --location=$REGION` (last attempt) and Settings → Refresh runs (trigger "schedule").
+4. After the next tick (daily at 08:00 Europe/Berlin on the live app): `gcloud scheduler jobs describe patch-refresh --location=$REGION` (last attempt) and Settings → Refresh runs (trigger "schedule").
 5. Cold-start time: after 15 idle minutes, open the app and time the first page. The log has the start-up and the `Search index caught up` line.
 6. After a week: Billing → Reports, filtered to the project. Expected $0.
 
