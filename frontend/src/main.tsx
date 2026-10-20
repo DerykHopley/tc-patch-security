@@ -1,4 +1,4 @@
-import { lazy, StrictMode, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, StrictMode, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { health, type AuthConfig } from './api.ts'
 import App from './App.tsx'
@@ -60,8 +60,10 @@ function SignInOn({ publishableKey }: { publishableKey: string }) {
   const [reported, setReported] = useState<boolean | null>(null)
   const landing = reported ?? door === 'landing'
   // B60 (#107): the address this signed-out visitor asked for, kept for this tab, so sign-in opens it (route.ts);
-  // at "/" an older one is forgotten. Its own Sign in and Request access need nothing more.
-  useEffect(() => {
+  // at "/" an older one is forgotten. Its own Sign in and Request access need nothing more. A layout effect, so it's
+  // kept before the landing page is painted: with useEffect, a page left the moment it showed could lose it (the
+  // B60.7 race, 2026-10-20).
+  useLayoutEffect(() => {
     if (landing) keepTarget(signInTargetAt(window.location))
   }, [landing])
   return (
