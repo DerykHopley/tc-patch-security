@@ -54,6 +54,12 @@ WatchStatus = Literal["open", "fixed", "not_affected", "accepted", "not_watched"
 PriorityLevel = Literal["urgent", "high", "normal", "low"]
 
 
+class PackageFix(ToolResult):
+    """One package's newest fixed version (B67): listed when OSV gives the CVE's fix under more than one package."""
+    package: str
+    fixed_version: str | None
+
+
 class Category(ToolResult):
     """An OWASP Top 10 category."""
     code: str
