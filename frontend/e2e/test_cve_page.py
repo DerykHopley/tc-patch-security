@@ -255,6 +255,10 @@ def test_b35_15_ask_patch_asks_about_this_cve(open_at):
 
 def test_b35_15_keyboard_reaches_the_back_link_links_and_actions_with_visible_focus(open_at):
     page = open_at(f"/cves/{CVE}")
+    # open_at waits for the title, which comes from the address, before the CVE has loaded. The links and actions
+    # come with /cves/{id}, and the actions stay disabled (out of the Tab order) until the as-of date is known. The
+    # Tab walk reads focus directly, which never waits, so it waits for both here (CI run 39417067448).
+    expect(assessment(page).get_by_role("button", name=f"Mark {CVE} fixed")).to_be_enabled()
     seen = []
     for _ in range(40):
         page.keyboard.press("Tab")

@@ -5,6 +5,7 @@ server and gives it a fake clock whose sleep moves time on, so pacing is checked
 """
 import datetime as dt
 
+import httpx
 import pytest
 
 from app.feeds import FeedError, FeedUrls, HttpFeeds
@@ -241,27 +242,48 @@ def refresher(tmp_path, fake_http, time_):
         def __call__(self):
             return self.at
 
-    feeds = feeds_for(fake_http, time_, timeout=0.2)
+    # The adapter's own timeout (30 s), never a short one. Each run makes about 20 healthy requests, and the test
+    # process pauses for garbage collection (gen2 up to 1 s in the full suite). With 0.2 s, a pause while a request
+    # was out failed a healthy feed (CI run 39417067448).
+    feeds = feeds_for(fake_http, time_)
     return Refresher(LiveData(tmp_path / "live"), feeds, Clock())
+
+
+def times_out(feeds: HttpFeeds, path: str):
+    """The adapter's client, but a request to `path` fails as a timeout does, at once. The refresh tests need a
+    timeout on one feed while the others answer; a real short timeout would race those answers. The real wait is
+    checked once, on its own (test_b03_6_a_failed_nvd_call_is_a_feed_error_naming_the_source)."""
+    real = feeds.client.request
+
+    def request(method, url, **kw):
+        if httpx.URL(url).path == path:
+            raise httpx.ReadTimeout("no answer (test)", request=httpx.Request(method, url))
+        return real(method, url, **kw)
+
+    return request
 
 
 @pytest.mark.parametrize("failing", ["nvd", "kev", "epss", "osv"])
 @pytest.mark.parametrize("how", ["503", "timeout"])
 def test_b03_6_a_503_or_timeout_leaves_the_data_and_last_checked_alone_and_the_next_run_covers_the_gap(
-        fake_http, refresher, caplog, failing, how):
+        fake_http, refresher, caplog, monkeypatch, failing, how):
     _all_four(fake_http)
     first = refresher.run("schedule").result
     assert first.ok and first.version == 2
 
     _all_four(fake_http, nvd=nvd_pages({"2026-10-15T09:00:00.000Z": [nvd_vuln("CVE-2026-99201")]}))
-    fake_http.on(f"/{failing}", (lambda s: (503, {})) if how == "503" else (lambda s: (200, {}, 1.0)))
+    if how == "503":
+        fake_http.on(f"/{failing}", lambda s: (503, {}))
     refresher.clock.at += dt.timedelta(hours=6)
-    with caplog.at_level("WARNING", logger="app.refresh"):
+    with caplog.at_level("WARNING", logger="app.refresh"), monkeypatch.context() as m:
+        if how == "timeout":
+            m.setattr(refresher.feeds.client, "request", times_out(refresher.feeds, f"/{failing}"))
         failed = refresher.run("schedule").result
 
     # B20: one feed down is a partial run. The other three are written; the failed one's data and last_checked stay.
     assert failed.status == "partial" and failed.version == 3 and [e.source for e in failed.errors] == [failing]
     assert "was partial: 3 of 4 sources updated" in caplog.text and f"{failing}: {failing.upper()} " in caplog.text
+    assert ("answered HTTP 503" if how == "503" else "didn't answer within") in failed.errors[0].message
     assert refresher.live.version() == 3
     assert refresher.last_checked() == "2026-10-15T09:00:00+00:00"
 
