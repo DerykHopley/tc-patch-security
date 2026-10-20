@@ -4,7 +4,7 @@ How to put Patch on a public URL, open only to the people the owner approves (B3
 
 > **Easiest: run `scripts/deploy-wizard.sh`** from the repo root. It walks through every step below, one at a time: it explains each, shows the command and asks before running it, skips what already exists (so you can stop and re-run), reuses the Clerk keys, user id and keys from `backend/.env`, and never writes a secret to a file. Its plain answers (project id, billing account, image tag, time zone) are kept in `deploy/cloudrun/wizard.env` (git-ignored). Running it inside Claude Code as `! scripts/deploy-wizard.sh` puts its output in the chat. The steps below are the same commands by hand.
 
-> **Unverified:** no Google Cloud account existed while this was written, so **not one `gcloud` command below has been run.** The app's side is tested (against a fake bucket, `backend/tests/test_deploy.py`, and the container smoke test). Commands are from Google's documented CLI as of 2026. Where a step fails, fix it here as part of #45.
+> **Checked on the first deploy (2026-10-19):** the owner ran these steps through `scripts/deploy-wizard.sh`, and the live app at https://patch-976248543439.europe-west1.run.app runs from them ([STATUS.md](./STATUS.md#the-live-app)). The steps that failed were fixed here (the budget's currency, the time zone, the scheduler's retries). The commands typed by hand, outside the wizard, are *unverified* where a step doesn't say otherwise. The app's side is also tested against a fake bucket (`backend/tests/test_deploy.py`) and by the container smoke test.
 
 ## What runs where
 
@@ -178,7 +178,7 @@ gcloud run services describe $SERVICE --region=$REGION --format='value(status.ur
    ```
 4. **Sign-up is open; you approve each account** (B38, README "Sign-in"): set Clerk's sign-up mode to Public and turn on "Challenge suspicious sign-ups" (Clerk dashboard), as for the local app. Names on the Requests card come from the `clerk-secret-key` secret (step 4). *Checked* locally on 2026-10-19 against the dev instance; *unverified* on Google Cloud.
 
-## 8. The hourly schedule
+## 8. The schedule
 
 ```bash
 gcloud scheduler jobs create http patch-refresh --location=$REGION --schedule="0 * * * *" --time-zone=UTC \
@@ -201,11 +201,21 @@ The checks for #45:
 1. Sign in, set your watchlist. In a private window, a second account asks for access (B38): you get the alert (if Telegram or ntfy is set), approve it on Settings → Requests with a role (B45), and they see the default watchlist, not yours, and only their "Yours" part of Settings (B48).
 2. Dashboard → **Check now**: it runs and says what it found.
 3. Ask Patch "Who's talking about CVE-2025-3248?" (needs the Tavily secret): an answer with web sources.
-4. After the next hourly tick: `gcloud scheduler jobs describe patch-refresh --location=$REGION` (last attempt) and Settings → Refresh runs (trigger "schedule").
+4. After the next tick (daily at 08:00 Europe/Berlin on the live app): `gcloud scheduler jobs describe patch-refresh --location=$REGION` (last attempt) and Settings → Refresh runs (trigger "schedule").
 5. Cold-start time: after 15 idle minutes, open the app and time the first page. The log has the start-up and the `Search index caught up` line.
 6. After a week: Billing → Reports, filtered to the project. Expected $0.
 
-**Update after a change: `scripts/update-deploy.sh`.** It shows what's live and what's new, suggests the next version (`v2`, `v3`…), rebuilds the search index only when the snapshot or the chunking changed (it compares the index's fingerprint), builds, uploads and deploys the new tag, checks it answers, and offers to delete the old image. It reads the first deploy's `deploy/cloudrun/wizard.env` and `env.yaml`; the secrets stay as they are. It also offers Telegram (B57): it stores the bot token as the `telegram-bot-token` secret (from `backend/.env` or typed, hidden), lets the service read it, adds it to the deploy (`--update-secrets`, so the other secrets stay), and puts `TELEGRAM_CHAT_ID` from `backend/.env` in `env.yaml` if you like. Once added, every later update keeps both. By hand: step 4's `add_secret telegram-bot-token`, then `gcloud run deploy ... --update-secrets=TELEGRAM_BOT_TOKEN=telegram-bot-token:latest`. By hand: build and push a new tag (step 5 with `v2`), then `gcloud run deploy $SERVICE --image=$IMAGE:v2 --region=$REGION` (the other settings stay). Delete old tags to keep storage free: `gcloud artifacts docker images delete $IMAGE:v1`.
+**Update after a change: `scripts/update-deploy.sh`.** One command, no questions (B71, 2026-10-20). It:
+
+1. Checks the checkout: no uncommitted changes (they would go into the image), fast-forwards to GitHub if behind, stops if the branch has diverged.
+2. Checks CI with `gh`: the run for this commit must pass, and it waits if the run is still going. A docs-only commit skips the browser checks, so the newest run before it that did run them must pass too (v7 shipped past a red run; this closes that gap).
+3. Rebuilds the search index only when the snapshot or the chunking changed, with the OpenRouter key from `backend/.env`.
+4. Builds and uploads the next tag (`v9`, `v10`…).
+5. Secrets: the Telegram token and the Tavily key are added once from `backend/.env` (`TELEGRAM_BOT_TOKEN`, `TAVILY_API_KEY`) and then kept; it never asks again. `--rotate telegram` (or `tavily`) stores a new version from `backend/.env`. `TELEGRAM_CHAT_ID` goes into `env.yaml` once.
+6. Deploys (no downtime: Cloud Run switches over once the new version answers), checks `/api/health` (up to 3 tries of 2 minutes, for a cold start), and records the tag and commit in `wizard.env`.
+7. Keeps the newest 3 images (`--keep N`) and deletes older ones, so there is always one to roll back to.
+
+It stops, with nothing on the live app changed, at the first problem, and says why. `--dry-run` runs every check and prints what it would do. `--skip-ci` deploys without the CI check (for when GitHub is down). If the new version doesn't answer, it prints the rollback command. By hand: build and push a new tag (step 5 with `v2`), then `gcloud run deploy $SERVICE --image=$IMAGE:v2 --region=$REGION --update-secrets=...` (the other settings stay).
 
 Roll back: `gcloud run revisions list --service=$SERVICE --region=$REGION`, then `gcloud run services update-traffic $SERVICE --region=$REGION --to-revisions=<revision>=100`.
 
