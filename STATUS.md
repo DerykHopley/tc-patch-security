@@ -4,7 +4,7 @@ Where the project stands, how to run and test it, and what's open. Rewritten 202
 
 ## In one paragraph
 
-Spec A is merged into `main` ([PR #24](https://github.com/DerykHopley/tc-patch-security/pull/24)). Spec B ([#31](https://github.com/DerykHopley/tc-patch-security/issues/31)) is built on the `spec-b` branch and waits to merge into `main` in the draft [PR #66](https://github.com/DerykHopley/tc-patch-security/pull/66), by 2026-11-02. Spec B moved Patch from a frozen snapshot to live data (NVD, CISA KEV, EPSS, OSV.dev) on a schedule, with alerts on four channels, web research through Tavily's MCP server, Patch's own tools as an MCP server, changes you approve, Clerk sign-in with the owner's approval and roles, rate limits, and a deploy to Google Cloud Run. The live app is at **https://patch-976248543439.europe-west1.run.app**. What's left: the week's cost check (#45), an outside user (#60), triage, and the merge. `proto/` is the frozen prototype.
+Spec A is merged into `main` ([PR #24](https://github.com/DerykHopley/tc-patch-security/pull/24)). Spec B ([#31](https://github.com/DerykHopley/tc-patch-security/issues/31)) is merged into `main` too ([PR #66](https://github.com/DerykHopley/tc-patch-security/pull/66), 2026-10-20, ahead of the 2026-11-02 target). Spec B moved Patch from a frozen snapshot to live data (NVD, CISA KEV, EPSS, OSV.dev) on a schedule, with alerts on four channels, web research through Tavily's MCP server, Patch's own tools as an MCP server, changes you approve, Clerk sign-in with the owner's approval and roles, rate limits, and a deploy to Google Cloud Run. The live app is at **https://patch-976248543439.europe-west1.run.app**. What's left: the week's cost check (#45), more outside users and one fix from their feedback (#60), #116, and triage. `proto/` is the frozen prototype.
 
 ## The live app
 
@@ -13,14 +13,14 @@ The owner deployed `spec-b` on 2026-10-19 with `scripts/deploy-wizard.sh` and up
 | | |
 |---|---|
 | Address | **https://patch-976248543439.europe-west1.run.app** (project `tc-patch-security`, **europe-west1, Belgium**). First deployed in us-central1, moved the same day at the owner's request: data copied to the EU bucket `tc-patch-security-state-eu` (17 of 17 objects checked), the US service, bucket, registry and job deleted. Why Belgium: [DEPLOY.md](./DEPLOY.md#what-runs-where) |
-| Version | **v7**, revision `patch-00008-zz5`, built from `spec-b` at `fc61e4b` (2026-10-20), with web research on (the Tavily secret added). From the owner's session; the revision name isn't checked here |
+| Version | **v9**, revision `patch-00010-6b2`, built from `spec-b` at `6dfdb28` (2026-10-20, CI green), with web research on (the Tavily secret). Deployed with the new `scripts/update-deploy.sh` (B71). *Checked* with `gcloud run services describe` |
 | Health | *Checked* 2026-10-20 on `/api/health`: `status: ok`, live mode, OpenRouter (Claude Haiku 5.5), sign-in on, Dev page on. `/` carries the link-preview tags with the public address (B61) |
 | Sign-in | Clerk development instance, access mode Open (switched by the owner on 2026-10-20; Restricted had blocked a live sign-up). A live sign-up → request → push alert → approve worked on 2026-10-20 |
 | Refresh | a Cloud Scheduler job, **daily at 08:00 Europe/Berlin** (the owner's choice, instead of hourly), with 2 retries 2 minutes apart since 2026-10-20: that morning's tick hit a cold start (about 90 s), got a 500 and wasn't retried. Check now on the live app: 51 s, 2 new CVEs, 3 alerts (the owner, 2026-10-20) |
 | Alerts | Telegram is the channel for the live app (B57): ntfy.sh's daily quota is per IP address and Cloud Run's are shared, so ntfy fails there by the afternoon ([source checks](./docs/SOURCE-CHECKS.md#ntfysh-from-cloud-run-101-2026-10-19)) |
 | Budget | 1 EUR alert (a German billing account bills in EUR: `1USD` failed with `INVALID_ARGUMENT`) |
 
-- **Not on the live app yet:** what merged after `fc61e4b`: B66 (a version typed in the chat is proposed for saving, #113), B67 (each package's fix, #109), and anything newer. The next `scripts/update-deploy.sh` brings them.
+- **Everything in spec B is live** as of v9 (B65's chat fix checked by the owner on 2026-10-20: Send's lower half and "Show sources" work). Later updates: `scripts/update-deploy.sh`, one command, no questions (B71).
 - Fixed on the way, in the wizard and DEPLOY.md: the billing account ID shown plainly, the budget in the account's currency, an empty time zone (YAML read it as null and `gcloud run deploy` refused it), the scheduler's retries.
 - Still to check (#45): the cost after a week (expected 0; around 2026-10-26).
 
@@ -147,6 +147,9 @@ Spec A's tickets ([#2](https://github.com/DerykHopley/tc-patch-security/issues/2
 | The new questions on a real model: Claude Haiku 5.5 on all 19 questions, 16 of 19, 90 of 93 checks, $0.033, run from the live app's Dev page | [report: spec B's run](https://derykhopley.github.io/tc-patch-security/#findings), `docs/report-src/findings.html` | B16 #47 |
 | Am I affected? Usage, version, verdict, `check_affected` | `backend/app/verdict.py`, `tools/affected.py` | A15 #17 |
 | A fix under more than one package (B67): the verdict's `package_fixes` lists each package's fix (CVE-2024-8309: langchain 0.2.0, langchain-community 0.2.19), the same in `lookup_cve`, `check_affected` (chat and MCP), the CVEs list and the CVE page; an "affected" reason names the other packages' fixes; "Fixed in …" lists each package. One-package CVEs read as before | `backend/app/verdict.py`, `app/watched.py`, `app/tools/cve.py`, `tools/affected.py`; `frontend/src/verdict.ts`, `components/Verdict.tsx`; `frontend/e2e/test_affected.py` | B67 #109 |
+| The chat's Send and "Show sources" (B65): the open chat button's box is the pill you see (its empty top had lain over Send's lower half and taken its clicks); the message list is positioned, so its hidden labels can't make the window scroll; the window is `overflow: clip`, so `scrollIntoView` can't scroll it. *Checked* by the owner on v9 | `frontend/src/styles/chat.css`; `frontend/e2e/test_chat.py` B65.1–B65.3 | B65 #112 |
+| The update script asks nothing (B71): checks the checkout and CI (waits for a running run; after a docs-only commit, the last run with browser checks must pass), rebuilds the index only when needed, adds the Telegram and Tavily secrets once from `backend/.env`, deploys, checks it answers, keeps 3 images. Stops at the first problem; `--dry-run`, `--rotate`. *Checked*: the owner deployed v9 with it | `scripts/update-deploy.sh`, DEPLOY.md | B71 |
+| One more test race (B72, after B69's two above): B36.7 tabbed into a CVE row's actions before `/dashboard`'s as-of date had enabled them. Reproduced by holding `/dashboard` back; the test now waits for the actions to be enabled. The pattern is #114 | `frontend/e2e/test_shorter_rows.py` | B72 |
 | Priority by rules, policy, due dates | `backend/app/priority.py` | A16 #18, gate A17 #19 |
 | Accepted status, decision records, "no fix yet" | `backend/app/status.py`, `frontend/src/components/Decision.tsx` | A16b #27 |
 | What should I fix first? Page-aware chat, `prioritise` | `backend/app/page_context.py`, `tools/prioritise.py`, `frontend/src/pageContext.ts` | A18 #20 |
@@ -188,19 +191,20 @@ The owner's app on `spec-b`, live mode with the real feeds (`FEEDS=real`), no NV
 **Spec B's last steps:**
 
 1. **#45, the cost check** (the owner, around 2026-10-26): Billing → Reports for the project after a week. Expected $0; a 1 EUR budget alert is set. Then close #45.
-2. **[#60](https://github.com/DerykHopley/tc-patch-security/issues/60), an outside user** (B18): someone who isn't the owner signs up on the live app, gets approved, uses it, and one usability problem they hit is fixed.
-3. **Update the live app** to the head of `spec-b` (`scripts/update-deploy.sh`), so B66, B67 and later merges are live.
-4. **[PR #66](https://github.com/DerykHopley/tc-patch-security/pull/66): `spec-b` → `main`**, by 2026-11-02. It closes spec B's tickets (many are still open only because of that, #51, #53, #54 and #25 among them).
+2. **[#60](https://github.com/DerykHopley/tc-patch-security/issues/60), outside users** (B18, a bonus challenge): the first tester's finding is [#115](https://github.com/DerykHopley/tc-patch-security/issues/115) ("what's the latest?" has no newest-first tool). Gather a little more feedback, then fix the one that confused people most.
+3. **[#116](https://github.com/DerykHopley/tc-patch-security/issues/116):** at about 701–800px with the chat pinned, the tab bar covers Send (Enter still works).
 
-**Being worked on (2026-10-20):** [#112](https://github.com/DerykHopley/tc-patch-security/issues/112), clicking Send closes the chat panel (Enter works). The two CI races in `backend/tests/test_feeds.py` and `frontend/e2e/test_cve_page.py` are fixed (B69).
+None of these blocked the merge: #60 is a stretch in spec B, #45 an observation, #116 one width band.
+
+**Fixed last, on 2026-10-20:** #112, Send's lower half closed the chat (B65); three CI races in the tests (B69, B72); the update script asks nothing (B71).
 
 **Needs triage** (`needs-triage`, not scheduled):
 
 - From spec B's runs and demos: [#105](https://github.com/DerykHopley/tc-patch-security/issues/105) research answers should say "unverified" when citing a web result; [#106](https://github.com/DerykHopley/tc-patch-security/issues/106) when one tool fails, the answer drops citations for the tools that worked; [#110](https://github.com/DerykHopley/tc-patch-security/issues/110) the real-Clerk browser check (B10.16) still expects the form at `/`.
 - From the model check: [#50](https://github.com/DerykHopley/tc-patch-security/issues/50) `explain_weakness` gives numbered sources; [#52](https://github.com/DerykHopley/tc-patch-security/issues/52) cite `prioritise`'s sources by rule; [#55](https://github.com/DerykHopley/tc-patch-security/issues/55) models and embedders to try later.
-- Tests: [#67](https://github.com/DerykHopley/tc-patch-security/issues/67) Chromium page loads time out when the machine is busy.
-- Dashboard: [#28](https://github.com/DerykHopley/tc-patch-security/issues/28) warn when a product leaves CVEs unfixed. [#25](https://github.com/DerykHopley/tc-patch-security/issues/25) (the OWASP chart) was built in B43 and only needs closing.
-- Ideas: [#49](https://github.com/DerykHopley/tc-patch-security/issues/49) find installed LLM software and offer to add it; [#64](https://github.com/DerykHopley/tc-patch-security/issues/64) B25, grade the text-matched CVEs with Jev.
+- Tests: [#114](https://github.com/DerykHopley/tc-patch-security/issues/114) audit the browser checks that tab before the page's data has loaded (two such races fixed in B69 and B72).
+- Dashboard: [#28](https://github.com/DerykHopley/tc-patch-security/issues/28) warn when a product leaves CVEs unfixed. (#25, the OWASP chart, was built in B43 and closed with PR #66.)
+- Ideas: [#115](https://github.com/DerykHopley/tc-patch-security/issues/115) list CVEs newest first (#60's first finding); [#49](https://github.com/DerykHopley/tc-patch-security/issues/49) find installed LLM software and offer to add it; [#64](https://github.com/DerykHopley/tc-patch-security/issues/64) B25, grade the text-matched CVEs with Jev.
 
 **Known limits:**
 
