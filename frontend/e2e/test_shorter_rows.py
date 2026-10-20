@@ -96,7 +96,9 @@ def test_b36_7_one_main_action_the_rest_under_more(open_list):
     toggle.focus()
     page.keyboard.press("Enter")
     for name in (f"Mark {CVE} not affected", f"Accept the risk of {CVE}", f"Ask about this: {CVE}"):
-        expect(r.get_by_role("button", name=name, exact=True)).to_be_visible()
+        # Enabled, not only visible: the status actions stay disabled (out of the Tab order) until /dashboard brings
+        # the as-of date, a separate request from the rows. A slow CI runner tabbed past them (B72, 2026-10-20).
+        expect(r.get_by_role("button", name=name, exact=True)).to_be_enabled()
     # Tab goes on into the opened actions, in order
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement.getAttribute('aria-label')") == f"Mark {CVE} not affected"
