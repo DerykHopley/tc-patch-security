@@ -23,7 +23,11 @@
 ## The architecture review
 
 - `docs/report/architecture-review.html`, published at https://derykhopley.github.io/tc-patch-security/architecture-review.html.
-- Six deepening candidates from the `improve-codebase-architecture` review of `spec-a` (2026-10-15). All six are built and merged; each card shows what was built. The decisions are DECISIONS.md's 2026-10-15 rows.
+- Three reviews, one tab each, made with the `improve-codebase-architecture` review:
+  - **After spec B** (2026-10-20, the default tab): seven candidates and one bug, filed as #122–#129 to look at later. It opens with a table comparing itself with the spec B review.
+  - **Spec B** (2026-10-16): six candidates, two built (c16a9b2, #71).
+  - **Spec A** (2026-10-15): six candidates, all built; each card shows what was built. The decisions are DECISIONS.md's 2026-10-15 rows.
+- A new review goes in as a new first tab (a `role="tab"` button and a `data-spec` panel; the script at the end shows the first by default and draws a tab's Mermaid diagrams when it's first shown).
 - Unlike the model-check report, it loads Tailwind and Mermaid from CDNs, so it needs a network connection to show its styles and diagrams.
 
 ## The retro

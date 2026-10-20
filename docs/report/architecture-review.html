@@ -21,7 +21,7 @@
   .mermaid { display: flex; justify-content: safe center; overflow-x: auto; max-width: 100%; }
   main { overflow-wrap: break-word; }
   /* A grid cell may shrink below its table's width, so the table scrolls in its box instead of widening the page. */
-  #spec-b .grid > * { min-width: 0; }
+  #spec-b .grid > *, #after-b .grid > * { min-width: 0; }
   .spec-tab[aria-selected="true"] { background: #312e81; color: #fff; border-color: #312e81; }
   .spec-tab:focus-visible { outline: 3px solid #6366f1; outline-offset: 2px; }
   /* Without JavaScript both specs show, one after the other. */
@@ -34,7 +34,7 @@
 
 <header class="space-y-3">
   <h1 class="font-serif text-3xl">Architecture review: <span class="text-indigo-700">tc-patch-security</span></h1>
-  <p class="text-sm">Where the code could be deeper: modules with a small interface and a lot behind it, so a change lands in one place and tests cross the same seam as callers. One review per spec, made with the <code>improve-codebase-architecture</code> review; claims checked against the code. Companions: the <a class="underline text-indigo-700" href="./">model-check report</a> and the <a class="underline text-indigo-700" href="retro.html">retro</a>.</p>
+  <p class="text-sm">Where the code could be deeper: modules with a small interface and a lot behind it, so a change lands in one place and tests cross the same seam as callers. One review per spec, plus one after spec B merged, made with the <code>improve-codebase-architecture</code> review; claims checked against the code. The newest tab compares itself with the one before. Companions: the <a class="underline text-indigo-700" href="./">model-check report</a> and the <a class="underline text-indigo-700" href="retro.html">retro</a>.</p>
   <div class="flex flex-wrap gap-4 text-xs text-slate-600">
     <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 border border-slate-500 bg-white"></span> module</span>
     <span class="flex items-center gap-1"><svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="#64748b" class="seam" stroke-width="2"/></svg> seam</span>
@@ -42,10 +42,231 @@
     <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 deep"></span> deep module</span>
   </div>
   <div role="tablist" aria-label="Which spec" class="inline-flex flex-wrap rounded-lg border border-slate-300 bg-white p-1 gap-1 text-sm">
-    <button type="button" role="tab" id="tab-b" class="spec-tab px-3 py-1.5 rounded-md border border-transparent font-semibold" aria-controls="spec-b" aria-selected="true">Spec B · 2026-10-16</button>
+    <button type="button" role="tab" id="tab-after-b" class="spec-tab px-3 py-1.5 rounded-md border border-transparent font-semibold" aria-controls="after-b" aria-selected="true">After spec B · 2026-10-20</button>
+    <button type="button" role="tab" id="tab-b" class="spec-tab px-3 py-1.5 rounded-md border border-transparent font-semibold" aria-controls="spec-b" aria-selected="false" tabindex="-1">Spec B · 2026-10-16</button>
     <button type="button" role="tab" id="tab-a" class="spec-tab px-3 py-1.5 rounded-md border border-transparent font-semibold" aria-controls="spec-a" aria-selected="false" tabindex="-1">Spec A · 2026-10-15</button>
   </div>
 </header>
+
+<div id="after-b" role="tabpanel" aria-labelledby="tab-after-b" data-spec class="space-y-10">
+
+<div class="space-y-3">
+  <h2 class="font-serif text-2xl">After spec B: <code class="text-xl">main</code> at b1ee163</h2>
+  <p class="text-sm"><span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Filed to look at later</span> Seven candidates and one bug, filed as GitHub issues #122–#129 (<code>needs-triage</code>). Made with the <code>improve-codebase-architecture</code> review the day spec B merged. Claims checked by reading the code at b1ee163; the bug (#122) is checked by reading, not run.</p>
+  <p class="text-sm text-slate-500">2026-10-20 · hot spots from the last 150 commits: api.ts (28 changes), main.py (25), deps.py (14), App.tsx (12), refresh.py (11), SettingsPage.tsx (10), main.tsx, config.py, state.py, users.py · skips ADR-0001 and the built candidates of the two reviews before</p>
+</div>
+
+<section id="r3-compare" class="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+  <h2 class="font-serif text-xl">Compared with the spec B review (2026-10-16)</h2>
+  <p class="text-sm text-slate-600">Where each of spec B's six candidates stands four days later. Two were built during spec B; the other four are still open, and two of them grew.</p>
+  <div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead class="text-left text-slate-500"><tr><th class="py-1 pr-3">Spec B candidate</th><th class="pr-3">2026-10-16</th><th class="pr-3">2026-10-20</th><th>What changed</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      <tr><td class="py-1.5 pr-3"><a class="underline" href="#b1">1 · One definition each</a></td><td class="pr-3"><span class="whitespace-nowrap px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span></td><td class="pr-3"><span class="whitespace-nowrap px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span></td><td>c16a9b2</td></tr>
+      <tr><td class="py-1.5 pr-3"><a class="underline" href="#b2">2 · One way in for a proposal</a></td><td class="pr-3"><span class="whitespace-nowrap px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span></td><td class="pr-3"><span class="whitespace-nowrap px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Done</span></td><td>ccd24d1 (B27, #71); B62 and B66 added rules through it without new ways in</td></tr>
+      <tr><td class="py-1.5 pr-3"><a class="underline" href="#b3">3 · The owner's share</a></td><td class="pr-3"><span class="whitespace-nowrap px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td><td class="pr-3"><span class="whitespace-nowrap px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Open, grew</span></td><td>Its hole is closed (<code>PUT /dev/settings</code> now needs <code>dev_write</code>). Roles (B45) and server settings (B26) added more owner checks: about 12 inline in the backend, 5 ways in the frontend. Carried forward as <a class="underline" href="#r3-3">candidate 3</a> (#125)</td></tr>
+      <tr><td class="py-1.5 pr-3"><a class="underline" href="#b4">4 · Starting a refresh</a></td><td class="pr-3"><span class="whitespace-nowrap px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td><td class="pr-3"><span class="whitespace-nowrap px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Open, grew</span></td><td>Still accurate (<code>deps.sync()</code> after a run in 4 places). Next to it, the CLI's separate assembly misses two rules: <a class="underline" href="#r3-4">candidate 4</a> (#126) and the bug #122</td></tr>
+      <tr><td class="py-1.5 pr-3"><a class="underline" href="#b5">5 · Route replies with a declared shape</a></td><td class="pr-3"><span class="whitespace-nowrap px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td><td class="pr-3"><span class="whitespace-nowrap px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Open</span></td><td><code>api.ts</code> changed in 28 of the last 150 commits; most of the churn is hand-copied reply types ("written by hand from…"). Not re-proposed</td></tr>
+      <tr><td class="py-1.5 pr-3"><a class="underline" href="#b6">6 · Prompt lines travel with the spec</a></td><td class="pr-3"><span class="whitespace-nowrap px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Proposed</span></td><td class="pr-3"><span class="whitespace-nowrap px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">Open</span></td><td>Not re-examined. B62 and B66 each added prompt lines in <code>agent.py</code> far from their tool</td></tr>
+    </tbody>
+  </table></div>
+  <p class="text-sm text-slate-600"><b>The shift.</b> Spec B's review found duplicated <i>definitions</i> (a CVE id, a proposal action) and they were fixed. This review finds duplicated <i>declarations of configuration and permission</i>: an alert channel, a server setting, the owner rule, the app's assembly. Spec B's late features (Telegram, roles, sign-up requests, the deploy) each had to touch many files, which is what pulled these to the top.</p>
+</section>
+
+<section id="r3-glance" class="rounded-xl border border-slate-200 bg-white p-6">
+  <h2 class="font-serif text-xl mb-3">At a glance</h2>
+  <div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead class="text-left text-slate-500"><tr><th class="py-1 pr-3">#</th><th class="pr-3">Candidate</th><th class="pr-3">Strength</th><th>Issue</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      <tr><td class="py-1.5 pr-3">1</td><td class="pr-3"><a class="underline" href="#r3-1">A real alert-channel module</a></td><td class="pr-3">Strong</td><td><a class="underline" href="https://github.com/DerykHopley/tc-patch-security/issues/124">#124</a></td></tr>
+      <tr><td class="py-1.5 pr-3">2</td><td class="pr-3"><a class="underline" href="#r3-2">One declaration per server setting</a></td><td class="pr-3">Strong · do first</td><td><a class="underline" href="https://github.com/DerykHopley/tc-patch-security/issues/123">#123</a></td></tr>
+      <tr><td class="py-1.5 pr-3">3</td><td class="pr-3"><a class="underline" href="#r3-3">Who may see and change what, in both tiers</a></td><td class="pr-3">Strong</td><td><a class="underline" href="https://github.com/DerykHopley/tc-patch-security/issues/125">#125</a></td></tr>
+      <tr><td class="py-1.5 pr-3">4</td><td class="pr-3"><a class="underline" href="#r3-4">One assembly for the server and the CLI refresh</a></td><td class="pr-3">Strong · has a bug</td><td><a class="underline" href="https://github.com/DerykHopley/tc-patch-security/issues/126">#126</a>, bug <a class="underline" href="https://github.com/DerykHopley/tc-patch-security/issues/122">#122</a></td></tr>
+      <tr><td class="py-1.5 pr-3">5</td><td class="pr-3"><a class="underline" href="#r3-5">An access-requests module out of main.py</a></td><td class="pr-3">Worth exploring</td><td><a class="underline" href="https://github.com/DerykHopley/tc-patch-security/issues/127">#127</a></td></tr>
+      <tr><td class="py-1.5 pr-3">6</td><td class="pr-3"><a class="underline" href="#r3-6">Split Deps into a runtime and a caller</a></td><td class="pr-3">Worth exploring</td><td><a class="underline" href="https://github.com/DerykHopley/tc-patch-security/issues/128">#128</a></td></tr>
+      <tr><td class="py-1.5 pr-3">7</td><td class="pr-3"><a class="underline" href="#r3-7">A front-door state machine</a></td><td class="pr-3">Worth exploring</td><td><a class="underline" href="https://github.com/DerykHopley/tc-patch-security/issues/129">#129</a></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<article id="r3-1" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">1 · A real alert-channel module</h2>
+    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <p class="font-mono text-sm text-slate-600">backend/app/notify.py (CHANNELS, channel_status, notifier_for) · app_settings.py (Channel, default_settings) · config.py · server_settings.py · main.py (/settings/telegram/chats, test-send wording) · frontend api.ts · serverSettings.ts · SettingsPage.tsx · ServerFields.tsx</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">Before: one channel, spread over ~9 files</div>
+      <div class="flex flex-wrap gap-1 text-xs">
+        <span class="border border-red-300 bg-red-50 rounded px-1.5">notify.py ×3</span><span class="border border-red-300 bg-red-50 rounded px-1.5">app_settings.py ×3</span><span class="border border-red-300 bg-red-50 rounded px-1.5">config.py ×3</span><span class="border border-red-300 bg-red-50 rounded px-1.5">server_settings.py</span><span class="border border-red-300 bg-red-50 rounded px-1.5">main.py ×2</span><span class="border border-red-300 bg-red-50 rounded px-1.5">api.ts</span><span class="border border-red-300 bg-red-50 rounded px-1.5">serverSettings.ts</span><span class="border border-red-300 bg-red-50 rounded px-1.5">SettingsPage.tsx ×3</span><span class="border border-red-300 bg-red-50 rounded px-1.5">ServerFields.tsx</span>
+      </div>
+      <p class="text-xs text-slate-500">"Configured" is written twice (notify.py, app_settings.py) and nothing ties them together.</p></div>
+    <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">After</div>
+      <div class="flex flex-wrap gap-2 text-xs"><div class="border border-slate-400 rounded px-2 py-1">status</div><div class="border border-slate-400 rounded px-2 py-1">defaults</div><div class="border border-slate-400 rounded px-2 py-1">sender choice</div><div class="border border-slate-400 rounded px-2 py-1">test route</div><div class="border border-slate-400 rounded px-2 py-1">generated TS</div></div>
+      <div class="text-center text-slate-400">↓</div>
+      <div class="deep rounded p-3 text-xs"><div class="lbl">channel registry</div><div class="opacity-60">per channel: settings · ready · setup text · sender · test line · extra action</div></div></div>
+  </div>
+  <p><b>Problem.</b> The <code>Notifier</code> seam is real and deep: four adapters plus preview, with test transports. But an alert channel is also its settings and secrets, its validation, its "configured" rule, its setup text and its test-send wording, and none of that has a module. The channel names appear literally in 4 places. Sending to the owner's channels is done three ways (<code>alerts.py</code> with its retry, <code>alert_owner</code>, <code>test_alert</code>). Telegram's three commits touched 13, 12 and 10 files.</p>
+  <p><b>Solution.</b> One channel registry. Each entry declares what makes the channel: its settings, when it's ready, its setup text, how to build its sender, its test-send line, and any extra owner action (Telegram's Find my chat id). Everything that lists or checks channels reads it. Each channel keeps its own sender class and setup form block.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Locality: a fifth channel is one entry plus one sender</li>
+    <li>Leverage: four literal lists and two "configured" rules become one source</li>
+    <li>Tests: one test ties "configured" to the sender for every channel; the tests that only grew a set literal stop changing</li>
+  </ul>
+</article>
+
+<article id="r3-2" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">2 · One declaration per server setting</h2>
+    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <p class="font-mono text-sm text-slate-600">backend/app/config.py (MOVABLE, SECRETS, fields, from_env) · server_settings.py (ServerSettings) · deps.py ×2, refresh.py, main.py ×2 (the effective settings) · frontend api.ts · serverSettings.ts · SettingsPage.tsx · ServerFields.tsx · .env.example · deploy/cloudrun/env.example.yaml</p>
+  <div class="mermaid">flowchart LR
+    subgraph Before["Before: about 10 declarations"]
+      direction TB
+      a1[MOVABLE dict] --- a2[from_env literals] --- a3[ServerSettings model] --- a4[api.ts types] --- a5[SETUP_KEYS] --- a6[.env.example]
+    end
+    subgraph After
+      direction TB
+      T[(settings table)] --> b1[from_env]
+      T --> b2[model + one validator]
+      T --> b3[generated TS]
+    end</div>
+  <p><b>Problem.</b> A new movable setting touches about 10 declarations across both tiers. The env name is typed twice, so a typo silently breaks "the environment wins". Validation depends on the source: a <code>TELEGRAM_CHAT_ID</code> saved on Settings is checked, the same value in <code>.env</code> is not. The effective settings are worked out in 5 places.</p>
+  <p><b>Solution.</b> A table of server settings: name, env var, type and validator, secret or not, default, Settings block. <code>from_env</code> and the pydantic model are built from it, one validator runs for both sources, and the TypeScript types are generated (as <code>toolResults.ts</code> already is). One owner of "the effective settings now".</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Locality: one row per setting</li>
+    <li>Leverage: candidate 1 is mostly rows in this table, so do this first</li>
+    <li>Tests: one table-driven test for env and saved values closes today's gap</li>
+  </ul>
+</article>
+
+<article id="r3-3" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">3 · Who may see and change what, in both tiers</h2>
+    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">in-process</span>
+  </div>
+  <p class="font-mono text-sm text-slate-600">main.py (7 inline owner checks) · alerts.py · users.py · access.py · dev.py · auth.py (GROUPS) · frontend Freshness.tsx, AlertsLog.tsx, RefreshRuns.tsx, SettingsPage.tsx, RequestsCard.tsx, DevPage.tsx, App.tsx</p>
+  <p class="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-sm">Spec B's <a class="underline" href="#b3">candidate 3</a>, carried forward. Its open hole is closed; the rule spread further with roles (B45) and server settings (B26).</p>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">Before</div>
+      <div class="flex flex-wrap gap-1 text-xs"><span class="border border-red-300 bg-red-50 rounded px-1.5">== settings.owner ×7</span><span class="border border-red-300 bg-red-50 rounded px-1.5">role_of == "owner"</span><span class="border border-red-300 bg-red-50 rounded px-1.5">schedule.yours ×3</span><span class="border border-red-300 bg-red-50 rounded px-1.5">reply.owner</span><span class="border border-red-300 bg-red-50 rounded px-1.5">access.owner</span><span class="border border-red-300 bg-red-50 rounded px-1.5">roleOf()</span></div>
+      <p class="text-xs text-slate-500">Missed checks shipped and were fixed three times: d64d1de, f24c2d8, c16a9b2.</p></div>
+    <div class="rounded-lg border border-slate-200 p-3 space-y-2"><div class="lbl text-slate-500">After</div>
+      <div class="flex flex-wrap gap-2 text-xs"><div class="border border-slate-400 rounded px-2 py-1">routes</div><div class="border border-slate-400 rounded px-2 py-1">alerter</div><div class="border border-slate-400 rounded px-2 py-1">every page</div></div>
+      <div class="text-center text-slate-400">↓</div>
+      <div class="deep rounded p-3 text-xs"><div class="lbl">capabilities</div><div class="opacity-60">roles × capabilities, served once by /access</div><div class="border-t border-slate-600 pt-1 mt-1">answers: can(this user, x)?</div></div></div>
+  </div>
+  <p><b>Solution.</b> Grow GROUPS into a capabilities module that also covers the owner's share (schedule, channels, server settings, test send, demo switches). Routes depend on it; <code>/access</code> returns the capability set; the frontend asks <code>can(x)</code> instead of reading <code>schedule.yours</code> to mean "owner".</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Locality: a new owner-only feature is one capability, so a check can't be missed by omission</li>
+    <li>Tests: one role × capability table instead of per-route checks</li>
+  </ul>
+</article>
+
+<article id="r3-4" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">4 · One assembly for the server and the CLI refresh</h2>
+    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+    <span class="px-2 py-0.5 rounded bg-red-100 text-red-800 text-xs font-semibold">bug #122</span>
+  </div>
+  <p class="font-mono text-sm text-slate-600">backend/app/refresh.py (with_saved_settings, cli_alerter, _schedule) · deps.py (build_deps)</p>
+  <div class="mermaid">flowchart TB
+    subgraph Before
+      B[build_deps] --> R1[adopt_default + access.enabled]
+      C1[cli_alerter] --> X1[Users, without them]
+      C2[with_saved_settings] --> X2[Users, without them]
+      C3[_schedule] --> X3[Users, without them]
+    end
+    subgraph After
+      AS[(assemble)] --> R2[the rules, once]
+      B2[build_deps] --> AS
+      CLI[CLI refresh] --> AS
+    end</div>
+  <p><b>Problem.</b> Two rules applied while assembling the app (<code>adopt_default()</code>, <code>access.enabled = True</code>) live only in <code>build_deps</code>; the CLI refresh builds its users three separate times without them. <b>The bug (#122):</b> with sign-in on, the local scheduled refresh works out and logs alerts for users waiting, refused or removed. Checked by reading, not run; the live app's refresh goes through <code>build_deps</code> and is unaffected. No test runs the CLI refresh with sign-in on.</p>
+  <p><b>Solution.</b> One function assembles "the users, the effective settings, the alerter", for <code>build_deps</code> and the CLI alike. It sits next to spec B's <a class="underline" href="#b4">candidate 4</a>.</p>
+  <ul class="list-disc pl-6 text-sm text-slate-700">
+    <li>Locality: an assembly rule written once can't be missed by one caller</li>
+    <li>Tests: the CLI path gets the server's tests, including sign-in on</li>
+  </ul>
+</article>
+
+<article id="r3-5" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">5 · An access-requests module out of main.py</h2>
+    <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+  </div>
+  <p class="font-mono text-sm text-slate-600">backend/app/main.py (request access, the request list, closures in create_app) · access.py (storage)</p>
+  <div class="grid md:grid-cols-2 gap-4 text-xs">
+    <div class="rounded-lg border border-slate-200 p-3 space-y-1"><div class="lbl text-slate-500">Before</div>
+      <div class="border border-slate-400 rounded px-2 py-1">routes: note rules · status gate · background alert · Clerk join · closures</div>
+      <div class="border border-emerald-400 bg-emerald-50 rounded px-2 py-1">access.py: storage</div></div>
+    <div class="rounded-lg border border-slate-200 p-3 space-y-1"><div class="lbl text-slate-500">After</div>
+      <div class="border border-slate-400 rounded px-2 py-1">routes (thin)</div>
+      <div class="deep rounded p-2"><div class="lbl">access requests</div><div class="opacity-60">ask · list · decide · alert the owner</div></div>
+      <div class="border border-emerald-400 bg-emerald-50 rounded px-2 py-1">access.py: storage</div></div>
+  </div>
+  <p><b>Problem.</b> The sign-up request flow lives in route bodies and in closures inside <code>create_app</code>, reachable only through HTTP. Other route bodies holding decisions go with candidates 1 and 3. Also found: the frontend's <code>setSchedulePaused</code> reads all settings and writes them back to flip one flag, so it can overwrite a save made at the same moment.</p>
+  <p><b>Solution.</b> A module that hides ask, list, decide and alert-the-owner over <code>access.py</code>'s storage. Mostly a testability gain: each closure serves one to three routes.</p>
+</article>
+
+<article id="r3-6" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">6 · Split Deps into a runtime and a caller</h2>
+    <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+  </div>
+  <p class="font-mono text-sm text-slate-600">backend/app/deps.py (sync, _apply, _load, for_user)</p>
+  <div class="mermaid">flowchart LR
+    subgraph Before
+      direction TB
+      D[Deps] --- c[caller] --- r[runtime that hot-swaps] --- a[assembly]
+      r -. pushes copies .-> AL1[alerter settings]
+      r -. pushes copies .-> F1[refresher feeds]
+    end
+    subgraph After
+      direction TB
+      RT[(runtime)] -->|asked on demand| AL[alerter]
+      CA[caller: identity + can] --> RT
+    end</div>
+  <p><b>Problem.</b> Deps is the caller, the shared runtime and the assembly at once. <code>_apply</code> pushes new settings into copies held elsewhere; <code>for_user</code> is a shallow copy that sees changes only by re-pulling them in <code>sync</code>, an ordering rule the interface doesn't show. Callers reach through it: <code>deps.users.access</code> 11 times, <code>deps.settings.owner</code> 10.</p>
+  <p><b>Solution.</b> A runtime that owns hot-swapping, asked on demand rather than copied, and a caller object (identity plus candidate 3's capabilities). It works today: the payoff is no copied state to keep in step.</p>
+</article>
+
+<article id="r3-7" class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">7 · A front-door state machine</h2>
+    <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+  </div>
+  <p class="font-mono text-sm text-slate-600">frontend/src/main.tsx (Root, SignInOn) · auth/ClerkApp.tsx (Gate) · auth/useFrontDoor.ts · auth/signInView.ts · auth/signInTarget.ts · route.ts</p>
+  <div class="mermaid">stateDiagram-v2
+    [*] --> wait
+    wait --> landing: signed out
+    wait --> app: signed in
+    wait --> landing: Clerk failed
+    landing --> signin: Sign in
+    signin --> app: signed in, follow the kept target once</div>
+  <p><b>Problem.</b> Which screen to show is split across two components and depends on effect ordering; the landing rule is computed twice, and <code>/health</code> is fetched twice. Four race fixes so far were timing tweaks checked only by browser tests (#100 4b73c77, B51 ba9b5f9, B60.7 ad228fa, B46 f59f562).</p>
+  <p><b>Solution.</b> One pure decision from the inputs (auth config, Clerk's state, the address, the remembered key, the kept target) to the screen and what to do before paint. The components render it; each past race becomes a unit-test row. Clerk's chunk boundary keeps some rendering outside its provider.</p>
+</article>
+
+<section id="r3-fine" class="rounded-xl border border-slate-200 bg-white p-6 space-y-2 text-sm">
+  <h2 class="font-serif text-xl">Looked at and fine</h2>
+  <ul class="list-disc pl-6 text-slate-700 space-y-1">
+    <li><b>api.ts's <code>request()</code></b> is deep: one error path, the token, the not-approved hook. Its churn is hand-copied reply types (spec B's candidate 5).</li>
+    <li><b><code>toolResults.ts</code></b> is generated and guarded by a test; <b><code>live_data.py</code></b> sits behind the store seam; <b><code>build_version</code></b> stays pure and table-tested.</li>
+    <li><b>Untested today:</b> the CLI refresh with sign-in on; env-sourced validation of movable settings; the <code>create_app</code> closures; the front-door decision outside a browser; agreement between <code>channel_status</code> and <code>default_settings</code>.</li>
+  </ul>
+</section>
+
+<section id="r3-top" class="rounded-xl deep p-8 space-y-2">
+  <div class="lbl text-slate-400">Top recommendation</div>
+  <h2 class="font-serif text-2xl"><a href="#r3-4" class="underline decoration-indigo-400">4 · One assembly, starting with the bug</a>, then <a href="#r3-2" class="underline decoration-indigo-400">2 · one declaration per setting</a></h2>
+  <p class="text-slate-300">The bug (#122) is small, real by reading, and untested: a test with sign-in on, then one assembly function, covers the CLI with the server's tests. Candidate 2 comes next because the others stand on it: the channel registry is mostly rows in the settings table, and the capabilities module is easier once "the effective settings" has one owner. Together, 2 and 1 turn the next alert channel or server setting from a 10-file change into a one-place change, which is where the last 150 commits spent the most effort.</p>
+</section>
+</div>
 
 <div id="spec-b" role="tabpanel" aria-labelledby="tab-b" data-spec class="space-y-10">
 
@@ -637,7 +858,7 @@ flowchart LR
   function fromHash() {
     const el = location.hash && document.querySelector(location.hash);
     const panel = el && el.closest("[data-spec]");
-    show(panel ? panel.id : "spec-b");
+    show(panel ? panel.id : "after-b");
     if (el) el.scrollIntoView();
   }
   window.addEventListener("hashchange", fromHash);
