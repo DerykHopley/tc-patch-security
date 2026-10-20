@@ -45,7 +45,7 @@ If the client can't start the server: Claude Desktop's log is `mcp-server-patch.
 
 ## Steps for the research workflow demo
 
-The other direction: Patch uses Tavily's remote MCP server, then proposes a decision you approve. This is B22 ([#62](https://github.com/DerykHopley/tc-patch-security/issues/62)); it shares this file with B23. *Not done yet.*
+The other direction: Patch uses Tavily's remote MCP server, then proposes a decision you approve. This is B22 ([#62](https://github.com/DerykHopley/tc-patch-security/issues/62)); it shares this file with B23. Recorded 2026-10-20: Record 3 below.
 
 What it waits for: a person with an OpenRouter key and a Tavily key. One run costs about 1 Tavily credit (of the free 1,000 a month) and well under $0.01 of OpenRouter (*unverified*: Haiku 5.5 cost about $0.0015 a question in A20; this one has five steps). About 15 minutes.
 
@@ -409,12 +409,22 @@ You aren't watching this CVE in the patch tool. You can add it to your watchlist
 
 ## Record 3: the research workflow (B22)
 
-*To be recorded by a human, with "Steps for the research workflow demo" above.*
+Recorded by the owner on 2026-10-20. ✅
 
-- Date, model, commit:
-- Tools in order (yes or no; the order they came in):
-- Proposed status and reason:
-- Tool errors and retries:
-- Tavily path (MCP or plain API):
-- Cost shown under the answer:
-- Screenshots: `docs/media/research-demo/1-question.png` to `5-done.png`
+- **Date, model, commit:** 2026-10-20; `anthropic/claude-haiku-5.5` on OpenRouter, max agent steps 6; `spec-b` at cbc99ec (with #111, B63 and B64). Throwaway servers on 8010/5180 with their own state file and index, sign-in off, alerts recorded only; deleted afterwards.
+- **Tools in order:** yes. `lookup_cve` → `check_affected` (affected: "1.2.0 is before the fixed version 1.3.0") → `research_web` → `propose_decision`. 4 model calls, 4 steps.
+- **Proposed status and reason:** accepted, review in 14 days (2026-10-27: the demo runs on the snapshot dated 2026-10-13). Reason: 1.2.0 is affected [2] and the CVE is in CISA KEV with its deadline passed [1]; "a stopgap only, until the upgrade to 1.3.0 is done". Control: reachable only through the VPN; block or restrict `/api/v1/validate/code` to trusted hosts, check the logs, upgrade. The answer calls the upgrade urgent.
+- **Its sources:** the card rests on the two knowledge-base records only. The web findings (Singapore CSA, Recorded Future, Trend Micro: active exploitation, the Flodrix botnet) are in the answer, each marked "web result, unverified". By design: `propose_decision` refuses a reason that rests on web pages alone.
+- **Tool errors and retries:** none in the final run.
+- **Tavily path:** Tavily's MCP server, 5 results (Recorded Future, Picus, Trend Micro, SentinelOne, Fidelis), none flagged.
+- **Cost shown under the answer:** $0.0057 (39,035 tokens in, 3,637 out).
+- **Approved:** "Done: Marked CVE-2025-3248 as accepted." ✅
+- **Screenshots:** `docs/media/research-demo/4-approve-card.png` (the card before Approve) and `5-done.png` (after). Dark theme. 1 to 3 weren't taken; the tool calls and sources are written out above.
+
+**The demo found two bugs and confirmed one rule, all fixed or built the same day:**
+
+1. **First try: no web results at all.** Tavily's hosted MCP server now answers with JSON; Patch's parser expected the old text layout and read every reply as 0 results, silently. Every chat web search was empty, on the live app too. Fixed in B63 (7c56b06).
+2. **Second try: unrelated Microsoft pages.** With `exclude_domains` (our 9 exploit sites), Tavily returned Microsoft support pages for the model's good query, every try. Without it, the right advisories. Fixed in B64 (cbc99ec): Patch drops those sites itself, as it already did.
+3. **#111 working as meant.** With no Langflow version saved, Haiku researched, then said it couldn't propose "accepted" for a KEV CVE without a version, and asked for it. With 1.2.0 saved (via "Set my version…" on the tool card, then Approve), it proposed accepted with a short review and a control.
+
+**A gap it showed:** Patch asks for the version in the chat, but only a saved version counts for #111's rule. Answering in the chat doesn't unblock it. Filed as [#113](https://github.com/DerykHopley/tc-patch-security/issues/113).
