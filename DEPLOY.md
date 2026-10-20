@@ -4,7 +4,7 @@ How to put Patch on a public URL, open only to the people the owner approves (B3
 
 > **Easiest: run `scripts/deploy-wizard.sh`** from the repo root. It walks through every step below, one at a time: it explains each, shows the command and asks before running it, skips what already exists (so you can stop and re-run), reuses the Clerk keys, user id and keys from `backend/.env`, and never writes a secret to a file. Its plain answers (project id, billing account, image tag, time zone) are kept in `deploy/cloudrun/wizard.env` (git-ignored). Running it inside Claude Code as `! scripts/deploy-wizard.sh` puts its output in the chat. The steps below are the same commands by hand.
 
-> **Unverified:** no Google Cloud account existed while this was written, so **not one `gcloud` command below has been run.** The app's side is tested (against a fake bucket, `backend/tests/test_deploy.py`, and the container smoke test). Commands are from Google's documented CLI as of 2026. Where a step fails, fix it here as part of #45.
+> **Checked on the first deploy (2026-10-19):** the owner ran these steps through `scripts/deploy-wizard.sh`, and the live app at https://patch-976248543439.europe-west1.run.app runs from them ([STATUS.md](./STATUS.md#the-live-app)). The steps that failed were fixed here (the budget's currency, the time zone, the scheduler's retries). The commands typed by hand, outside the wizard, are *unverified* where a step doesn't say otherwise. The app's side is also tested against a fake bucket (`backend/tests/test_deploy.py`) and by the container smoke test.
 
 ## What runs where
 
