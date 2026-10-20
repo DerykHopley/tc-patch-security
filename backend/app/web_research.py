@@ -25,12 +25,16 @@ from app.config import FIXTURES, Settings
 log = logging.getLogger(__name__)
 
 MAX_RESULTS = 5
+# B64: asked of Tavily, so MAX_RESULTS are left after keep() drops exploit sites. exclude_domains isn't sent: with
+# it, Tavily returned unrelated pages for a plain CVE query (*checked* 2026-10-20, docs/SOURCE-CHECKS.md)
+ASKED_RESULTS = 8
 SNIPPET_CHARS = 500
 TIMEOUT_S = 15
 MCP_TOOL_NAMES = ("tavily_search", "tavily-search")  # the open-source server's name; the docs' spelling
 LIMIT_REACHED = "web research limit reached for today"
 
-# Exploit and proof-of-concept sites: never searched, never shown (spec B: the no-exploit rule covers web sources).
+# Exploit and proof-of-concept sites: never shown (spec B: the no-exploit rule covers web sources). keep() drops them
+# from Tavily's results; since B64 the list isn't sent to Tavily as exclude_domains, which spoiled its results.
 # GitHub isn't here: it hosts proof-of-concept repos, but also the GitHub Advisory Database (DECISIONS.md, B08).
 EXCLUDED_DOMAINS = [
     "exploit-db.com", "packetstormsecurity.com", "packetstorm.news", "0day.today", "cxsecurity.com",
@@ -74,8 +78,18 @@ def keep(url: str) -> bool:
 
 
 def parse_mcp_text(text: str) -> list[Hit]:
-    """Tavily MCP's text layout (tavily-mcp src/format-results.ts): per result, labelled lines `Title:`, `URL:`,
-    `Content:` (and others we don't use). A line without a label continues the field before it."""
+    """Tavily MCP's reply. B63: the hosted server answers with Tavily's JSON (`results`: url, title, content,
+    published_date; *checked* 2026-10-20). The older layout (tavily-mcp src/format-results.ts) is labelled lines per
+    result, `Title:`, `URL:`, `Content:` (and others we don't use); a line without a label continues the field before
+    it. Both are read, so a change back doesn't break search again."""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        data = None
+    if isinstance(data, dict) and isinstance(data.get("results"), list):
+        return [Hit(r.get("title") or r["url"], r["url"], (r.get("content") or "").strip(),
+                    r.get("published_date") or None)
+                for r in data["results"] if isinstance(r, dict) and r.get("url")]
     hits: list[dict] = []
     current: dict | None = None
     key = None
@@ -132,8 +146,7 @@ class WebResearch:
         self.cap = cap or DailyCap(settings.web_research_daily_cap, settings.web_research_user_daily_cap)
 
     def _args(self, query: str) -> dict:
-        return {"query": query, "search_depth": "basic", "max_results": MAX_RESULTS, "include_raw_content": False,
-                "exclude_domains": list(EXCLUDED_DOMAINS)}
+        return {"query": query, "search_depth": "basic", "max_results": ASKED_RESULTS, "include_raw_content": False}
 
     def search(self, query: str) -> tuple[list[Hit], str]:
         """The hits (excluded sites dropped, snippets cut) and how they came: "mcp" or "api"."""
@@ -160,7 +173,11 @@ class WebResearch:
             content = await tool.ainvoke(self._args(query))
         text = content if isinstance(content, str) else "\n".join(
             b.get("text", "") if isinstance(b, dict) else str(b) for b in content)
-        return parse_mcp_text(text)
+        hits = parse_mcp_text(text)
+        if not hits and text.strip() and '"results": []' not in text and '"results":[]' not in text:
+            # B63: a reply we can't read is a failure, not "no results": the plain API gets a turn
+            raise SearchFailed("an MCP reply with no results Patch could read")
+        return hits
 
     def _api(self, query: str) -> list[Hit]:
         try:

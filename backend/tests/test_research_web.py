@@ -139,8 +139,8 @@ def test_b08_3_only_the_query_leaves_the_app(web_deps, tavily, given):
                {"role": "assistant", "content": "Noted."}]
     chat(web_deps, message=ASK, history=history, page={"page": "cves", "product": "ollama", "cve": "CVE-2025-3248"})
     (call,) = tavily.calls
-    assert call["args"] == {"query": ASK, "search_depth": "basic", "max_results": 5, "include_raw_content": False,
-                            "exclude_domains": EXCLUDED}
+    # B64: no exclude_domains (it spoils Tavily's results); 8 asked, so 5 are left after Patch drops exploit sites
+    assert call["args"] == {"query": ASK, "search_depth": "basic", "max_results": 8, "include_raw_content": False}
     sent = " ".join(f"{k}: {v}" for h in tavily.headers for k, v in h.items()).lower()
     for private in ("ollama", "nginx", "1.2.0", "langflow"):  # nothing from the watchlist, page or history
         assert private not in sent
@@ -185,7 +185,7 @@ def test_b08_5_falls_back_to_the_plain_api_when_mcp_fails(web_deps, tavily):
     rec = research(web_deps, ctx, query="Langflow CVE-2025-3248")
     assert rec.status == "ok" and rec.result["via"] == "api"
     assert [c["via"] for c in tavily.calls] == ["api"]
-    assert tavily.calls[0]["args"]["exclude_domains"] == EXCLUDED
+    assert "exclude_domains" not in tavily.calls[0]["args"]  # B64
     assert [r["date"] for r in rec.result["results"]] == ["2025-04-07", "2025-05-06", None]  # the API gives dates
     assert any(h.get("authorization") == f"Bearer {KEY}" for h in tavily.headers)
 
@@ -268,3 +268,56 @@ def test_b08_9_bad_arguments_are_refused(web_deps, tavily, args):
     rec = research(web_deps, **args)
     assert rec.status == "error" and rec.error["code"] == "bad_arguments"
     assert tavily.calls == []
+
+
+# --- B63: Tavily's hosted MCP server answers in JSON (found 2026-10-20 in the #62 demo) ---------------------------
+
+@pytest.fixture
+def layout(tavily):
+    yield tavily
+    tavily.mcp_layout = "text"
+
+
+def test_b63_1_a_json_reply_from_mcp_gives_the_same_results(web_deps, layout):
+    layout.mcp_layout = "json"
+    ctx = Context()
+    rec = research(web_deps, ctx, query="Langflow CVE-2025-3248 advisory")
+    assert rec.status == "ok", rec.error
+    assert rec.result["via"] == "mcp"
+    assert rec.result["results"][0]["url"] == "https://github.com/advisories/GHSA-rvqx-wpfh-mfx7"
+    assert rec.result["results"][0]["title"] == "Langflow code injection advisory (GHSA-rvqx-wpfh-mfx7)"
+    assert [s.n for s in ctx.sources] == [1, 2, 3]  # the same three as the text layout, the exploit site dropped
+
+
+def test_b63_2_a_json_reply_keeps_the_pages_date():
+    from app.web_research import parse_mcp_text
+    hits = parse_mcp_text('{"results": [{"url": "https://a.example/x", "title": "A", "content": " c ", '
+                          '"published_date": "2026-10-01"}, {"title": "no url"}]}')
+    assert [(h.title, h.url, h.snippet, h.date) for h in hits] == [("A", "https://a.example/x", "c", "2026-10-01")]
+
+
+def test_b63_3_a_reply_patch_cant_read_falls_back_to_the_plain_api(web_deps, layout, caplog):
+    """It used to give zero results, silently: every chat search came back empty."""
+    layout.mcp_layout = "garbage"
+    rec = research(web_deps, query="Langflow CVE-2025-3248 advisory")
+    assert rec.status == "ok", rec.error
+    assert rec.result["via"] == "api" and len(rec.result["results"]) == 3
+    assert "Tavily MCP search failed" in caplog.text
+
+
+# --- B64: exploit sites are dropped by Patch, not by Tavily's exclude_domains -----------------------------------
+
+def test_b64_1_exploit_sites_dropped_and_five_kept_from_eight(web_deps, tavily):
+    """Found 2026-10-20 in the #62 demo: with exclude_domains, "CVE-2025-3248 Langflow validate code exploitation"
+    returned only Microsoft pages; without it, the Langflow advisories (checked against real Tavily)."""
+    pages = [{"title": f"Exploit {i}", "url": f"https://www.{d}/x{i}", "content": "poc", "published_date": None}
+             for i, d in enumerate(["exploit-db.com", "sploitus.com", "packetstorm.news"])]
+    pages += [{"title": f"Page {i}", "url": f"https://site{i}.example.org/a", "content": "advisory",
+               "published_date": None} for i in range(5)]
+    old, tavily.results = tavily.results, pages
+    try:
+        rec = research(web_deps, query="Langflow exploit")
+    finally:
+        tavily.results = old
+    assert "exclude_domains" not in tavily.calls[-1]["args"]
+    assert [r["site"] for r in rec.result["results"]] == [f"site{i}.example.org" for i in range(5)]

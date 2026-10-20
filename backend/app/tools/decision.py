@@ -10,6 +10,8 @@ saved:
 - it doesn't copy web text (8 words in a row from a web result), and it has no injection phrasing itself.
 Each cited source is kept on the proposal, a web one marked "web result, unverified", and in the decision record
 once you approve.
+
+Nor can it propose accepting a KEV CVE while the version check says unknown (B62, #111): it asks for the version.
 """
 import datetime as dt
 import re
@@ -23,6 +25,7 @@ from app.proposals import Proposal
 from app.status import JUSTIFICATIONS
 from app.schemas import CveId
 from app.tools.registry import ToolResult, ToolSpec, register
+from app.watched import WatchedCves
 
 CITED = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
 COPY_WORDS = 8  # this many words in a row from a web result is copying, not the model's own words
@@ -81,7 +84,24 @@ def cited_sources(reason: str, ctx) -> list[dict]:
              "site": s.site} for s in cited]
 
 
+def check_kev_accept(cve_id: str, status: str, deps) -> None:
+    """B62 (#111): Patch can't propose accepting a KEV CVE while the verdict for your product is unknown (no version,
+    or one OSV can't place). Only Patch's suggestion: your own edit, a card button and the CVEs page still may."""
+    if status != "accepted" or not deps.knowledge.cves.kev.get(cve_id):
+        return
+    try:
+        a = WatchedCves.of(deps).assess(cve_id)
+    except KeyError:  # not in the snapshot: proposals.propose says so
+        return
+    if a.verdict.verdict == "unknown":
+        product = deps.knowledge.products[a.cve["product"]]
+        raise ToolError(f"Can't propose accepting {cve_id}: it's in CISA's KEV and the version check says unknown "
+                        f"({a.verdict.reason}). Ask the user for their {product} version, or propose another status.",
+                        "kev_version_unknown")
+
+
 def run(args: DecisionArgs, deps, ctx) -> dict:
+    check_kev_accept(args.cve_id, args.status, deps)
     sources = cited_sources(args.reason, ctx)
     review = None
     if args.review_in_days:
