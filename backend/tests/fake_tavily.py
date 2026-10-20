@@ -48,6 +48,9 @@ def _free_port() -> int:
 class FakeTavily:
     def __init__(self, results: list[dict] | None = None):
         self.results = RESULTS if results is None else results
+        # B63: what the MCP tool answers with. "text": tavily-mcp's old labelled lines; "json": Tavily's JSON, as the
+        # hosted server answered on 2026-10-20; "garbage": text Patch can't read
+        self.mcp_layout = "text"
         self.calls: list[dict] = []  # {"via": "mcp"|"api", "args": {...}, "headers": {...}}
         self.headers: list[dict] = []  # every HTTP request's headers, MCP handshake included
         self.app = self._build()
@@ -66,6 +69,12 @@ class FakeTavily:
             # Defaults None, so only what the app sent is recorded (Tavily's defaults: basic, general, 5).
             args = {k: v for k, v in locals().items() if k != "fake" and v is not None}
             fake.calls.append({"via": "mcp", "args": args})
+            if fake.mcp_layout == "json":
+                return json.dumps({"query": query, "follow_up_questions": None, "answer": None, "images": [],
+                                   "results": [r | {"score": 0.9, "raw_content": None}
+                                               for r in fake.results[:max_results or 5]]})
+            if fake.mcp_layout == "garbage":
+                return "Something Patch can't read."
             return format_results(fake.results[:max_results or 5])
 
         async def search(request: Request):

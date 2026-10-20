@@ -268,3 +268,38 @@ def test_b08_9_bad_arguments_are_refused(web_deps, tavily, args):
     rec = research(web_deps, **args)
     assert rec.status == "error" and rec.error["code"] == "bad_arguments"
     assert tavily.calls == []
+
+
+# --- B63: Tavily's hosted MCP server answers in JSON (found 2026-10-20 in the #62 demo) ---------------------------
+
+@pytest.fixture
+def layout(tavily):
+    yield tavily
+    tavily.mcp_layout = "text"
+
+
+def test_b63_1_a_json_reply_from_mcp_gives_the_same_results(web_deps, layout):
+    layout.mcp_layout = "json"
+    ctx = Context()
+    rec = research(web_deps, ctx, query="Langflow CVE-2025-3248 advisory")
+    assert rec.status == "ok", rec.error
+    assert rec.result["via"] == "mcp"
+    assert rec.result["results"][0]["url"] == "https://github.com/advisories/GHSA-rvqx-wpfh-mfx7"
+    assert rec.result["results"][0]["title"] == "Langflow code injection advisory (GHSA-rvqx-wpfh-mfx7)"
+    assert [s.n for s in ctx.sources] == [1, 2, 3]  # the same three as the text layout, the exploit site dropped
+
+
+def test_b63_2_a_json_reply_keeps_the_pages_date():
+    from app.web_research import parse_mcp_text
+    hits = parse_mcp_text('{"results": [{"url": "https://a.example/x", "title": "A", "content": " c ", '
+                          '"published_date": "2026-10-01"}, {"title": "no url"}]}')
+    assert [(h.title, h.url, h.snippet, h.date) for h in hits] == [("A", "https://a.example/x", "c", "2026-10-01")]
+
+
+def test_b63_3_a_reply_patch_cant_read_falls_back_to_the_plain_api(web_deps, layout, caplog):
+    """It used to give zero results, silently: every chat search came back empty."""
+    layout.mcp_layout = "garbage"
+    rec = research(web_deps, query="Langflow CVE-2025-3248 advisory")
+    assert rec.status == "ok", rec.error
+    assert rec.result["via"] == "api" and len(rec.result["results"]) == 3
+    assert "Tavily MCP search failed" in caplog.text

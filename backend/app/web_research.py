@@ -74,8 +74,18 @@ def keep(url: str) -> bool:
 
 
 def parse_mcp_text(text: str) -> list[Hit]:
-    """Tavily MCP's text layout (tavily-mcp src/format-results.ts): per result, labelled lines `Title:`, `URL:`,
-    `Content:` (and others we don't use). A line without a label continues the field before it."""
+    """Tavily MCP's reply. B63: the hosted server answers with Tavily's JSON (`results`: url, title, content,
+    published_date; *checked* 2026-10-20). The older layout (tavily-mcp src/format-results.ts) is labelled lines per
+    result, `Title:`, `URL:`, `Content:` (and others we don't use); a line without a label continues the field before
+    it. Both are read, so a change back doesn't break search again."""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        data = None
+    if isinstance(data, dict) and isinstance(data.get("results"), list):
+        return [Hit(r.get("title") or r["url"], r["url"], (r.get("content") or "").strip(),
+                    r.get("published_date") or None)
+                for r in data["results"] if isinstance(r, dict) and r.get("url")]
     hits: list[dict] = []
     current: dict | None = None
     key = None
@@ -160,7 +170,11 @@ class WebResearch:
             content = await tool.ainvoke(self._args(query))
         text = content if isinstance(content, str) else "\n".join(
             b.get("text", "") if isinstance(b, dict) else str(b) for b in content)
-        return parse_mcp_text(text)
+        hits = parse_mcp_text(text)
+        if not hits and text.strip() and '"results": []' not in text and '"results":[]' not in text:
+            # B63: a reply we can't read is a failure, not "no results": the plain API gets a turn
+            raise SearchFailed("an MCP reply with no results Patch could read")
+        return hits
 
     def _api(self, query: str) -> list[Hit]:
         try:
