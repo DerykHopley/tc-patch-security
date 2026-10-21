@@ -1,6 +1,6 @@
 # Patch as an MCP server: the demo
 
-Another assistant (Claude Desktop or Claude Code) uses two of Patch's tools in one task. This is B23 ([#61](https://github.com/DerykHopley/tc-patch-security/issues/61)). How the server works and its config: [README, "As an MCP server for other assistants"](../README.md#as-an-mcp-server-for-other-assistants).
+Another assistant (Claude Desktop or Claude Code) uses two of Patch's tools in one task. This is B23 ([#61](https://github.com/DerykHopley/tc-patch-security/issues/61)). How the server works and its config: [README, "As an MCP server for other assistants"](SETUP.md#as-an-mcp-server-for-other-assistants).
 
 There are two transcripts below:
 

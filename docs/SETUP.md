@@ -1,0 +1,318 @@
+# Set up and run Patch
+
+Every way to run Patch, from no key at all to the live deploy. The short version is in the [README](../README.md#run-it-in-two-minutes).
+
+Needs Python 3.12+ with [uv](https://docs.astral.sh/uv/), and Node.js with npm. All commands start in the repo root.
+
+To work on the code, turn on the pre-commit hook once per clone: `git config core.hooksPath .githooks`. It refuses a commit with staged conflict markers or a browser-check wait without a reason, in under a second. CI runs the same checks, so the hook only finds them sooner.
+
+## The live app
+
+The short version is in the [README](../README.md#try-it-live).
+
+Patch runs on Google Cloud Run at **https://patch-976248543439.europe-west1.run.app**. Anyone can make an account; the owner approves each one before it can use the app (why: [DECISIONS.md](../DECISIONS.md), B38).
+
+1. Open the address. The first visit after a quiet spell can take a minute or two: the server sleeps when nobody uses it, and the page says "Waking Patch up…" while it starts (one cold start took about 90 s on 2026-10-20, *checked* in the logs; [DEPLOY.md](../DEPLOY.md#8-the-schedule)).
+2. Press **Request access** and make an account: email and password, or Google or Discord.
+3. Press **Send request**. Add a short note if you like (who you are, e.g. "Turing College reviewer"; at most 280 characters).
+4. Wait for the owner. They get one alert per request and approve it on Settings → Requests, by hand, so it can take a while. Patch sends no email: load the page again later.
+5. Once approved you get your own copy of the default watchlist, the dashboard, the CVEs and the chat. Nothing you do changes anyone else's view.
+
+- **What runs there** (*checked* 2026-10-20 on `/api/health`): live data, Claude Haiku 5.5 through OpenRouter, sign-in on. The data refreshes once a day at 08:00 Berlin time; anyone can also press **Check now** on the dashboard.
+- **Limits per person:** 10 chat messages a minute and 200 a day; web research 30 searches a day for everyone together. These are the defaults in [backend/.env.example](../backend/.env.example); the live values aren't shown anywhere (*unverified*).
+- **A link from an alert** (`/cves/CVE-…`) still opens the landing page first when you're signed out; after sign-in it lands on that CVE, not the dashboard (B60, [#107](https://github.com/DerykHopley/tc-patch-security/issues/107)).
+- **Roles:** everyone starts as a Viewer (no Dev page). The owner can make you Trusted or Reviewer to see the Dev page ([Sign-in](#sign-in-clerk)).
+
+## With no key (FakeLLM)
+
+FakeLLM is a scripted stand-in model, and the hash embedder matches words. No key, no network, no GPU.
+
+```bash
+cd backend && uv sync && uv run uvicorn app.main:app --reload --port 8000   # state in backend/data/state.json
+cd frontend && npm install && npm run dev                                    # http://localhost:5173
+```
+
+## With OpenRouter, no GPU
+
+A real chat model and real embeddings, both through OpenRouter. Set a spending cap on the key in OpenRouter's settings.
+
+1. Copy the settings file. `.env` is git-ignored; never commit it.
+
+   ```bash
+   cd backend && cp .env.example .env
+   ```
+
+2. In `backend/.env`, set:
+
+   ```bash
+   LLM_PROVIDER=openrouter
+   OPENROUTER_API_KEY=sk-or-...          # your key
+   EMBEDDER=openrouter                   # openai/text-embedding-3-small
+   INDEX_PATH=data/index-openrouter      # its own index folder, so the free hash index can stay
+   ```
+
+   The chat model defaults to `anthropic/claude-haiku-5.5`; change it with `OPENROUTER_MODEL`.
+
+3. Build the search index once. It embeds 1,680 chunks: a paid call, well under a cent.
+
+   ```bash
+   uv sync && uv run --env-file .env python -m app.rag.build_index
+   ```
+
+4. Start the backend with the settings file, and the frontend as above.
+
+   ```bash
+   uv run --env-file .env uvicorn app.main:app --reload --port 8000
+   ```
+
+- A missing key, or an index built with another embedder, stops the start-up with a plain message saying what to do.
+- Every setting is listed and explained in [backend/.env.example](../backend/.env.example).
+
+## Which settings live where
+
+Since B26 ([#70](https://github.com/DerykHopley/tc-patch-security/issues/70)), what can change while the app runs is set on **Settings**, by the owner; the rest stays in `backend/.env`.
+
+- **On Settings (the owner only):** live or snapshot data and the NVD key (Data card); the quiet hours' time zone (Alerts card); the app address for alert links, the ntfy server, topic and token, the Telegram bot token and chat id, and the email (SMTP) details (Delivery card). They apply when you save, with no restart, and the refresh command line uses them too.
+- **Secrets on Settings are write-only:** the boxes are masked, the app never sends a saved one back (it says only "Saved" or "Not set"), and **Remove** deletes it. They are kept in the owner's state: `backend/data/state.json` locally (git-ignored), the private bucket when deployed. Start over (the reset on Settings) keeps them.
+- **`.env` still wins:** a setting set in `backend/.env` is used, and Settings shows it read-only as "set in the server's environment". To manage one on Settings, delete its line from `.env` and restart once.
+- **Stays in `.env` only:** what the app needs before it can read Settings, or what could lock you out if set wrong from a page: `AUTH`, the Clerk keys, `AUTH_ALLOWED_ORIGINS`, `OWNER`, `STORE`/`GCS_BUCKET`, `CORS_ORIGINS`, the paths (`LIVE_PATH`, `INDEX_PATH`, `STATE_PATH`), `SCHEDULER_SECRET`, the model and embedder settings, and the test switches (`FEEDS=fake`, `NOTIFY_DRY_RUN`).
+- **The settings behind Settings' words** (B50: the pages say them in words, the names are here):
+  - "Set in the server's environment, which wins" under a field: that field's variable is set in `backend/.env` (for example `DATA_MODE`, `ALERT_TZ`, `APP_URL`, `NTFY_TOPIC`, `NVD_API_KEY`). The full list with each one's meaning is [backend/.env.example](../backend/.env.example).
+  - **Desktop notification** needs `notify-send` (Linux, from libnotify) or `osascript` (macOS) on the computer running the backend. Settings says "can't show desktop notifications" without one.
+  - **Email (SMTP)** needs the mail server and the address to send to: on Settings, or `SMTP_HOST` and `ALERT_EMAIL_TO` (plus `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_EMAIL_FROM`, `SMTP_STARTTLS`) in `.env`.
+  - **Phone push (ntfy)** needs a topic: on Settings, or `NTFY_TOPIC` (and `NTFY_URL`, `NTFY_TOKEN`) in `.env`.
+  - **Telegram** needs the bot token and the chat id: on Settings, or `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env` ([Alerts](#alerts)).
+  - "Live: the made-up test data, not the real feeds": the backend runs with `FEEDS=fake`. Remove it (the default is `FEEDS=real`) and restart.
+  - The Dev page: `DEV_PANEL=false` turns it off for everyone (on by default); with sign-in on, the role you give each person decides who else sees it.
+- **Tapping a phone alert:** while the app address is `localhost` (or `127.*`, `::1`, `0.0.0.0`), a phone can't open it, so alerts carry no link and a tap opens the message in the ntfy app (a Telegram message has no Open in Patch button). Set a LAN, Tailscale or Cloud Run address and a tap opens Patch at the CVE. A test alert from Settings says which happens.
+
+## Alerts
+
+The owner's alerts go to the channels ticked on Settings → Delivery: the desktop, email, ntfy and Telegram. Everyone else's stay in Patch. No alert ever holds the CVE description (untrusted text, and it shows on a lock screen).
+
+- **ntfy** works well from your own computer. From Cloud Run it fails by the afternoon: ntfy.sh counts its daily quota per IP address, and Cloud Run's addresses are shared ([source checks](SOURCE-CHECKS.md#ntfysh-from-cloud-run-101-2026-10-19)).
+- **Telegram** (B57, [#102](https://github.com/DerykHopley/tc-patch-security/issues/102)) is limited per bot, not per address, and free. Use it for the live app. High and urgent alerts ring; low and normal arrive silently. A tap on **Open in Patch** opens the CVE.
+
+**Set up Telegram once** (the same steps are on the Settings card; checked against Telegram's docs, not yet against a real bot):
+
+1. In Telegram, open **@BotFather**, send `/newbot`, and pick a name and a username (it must end in `bot`). BotFather replies with the bot's **token**, like `110201543:AAH…`. Anyone with it controls your bot: keep it secret. `/token` in BotFather makes a new one if it leaks.
+2. Open your new bot in Telegram (BotFather links it) and press **Start**, or send it any message. That message is how Patch finds your chat (and, *unverified*, a bot may not write to someone who never started it).
+3. On Patch, Settings → Delivery → **Telegram**: paste the token under Bot token, then press **Find my chat id**. Patch asks Telegram for the bot's recent messages and fills in your chat's id. Telegram keeps those messages 24 hours, so do step 2 within a day.
+   By hand instead: open `https://api.telegram.org/bot<TOKEN>/getUpdates` in a browser and read `message.chat.id` (it puts the token in your browser history).
+4. Save, tick Telegram, and press **Send test**. The message arrives in your chat.
+
+Locally the token and chat id can also go in `backend/.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`); there they win over Settings. On Cloud Run the token is a secret (`telegram-bot-token`) and the chat id a plain setting: `scripts/update-deploy.sh` adds both from `backend/.env`, once ([DEPLOY.md](../DEPLOY.md)).
+
+## Web research (Tavily)
+
+Patch's `research_web` tool searches the web through Tavily's hosted MCP server (B08, [#33](https://github.com/DerykHopley/tc-patch-security/issues/33)). It's off until you give it a key. Why it's built this way: [DECISIONS.md](../DECISIONS.md) (the B08, B63 and B64 rows).
+
+- **Turn it on:** a free key from tavily.com, as `TAVILY_API_KEY=tvly-…` in `backend/.env`, then start with `--env-file .env`. Without the key Patch isn't offered the tool. Deployed, the key is the `tavily-api-key` secret ([DEPLOY.md step 4](../DEPLOY.md#4-the-secrets)).
+- **Try it:** ask "Who's talking about CVE-2025-3248 on the web?". The answer's Tool calls tab shows the `research_web` card: the query, each result marked "Web result, unverified", and "via Tavily's MCP server" (or "via Tavily's search API" when the MCP server didn't answer).
+- **Cost:** Tavily's free plan gives 1,000 credits a month; a basic search costs 1 (*checked*, [docs/SOURCE-CHECKS.md](SOURCE-CHECKS.md#tavily)). Patch caps it at 30 searches a day for everyone together and 30 per person (`WEB_RESEARCH_DAILY_CAP`, `WEB_RESEARCH_USER_DAILY_CAP`), so the credits last the month.
+- **What Tavily sees:** only the search query Patch writes, never your watchlist or the page you're on. The key goes in a header, never in the URL, and is never logged.
+- **Safety:** web pages are untrusted text. They reach the model wrapped as data; a page that tries to give instructions is flagged ("Flagged: instructions ignored") and not followed. Patch asks for 8 results, drops 9 known exploit and proof-of-concept sites itself, and keeps at most 5.
+- **Two fixes from the real demo on 2026-10-20** ([docs/mcp-demo.md, Record 3](mcp-demo.md#record-3-the-research-workflow-b22)):
+  - B63: Tavily's MCP server now answers in JSON. Patch read that as 0 results, silently, so every web search came back empty, on the live app too. It reads both layouts now, and a reply it can't read falls back to the plain API.
+  - B64: sending the exploit sites as Tavily's `exclude_domains` made it return unrelated Microsoft pages, every try. Patch now drops those sites itself, which it already did as a second check.
+- **Tavily's terms** allow use "for internal business purposes" only, and no automated decisions without human oversight ([docs/SOURCE-CHECKS.md](SOURCE-CHECKS.md#tavily)). Patch fits the second: a research answer can only propose a decision, and you approve it. A course project with a few approved users is, we think, inside the first (*unverified*: not asked of Tavily).
+
+## Sign-in (Clerk)
+
+Off locally and in the tests (`AUTH=off`): one default user, no sign-in, no requests; the landing page is only the About page. On (`AUTH=on`, the Clerk keys in `backend/.env`: [#65](https://github.com/DerykHopley/tc-patch-security/issues/65)), a signed-out visitor first sees the landing page at any address (the form is at `/sign-in`), anyone can make an account (email and password, or an SSO provider such as Google or Discord), and **the owner approves each new account in Patch** before it can use the app (B38, [#81](https://github.com/DerykHopley/tc-patch-security/issues/81)). Every sign-in and sign-up step stays on Patch's page, never Clerk's hosted pages. Why, and what's checked: [DECISIONS.md](../DECISIONS.md) (B31, B38), [docs/SOURCE-CHECKS.md](SOURCE-CHECKS.md) (Clerk, B31 and B38).
+
+- **Deep links survive sign-in** (B60, [#107](https://github.com/DerykHopley/tc-patch-security/issues/107)). A signed-out visitor who opens an in-app address, such as an alert's `/cves/CVE-…`, still sees the landing page, then the form. After signing in (or signing up and being approved) they land on that address once, not on the dashboard. Only paths on Patch's own site are kept, so the link can't send anyone elsewhere. *Unverified:* the round trip on the real Clerk instance and on a phone (checked in Clerk's code and the browser check only).
+- **A new account asks.** After signing up, a person sees only "Ask to join Patch", with an optional note for you (at most 280 characters). Then "Your request is waiting for the owner". The API refuses them everything else (403) until you approve.
+- **You get one alert per request** on the channels you ticked on Settings (e.g. ntfy or Telegram): "New access request", "From <name>" (the name Clerk has for them, asked with `CLERK_SECRET_KEY`; without the key, their user id), and "(with a note)" if there is one. The note's text never goes in the alert: a stranger's words stay off your lock screen. Tapping it opens Settings at the Requests card (when the app address is reachable from your phone).
+- **The Requests card on Settings** (only you see it): everyone who asked, with Approve, Refuse, Undo refusal and Remove. A refusal is final until you undo it: that person can't ask again, so you get at most one alert per account. Remove forgets the request and its note; they can ask again. Approved people get the app the next time they load Patch; Patch sends them no email.
+- **Roles** (B45, [#90](https://github.com/DerykHopley/tc-patch-security/issues/90)): next to Approve you pick a role, and you can change it later with Save role. **Viewer** (the default, and for everyone approved before roles): the dashboard, the CVEs, the chat and their own watchlist, no Dev page. **Trusted**: also the Dev page read-only and the search playground. **Reviewer**: also changes the Dev settings, but only their own copy (their chat and playground use it; everyone else keeps yours), with "Back to the owner's settings" to drop it. Only you run the model check and see the Requests card and the server settings. You are `OWNER` in `.env`, never a stored role, so nobody can lock you out or make themselves owner from inside the app. A change applies on the person's next page load, no sign-out needed. Why: [DECISIONS.md](../DECISIONS.md) (B45).
+- **What Patch stores:** each person's Clerk user id, their status and role, when and by whom it changed, and the note. No names or emails: the card asks Clerk for those when it opens, with the Clerk secret key (`CLERK_SECRET_KEY` in `backend/.env`, optional; without it the card shows user ids). The key stays on the server.
+- **People already using Patch** (signed in before, or with saved settings) were approved once, on the first start with this version: they were invited under the old invite-only setup.
+- **Settings in two parts** (B48, [#97](https://github.com/DerykHopley/tc-patch-security/issues/97)). **Yours**, for everyone (you too): Profile, Connected accounts, the watchlist, alerts, Patch's answers, priority and due dates, and Start over (it deletes your own data, decision history included, and says so; B50). **This Patch**, yours only: Requests (first), Refresh runs, Delivery and Data, with the server settings. Everyone else's alerts show in Patch only (Recent alerts, the New badge): no channels, no quiet hours, and one line with your schedule.
+- **Anonymous by default** (B48, #77). Patch reads only the user id from Clerk's session token, never a name or email, so you don't need any custom session claims. Anyone can give Patch a display name on Settings → Profile (optional): only their user menu shows it; nobody else sees it. Decision records always say "you" (B50; records made between B48 and B50 keep the name they hold). Start over keeps it.
+- **Connected accounts on Settings** (everyone signed in, under Profile): link Google or Discord to the account you're in, so signing in with them lands in the same account even when their email differs. You can unlink one, never the last way to sign in.
+- **Your state comes along.** On the first start with sign-in on, the owner (`OWNER`) gets a copy of what you set up with sign-in off (live mode, Settings, the watchlist, alerts), if the owner has nothing saved yet. It never runs again and never overwrites; the default user's state stays as it was.
+
+**The owner's Clerk dashboard steps** (https://dashboard.clerk.com, the Patch application; menu names *unverified* where marked):
+
+1. **SSO connections** (under User & authentication; *unverified*): add the providers you want (the free plan allows 3), e.g. Google and Discord. On a development instance Clerk offers its own shared credentials for them (*unverified* for each provider).
+2. **Restrictions → Access mode: Open** (the dashboard's name, *checked* by the owner 2026-10-20; it was Restricted for invitations). Leave the allowlist off.
+3. **Protect → Protections → "Challenge suspicious sign-ups": Enabled.** Clerk's bot protection, on every plan, the free one too; on by default for new applications. Patch's sign-up form shows its challenge when Clerk asks for one. If the row says "Setup required", follow it.
+4. **Optional: the secret key** (API keys) as `CLERK_SECRET_KEY` in `backend/.env`, for names and emails on the Requests card.
+5. **Your own SSO login:** sign in as you, then Settings → Connected accounts → Link Discord (or Google). Afterwards signing in with Discord lands in your own account, as `OWNER`. If Discord was already used to make a separate Clerk account, delete that account in the dashboard's Users page first (*unverified* what Clerk says otherwise).
+
+## Optional: local models through Ollama
+
+Free, and nothing leaves the machine. Needs a GPU for useful speed. The report's local runs used Ollama 0.40.4 on an RX 7900 XTX (24 GB).
+
+```bash
+ollama pull qwen3.8:27b         # the best local chat model in the report; gpt-oss:20b is faster
+ollama pull mxbai-embed-large   # the default embedder for real embeddings
+```
+
+In `backend/.env`: `LLM_PROVIDER=local`, `LOCAL_LLM_MODEL=qwen3.8:27b`, `EMBEDDER=ollama`, `INDEX_PATH=data/index-ollama`. Then build the index and start as above. The local URL must be on this machine (`LOCAL_LLM_URL`, default Ollama's `http://localhost:11434/v1`). You can also switch models at runtime on the Dev page.
+
+## Live data from the real feeds, on a schedule
+
+By default the app runs on the frozen snapshot. Live mode refreshes the CVE data from NVD, the CISA KEV catalogue, EPSS and OSV.dev (spec B, [#36](https://github.com/DerykHopley/tc-patch-security/issues/36)). No key is needed. Switch it on in Settings, Data card (Live, then Save changes). The real feeds are the default (`FEEDS=real`, B28): the Data card says "Live: NVD, CISA KEV, EPSS and OSV.dev". `FEEDS=fake` is for tests and demos only (made-up CVEs, made-up alerts); with it the Data card and the dashboard's freshness card warn "Live: the made-up test data, not the real feeds".
+
+- The optional NVD key (50 requests per 30 s instead of 5; only matters after a long gap) is on the same card. `DATA_MODE=live` and `NVD_API_KEY` in `.env` still work, and win.
+
+- **Check now** runs a refresh. It is in two places: the dashboard's Data freshness card, for everyone, and Settings → Refresh runs, for the owner, above the list of runs (B59). So does the command line: `cd backend && uv run --env-file .env python -m app.refresh`.
+- **The schedule:** an hourly systemd user timer runs `python -m app.refresh --schedule`. That run skips (and fetches nothing) until the Settings schedule (every 1, 3, 6, 12 or 24 hours) has passed since the last check, so Settings controls the schedule without touching the timer. Install it from the repo root:
+
+  ```bash
+  deploy/systemd/install.sh                          # writes the two units to ~/.config/systemd/user/, reloads systemd
+  systemctl --user enable --now patch-refresh.timer  # start the hourly timer
+  systemctl --user list-timers patch-refresh.timer   # when it fires next
+  journalctl --user -u patch-refresh.service -n 30   # what the last run did
+  ```
+
+  The units are in [deploy/systemd/](../deploy/systemd/). For the timer to run while you're logged out: `loginctl enable-linger`.
+- A failed fetch (a service down, a timeout, a rate limit) stops the run before anything is written: the data and the last-checked time stay as they were, and the next run covers the gap. The error is in the run log (`GET /refresh`) and the journal.
+- The first live start copies the snapshot; the first refresh then fetches everything NVD changed since 2026-10-13, in windows of at most 120 days.
+- **One kind of data per live folder.** Each refresh records which feeds wrote the live data. A start, the CLI or the Settings switch on a folder the other kind wrote stops with a message naming the folder: move it aside (e.g. `mv data/live data/live-fake`) or set `LIVE_PATH` to a fresh folder, and the next start copies the snapshot in. A folder from before B28 has no record: it is accepted, and its next refresh records the kind.
+- In snapshot mode a scheduled tick skips ("skipped: the data is the frozen snapshot", exit 0), so the timer's unit doesn't show as failed. `python -m app.refresh` by hand still exits 2.
+
+## In a container
+
+One image runs the whole app on one port: the API (under `/api`) and the built frontend, with the search index built in. Needs Docker. Build the index first, then the image, from the repo root:
+
+```bash
+(cd backend && EMBEDDER=hash INDEX_PATH=data/index-image uv run python -m app.rag.build_index)   # free, no key
+docker build -t patch .
+docker run --rm -p 8080:8080 patch                       # http://localhost:8080, FakeLLM
+docker run --rm -p 8080:8080 --env-file backend/.env patch   # with your settings (keys stay outside the image)
+```
+
+- No key or `.env` is in the image; settings come from environment variables at `docker run`.
+- The image records the embedder its index was built with. For a real embedder, build its index into `backend/data/index-image` with that `EMBEDDER`, then pass it to the build: `docker build --build-arg EMBEDDER=ollama -t patch .`. Run the image with another embedder and it stops at start-up with the index-mismatch error. *Unverified:* only the hash index has been run in the image so far.
+- Your state lives inside the container and goes when it's removed. Keep it with a volume: `-v patch-data:/app/backend/data`.
+- In `--env-file backend/.env`, leave out `INDEX_PATH`, `STATE_PATH` and `FRONTEND_DIR`: the image sets them. A local URL such as Ollama's `localhost` means the container itself, not your machine.
+
+## On Google Cloud Run
+
+One container on Cloud Run, users' state and the live data in Cloud Storage, keys in Secret Manager, a Cloud Scheduler job, Clerk sign-in, at no cost at this use (B13, [#44](https://github.com/DerykHopley/tc-patch-security/issues/44)). The live app at https://patch-976248543439.europe-west1.run.app was deployed this way on 2026-10-19 (B14, [#45](https://github.com/DerykHopley/tc-patch-security/issues/45)): [STATUS.md](../STATUS.md#the-live-app).
+
+- **First deploy:** `scripts/deploy-wizard.sh`, from the repo root. It walks through every step one at a time: it explains each, shows the command and asks before running it, skips what already exists, and never writes a secret to a file. The same steps by hand, copy-pasteable, with the costs against the free tiers: [DEPLOY.md](../DEPLOY.md).
+- **Update after a change:** `scripts/update-deploy.sh`. One command, no questions: it checks the checkout and CI (it waits for a running CI), rebuilds the index only when needed, builds, deploys, checks it answers, keeps the last 3 images, and adds the Telegram and Tavily secrets from `backend/.env` once. It stops at the first problem with nothing live changed. `--dry-run` shows what it would do ([DEPLOY.md](../DEPLOY.md)).
+- **What you need:** a Google Cloud account with billing, the `gcloud` CLI, Docker, an OpenRouter key with a spending cap, the Clerk keys ([Sign-in](#sign-in-clerk)). Optional: a Tavily key, a Telegram bot.
+- **Checked on the first deploy** (2026-10-19): the wizard's steps ran; three fixes went into the wizard and DEPLOY.md on the way (the billing account id, the budget in the account's currency, an empty time zone). The region is `europe-west1` (Belgium), not DEPLOY.md's example `us-central1`: why in [DEPLOY.md](../DEPLOY.md#what-runs-where).
+- **Link previews** need `APP_URL` set to the public https address in `deploy/cloudrun/env.yaml` (the wizard fills it in). The image is made by `scripts/link-preview-image.sh` on throwaway servers.
+- *Unverified:* the cost over a full week (expected $0; the owner checks around 2026-10-26, #45).
+
+## As an MCP server for other assistants
+
+Patch's knowledge can be used from another assistant, such as Claude Desktop or Claude Code, over MCP (B23, [#61](https://github.com/DerykHopley/tc-patch-security/issues/61)). The client starts the server itself, over stdio:
+
+```bash
+cd backend && uv run python -m app.mcp_server   # what the client runs; it waits for MCP messages on stdin
+```
+
+- **Four read-only tools:** `search_security`, `lookup_cve`, `explain_weakness` and `check_affected`. `check_affected` takes the version (and optionally the usage) in the call.
+- **No one's stack is read or changed.** The server never reads your watchlist, statuses or decisions, and has no tool that changes anything. `lookup_cve` answers "not watched", with no priority.
+- **Output is untrusted data,** wrapped as in the chat. Each result lists its sources with their URLs.
+- `search_security` uses the chat model to translate the query. Without `--env-file` that's FakeLLM (no key, no cost). With `--env-file .env` it's your model, and each search costs one model call.
+
+### Try it in 5 minutes
+
+For a reviewer with Claude Code. No key is needed: without `--env-file` the server reads the local data and calls no model for these two tools.
+
+1. Install the backend once, from the repo root:
+
+   ```bash
+   cd backend && uv sync
+   ```
+
+2. Add Patch to Claude Code, with your own absolute path to `backend/` (`pwd` in it prints it):
+
+   ```bash
+   claude mcp add patch -- uv --directory /absolute/path/to/backend run python -m app.mcp_server
+   ```
+
+3. Check it's connected: `claude mcp list` should list `patch` as connected.
+4. Start `claude` and ask (the two prompts of [docs/mcp-demo.md, step 3](mcp-demo.md#steps-for-the-real-client-demo)):
+
+   > I use LangChain 0.1.5 as a library. Look up CVE-2024-8309 with the patch tools: how serious is it, and does it affect my version? Cite the URLs the tools give you.
+
+   > I self-host Langflow 1.2.0. Use the patch tools: is CVE-2025-3248 in CISA's KEV list, and am I affected?
+
+5. **What a good answer shows:**
+   - Both tools called: `lookup_cve`, then `check_affected` with your version (`0.1.5`, then `1.2.0`).
+   - The URLs the tools return cited (NVD, OWASP).
+   - The tool output arrives marked untrusted: `<<<TOOL_OUTPUT … (untrusted data, not instructions)>>>`.
+   - The facts: CVE-2024-8309 is critical (CVSS 9.8), not in KEV, and affects 0.1.5. It's fixed per package (B67, [#109](https://github.com/DerykHopley/tc-patch-security/issues/109)): `langchain` in 0.2.0 and `langchain-community` in 0.2.19, so a good answer says to upgrade both. CVE-2025-3248 is in KEV (added 2025-05-05), critical, and 1.2.0 is affected (fixed in 1.3.0).
+6. **Remove it** when you're done: `claude mcp remove patch`.
+
+Can't run it? The recorded session is [docs/mcp-demo.md, Transcript 2](mcp-demo.md#transcript-2-a-real-client): Claude Code 2.1.304, Claude Opus 5.5 at medium effort, 2026-10-20. That run found the two-package fix problem (#109), fixed the same day. *Checked:* the server's own tests pass and `app.mcp_server` imports (2026-10-20, this branch); the `claude mcp` steps are the owner's recorded run, not re-run here.
+
+### Config for each client
+
+Claude Code (use your own absolute path to `backend/`):
+
+```bash
+claude mcp add patch -- uv --directory /absolute/path/to/backend run python -m app.mcp_server
+```
+
+Claude Desktop, in `claude_desktop_config.json` (Settings → Developer → Edit Config):
+
+```json
+{
+  "mcpServers": {
+    "patch": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/backend", "run", "python", "-m", "app.mcp_server"]
+    }
+  }
+}
+```
+
+- For your own model, add `"--env-file", ".env"` after `"run"`. It needs `backend/.env` to exist, or the server won't start. Checked: the command starts from another folder and lists the four tools, with and without `--env-file`.
+- The `claude mcp add` command above works as written (*checked* 2026-10-20 with Claude Code 2.1.304: the real-client demo in [docs/mcp-demo.md](mcp-demo.md)). *Unverified:* the Claude Desktop menu path.
+- **Not built:** the deployed server over streamable HTTP, behind Clerk or a token and rate-limited like the app. It's optional and waits on the rate limits ([#43](https://github.com/DerykHopley/tc-patch-security/issues/43)).
+
+## The model check and the report
+
+The [model-check report](https://derykhopley.github.io/tc-patch-security/) (on GitHub Pages) compares every model on the same scripted questions, with exact checks and no LLM judge. Run on 2026-10-15. All checked in the runs unless marked.
+
+- **11 chat models:** 6 on OpenRouter, 5 local through Ollama 0.40.4 on an RX 7900 XTX. Each answered the same 14 questions (54 checks).
+- **Best answers:** `anthropic/claude-haiku-5.5`, 12 of 14 questions, 51 of 54 checks, about 10 s and $0.0015 per question. It's the default OpenRouter model.
+- **Best value:** `openai/gpt-6-luna`, one question behind at about a third of the cost.
+- **Best local:** `qwen3.8:27b`, 11 of 14, 50 of 54 checks, free but about 25 s per answer.
+- **4 embedders:** `mxbai-embed-large` (Ollama) is the default for real embeddings: hybrid hit rate at 5 of 0.82 and MRR 0.69, and the widest gap between on-topic and off-topic scores. Off-topic threshold 0.58.
+- **Hybrid search beats vector search alone** for every embedder: hit rate at 5 up by 0.26 to 0.33.
+- **Every model** got the rules' top 3 for "what should I fix first?", the right verdict for "am I affected?", flagged the injection question and wrote no exploit code.
+- Most remaining failures are shared by nearly every model, so they point at our checks and tools. They're follow-up issues [#50](https://github.com/DerykHopley/tc-patch-security/issues/50)–[#54](https://github.com/DerykHopley/tc-patch-security/issues/54).
+- Total spend for all runs: about $0.40. *Unverified:* summed from the run files, not checked against the OpenRouter bill.
+
+The no-setup defaults stay FakeLLM and the hash embedder, so the app and every test run with no key and no service.
+
+To run the checks yourself:
+
+```bash
+cd backend
+uv run --env-file .env python -m app.evals model-check   # the model LLM_PROVIDER names; runs saved in data/evals/
+uv run --env-file .env python -m app.evals retrieval     # the embedder EMBEDDER names
+uv run python -m app.evals fake-report --out /tmp/report.html   # FakeLLM and fake embedders: no key, no network
+uv run python -m app.evals --help
+```
+
+How the published report is rebuilt: [docs/report-src/README.md](report-src/README.md).
+
+## Test it
+
+The same checks CI runs ([.github/workflows/ci.yml](../.github/workflows/ci.yml)). No key, no network.
+
+```bash
+cd backend && uv run pytest                            # backend tests (prints its own count)
+cd frontend && npx tsc -b && npm run lint && npm test  # types, lint (oxlint), unit tests (node --test)
+python3 frontend/e2e/check_waits.py                    # no fixed wait in the browser check without a reason
+frontend/e2e/run.sh                                    # browser check (Playwright), Firefox and Chromium
+frontend/e2e/container.sh                              # builds the image and smoke-tests it (needs Docker)
+```
+
+- `frontend/e2e/run.sh` starts its own backend (FakeLLM, a throwaway state file and index) and frontend on two free ports, so it never touches an app on 8000/5173. Extra arguments go to pytest: `run.sh -k a02` still runs both browsers.
+- Slow mode: `E2E_LATENCY_MS=300 frontend/e2e/run.sh` delays every API response, to find timing races before CI's slower runner does.
+- `frontend/e2e/container.sh` builds the hash index and the image, starts it on a free port with FakeLLM, checks `/health`, the embedder check and that no `.env` got in, then runs a short browser check in Chromium (the dashboard loads, the chat answers). It removes its container and image afterwards.
+- First time: `uv run --project frontend/e2e playwright install firefox chromium`.
+- Review rules that lint can't check: [CODING_STANDARDS.md](../CODING_STANDARDS.md).
