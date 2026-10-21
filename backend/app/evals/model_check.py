@@ -66,7 +66,12 @@ def _ask(q: dict, deps) -> dict:
     start = time.perf_counter()
     if q.get("web"):  # B22: the web question searches the saved results, the same for every run and model
         deps = dataclasses.replace(deps, web=CannedWeb())
+    tmp = tempfile.TemporaryDirectory() if q.get("watch") else None
     try:
+        if tmp:  # #133: asked with these products' fields saved, on a copy only this question sees
+            deps = dataclasses.replace(deps, state=deps.state.fork(Path(tmp.name) / "state.json"))
+            for product, fields in q["watch"].items():
+                deps.state.set_fields(product, **fields)
         # A19: asked once per explain level, never the saved one; the first level's search serves the rest (#51)
         levels = q["expect"].get("levels") or ["normal"]
         before = deps.state.read()
@@ -97,6 +102,9 @@ def _ask(q: dict, deps) -> dict:
         row["error"] = e.public or e.message
     except Exception as e:  # noqa: BLE001 - one bad question shouldn't stop the run
         row["error"] = f"{type(e).__name__}: {e}"
+    finally:
+        if tmp:
+            tmp.cleanup()
     row["seconds"] = round(time.perf_counter() - start, 3)
     return row
 

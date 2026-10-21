@@ -71,7 +71,8 @@ WEB_LINES = """- Use research_web only for what the knowledge base can't have: c
   say nothing has changed yet, and that the user can approve, edit or cancel the card.
 - Never propose accepted for a CVE in CISA's KEV while check_affected says unknown: ask the user for their version
   first, or propose another status the facts support. When you ask, say how they can give it: by telling you, and
-  you propose saving it; or with "Set my version…" on the check_affected card.
+  you propose saving it; or with "Set my version…" on the check_affected card. Nor while it says affected: keep it
+  open and recommend the fix (name the fixed version), or a mitigation while it stays open.
 - When the user gives a version in the chat, propose saving it with update_watchlist set_details first: only a
   saved version counts. Once they approve, run check_affected again, then propose_decision, citing its [n]."""
 
@@ -83,10 +84,11 @@ def system_prompt(level: ExplainLevel = "normal", web: bool = False) -> str:
 def examples(web: bool = False) -> list[dict]:
     """The example questions shown under "More examples": the scripted questions the model check also asks. Not
     those asked from a page: without the page they repeat another example. A web question (B22) only while web
-    research is on. A script with no `expect` is FakeLLM's only (B62), never an example."""
+    research is on. A script with no `expect` is FakeLLM's only (B62), never an example; nor one asked with saved
+    product fields (`watch`, #133): your own state may not have them."""
     scripts = json.loads((FIXTURES / "fake_script.json").read_text())["scripts"]
     return [{"id": s["id"], "question": s["question"]} for s in scripts
-            if "expect" in s and "page" not in s and "fail_tools" not in s and (web or not s.get("web"))]
+            if "expect" in s and not {"page", "fail_tools", "watch"} & set(s) and (web or not s.get("web"))]
 
 
 @dataclass(frozen=True)
