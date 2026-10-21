@@ -1,6 +1,6 @@
 # Status and handoff
 
-Where the project stands, how to run and test it, and what's open. Rewritten 2026-10-20 at the end of spec B, so a fresh session or a reviewer can pick up from here. The README says what Patch does and how to set it up; this file is for working on it.
+Where the project stands, how to run and test it, and what's open. Rewritten 2026-10-20 at the end of spec B, so a fresh session or a reviewer can pick up from here. The README says what Patch does; [docs/SETUP.md](./docs/SETUP.md) says how to set it up; this file is for working on it.
 
 ## In one paragraph
 
@@ -26,7 +26,7 @@ The owner deployed `spec-b` on 2026-10-19 with `scripts/deploy-wizard.sh` and up
 
 ## How to run it
 
-The full setup, with OpenRouter, local models, live data, sign-in and web research: [README.md](./README.md#run-it). In short:
+The full setup, with OpenRouter, local models, live data, sign-in and web research: [docs/SETUP.md](./docs/SETUP.md). In short:
 
 ```bash
 cd backend && uv sync && uv run uvicorn app.main:app --reload --port 8000   # snapshot, FakeLLM, hash embedder: no key
@@ -34,12 +34,12 @@ cd frontend && npm install && npm run dev                                    # h
 ```
 
 - **Snapshot mode** (the default): the frozen data as of 2026-10-13. No live calls to any source. The tests and the model check run here, so they repeat exactly.
-- **Live mode:** Settings → Data → Live, then Save changes (or `DATA_MODE=live` in `backend/.env`). The real feeds are the default (`FEEDS=real`). Then **Check now** on the dashboard, `cd backend && uv run --env-file .env python -m app.refresh` on the command line, or the hourly systemd user timer (`deploy/systemd/install.sh`; [README](./README.md#live-data-from-the-real-feeds-on-a-schedule)). `FEEDS=fake` is the made-up test data, for tests and demos only.
+- **Live mode:** Settings → Data → Live, then Save changes (or `DATA_MODE=live` in `backend/.env`). The real feeds are the default (`FEEDS=real`). Then **Check now** on the dashboard, `cd backend && uv run --env-file .env python -m app.refresh` on the command line, or the hourly systemd user timer (`deploy/systemd/install.sh`; [SETUP](./docs/SETUP.md#live-data-from-the-real-feeds-on-a-schedule)). `FEEDS=fake` is the made-up test data, for tests and demos only.
 - With a real model: `backend/.env` (copied from `.env.example`, git-ignored) and `uv run --env-file .env ...`.
 - **Defaults** (decided 2026-10-15, from the report): chat `anthropic/claude-haiku-5.5` on OpenRouter (the `OPENROUTER_MODEL` default); embedder `mxbai-embed-large` on Ollama (the Ollama default), off-topic threshold 0.58. FakeLLM and the hash embedder stay the no-setup defaults (`LLM_PROVIDER=fake`, `EMBEDDER=hash`), so tests and CI need no key and no service.
 - A real embedder needs its index built once: `uv run --env-file .env python -m app.rag.build_index`. Give each embedder its own `INDEX_PATH`. In live mode, start-up embeds only what changed since the index was built (B53).
-- **Web research:** `TAVILY_API_KEY` in `backend/.env` ([README](./README.md#web-research-tavily)). **Sign-in:** `AUTH=on`, the Clerk keys and `OWNER` ([README](./README.md#sign-in-clerk)). Both off by default.
-- **Patch as an MCP server:** `cd backend && uv run python -m app.mcp_server`, started by the client ([README, Try it in 5 minutes](./README.md#try-it-in-5-minutes)).
+- **Web research:** `TAVILY_API_KEY` in `backend/.env` ([SETUP](./docs/SETUP.md#web-research-tavily)). **Sign-in:** `AUTH=on`, the Clerk keys and `OWNER` ([SETUP](./docs/SETUP.md#sign-in-clerk)). Both off by default.
+- **Patch as an MCP server:** `cd backend && uv run python -m app.mcp_server`, started by the client ([SETUP, Try it in 5 minutes](./docs/SETUP.md#try-it-in-5-minutes)).
 - Your watchlist, statuses, decision history and settings: `backend/data/state.json` (git-ignored); with sign-in on, one file per user in `backend/data/state-users/`. Settings → Start over deletes your own.
 - Model-check and retrieval runs: `backend/data/evals/` (not in git); deployed (`STORE=gcs`), the bucket's `evals/` (B58, #104). The published report shows the runs named in `docs/report-src/runs.json` ([how to rebuild it](./docs/report-src/README.md)).
 - The owner's own app runs on 8000/5173. Anything that changes data (the browser check, screenshots) runs on its own servers: `frontend/e2e/run.sh` picks free ports and a throwaway state file. Screenshot scripts use it too: `scripts/landing-shots.sh`, `scripts/link-preview-image.sh`.
