@@ -118,7 +118,6 @@ Start here:
 1. [STATUS.md](./STATUS.md): what's built, the live app, what's open.
 2. [DECISIONS.md](./DECISIONS.md): every decision and why.
 3. [GLOSSARY.md](./GLOSSARY.md): the words used throughout (verdict, priority, due date, open CVE...).
-4. [docs/DEMO.md](./docs/DEMO.md): the live demo script.
 
 Deep dives:
 
