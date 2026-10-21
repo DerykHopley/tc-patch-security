@@ -44,6 +44,7 @@ Do these 15 minutes before. Each one removes a way the demo can go wrong.
 
 Say:
 
+- **Where it comes from:** I used to watch cloud security with AWS Inspector, Trusted Advisor and GuardDuty, plus email alerts. Several consoles, a lot of noise. Patch is my simpler version of that, for LLM apps.
 - People build LLM apps on tools like Langflow, Open WebUI and LiteLLM. Those tools have serious CVEs, some actively exploited.
 - The questions a developer has: does this affect *my* version, and what do I fix first?
 - Patch answers them with cited sources, and ranks the fixes by rules, not by the model's opinion.
