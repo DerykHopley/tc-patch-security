@@ -2,9 +2,9 @@
 
 - First through Tavily's hosted remote MCP server, with LangChain's MCP adapter (`langchain-mcp-adapters`), the
   course's "remote MCP server" task. If that fails to connect or answer, Tavily's plain search API.
-- Fixed settings: basic search, at most 5 results, snippets only (no raw content, no extract), and an exclude list of
-  exploit and proof-of-concept sites. A result from one of them is dropped here too, in case Tavily lets one through,
-  and so is one whose URL isn't http(s) (`web_link`): the URL becomes a link in the app.
+- Fixed settings: basic search, at most 5 results kept, snippets only (no raw content, no extract). Results from a
+  list of exploit and proof-of-concept sites are dropped here, not sent to Tavily as an exclude list (B64: that
+  spoiled its results), and so is one whose URL isn't http(s) (`web_link`): the URL becomes a link in the app.
 - Only the query is sent. The key goes in the Authorization header, never in a URL, and no log line carries it: the
   MCP SDK and httpx log URLs, and an error's text can hold them, so failures are logged by type only.
 - The cap counts searches per day, per user and in total, in memory (spec B: one instance). A failed search isn't

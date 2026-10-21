@@ -8,8 +8,9 @@ keeps its data in a table too.
 Models side by side (scores per check, cost, time, every failure with what the model did and what was expected),
 embedders side by side (hit rate at 5, MRR, misses), the explain-level readability per model (A19), a placeholder
 for the "what to fix first" (A18) results, and a findings section a person writes (A20). Styled with the design tokens from
-frontend/src/styles/tokens.css, inlined: the page loads nothing from anywhere, so it can be opened from disk or
-published as one file. Everything from a model or the data is escaped: answers are untrusted text.
+frontend/src/styles/tokens.css, inlined: the page loads nothing but the app's fonts (system fonts stand in without
+a network), so it can be opened from disk or published as one file. The top bar and the theme switch are the
+review pages' shared shell (shell.py). Everything from a model or the data is escaped: answers are untrusted text.
 """
 import datetime as dt
 import json
@@ -19,7 +20,7 @@ from pathlib import Path
 
 from app.config import ROOT
 from app.errors import InputError
-from app.evals import charts
+from app.evals import charts, shell
 from app.evals.checks import LABELS, failure_kind
 from app.evals.runs import RunStore
 
@@ -32,6 +33,7 @@ LEVEL_LABELS = {"simple": "Simple", "normal": "Normal", "deep_dive": "Deep dive"
 
 STYLE = """
 body { padding: 1.5rem 1rem 3rem; }
+.rs-bar { margin: -1.5rem -1rem 1.5rem; }  /* the shared bar runs edge to edge */
 main { max-width: 1280px; margin: 0 auto; display: grid; gap: 1.2rem; }
 header.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; max-width: 1280px;
   margin: 0 auto 1.2rem; }
@@ -72,20 +74,7 @@ table.grid td.fail summary, table.grid td.levels summary { cursor: pointer; }
 table.grid td.none { color: var(--muted); }
 table.grid tbody th { font-size: 0.85rem; min-width: 10rem; }
 table.grid th:first-child { position: sticky; left: 0; background: var(--surface); }
-#theme { flex: none; width: 36px; height: 36px; padding: 0; }
 """
-
-THEME_SCRIPT = """
-const root = document.documentElement, button = document.getElementById('theme');
-function setTheme(t) {
-  root.dataset.theme = t;
-  button.setAttribute('aria-label', t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-  button.textContent = t === 'dark' ? '\\u2600' : '\\u263E';
-}
-setTheme(matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-button.addEventListener('click', () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
-"""
-
 
 def store_of(settings) -> RunStore:
     return RunStore.for_settings(settings)
@@ -576,7 +565,8 @@ def build(model_runs: list[dict], retrieval_runs: list[dict], as_of: str, findin
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Patch: model check report</title>
+<title>Patch · Model-check report</title>
+{shell.head()}
 <style>
 {tokens}
 {STYLE}
@@ -584,18 +574,18 @@ def build(model_runs: list[dict], retrieval_runs: list[dict], as_of: str, findin
 </style>
 </head>
 <body>
+{shell.bar("index.html")}
 <header class="top">
 <div>
-<h1>Patch: model check report</h1>
+<h1>Model-check report</h1>
 <p class="meta">Generated {_e(generated)} · data as of {_e(as_of)} · {len(model_runs)} model runs, {len(retrieval_runs)} retrieval runs</p>
 <nav class="toc" aria-label="Sections">{toc}</nav>
 </div>
-<button type="button" id="theme" aria-label="Switch to dark mode">☾</button>
 </header>
 <main>
 {"".join(sections)}
 </main>
-<script>{THEME_SCRIPT}{charts.SWITCH_SCRIPT}</script>
+<script>{charts.SWITCH_SCRIPT}</script>
 </body>
 </html>
 """

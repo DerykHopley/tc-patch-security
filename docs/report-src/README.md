@@ -20,6 +20,16 @@
 - `docs/report/index.html` is the published page. `.github/workflows/pages.yml` uploads only `docs/report/` to GitHub Pages, on a push to `main` or `spec-a` that changes it.
 - Before committing a new report, check it holds no key, no `.env` content and no course-brief text.
 
+## The shared shell
+
+All four review pages (model check, process map, architecture review, retro) share one top bar, one theme switch and the app's fonts (2026-10-21). It lives in `backend/app/evals/shell.py`. Why one module, not a shared CSS file: each page stays one file that opens from disk, and the model-check page loads nothing but its fonts.
+
+- **The model-check page** gets it from the report build. Rebuild it after a change to the shell.
+- **The other three** carry it between `<!-- report-shell:… -->` comments. After a change to the shell, from `backend/`: `uv run python -m app.evals shell`. A new hand-written page needs `<head>`, `<body>` and an entry in `shell.PAGES`.
+- **The theme** is saved in the browser (`patch-reports-theme`), so it's the same on every page; without a saved choice, the system's.
+- **Tailwind pages** (architecture review, retro): their colours become CSS variables, so dark mode needs no class changes. Indigo is drawn in violet, nearer Patch's purple; in dark mode each scale turns round (100 takes 900's value) and white cards become Patch's dark card. New tabs from the review skills get all of this with no change.
+- `backend/tests/test_report_shell.py` fails when a page's copy of the shell is out of date.
+
 ## The architecture review
 
 - `docs/report/architecture-review.html`, published at https://derykhopley.github.io/tc-patch-security/architecture-review.html.
