@@ -1,8 +1,9 @@
-"""Browser check for web research that ends in a proposed decision (B22, #62). Check ids: B22.9, B62.8, B66.4.
+"""Browser check for web research that ends in a proposed decision (B22, #62). Check ids: B22.9, B62.8, B66.4, F133.6.
 
 run.sh turns web research on against the fake Tavily (backend/tests/fake_tavily.py). With Langflow's version recorded
-(1.2.0: affected), FakeLLM runs its workflow script research-known-version: lookup_cve, check_affected, research_web,
-propose_decision. With no version, Q-research stops before proposing and asks for it: the CVE is in KEV (B62.8).
+(1.3.0: not affected), FakeLLM runs its workflow script research-fixed-version: lookup_cve, check_affected,
+research_web, propose_decision (not affected). The CVE is in KEV, so with no version Q-research stops before proposing
+and asks for it (B62.8); with 1.2.0 (affected) Q-research-affected recommends the fix instead (#133).
 The card is B21's (DESIGN.md §6.6) with the sources it rests on; backend/tests/test_research_decision.py tests the
 rules. Every test leaves the default state, since all tests share one backend.
 """
@@ -17,15 +18,16 @@ from reduced_motion import scene, still
 
 CVE = "CVE-2025-3248"
 ASK = f"Is {CVE} a problem for my Langflow behind a VPN? Research it and propose a decision."  # Q-research
-ASK_KNOWN = f"I run Langflow 1.2.0 behind a VPN. Is {CVE} a problem? Research it and propose a decision."
+ASK_KNOWN = f"I run Langflow 1.3.0 behind a VPN. Is {CVE} a problem? Research it and propose a decision."
+ASK_AFFECTED = f"I run Langflow 1.2.0 behind a VPN. Is {CVE} a problem? Research it and propose a decision."
 
 
 @pytest.fixture(autouse=True)
 def fresh_state(api_url: str):
-    """The default state with Langflow 1.2.0 recorded: Patch may propose accepting a KEV CVE only once the verdict
-    is known (B62)."""
+    """The default state with Langflow 1.3.0 recorded: not affected, so the workflow ends in a proposal. With the
+    version unknown (B62) or affected (#133), Patch proposes nothing for this KEV CVE."""
     api(api_url, "/state/reset", "POST", {"confirm": "reset"})
-    set_stack(api_url, langflow={"version": "1.2.0"})
+    set_stack(api_url, langflow={"version": "1.3.0"})
     yield
     api(api_url, "/state/reset", "POST", {"confirm": "reset"})
 
@@ -42,9 +44,9 @@ def card_for(page) -> Locator:
 def test_b22_9_the_workflow_ends_in_a_card_with_its_sources_and_approve_records_them(open_app, api_url):
     page = open_app()
     card = card_for(page)
-    expect(card.get_by_text(f"Accept the risk of {CVE}", exact=True)).to_be_visible()
+    expect(card.get_by_text(f"Mark {CVE} not affected", exact=True)).to_be_visible()
     expect(card.locator(".before-after")).to_contain_text("Before: Open")
-    expect(card.locator(".before-after .after")).to_contain_text("review 2026-11-12")
+    expect(card.locator(".before-after .after")).to_contain_text("Not affected")
     items = card.locator(".proposal-sources li")
     expect(items).to_have_count(2)
     expect(items.nth(0).locator(".chip")).to_have_text("Knowledge base")
@@ -55,9 +57,9 @@ def test_b22_9_the_workflow_ends_in_a_card_with_its_sources_and_approve_records_
     assert langflow_row(api_url)["status"] == "open"  # nothing changed yet
 
     card.get_by_role("button", name="Approve", exact=True).click()
-    expect(card.locator("output.proposal-line")).to_contain_text(f"Done: Marked {CVE} as accepted.")
+    expect(card.locator("output.proposal-line")).to_contain_text(f"Done: Marked {CVE} as not affected.")
     row = langflow_row(api_url)
-    assert row["status"] == "accepted" and [s["n"] for s in row["history"][-1]["sources"]] == [1, 3]
+    assert row["status"] == "not_affected" and [s["n"] for s in row["history"][-1]["sources"]] == [2, 3]
 
     # The decision's history on the CVEs page names its sources, the web one still unverified
     card.locator("output.proposal-line").get_by_role("link").click()
@@ -105,9 +107,20 @@ def test_b62_8_with_no_version_patch_asks_for_it_instead_of_proposing(open_app, 
     assert langflow_row(api_url)["status"] == "open"
 
 
+def test_f133_6_with_the_version_affected_patch_recommends_the_fix_instead_of_proposing(open_app, api_url):
+    set_stack(api_url, langflow={"version": "1.2.0"})  # affected; fresh_state resets it after
+    page = open_app()
+    open_chat(page)
+    answer = ask(page, ASK_AFFECTED)
+    expect(answer).to_contain_text("upgrade Langflow to 1.3.0")
+    expect(answer.locator(".proposal-card")).to_have_count(0)
+    assert langflow_row(api_url)["status"] == "open"
+
+
 def test_b66_4_a_version_typed_in_the_chat_is_proposed_saved_then_the_decision_follows(open_app, api_url):
     """#113: the user answers Patch's question in the chat. Patch proposes saving it; only after Approve does the
-    next turn propose the decision. The chat sends the earlier turns as history, as for any follow-up."""
+    next turn check it again. 1.2.0 is affected, so it recommends the fix and proposes nothing (#133). The chat sends
+    the earlier turns as history, as for any follow-up."""
     api(api_url, "/state/reset", "POST", {"confirm": "reset"})  # no Langflow version: the verdict is unknown
     page = open_app()
     open_chat(page)
@@ -119,17 +132,18 @@ def test_b66_4_a_version_typed_in_the_chat_is_proposed_saved_then_the_decision_f
     save.get_by_role("button", name="Approve", exact=True).click()
     expect(save.locator("output.proposal-line")).to_contain_text("Done:")
 
-    card = ask(page, "Approved. Carry on.").locator(".proposal-card")
-    expect(card.get_by_text(f"Accept the risk of {CVE}", exact=True)).to_be_visible()
-    expect(card.locator(".proposal-sources li .chip")).to_have_text(["Knowledge base"])
-    assert langflow_row(api_url)["status"] == "open"  # the decision waits for its own Approve
+    answer = ask(page, "Approved. Carry on.")
+    expect(answer).to_contain_text("affected by the version check")
+    expect(answer).to_contain_text("keep it open and upgrade Langflow")
+    expect(answer.locator(".proposal-card")).to_have_count(0)
+    assert langflow_row(api_url)["status"] == "open"
 
 
 # --- Reduced motion: this file's scenes in the shared check (reduced_motion.py) --------------------------------------
 
 @scene
 def b22_9_proposed_decision(fx):
-    set_stack(fx("api_url"), langflow={"version": "1.2.0"})  # B62; reduced_motion_defaults resets it after
+    set_stack(fx("api_url"), langflow={"version": "1.3.0"})  # not affected; reduced_motion_defaults resets it
     page = fx("open_app")(reduced=True)
     open_chat(page)
     card = ask(page, ASK_KNOWN).locator(".proposal-card")
