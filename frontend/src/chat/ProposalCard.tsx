@@ -269,6 +269,14 @@ export function ProposalCard({ proposal, restored = false }: { proposal: Proposa
           {line}
         </p>
       ))}
+      {/* B73 (#134): what to check before approving, right under the control's line. Words from the backend. An
+          answer kept in the tab from before B73 has none (`?? []`). */}
+      {(p.warnings ?? []).map((w) => (
+        <p key={w} className="proposal-line warn proposal-warning">
+          <span className="visually-hidden">Warning: </span>
+          {w}
+        </p>
+      ))}
       <ProposalSources p={p} />
       {open && !editing && (
         <p className="meta">Nothing has changed yet. Approve it by {utcTime(p.expires_at)}, or ask Patch again later.</p>

@@ -167,6 +167,13 @@
   border-color: var(--warn);
 }
 
+/* B73 (#134): a control on a product the watchlist marks internet-facing. The expired line's look, under the
+   control's line; it wraps like the lines above it. */
+.proposal-card .proposal-warning {
+  margin: 0.3rem 0 0;
+  overflow-wrap: anywhere;
+}
+
 .proposal-line.error {
   background: var(--error-soft);
   border-color: var(--error);

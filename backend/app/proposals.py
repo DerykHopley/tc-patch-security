@@ -104,6 +104,7 @@ class Proposal(_Shape):
     sources: list[ProposalSource]  # what a proposed decision cites (B22); empty for the other proposals
     editable: list[Literal[STATUS_FIELDS + DETAIL_FIELDS]]  # type: ignore[valid-type]  # what the card's Edit shows
     link_to: Literal["cve", "watchlist"]  # where the card's Done links: a kind; the frontend knows the page (B27)
+    warnings: list[str]  # what to check before you approve (B73, #134); the card shows each by the control
 
 
 class ProposalEdit(BaseModel):
@@ -372,6 +373,17 @@ def edit(deps, pid: str, changes: ProposalEdit) -> dict:
         return view(rec, deps)
 
 
+def warnings(rec: dict, deps) -> list[str]:
+    """What to check before you approve (B73, #134), from the product's fields as they are now: a compensating
+    control on a product the watchlist marks internet-facing. The control's words aren't read and nothing is
+    refused: a control such as "only over the VPN" may still hold, but you should look."""
+    if not rec["fields"].get("compensating_control") or not rec["product"]:
+        return []
+    if not deps.state.read().fields(rec["product"]).internet_facing:
+        return []
+    return [f"Your watchlist marks {_name(rec, deps)} internet-facing. Check this control matches."]
+
+
 def view(rec: dict, deps) -> dict:
     """The Proposal as the card and the tool show it. A proposed one past its time is expired."""
     state = rec["state"]
@@ -387,4 +399,4 @@ def view(rec: dict, deps) -> dict:
         as_of=deps.as_of, created_at=rec["created_at"], expires_at=rec["expires_at"],
         approved_at=rec["approved_at"], approved_by=rec["approved_by"],
         sources=rec.get("sources", []),  # a proposal saved before B22 has none
-        editable=list(change.editable), link_to=change.link_to).model_dump()
+        editable=list(change.editable), link_to=change.link_to, warnings=warnings(rec, deps)).model_dump()
