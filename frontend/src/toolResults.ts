@@ -159,6 +159,7 @@ export interface Proposal {
   sources: ProposalSource[]
   editable: ('status' | 'justification' | 'note' | 'reason' | 'review_date' | 'compensating_control' | 'usage' | 'version' | 'internet_facing')[]
   link_to: 'cve' | 'watchlist'
+  warnings: string[]
 }
 
 /** propose_decision when the CVE already has that status: nothing to propose, and why (B27). */
