@@ -2,6 +2,8 @@
 
 A security assistant for people who build LLM apps. Ask Patch about a risk, an attack or a CVE, and get an answer that cites its sources. A dashboard tracks the CVEs in the LLM products you use, says which ones affect your versions, and ranks what to fix first by rules you set.
 
+**Why I built it.** I used to watch cloud security through AWS Inspector (vulnerabilities), Trusted Advisor (best-practice checks) and GuardDuty (threats), plus a steady stream of email alerts. Each has its own console and its own noise. Patch is my attempt at a simpler version of that for LLM apps: one place that says what affects you, what to fix first and why, and alerts you only when something that matters changes.
+
 Built for the Turing College sprint 2 project: a RAG assistant that rewrites questions before searching, turns them into checked filters, calls tools, and runs in the browser.
 
 ![The dashboard, filtered to Langflow and Open WebUI](docs/media/dashboard-light.png)
