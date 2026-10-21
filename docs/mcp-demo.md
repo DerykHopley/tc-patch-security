@@ -64,13 +64,18 @@ What it shows: Patch looks up the CVE, checks the verdict, searches the web, the
 4. **Ask**, in the chat:
    > Is CVE-2025-3248 a problem for my Langflow behind a VPN? Research it and propose a decision.
 
-   Expected: the tool calls `lookup_cve`, `check_affected`, `research_web`, `propose_decision`, in that order (open the answer's details, Tool calls tab). A card under the answer: "Accept the risk of CVE-2025-3248" (or another status, if the model chose one), the before → after, and "It rests on:" with numbered sources. At least one says "Knowledge base"; web ones say "Web result, unverified". The answer says nothing has changed yet. If `propose_decision` returns an error (for example "can't copy text from a web result"), the model should try again: that's the guard working, note it.
+   Expected: the tool calls `lookup_cve`, `check_affected`, `research_web` (open the answer's details, Tool calls tab), with web results marked "Web result, unverified". What comes next depends on the Langflow version saved in Settings:
+   - **No version saved:** Patch can't propose accepting a KEV CVE while the verdict is unknown (B62, #111). It asks for your version.
+   - **1.2.0 saved (affected):** since #133 (2026-10-21) Patch can't propose accepting it either: `propose_decision` refuses with `kev_affected` if the model tries. The answer recommends upgrading to 1.3.0, or a mitigation while it stays open, and no card appears.
+   - **1.3.0 saved (not affected):** a card under the answer proposes "not affected" (or another status the model chose), the before → after, and "It rests on:" with numbered sources. At least one says "Knowledge base". The answer says nothing has changed yet.
+
+   If `propose_decision` returns an error (a refusal above, a reason over 300 characters, or "can't copy text from a web result"), the model should try again or explain: that's the guard working, note it.
 5. **Screenshots** (save them in `docs/media/research-demo/`, PNG, light theme, chat enlarged):
    1. `1-question.png`: the question and Patch thinking.
    2. `2-tool-calls.png`: the Tool calls tab with the four calls (expand `research_web`'s card: "via Tavily's MCP server").
    3. `3-sources.png`: the Sources tab, with the web sources marked unverified (and "Flagged" if a page was).
-   4. `4-approve-card.png`: the proposal card before you approve, with its sources.
-   5. `5-done.png`: after **Approve**: "Done: Marked CVE-2025-3248 as accepted." and the CVEs page history (follow the link, open History): it names the sources.
+   4. `4-approve-card.png`: the proposal card before you approve, with its sources (1.3.0 saved), or the answer recommending the upgrade (1.2.0 saved).
+   5. `5-done.png`: after **Approve**, "Done: …" and the CVEs page history (follow the link, open History): it names the sources. Skip it when no card appeared.
 6. **Write it down** under "Record 3" below: the date, the model, the commit (`git rev-parse --short HEAD`), whether the tools came in order, the proposed status and reason, any tool error and retry, the Tavily path ("via Tavily's MCP server" or the plain API), and the cost shown under the answer.
 7. **Finish.** Stop both servers and delete `/tmp/patch-demo-state.json`. Commit the screenshots and this file on a branch, then tick the demo box in #62.
 
@@ -425,5 +430,7 @@ Recorded by the owner on 2026-10-20. ✅
 1. **First try: no web results at all.** Tavily's hosted MCP server now answers with JSON; Patch's parser expected the old text layout and read every reply as 0 results, silently. Every chat web search was empty, on the live app too. Fixed in B63 (7c56b06).
 2. **Second try: unrelated Microsoft pages.** With `exclude_domains` (our 9 exploit sites), Tavily returned Microsoft support pages for the model's good query, every try. Without it, the right advisories. Fixed in B64 (cbc99ec): Patch drops those sites itself, as it already did.
 3. **#111 working as meant.** With no Langflow version saved, Haiku researched, then said it couldn't propose "accepted" for a KEV CVE without a version, and asked for it. With 1.2.0 saved (via "Set my version…" on the tool card, then Approve), it proposed accepted with a short review and a control.
+
+**Since then (#133, 2026-10-21):** the same question with 1.2.0 saved no longer ends in an "accept" card. The demo rehearsal on the live app showed why it shouldn't: Patch proposed accepting an exploited, affected flaw while its own answer recommended upgrading. Now `propose_decision` refuses "accepted" for a KEV CVE unless the version check says not affected, and the answer recommends the fix. This record stays as it ran on 2026-10-20.
 
 **A gap it showed:** Patch asks for the version in the chat, but only a saved version counts for #111's rule. Answering in the chat doesn't unblock it. Filed as [#113](https://github.com/DerykHopley/tc-patch-security/issues/113).
