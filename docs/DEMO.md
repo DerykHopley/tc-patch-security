@@ -79,8 +79,8 @@ Open the chat beside CVE-2025-3248's page (pin it). Paste each question.
    - Show the numbered citations and Show sources: OWASP and ATLAS pages.
    - Open the Tool calls tab: `search_security`, with its rewritten queries and the filters it chose.
 4. **"Is CVE-2025-3248 a problem for my Langflow behind a VPN? Research it and propose a decision."**
-   - Several tools in a row: `lookup_cve`, `research_web` (results marked "Web result, unverified"), then `propose_decision`.
-   - The proposal card: Approve, Edit, Cancel. Say: Patch never changes your data by itself. Press **Cancel**.
+   - Several tools in a row: `lookup_cve`, `check_affected`, `research_web` (results marked "Web result, unverified").
+   - No proposal card: 1.2.0 is affected and the CVE is in KEV, so Patch won't suggest accepting it. It recommends upgrading to 1.3.0 and keeping it open (#133). Say: Patch never changes your data by itself, and won't suggest accepting an exploited flaw you're affected by.
    - Point at the usage line: tokens, model calls, steps and the cost in dollars.
 
 If an answer's wording differs from the rehearsal, that's fine: the real model words it fresh each time. Talk about the cards, which don't change.
@@ -153,7 +153,7 @@ Then the optional tasks, from the [README](../README.md#course-tasks): 4 hard an
 Show the [retro](https://derykhopley.github.io/tc-patch-security/retro.html) briefly. Then say:
 
 - **The evals are small.** 14 to 19 questions can't separate the top models. I'd add more questions and repeat runs.
-- **A real model made a risky call once.** In one run Haiku proposed accepting the risk on an exploited remote-code flaw for 7 days. The card waits for a person, but a rule should refuse it.
+- **A real model made a risky call twice.** Haiku proposed accepting the risk on an exploited remote-code flaw, once with the version unknown, once with it affected. The card waited for a person both times; now `propose_decision` refuses both (#111, #133), and two eval questions check the model doesn't try.
 - **One failed tool drops all the citations** (#106), and "what's the latest?" has no newest-first tool (#115).
 - **It runs as one instance.** Rate limits are kept in memory, and Clerk is on its development instance (100 users). Scaling out needs a shared store.
 - **The off-topic gate** is tested only on the cheap embedder in CI.

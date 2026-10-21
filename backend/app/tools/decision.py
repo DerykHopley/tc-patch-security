@@ -11,7 +11,8 @@ saved:
 Each cited source is kept on the proposal, a web one marked "web result, unverified", and in the decision record
 once you approve.
 
-Nor can it propose accepting a KEV CVE while the version check says unknown (B62, #111): it asks for the version.
+Nor can it propose accepting a KEV CVE unless the version check says not affected: while it says unknown it asks for
+the version (B62, #111); while it says affected it recommends the fix or a mitigation, and the CVE stays open (#133).
 """
 import datetime as dt
 import re
@@ -85,21 +86,28 @@ def cited_sources(reason: str, ctx) -> list[dict]:
 
 
 def check_kev_accept(cve_id: str, status: str, deps) -> None:
-    """B62 (#111): Patch can't propose accepting a KEV CVE while the verdict for your product is unknown (no version,
-    or one OSV can't place). Only Patch's suggestion: your own edit, a card button and the CVEs page still may."""
+    """Patch can't propose accepting a KEV CVE unless the verdict for your product is not affected: not while it's
+    unknown (B62, #111: no version, or one OSV can't place), nor affected (#133). Only Patch's suggestion: your own
+    edit, a card button and the CVEs page still may."""
     if status != "accepted" or not deps.knowledge.cves.kev.get(cve_id):
         return
     try:
         a = WatchedCves.of(deps).assess(cve_id)
     except KeyError:  # not in the snapshot: proposals.propose says so
         return
+    product = deps.knowledge.products[a.cve["product"]]
     if a.verdict.verdict == "unknown":
-        product = deps.knowledge.products[a.cve["product"]]
         raise ToolError(f"Can't propose accepting {cve_id}: it's in CISA's KEV and the version check says unknown "
                         f"({a.verdict.reason}). Ask the user for their {product} version, or propose another status. "
                         "When they give it, propose saving it with update_watchlist (set_details): only a saved "
                         "version counts.",
                         "kev_version_unknown")
+    if a.verdict.verdict == "affected":
+        fix = f"upgrading {product} to {a.verdict.fixed_version}" if a.verdict.fixed_version else "the vendor's fix"
+        raise ToolError(f"Can't propose accepting {cve_id}: it's in CISA's KEV, so attackers are using it, and the "
+                        f"version check says affected ({a.verdict.reason}). Keep it open and recommend {fix}, "
+                        "or a mitigation while it stays open. Don't propose a decision for it now.",
+                        "kev_affected")
 
 
 def run(args: DecisionArgs, deps, ctx) -> dict:

@@ -17,6 +17,8 @@ from test_contrast import low_contrast, show
 from test_dashboard import api, ask_about
 from test_partial import text_contrast
 from test_affected import set_stack
+from test_card_actions import tool_cards
+from test_fix_first import FIX_FIRST
 from test_research_decision import ASK_KNOWN as RESEARCH, CVE as RESEARCH_CVE
 from test_shell import SHOTS, no_sideways_scroll, settled
 
@@ -38,9 +40,9 @@ def fresh_state(api_url: str):
 
 @pytest.fixture
 def known_langflow(api_url: str):
-    """Langflow 1.2.0 recorded, so the research question ends in an accepted proposal: since B62 (#111) Patch asks for
-    the version instead while it's unknown. fresh_state resets it after."""
-    set_stack(api_url, langflow={"version": "1.2.0"})
+    """Langflow 1.3.0 recorded (not affected), so the research question ends in a proposal: Patch proposes nothing
+    for this KEV CVE while the version is unknown (B62) or affected (#133). fresh_state resets it after."""
+    set_stack(api_url, langflow={"version": "1.3.0"})
 
 
 @pytest.fixture
@@ -108,11 +110,18 @@ def test_b49_9_the_details_button_and_usage_line_say_one_source_one_tool_call(op
 
 # --- B49.10 (C3): the proposal's after value, the reason on its own line ----------------------------------------------
 
-def test_b49_10_an_accepted_risk_reads_accepted_review_date_with_the_reason_under_it(open_page, known_langflow):
+def test_b49_10_an_accepted_risk_reads_accepted_review_date_with_the_reason_under_it(open_page):
+    # Patch no longer proposes accepting the research CVE (#133): the card is from "Mark accepted…" (B24)
     page = open_page()
     open_chat(page)
-    card = ask(page, RESEARCH).locator(".proposal-card")
-    expect(card.get_by_text(f"Accept the risk of {RESEARCH_CVE}", exact=True)).to_be_visible()
+    row = tool_cards(ask(page, FIX_FIRST)).filter(has=page.locator(".fix-first-card")).locator(".fix-list > li").first
+    cve = row.locator("strong").first.inner_text()
+    row.get_by_role("button", name=f"Mark accepted… {cve}").click()
+    form = row.get_by_role("form", name="Mark accepted")
+    form.get_by_role("textbox", name="Reason (required)").fill("Only reachable over the VPN until the upgrade")
+    form.get_by_role("button", name="Propose").click()
+    card = row.locator(".proposal-card")
+    expect(card.get_by_text(f"Accept the risk of {cve}", exact=True)).to_be_visible()
     after = card.locator(".before-after .after")
     expect(after).to_have_text(re.compile(r"^After: Accepted, review \d{4}-\d{2}-\d{2}$"))
     reason = card.locator(".after-line").first
