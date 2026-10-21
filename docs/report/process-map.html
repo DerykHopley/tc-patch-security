@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Patch Process Map</title>
+<title>Patch · Process map</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -238,8 +238,64 @@ html:not(.js) [role="tablist"] { display: none; }
 .map .vlbl { font: 500 10px var(--f-mono); letter-spacing: 0.08em; fill: var(--surface); }
 </style>
 <script>document.documentElement.classList.add("js");</script>
+<!-- report-shell:head -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap">
+<script>(() => {
+  let t; try { t = localStorage.getItem("patch-reports-theme"); } catch {}
+  if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.dataset.theme = t;
+})();</script>
+<style>
+:root { --rs-bar: #ffffff; --rs-text: #2a2559; --rs-muted: #605d8c; --rs-border: #e4e5f8; --rs-accent: #6c4cf5;
+  --rs-accent-soft: #efeaff; --rs-on-accent: #ffffff; }
+:root[data-theme="dark"] { --rs-bar: #1a1a2e; --rs-text: #ecebff; --rs-muted: #a9a8cc; --rs-border: #2c2b48;
+  --rs-accent: #a28dff; --rs-accent-soft: #2a2550; --rs-on-accent: #0f0f1c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) { --rs-bar: #1a1a2e; --rs-text: #ecebff;
+  --rs-muted: #a9a8cc; --rs-border: #2c2b48; --rs-accent: #a28dff; --rs-accent-soft: #2a2550; --rs-on-accent: #0f0f1c; } }
+.rs-bar { background: var(--rs-bar); border-bottom: 1px solid var(--rs-border); color: var(--rs-text);
+  font: 400 15px/1.4 Nunito, system-ui, sans-serif; }
+.rs-inner { max-width: 1280px; margin: 0 auto; padding: 0.55rem 1rem; display: flex; flex-wrap: wrap; align-items: center;
+  gap: 0.5rem 1rem; }
+.rs-brand { display: flex; align-items: center; gap: 0.55rem; margin-right: auto; color: var(--rs-text); text-decoration: none; }
+.rs-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 12px; color: #ffffff;
+  background: linear-gradient(135deg, #7454f7, #5a3ff0); }
+.rs-name { font: 600 1.1rem/1 Fredoka, Nunito, system-ui, sans-serif; }
+.rs-name small { color: var(--rs-muted); font: 600 0.95rem Nunito, system-ui, sans-serif; }
+.rs-nav { display: flex; gap: 0.25rem; }
+.rs-nav a { padding: 0.3rem 0.75rem; border-radius: 999px; color: var(--rs-text); text-decoration: none; font-weight: 700;
+  font-size: 0.88rem; white-space: nowrap; }
+.rs-nav a:hover { background: var(--rs-accent-soft); }
+.rs-nav a[aria-current="page"] { background: var(--rs-accent); color: var(--rs-on-accent); }
+.rs-theme { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--rs-border);
+  border-radius: 999px; background: transparent; color: var(--rs-text); cursor: pointer; }
+.rs-theme svg[hidden] { display: none !important; }  /* some pages style every svg */
+.rs-bar a:focus-visible, .rs-theme:focus-visible { outline: 3px solid var(--rs-accent); outline-offset: 2px; }
+/* A phone: the links get their own row and wrap, so all four show. */
+@media (max-width: 720px) { .rs-nav { order: 3; width: 100%; flex-wrap: wrap; } }
+</style>
+<!-- /report-shell:head -->
 </head>
 <body>
+<!-- report-shell:bar -->
+<header class="rs-bar"><div class="rs-inner"><a class="rs-brand" href="index.html"><span class="rs-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="rs-name">Patch <small>· review pages</small></span></a><nav class="rs-nav" aria-label="Review pages"><a href="index.html">Model check</a><a href="process-map.html" aria-current="page">Process map</a><a href="architecture-review.html">Architecture review</a><a href="retro.html">Retro</a></nav><button type="button" class="rs-theme" aria-label="Switch to dark mode"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="rs-sun" hidden><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="rs-moon"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></div></header>
+<script>(() => {
+  const root = document.documentElement, button = document.querySelector(".rs-theme");
+  const show = () => {
+    const dark = root.dataset.theme === "dark";
+    button.querySelector(".rs-sun").toggleAttribute("hidden", !dark);  // an svg has no .hidden property
+    button.querySelector(".rs-moon").toggleAttribute("hidden", dark);
+    button.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+  };
+  show();
+  button.addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem("patch-reports-theme", root.dataset.theme); } catch {}
+    show();
+  });
+})();</script>
+<!-- /report-shell:bar -->
 
 <div class="wrap">
   <div class="pagebar">
@@ -261,7 +317,7 @@ html:not(.js) [role="tablist"] { display: none; }
      5. Marker ids in this tab's SVG start with "n-" so they never clash with the prototype tab's. -->
   <header class="top">
     <span class="eyebrow">Sprint 2 · Patch, the LLM-security assistant · as of 2026-10-16 · <code>spec-b</code> at <code>eb463c0</code></span>
-    <h1>Patch process map: now</h1>
+    <h1>Process map</h1>
     <p class="lede">How public security data reaches you through Patch: a frozen snapshot or live data from four feeds, a hybrid search index, a chat with nine tools behind a guard, the dashboard and the CVEs page, and alerts on your channels. Spec B added web research, changes you approve, sign-in and a deploy setup. Every claim here was checked against the code at that commit (file:line) or a command run that day; anything not checked says <i>unverified</i>.</p>
     <div class="legend">
       <span><span class="chip real">Built</span> real code, tested</span>
@@ -957,7 +1013,7 @@ html:not(.js) [role="tablist"] { display: none; }
   <p class="panel-note">The prototype's map as of 2026-10-13, kept word for word to compare with the current build. Its links (#map, #chat, #alerts and the rest) still open here.</p>
   <header class="top">
     <span class="eyebrow">Sprint 2 · LLM-security RAG chatbot · as built 2026-10-13 · next steps added the same day</span>
-    <h1>LLM Security Assistant Process Map</h1>
+    <h1>Process map: the prototype</h1>
     <p class="lede">How public security data becomes a frozen snapshot, how it is chunked and indexed, and how it reaches you through the chat and the CVE dashboard. One state file links the two: a watchlist change in either shows in both. A fourth flow turns new CVEs on your watchlist into alerts: the notifiers are built, the scheduled refresh is planned. A planned fifth flow makes each CVE actionable: am I affected, who acts, how urgent, explained at your level.</p>
     <div class="legend">
       <span><span class="chip real">Built</span> real code, tested</span>

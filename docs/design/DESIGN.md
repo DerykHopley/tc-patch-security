@@ -258,6 +258,7 @@ Token names chosen in A02 (DESIGN.md gave none); values unchanged from the proto
 - Bars **grow in** on load (section 7). Horizontal bars grow from the chart's axis: the chart sets `--x0` (its label width) on the `<svg>`, so a stacked bar grows as one piece.
 - **Two series**: `--cat-1` circles, then `--cat-2` squares (the 3.2 order), so the shape tells them apart as well as the colour. `--cat-2` is 3.0:1 on the light surface: fine for marks, never for text (*checked*, 2026-10-15). Labels and values stay in `--text` or `--muted`.
 - **The model-check report** (`backend/app/evals/charts.py`, A20) is a static page, so its charts differ in three ways: no grow-in (a report is read, not watched); a native `<title>` tooltip instead of the app's tooltip; and a fixed viewBox with a minimum width, so on a narrow screen the chart scrolls inside its card ("Scroll sideways" hint) rather than shrinking its text below about 10px.
+- **The review pages' shared shell** (2026-10-21): the model-check report, the process map, the architecture review and the retro share one top bar (Patch's mark, the four pages with this one marked, a theme switch), Nunito and Fredoka, and one saved theme. Colours are the playful tokens, light and dark. How it's built and kept the same: [docs/report-src/README.md](../report-src/README.md#the-shared-shell).
 
 ### 5.5 Embedding map (Dev page)
 

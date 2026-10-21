@@ -13,6 +13,8 @@
     uv run python -m app.evals report --runs ../docs/report-src/runs.json --out ../docs/report/index.html
     # FakeLLM and two fake embedders in a temporary folder, then the report (what CI builds; no key, no network)
     uv run python -m app.evals fake-report --out /tmp/model-check-report.html
+    # The review pages' shared top bar and theme, written into the hand-written pages in docs/report/ (shell.py)
+    uv run python -m app.evals shell
 
 Runs are saved next to the state file (STATE_PATH's folder, then evals/), in backend/data/ by default: not in git.
 """
@@ -23,9 +25,10 @@ from pathlib import Path
 
 from app.config import ROOT, ConfigError, Settings
 from app.errors import InputError
-from app.evals import model_check, report, retrieval
+from app.evals import model_check, report, retrieval, shell
 
 DEFAULT_OUT = ROOT / "data" / "reports" / "model-check-report.html"
+REVIEW_PAGES = ROOT.parent / "docs" / "report"
 
 
 def _deps(settings: Settings, llm=None):
@@ -97,12 +100,17 @@ def main(argv: list[str] | None = None) -> int:
                     "findings (docs/report-src/runs.json): the published report. No fallback to the latest")
     fr = sub.add_parser("fake-report", help="FakeLLM and fake embedders in a temp folder, then the report (CI)")
     fr.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    sh = sub.add_parser("shell", help="write the shared top bar and theme into the hand-written review pages")
+    sh.add_argument("--dir", type=Path, default=REVIEW_PAGES)
     args = p.parse_args(argv)
     if args.command == "report" and args.runs and (args.models or args.retrieval or args.findings):
         p.error("--runs names the runs and the findings itself: drop --models, --retrieval and --findings")
 
     try:
-        if args.command == "fake-report":
+        if args.command == "shell":
+            changed = shell.write(args.dir)
+            print(f"Updated: {', '.join(changed)}" if changed else "Every page already has the current shell.")
+        elif args.command == "fake-report":
             print(f"Report: {fake_report(args.out)}")
         elif args.command == "model-check":
             _print_model_run(model_check.start(_deps(Settings.from_env()), args.ids or None, wait=True))

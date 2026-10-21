@@ -3,7 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Patch: model check report</title>
+<title>Patch · Model-check report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap">
+<script>(() => {
+  let t; try { t = localStorage.getItem("patch-reports-theme"); } catch {}
+  if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.dataset.theme = t;
+})();</script>
+<style>
+:root { --rs-bar: #ffffff; --rs-text: #2a2559; --rs-muted: #605d8c; --rs-border: #e4e5f8; --rs-accent: #6c4cf5;
+  --rs-accent-soft: #efeaff; --rs-on-accent: #ffffff; }
+:root[data-theme="dark"] { --rs-bar: #1a1a2e; --rs-text: #ecebff; --rs-muted: #a9a8cc; --rs-border: #2c2b48;
+  --rs-accent: #a28dff; --rs-accent-soft: #2a2550; --rs-on-accent: #0f0f1c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) { --rs-bar: #1a1a2e; --rs-text: #ecebff;
+  --rs-muted: #a9a8cc; --rs-border: #2c2b48; --rs-accent: #a28dff; --rs-accent-soft: #2a2550; --rs-on-accent: #0f0f1c; } }
+.rs-bar { background: var(--rs-bar); border-bottom: 1px solid var(--rs-border); color: var(--rs-text);
+  font: 400 15px/1.4 Nunito, system-ui, sans-serif; }
+.rs-inner { max-width: 1280px; margin: 0 auto; padding: 0.55rem 1rem; display: flex; flex-wrap: wrap; align-items: center;
+  gap: 0.5rem 1rem; }
+.rs-brand { display: flex; align-items: center; gap: 0.55rem; margin-right: auto; color: var(--rs-text); text-decoration: none; }
+.rs-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 12px; color: #ffffff;
+  background: linear-gradient(135deg, #7454f7, #5a3ff0); }
+.rs-name { font: 600 1.1rem/1 Fredoka, Nunito, system-ui, sans-serif; }
+.rs-name small { color: var(--rs-muted); font: 600 0.95rem Nunito, system-ui, sans-serif; }
+.rs-nav { display: flex; gap: 0.25rem; }
+.rs-nav a { padding: 0.3rem 0.75rem; border-radius: 999px; color: var(--rs-text); text-decoration: none; font-weight: 700;
+  font-size: 0.88rem; white-space: nowrap; }
+.rs-nav a:hover { background: var(--rs-accent-soft); }
+.rs-nav a[aria-current="page"] { background: var(--rs-accent); color: var(--rs-on-accent); }
+.rs-theme { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--rs-border);
+  border-radius: 999px; background: transparent; color: var(--rs-text); cursor: pointer; }
+.rs-theme svg[hidden] { display: none !important; }  /* some pages style every svg */
+.rs-bar a:focus-visible, .rs-theme:focus-visible { outline: 3px solid var(--rs-accent); outline-offset: 2px; }
+/* A phone: the links get their own row and wrap, so all four show. */
+@media (max-width: 720px) { .rs-nav { order: 3; width: 100%; flex-wrap: wrap; } }
+</style>
 <style>
 /* The Playful design's tokens (docs/design/DESIGN.md §3). Components use these, never literal colours.
    Light values on <html data-design="playful">; dark values when data-theme="dark" (set by the toggle, which
@@ -194,6 +230,7 @@ button[aria-disabled='true'] {
 
 
 body { padding: 1.5rem 1rem 3rem; }
+.rs-bar { margin: -1.5rem -1rem 1.5rem; }  /* the shared bar runs edge to edge */
 main { max-width: 1280px; margin: 0 auto; display: grid; gap: 1.2rem; }
 header.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; max-width: 1280px;
   margin: 0 auto 1.2rem; }
@@ -234,7 +271,6 @@ table.grid td.fail summary, table.grid td.levels summary { cursor: pointer; }
 table.grid td.none { color: var(--muted); }
 table.grid tbody th { font-size: 0.85rem; min-width: 10rem; }
 table.grid th:first-child { position: sticky; left: 0; background: var(--surface); }
-#theme { flex: none; width: 36px; height: 36px; padding: 0; }
 
 
 figure.chart { margin: 0.6rem 0 1rem; }
@@ -268,13 +304,28 @@ details.as-table > summary { cursor: pointer; color: var(--accent); font-weight:
 </style>
 </head>
 <body>
+<header class="rs-bar"><div class="rs-inner"><a class="rs-brand" href="index.html"><span class="rs-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="rs-name">Patch <small>· review pages</small></span></a><nav class="rs-nav" aria-label="Review pages"><a href="index.html" aria-current="page">Model check</a><a href="process-map.html">Process map</a><a href="architecture-review.html">Architecture review</a><a href="retro.html">Retro</a></nav><button type="button" class="rs-theme" aria-label="Switch to dark mode"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="rs-sun" hidden><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="rs-moon"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></div></header>
+<script>(() => {
+  const root = document.documentElement, button = document.querySelector(".rs-theme");
+  const show = () => {
+    const dark = root.dataset.theme === "dark";
+    button.querySelector(".rs-sun").toggleAttribute("hidden", !dark);  // an svg has no .hidden property
+    button.querySelector(".rs-moon").toggleAttribute("hidden", dark);
+    button.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+  };
+  show();
+  button.addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem("patch-reports-theme", root.dataset.theme); } catch {}
+    show();
+  });
+})();</script>
 <header class="top">
 <div>
-<h1>Patch: model check report</h1>
-<p class="meta">Generated 2026-10-20 07:56 UTC · data as of 2026-10-13 · 12 model runs, 4 retrieval runs</p>
+<h1>Model-check report</h1>
+<p class="meta">Generated 2026-10-21 08:34 UTC · data as of 2026-10-13 · 12 model runs, 4 retrieval runs</p>
 <nav class="toc" aria-label="Sections"><a href="#glance">At a glance</a><a href="#findings">Findings</a><a href="#models">Models</a><a href="#grid">Pass or fail</a><a href="#failures">Failures</a><a href="#embedders">Embedders</a><a href="#threshold">Threshold</a><a href="#explain-levels">Explain levels</a><a href="#fix-first">Fix first</a></nav>
 </div>
-<button type="button" id="theme" aria-label="Switch to dark mode">☾</button>
 </header>
 <main>
 <section id="glance" class="card" aria-labelledby="glance-h"><h2 id="glance-h">At a glance</h2><p class="meta">Each model's share of checks passed against what an answer costs and how long it takes. The latest run per model.</p><figure class="chart"><div class="legend"><span><svg viewBox="0 0 12 12" aria-hidden="true"><circle class="cloud" cx="6" cy="6" r="5"/></svg>Cloud model (paid per token)</span><span><svg viewBox="0 0 12 12" aria-hidden="true"><rect class="local" x="1" y="1" width="10" height="10" rx="2"/></svg>Local or scripted model ($0: runs on this machine)</span></div><div class="switch" role="group" aria-label="Across the bottom" data-switch hidden><button type="button" aria-pressed="true" data-show="glance-cost">Cost per question</button><button type="button" aria-pressed="false" data-show="glance-time">Seconds per question</button></div><p class="scroll-hint">Scroll sideways for the whole chart.</p><div class="chart-scroll"><svg id="glance-cost" viewBox="0 0 760 380" role="img" aria-labelledby="glance-cost-t glance-cost-d" style="min-width: 680px; max-width: 874px"><title id="glance-cost-t">Checks passed against cost per question, one point per model</title><desc id="glance-cost-d">claude-haiku-5.5 (2026-10-15) (cloud): 94%, $0.0015, 9.98 s; gpt-6-luna (cloud): 91%, $0.00053, 11 s; gemma-4-31b-it (cloud): 89%, $0.00049, 15 s; mistral-large-4-0 (cloud): 93%, $0.014, 60 s; gpt-5-mini (cloud): 89%, $0.0051, 20 s; deepseek-v4.1-flash (cloud): 87%, $0.0041, 24 s; qwen3.8:27b (local): 93%, $0, 25 s; gpt-oss:20b (local): 87%, $0, 8.27 s; ministral-3:14b (local): 78%, $0, 13 s; granite4.1:8b (local): 83%, $0, 10 s; mistral-small3.2:24b (local): 78%, $0, 8.64 s; claude-haiku-5.5 (2026-10-20) (cloud): 97%, $0.0017, 9.20 s</desc><line class="gridline" x1="58" x2="744" y1="330" y2="330"/><text class="axis" x="50" y="334" text-anchor="end">70%</text><line class="gridline" x1="58" x2="744" y1="224.7" y2="224.7"/><text class="axis" x="50" y="228.7" text-anchor="end">80%</text><line class="gridline" x1="58" x2="744" y1="119.3" y2="119.3"/><text class="axis" x="50" y="123.3" text-anchor="end">90%</text><line class="gridline" x1="58" x2="744" y1="14" y2="14"/><text class="axis" x="50" y="18" text-anchor="end">100%</text><rect class="lane-fill" x="58" y="14" width="100" height="316" rx="8"/><text class="lane" x="108.0" y="348" text-anchor="middle">free ($0)</text><text class="axis" x="330.7" y="348" text-anchor="middle">$0.005</text><text class="axis" x="477.3" y="348" text-anchor="middle">$0.01</text><text class="axis" x="624" y="348" text-anchor="middle">$0.015</text><line class="baseline" x1="58" x2="744" y1="330" y2="330"/><text class="axis-title" x="401.0" y="372" text-anchor="middle">Cost per question (USD)</text><text class="axis-title" transform="translate(14 172.0) rotate(-90)" text-anchor="middle">Checks passed</text><g><title>OpenRouter · anthropic/claude-haiku-5.5 (2026-10-20): 97% of checks passed, $0.0017 and 9.20 s per question</title><circle class="mark cloud" cx="234.3" cy="48" r="6"/><text x="244.3" y="48">claude-haiku-5.5 (2026-10-20)</text></g><g><title>OpenRouter · anthropic/claude-haiku-5.5 (2026-10-15): 94% of checks passed, $0.0015 and 9.98 s per question</title><circle class="mark cloud" cx="228.7" cy="72.5" r="6"/><text x="238.7" y="72.5">claude-haiku-5.5 (2026-10-15)</text></g><g><title>Local · qwen3.8:27b: 93% of checks passed, $0 and 25 s per question</title><rect class="mark local" x="102" y="86" width="12" height="12" rx="2"/><text x="118" y="92">qwen3.8:27b</text></g><g><title>OpenRouter · mistralai/mistral-large-4-0: 93% of checks passed, $0.014 and 60 s per question</title><circle class="mark cloud" cx="601.1" cy="92" r="6"/><text x="611.1" y="92">mistral-large-4-0</text></g><g><title>OpenRouter · openai/gpt-6-luna: 91% of checks passed, $0.00053 and 11 s per question</title><circle class="mark cloud" cx="199.5" cy="111.5" r="6"/><text x="209.5" y="111.5">gpt-6-luna</text></g><g><title>OpenRouter · google/gemma-4-31b-it: 89% of checks passed, $0.00049 and 15 s per question</title><circle class="mark cloud" cx="198.5" cy="131" r="6"/><text x="208.5" y="131">gemma-4-31b-it</text></g><g><title>OpenRouter · openai/gpt-5-mini: 89% of checks passed, $0.0051 and 20 s per question</title><circle class="mark cloud" cx="332.3" cy="131" r="6"/><text x="342.3" y="131">gpt-5-mini</text></g><g><title>Local · gpt-oss:20b: 87% of checks passed, $0 and 8.27 s per question</title><rect class="mark local" x="102" y="144.5" width="12" height="12" rx="2"/><text x="118" y="150.5">gpt-oss:20b</text></g><g><title>OpenRouter · deepseek/deepseek-v4.1-flash: 87% of checks passed, $0.0041 and 24 s per question</title><circle class="mark cloud" cx="305.6" cy="150.5" r="6"/><text x="315.6" y="150.5">deepseek-v4.1-flash</text></g><g><title>Local · granite4.1:8b: 83% of checks passed, $0 and 10 s per question</title><rect class="mark local" x="102" y="183.6" width="12" height="12" rx="2"/><text x="118" y="189.6">granite4.1:8b</text></g><line class="leader" x1="108" y1="248.1" x2="118" y2="229.1"/><g><title>Local · ministral-3:14b: 78% of checks passed, $0 and 13 s per question</title><rect class="mark local" x="102" y="242.1" width="12" height="12" rx="2"/><text x="118" y="233.1">ministral-3:14b</text></g><g><title>Local · mistral-small3.2:24b: 78% of checks passed, $0 and 8.64 s per question</title><rect class="mark local" x="116" y="242.1" width="12" height="12" rx="2"/><text x="132" y="248.1">mistral-small3.2:24b</text></g></svg><svg id="glance-time" viewBox="0 0 760 380" role="img" aria-labelledby="glance-time-t glance-time-d" style="min-width: 680px; max-width: 874px" hidden><title id="glance-time-t">Checks passed against seconds per question, one point per model</title><desc id="glance-time-d">claude-haiku-5.5 (2026-10-15) (cloud): 94%, $0.0015, 9.98 s; gpt-6-luna (cloud): 91%, $0.00053, 11 s; gemma-4-31b-it (cloud): 89%, $0.00049, 15 s; mistral-large-4-0 (cloud): 93%, $0.014, 60 s; gpt-5-mini (cloud): 89%, $0.0051, 20 s; deepseek-v4.1-flash (cloud): 87%, $0.0041, 24 s; qwen3.8:27b (local): 93%, $0, 25 s; gpt-oss:20b (local): 87%, $0, 8.27 s; ministral-3:14b (local): 78%, $0, 13 s; granite4.1:8b (local): 83%, $0, 10 s; mistral-small3.2:24b (local): 78%, $0, 8.64 s; claude-haiku-5.5 (2026-10-20) (cloud): 97%, $0.0017, 9.20 s</desc><line class="gridline" x1="58" x2="744" y1="330" y2="330"/><text class="axis" x="50" y="334" text-anchor="end">70%</text><line class="gridline" x1="58" x2="744" y1="224.7" y2="224.7"/><text class="axis" x="50" y="228.7" text-anchor="end">80%</text><line class="gridline" x1="58" x2="744" y1="119.3" y2="119.3"/><text class="axis" x="50" y="123.3" text-anchor="end">90%</text><line class="gridline" x1="58" x2="744" y1="14" y2="14"/><text class="axis" x="50" y="18" text-anchor="end">100%</text><text class="axis" x="70" y="348" text-anchor="middle">0 s</text><text class="axis" x="254.7" y="348" text-anchor="middle">20 s</text><text class="axis" x="439.3" y="348" text-anchor="middle">40 s</text><text class="axis" x="624" y="348" text-anchor="middle">60 s</text><line class="baseline" x1="58" x2="744" y1="330" y2="330"/><text class="axis-title" x="401.0" y="372" text-anchor="middle">Seconds per question</text><text class="axis-title" transform="translate(14 172.0) rotate(-90)" text-anchor="middle">Checks passed</text><g><title>OpenRouter · anthropic/claude-haiku-5.5 (2026-10-20): 97% of checks passed, $0.0017 and 9.20 s per question</title><circle class="mark cloud" cx="154.9" cy="48" r="6"/><text x="164.9" y="48">claude-haiku-5.5 (2026-10-20)</text></g><g><title>OpenRouter · anthropic/claude-haiku-5.5 (2026-10-15): 94% of checks passed, $0.0015 and 9.98 s per question</title><circle class="mark cloud" cx="162.1" cy="72.5" r="6"/><text x="172.1" y="72.5">claude-haiku-5.5 (2026-10-15)</text></g><g><title>Local · qwen3.8:27b: 93% of checks passed, $0 and 25 s per question</title><rect class="mark local" x="294.5" y="86" width="12" height="12" rx="2"/><text x="310.5" y="92">qwen3.8:27b</text></g><g><title>OpenRouter · mistralai/mistral-large-4-0: 93% of checks passed, $0.014 and 60 s per question</title><circle class="mark cloud" cx="622.8" cy="92" r="6"/><text x="500.6" y="92">mistral-large-4-0</text></g><g><title>OpenRouter · openai/gpt-6-luna: 91% of checks passed, $0.00053 and 11 s per question</title><circle class="mark cloud" cx="174" cy="111.5" r="6"/><text x="184" y="111.5">gpt-6-luna</text></g><g><title>OpenRouter · google/gemma-4-31b-it: 89% of checks passed, $0.00049 and 15 s per question</title><circle class="mark cloud" cx="208.9" cy="131" r="6"/><text x="106.5" y="131">gemma-4-31b-it</text></g><g><title>OpenRouter · openai/gpt-5-mini: 89% of checks passed, $0.0051 and 20 s per question</title><circle class="mark cloud" cx="253.1" cy="131" r="6"/><text x="263.1" y="131">gpt-5-mini</text></g><g><title>Local · gpt-oss:20b: 87% of checks passed, $0 and 8.27 s per question</title><rect class="mark local" x="140.3" y="144.5" width="12" height="12" rx="2"/><text x="156.3" y="150.5">gpt-oss:20b</text></g><g><title>OpenRouter · deepseek/deepseek-v4.1-flash: 87% of checks passed, $0.0041 and 24 s per question</title><circle class="mark cloud" cx="295.8" cy="150.5" r="6"/><text x="305.8" y="150.5">deepseek-v4.1-flash</text></g><g><title>Local · granite4.1:8b: 83% of checks passed, $0 and 10 s per question</title><rect class="mark local" x="158.6" y="183.6" width="12" height="12" rx="2"/><text x="174.6" y="189.6">granite4.1:8b</text></g><line class="leader" x1="149.8" y1="248.1" x2="159.8" y2="229.1"/><g><title>Local · mistral-small3.2:24b: 78% of checks passed, $0 and 8.64 s per question</title><rect class="mark local" x="143.8" y="242.1" width="12" height="12" rx="2"/><text x="159.8" y="233.1">mistral-small3.2:24b</text></g><g><title>Local · ministral-3:14b: 78% of checks passed, $0 and 13 s per question</title><rect class="mark local" x="184.9" y="242.1" width="12" height="12" rx="2"/><text x="200.9" y="248.1">ministral-3:14b</text></g></svg></div><figcaption>Higher is better; further left is cheaper (or faster). Best score: claude-haiku-5.5 (2026-10-20), 97% of checks. Local models cost nothing per question, so they sit in the "free" lane; their real cost is the machine. Hover a point for its numbers.</figcaption><details class="as-table"><summary>Show as table</summary><div class="table-scroll"><table><caption class="visually-hidden">Quality, cost and time per model</caption><thead><tr><th scope="col">Model</th><th scope="col">Where</th><th scope="col" class="num">Checks passed</th><th scope="col" class="num">Checks</th><th scope="col" class="num">Cost per question</th><th scope="col" class="num">Time per question</th></tr></thead><tbody><tr><th scope="row">OpenRouter · anthropic/claude-haiku-5.5 (2026-10-15)</th><td>cloud</td><td class="num">94%</td><td class="num">51 / 54</td><td class="num">$0.0015</td><td class="num">9.98 s</td></tr><tr><th scope="row">OpenRouter · openai/gpt-6-luna</th><td>cloud</td><td class="num">91%</td><td class="num">49 / 54</td><td class="num">$0.00053</td><td class="num">11 s</td></tr><tr><th scope="row">OpenRouter · google/gemma-4-31b-it</th><td>cloud</td><td class="num">89%</td><td class="num">48 / 54</td><td class="num">$0.00049</td><td class="num">15 s</td></tr><tr><th scope="row">OpenRouter · mistralai/mistral-large-4-0</th><td>cloud</td><td class="num">93%</td><td class="num">50 / 54</td><td class="num">$0.014</td><td class="num">60 s</td></tr><tr><th scope="row">OpenRouter · openai/gpt-5-mini</th><td>cloud</td><td class="num">89%</td><td class="num">48 / 54</td><td class="num">$0.0051</td><td class="num">20 s</td></tr><tr><th scope="row">OpenRouter · deepseek/deepseek-v4.1-flash</th><td>cloud</td><td class="num">87%</td><td class="num">47 / 54</td><td class="num">$0.0041</td><td class="num">24 s</td></tr><tr><th scope="row">Local · qwen3.8:27b</th><td>local</td><td class="num">93%</td><td class="num">50 / 54</td><td class="num">$0</td><td class="num">25 s</td></tr><tr><th scope="row">Local · gpt-oss:20b</th><td>local</td><td class="num">87%</td><td class="num">47 / 54</td><td class="num">$0</td><td class="num">8.27 s</td></tr><tr><th scope="row">Local · ministral-3:14b</th><td>local</td><td class="num">78%</td><td class="num">42 / 54</td><td class="num">$0</td><td class="num">13 s</td></tr><tr><th scope="row">Local · granite4.1:8b</th><td>local</td><td class="num">83%</td><td class="num">45 / 54</td><td class="num">$0</td><td class="num">10 s</td></tr><tr><th scope="row">Local · mistral-small3.2:24b</th><td>local</td><td class="num">78%</td><td class="num">42 / 54</td><td class="num">$0</td><td class="num">8.64 s</td></tr><tr><th scope="row">OpenRouter · anthropic/claude-haiku-5.5 (2026-10-20)</th><td>cloud</td><td class="num">97%</td><td class="num">90 / 93</td><td class="num">$0.0017</td><td class="num">9.20 s</td></tr></tbody></table></div></details></figure></section><section id="findings" class="card" aria-labelledby="findings-h"><h2 id="findings-h">Findings</h2><p class="meta">Draft by Claude, 2026-10-15 (spec B's run added 2026-10-20), for Deryk to review. ✅ = checked in these runs. ❓ = unverified.</p>
@@ -2165,15 +2216,6 @@ Three things to note:
 Nothing has been changed. I haven&#x27;t set any status.</dd></dl></details></section>
 </main>
 <script>
-const root = document.documentElement, button = document.getElementById('theme');
-function setTheme(t) {
-  root.dataset.theme = t;
-  button.setAttribute('aria-label', t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-  button.textContent = t === 'dark' ? '\u2600' : '\u263E';
-}
-setTheme(matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-button.addEventListener('click', () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
-
 document.querySelectorAll('[data-switch]').forEach(group => {
   group.hidden = false;
   const buttons = group.querySelectorAll('button');

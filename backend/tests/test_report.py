@@ -9,7 +9,7 @@ from html import escape
 
 import pytest
 
-from app.evals import model_check, report, retrieval
+from app.evals import model_check, report, retrieval, shell
 from app.llm.base import LLMReply
 from app.llm.fake import FakeLLM
 
@@ -106,10 +106,16 @@ def test_a12_4_placeholders_for_later_tickets_and_a_findings_section(deps, runs)
     assert "gpt-oss-120b passed 10 of 11 (checked)." in section(written, "findings")
 
 
+def toc(html: str) -> str:
+    """The report's own section links (the shared bar above it has a nav too)."""
+    return html.split('aria-label="Sections"')[1].split("</nav>")[0]
+
+
 def test_a12_4_one_self_contained_page_styled_with_the_design_tokens(deps, runs):
     html = page(deps)
     assert html.startswith("<!doctype html>")
-    assert not re.search(r"<link|<script[^>]+src=|@import|url\(", html)  # nothing loaded from elsewhere
+    # Nothing loaded from elsewhere but the shared shell's fonts, which fall back to system fonts offline
+    assert not re.search(r"<link|<script[^>]+src=|@import|url\(", html.replace(shell.head(), ""))
     assert "--accent: #6c4cf5" in html and "[data-theme='dark']" in html  # tokens.css, light and dark
     assert 'data-design="playful"' in html
     assert 'aria-label="Switch to dark mode"' in html  # the theme button has a name
@@ -250,7 +256,7 @@ def test_a20_at_a_glance_comes_first_with_quality_against_cost_and_time(deps, ru
 def test_a20_a_pass_fail_grid_of_questions_by_model_with_the_failed_checks(deps, runs):
     html = page(deps)
     grid = section(html, "grid")
-    assert "#grid" in html.split("</nav>")[0]
+    assert "#grid" in toc(html)
     head = re.search(r"<thead>.*?</thead>", grid, re.S).group(0)
     assert "FakeLLM (scripted)" in head and "lazy-model" in head  # a column per model
     q2 = re.search(r'<tr><th scope="row">Q2 .*?</tr>', grid, re.S).group(0)
@@ -282,7 +288,7 @@ def test_a20_embedder_bars_hit_rate_and_mrr_vector_against_hybrid(deps, runs):
 
 def test_a20_the_off_topic_threshold_between_on_and_off_topic_scores(deps, runs):
     html = page(deps)
-    assert "#threshold" in html.split("</nav>")[0]
+    assert "#threshold" in toc(html)
     t = section(html, "threshold")
     svg = re.search(r"<svg[^>]*>.*</svg>", t, re.S).group(0)
     assert 'role="img"' in svg and "<desc" in svg
