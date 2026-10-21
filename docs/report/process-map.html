@@ -519,7 +519,7 @@ html:not(.js) [role="tablist"] { display: none; }
     <div class="band-head">
       <span class="tag" style="color:var(--ink)">Where the course concepts live</span>
       <h2>Where RAG and LangChain fit</h2>
-      <p>RAG has six stages: load, split, embed, store, retrieve, generate. Every stage is real now. LangChain is used thinly, as a client: <code>ChatOpenAI</code> for the model, <code>OpenAIEmbeddings</code> for real embeddings, and its MCP adapter for Tavily. Retrieval, the filter check, fusion and the agent loop stay our own code (<a href="adr/0001-thin-langchain.md">ADR-0001</a>).</p>
+      <p>RAG has six stages: load, split, embed, store, retrieve, generate. Every stage is real now. LangChain is used thinly, as a client: <code>ChatOpenAI</code> for the model, <code>OpenAIEmbeddings</code> for real embeddings, and its MCP adapter for Tavily. Retrieval, the filter check, fusion and the agent loop stay our own code (<a href="https://github.com/DerykHopley/tc-patch-security/blob/main/docs/adr/0001-thin-langchain.md">ADR-0001</a>).</p>
     </div>
     <ol class="rail rag" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));">
       <li><div class="head"><h3>Load</h3><span class="chip real">Built</span></div><p>The snapshot scripts read the raw downloads; the live refresh fetches NVD, KEV, OSV and EPSS over HTTP. One shared module builds both.</p><span class="where">scripts/build_fixtures.py · feeds.py · cve_build.py</span></li>
@@ -645,7 +645,7 @@ html:not(.js) [role="tablist"] { display: none; }
         </tbody>
       </table>
     </div>
-    <p class="example" style="border:0; padding:0">From each tool's <code>ToolSpec</code> in <code>backend/app/tools/</code>; "On": <code>web.py:84</code>, <code>decision.py:108</code>; MCP: <code>mcp_server.py:75-79</code>. Adding a tool: <a href="agents/adding-a-tool.md">docs/agents/adding-a-tool.md</a>.</p>
+    <p class="example" style="border:0; padding:0">From each tool's <code>ToolSpec</code> in <code>backend/app/tools/</code>; "On": <code>web.py:84</code>, <code>decision.py:108</code>; MCP: <code>mcp_server.py:75-79</code>. Adding a tool: <a href="https://github.com/DerykHopley/tc-patch-security/blob/main/docs/agents/adding-a-tool.md">docs/agents/adding-a-tool.md</a>.</p>
   </section>
 
   <!-- SEARCH (now) -->

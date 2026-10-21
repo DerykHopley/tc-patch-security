@@ -127,7 +127,7 @@ Deep dives:
 - [docs/HOW-IT-WAS-BUILT.md](./docs/HOW-IT-WAS-BUILT.md): specs, tickets, coding agents, the launch video.
 - [docs/design/DESIGN.md](./docs/design/DESIGN.md): the design, with a checklist per area.
 - The review pages on GitHub Pages: the [model-check report](https://derykhopley.github.io/tc-patch-security/), the [architecture review](https://derykhopley.github.io/tc-patch-security/architecture-review.html) and the [retro](https://derykhopley.github.io/tc-patch-security/retro.html).
-- [docs/process-map.html](./docs/process-map.html): the system map and its flows. Download it and open it in a browser (GitHub shows HTML as source).
+- The [process map](https://derykhopley.github.io/tc-patch-security/process-map.html) (on GitHub Pages): the system map and its flows, for the current build and the prototype.
 
 More:
 

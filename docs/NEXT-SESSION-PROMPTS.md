@@ -20,7 +20,7 @@ We're moving from prototype to a real build. Before grilling, read these fully; 
 @docs/design/DESIGN.md
 @ALERTS-PLAN.md
 @FEASIBILITY.md
-@docs/process-map.html (system map; Flow 4 alerts; Flow 5 the shortlist; where RAG and LangChain fit)
+@docs/report/process-map.html (system map; Flow 4 alerts; Flow 5 the shortlist; where RAG and LangChain fit)
 
 Background, read if a question touches it: docs/design-examples/README.md (designs tried and why dropped), AI-DIGEST-OVERLAP.md. History only: FACTORY-PLAN.md, SECURITY-SWAP-PLAN.md.
 

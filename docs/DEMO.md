@@ -26,7 +26,7 @@ Do these 15 minutes before. Each one removes a way the demo can go wrong.
 - [ ] **Wake the live app.** Open https://patch-976248543439.europe-west1.run.app. A cold start takes about 90 s.
 - [ ] **Set up your watchlist on the live app:** Settings → watchlist → Langflow, version `1.2.0`, self-hosted, internet-facing on. Without a version, "am I affected?" can only say unknown.
 - [ ] **Your role is the owner**, so the Dev page shows. Check it opens.
-- [ ] **Tabs open, in this order:** the live app (dashboard), the live app's Dev page, [the model-check report](https://derykhopley.github.io/tc-patch-security/), `docs/process-map.html` (downloaded, opened in a browser, "Now" tab), [the architecture review](https://derykhopley.github.io/tc-patch-security/architecture-review.html), [the retro](https://derykhopley.github.io/tc-patch-security/retro.html).
+- [ ] **Tabs open, in this order:** the live app (dashboard), the live app's Dev page, [the model-check report](https://derykhopley.github.io/tc-patch-security/), [the process map](https://derykhopley.github.io/tc-patch-security/process-map.html) ("Now" tab), [the architecture review](https://derykhopley.github.io/tc-patch-security/architecture-review.html), [the retro](https://derykhopley.github.io/tc-patch-security/retro.html).
 - [ ] **Editor open** on `backend/app/agent.py`, with `chat_turn.py`, `tools/registry.py`, `guard.py` and `rag/pipeline.py` in tabs.
 - [ ] **The failure demo running locally** ([docs/failure-demo.md](./failure-demo.md), part 2), on its own ports, never your app's 8000/5173:
 
