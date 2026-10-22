@@ -405,7 +405,7 @@ pause
 
 # ── 8 ─────────────────────────────────────────────────────────────────────
 stage "Build the search index and the image"
-say "The image carries the search index, built with OpenRouter's embedder (well under a cent)."
+say "The image carries the search index, built with OpenRouter's embedder (about \$0.09)."
 note "This takes several minutes. The key is only used for the build here, never stored in the image."
 ask TAG "Image tag (Enter for v1 the first time; then v2, v3...):"
 TAG="${TAG:-v1}"

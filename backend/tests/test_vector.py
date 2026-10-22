@@ -1,11 +1,13 @@
-"""The Chroma index: built by a script, loaded at start-up, guarded against a different embedder. Check ids: A09.1."""
+"""The Chroma index: built by a script, loaded at start-up, guarded against a different embedder. Check ids: A09.1;
+GEM.n: the 2026-10-22 switch to gemini-embedding-2 (no ticket). GEM.1 batches of at most 100, GEM.2 the deploy's
+index check."""
 import numpy as np
 import pytest
 
 from app.config import ConfigError, Settings
 from app.rag.chunking import build_chunks
 from app.rag.embed import HashEmbedder
-from app.rag.vector import build_index, open_index
+from app.rag.vector import build_index, index_state, open_index, sync_index
 
 
 class CountingEmbedder(HashEmbedder):
@@ -138,3 +140,50 @@ def test_a09_1_hits_carry_cosine_similarity(small, tmp_path):
     index = build_index(small, HashEmbedder(), tmp_path)
     hit = index.search(small[0].text, k=1, min_score=0.0)[0]
     assert 0.5 < hit.score <= 1.0 + 1e-6 and not np.isnan(hit.score)
+
+
+class AtMost100Embedder(HashEmbedder):
+    """Like Gemini's embedding API on OpenRouter: more than 100 texts in one request is an HTTP 400 (2026-10-22)."""
+
+    def embed(self, texts):
+        if len(texts) > 100:
+            raise RuntimeError("at most 100 requests can be in one batch")
+        return super().embed(texts)
+
+
+def test_gem_1_build_sends_at_most_100_texts_per_embedding_call(knowledge, tmp_path):
+    chunks = build_chunks(knowledge)[:250]
+    index = build_index(chunks, AtMost100Embedder(), tmp_path)
+    assert len(index.search(chunks[0].text, k=300, min_score=0.0)) == 250
+
+
+def test_gem_1_incremental_update_sends_at_most_100_texts_per_embedding_call(knowledge, tmp_path):
+    chunks = build_chunks(knowledge)[:250]
+    index = build_index(chunks[:10], AtMost100Embedder(), tmp_path)
+    index, embedded = sync_index(index, chunks)
+    assert embedded == 240
+    assert len(index.search(chunks[0].text, k=300, min_score=0.0)) == 250
+
+
+# --- index_state: scripts/update-deploy.sh step 3 asks it whether the image's index must be rebuilt -------------------
+
+def test_gem_2_index_state_is_current_for_the_same_embedder_and_data(small, tmp_path):
+    build_index(small, HashEmbedder(), tmp_path)
+    assert index_state(tmp_path, "hash-4096", small) == "current"
+
+
+def test_gem_2_index_state_sees_another_embedder_with_the_same_data(small, tmp_path):
+    """The case the old check missed (2026-10-22): the deploy's embedder changed, the chunks didn't. Shipping that
+    index would stop the app at start-up with the index-mismatch error."""
+    build_index(small, CountingEmbedder(name="openrouter/openai/text-embedding-3-small"), tmp_path)
+    assert index_state(tmp_path, "openrouter/google/gemini-embedding-2", small) == \
+        "built with openrouter/openai/text-embedding-3-small"
+
+
+def test_gem_2_index_state_sees_other_data(small, tmp_path):
+    build_index(small, HashEmbedder(), tmp_path)
+    assert index_state(tmp_path, "hash-4096", small[:-1]) == "built from other data"
+
+
+def test_gem_2_index_state_sees_a_missing_index(small, tmp_path):
+    assert index_state(tmp_path / "none", "hash-4096", small) == "missing"

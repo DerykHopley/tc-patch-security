@@ -120,7 +120,7 @@ add_secret telegram-bot-token          # optional, recommended: from @BotFather 
 
 ## 5. Build and push the image
 
-The image carries the search index. Build it with OpenRouter's embedder (`text-embedding-3-small`, well under a cent), so Patch searches with real embeddings; queries and refreshes then embed through the same key.
+The image carries the search index. Build it with OpenRouter's embedder (`gemini-embedding-2`, about $0.09 and a minute, checked 2026-10-22), so Patch searches with real embeddings; queries and refreshes then embed through the same key.
 
 ```bash
 read -rsp "OpenRouter key: " OPENROUTER_API_KEY; echo; export OPENROUTER_API_KEY
@@ -209,7 +209,7 @@ The checks for #45:
 
 1. Checks the checkout: no uncommitted changes (they would go into the image), fast-forwards to GitHub if behind, stops if the branch has diverged.
 2. Checks CI with `gh`: the run for this commit must pass, and it waits if the run is still going. A docs-only commit skips the browser checks, so the newest run before it that did run them must pass too (v7 shipped past a red run; this closes that gap).
-3. Rebuilds the search index only when the snapshot or the chunking changed, with the OpenRouter key from `backend/.env`.
+3. Rebuilds the search index only when the snapshot, the chunking or OpenRouter's default embedder changed (`rag/vector.index_state`, the start-up check's rules), with the OpenRouter key from `backend/.env`.
 4. Builds and uploads the next tag (`v9`, `v10`…).
 5. Secrets: the Telegram token and the Tavily key are added once from `backend/.env` (`TELEGRAM_BOT_TOKEN`, `TAVILY_API_KEY`) and then kept; it never asks again. `--rotate telegram` (or `tavily`) stores a new version from `backend/.env`. `TELEGRAM_CHAT_ID` goes into `env.yaml` once.
 6. Deploys (no downtime: Cloud Run switches over once the new version answers), checks `/api/health` (up to 3 tries of 2 minutes, for a cold start), and records the tag and commit in `wizard.env`.

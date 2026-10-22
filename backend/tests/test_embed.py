@@ -51,11 +51,11 @@ def test_a09_2_openrouter_embedder_sends_text_not_tokens():
     url, auth, body = seen[0]
     assert url == "https://openrouter.ai/api/v1/embeddings"
     assert auth == "Bearer test-placeholder"
-    assert body["model"] == "openai/text-embedding-3-small"
+    assert body["model"] == "google/gemini-embedding-2"
     # Token-length checking off: OpenRouter gets the strings, not tiktoken ids.
     assert body["input"] == ["CVE-2024-8309 in LangChain", "prompt injection"]
     assert v.shape == (2, 3) and np.allclose(np.linalg.norm(v, axis=1), 1.0)
-    assert e.name == "openrouter/openai/text-embedding-3-small"
+    assert e.name == "openrouter/google/gemini-embedding-2"
 
 
 def test_a09_2_ollama_embedder_is_a_second_implementation():
@@ -69,7 +69,10 @@ def test_a09_2_ollama_embedder_is_a_second_implementation():
 
 
 @pytest.mark.parametrize("embedder,model,score", [
-    ("openrouter", "", 0.35),
+    ("openrouter", "", 0.67),  # gemini-embedding-2, the OpenRouter default since 2026-10-22
+    ("openrouter", "google/gemini-embedding-2", 0.67),
+    ("openrouter", "qwen/qwen3-embedding-8b", 0.53),
+    ("openrouter", "openai/text-embedding-3-small", 0.35),  # the old default: still selectable with EMBED_MODEL
     ("ollama", "", 0.58),  # mxbai-embed-large, the Ollama default since A20
     ("ollama", "qwen3-embedding:0.6b", 0.55),
     ("ollama", "mxbai-embed-large", 0.58),

@@ -115,6 +115,7 @@ Coverage of our 12 products (unique CVEs after de-duplication, against the snaps
 - `fastembed` 0.9.0 (ONNX, CPU, 221 MB installed): `bge-small-en-v1.5` 384 dims, 67 MB. No EmbeddingGemma.
 - EmbeddingGemma-300m: Gemma licence (accept before download), 768 dims (MRL 512/256/128); ONNX build exists; CPU speed not published.
 - LangChain `OpenAIEmbeddings` against OpenRouter or LM Studio: set `check_embedding_ctx_length=False`.
+- `google/gemini-embedding-2` on OpenRouter (checked 2026-10-22): $0.20 per million tokens (OpenRouter's model list), about $0.09 for the 1,680 chunks. **At most 100 texts per embedding request:** a build with 200 failed with HTTP 400 "at most 100 requests can be in one batch" (seen in a real build); with 100 it built in 41 s, 3,072 dimensions.
 
 ### Hosting
 
