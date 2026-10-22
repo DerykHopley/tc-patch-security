@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { AlertLogEntry } from './api.ts'
-import { channelResult, emptyAlerts, entryReason, noChannels } from './alertsLog.ts'
+import {
+  alertsLink, channelResult, dashboardAlerts, emptyAlerts, entryReason, noChannels, settingsAlerts, SHOW_FEWER, showAllLabel,
+} from './alertsLog.ts'
 
 const entry = (over: Partial<AlertLogEntry> = {}): AlertLogEntry => ({
   at: '2026-10-15T09:00:00+00:00',
@@ -35,8 +37,9 @@ test('B09.9 an entry with no channel says why: none picked, held, or another use
 })
 
 test('B50.9 an empty Recent alerts card: anyone but the owner has no test alerts and no channels', () => {
+  // F144.4: test alerts no longer show on the dashboard, so the owner's words point to Settings
   assert.equal(emptyAlerts('snapshot', true),
-    'No alerts yet. The snapshot never changes, so only test alerts from Settings appear here.')
+    'No alerts yet. The snapshot never changes, so no check finds any. Test alerts show in Settings.')
   assert.equal(emptyAlerts('snapshot', false), 'No alerts yet. The snapshot never changes, so no check finds any.')
   assert.equal(emptyAlerts('live', true), 'No alerts yet. A check sends them when something on your watchlist needs you.')
   assert.equal(emptyAlerts('live', false),
@@ -70,4 +73,41 @@ test('B41.7 a retried channel says its tries', () => {
   // a first try that went through, as before B41
   assert.deepEqual(channelResult({ channel: 'desktop', sent: true, error: null, error_code: null }),
     { tone: 'ok', text: 'desktop: sent' })
+})
+
+// --- F144 (#144): the dashboard's short list of real alerts; the full log in Settings ----------------------------
+
+const day = (i: number) => `2026-10-${String(22 - (i % 20)).padStart(2, '0')}T09:00:00+00:00`
+const testAlert = (i: number) => entry({ at: day(i), kind: 'test', cve: null, reason: null, title: `Test ${i}` })
+const realAlert = (i: number) => entry({ at: day(i), title: `Real ${i}` })
+
+test('F144.1 the dashboard shows the last 5 real alerts, never a test alert', () => {
+  const log = [testAlert(0), realAlert(1), testAlert(2), realAlert(2), realAlert(3), testAlert(4), realAlert(4),
+    realAlert(5), realAlert(6), realAlert(7)]
+  assert.deepEqual(dashboardAlerts(log).map((e) => e.title), ['Real 1', 'Real 2', 'Real 3', 'Real 4', 'Real 5'])
+  assert.deepEqual(dashboardAlerts([testAlert(0), testAlert(1)]), []) // only test alerts: the card's empty state
+  const digestAndHeld = [entry({ kind: 'digest', cve: null }), entry({ kind: 'held' })]
+  assert.equal(dashboardAlerts(digestAndHeld).length, 2) // a digest and a held alert are real ones
+})
+
+test('F144.2 Settings shows the last 20, test alerts included', () => {
+  const log = Array.from({ length: 25 }, (_, i) => (i % 2 ? realAlert(i) : testAlert(i)))
+  const shown = settingsAlerts(log, true)
+  assert.equal(shown.length, 20)
+  assert.equal(shown[0].title, 'Test 0')
+  assert.equal(shown[19].title, 'Real 19')
+})
+
+test('F144.9: Settings shows the last 5 first, and "Show all" names how many there are', () => {
+  const log = Array.from({ length: 25 }, (_, i) => entry({ title: `Entry ${i}` }))
+  assert.deepEqual(settingsAlerts(log).map((e) => e.title), ['Entry 0', 'Entry 1', 'Entry 2', 'Entry 3', 'Entry 4'])
+  assert.equal(showAllLabel(log), 'Show all 20')
+  assert.equal(showAllLabel(log.slice(0, 7)), 'Show all 7')
+  assert.equal(showAllLabel(log.slice(0, 5)), null) // nothing hidden: no button
+  assert.equal(SHOW_FEWER, 'Show the last 5')
+})
+
+test('F144.3 the dashboard card links the owner to Delivery and anyone else to their Alerts card', () => {
+  assert.deepEqual(alertsLink(true), { text: 'Alerts and delivery in Settings', href: '/settings#delivery' })
+  assert.deepEqual(alertsLink(false), { text: 'All your alerts in Settings', href: '/settings#alerts' })
 })

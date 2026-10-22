@@ -118,7 +118,7 @@ DIGEST = {"at": "2026-10-19T06:59:00+00:00", "kind": "digest", "cve": None, "rea
 
 
 def busy(page: Page, api_url: str) -> None:
-    """The owner's page in daily use (live mode): 20 refresh runs and 20 recent alerts, the two lists that grow."""
+    """The owner's page in daily use (live mode): 20 refresh runs and 20 recent alerts (5 shown), the growing lists."""
     def runs(route: Route) -> None:
         response = route.fetch()
         route.fulfill(response=response, json={**response.json(), "mode": "live", "runs": [RUN] * 20})
@@ -126,7 +126,7 @@ def busy(page: Page, api_url: str) -> None:
     page.context.route(f"{api_url}/alerts", lambda route: route.fulfill(json={"alerts": [DIGEST] * 20}))
     page.reload()
     expect(page.locator(".run-list > li")).to_have_count(20)
-    expect(page.locator(".alert-log > li")).to_have_count(3)  # B50: Delivery shows the last 3
+    expect(page.locator(".alert-log > li")).to_have_count(5)  # #144: Delivery shows the last 5 (20 behind "Show all")
 
 
 def test_b48_31_requests_tops_the_right_column_and_the_columns_balance(open_settings_as, api_url):
@@ -138,7 +138,8 @@ def test_b48_31_requests_tops_the_right_column_and_the_columns_balance(open_sett
     assert abs(runs["x"] - req["x"]) <= 1 and req["y"] < runs["y"]
     assert abs(data["x"] - delivery["x"]) <= 1 and delivery["y"] < data["y"]  # B50: Data under Delivery
     # Balanced: neither column ends far below the other (Delivery and Refresh runs are the tall ones). B50: Delivery
-    # shows 3 alerts, not 20, so Data moved under it; with Data still on the right, the right column ended about
+    # shows few alerts, not 20 (#144: the last 5, the rest behind "Show all"), so Data sits under it; with Data still
+    # on the right, the right column ended about
     # 1,265px lower (measured in Chromium, 2026-10-19)
     left_end, right_end = data["y"] + data["height"], runs["y"] + runs["height"]
     tallest = max(left_end, right_end) - req["y"]

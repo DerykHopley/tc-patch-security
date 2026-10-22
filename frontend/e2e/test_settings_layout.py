@@ -21,7 +21,7 @@ LEFT = ["Profile", "Alerts"]
 RIGHT = ["Patch's answers", "Priority and due dates"]
 START_OVER = "Start over"  # B50: its own warning card, across both columns at the end of "Yours"
 PATCH_RIGHT = ["Refresh runs"]
-PATCH_LEFT = ["Delivery", "Data"]  # B50: Data under Delivery, now that Delivery shows 3 alerts
+PATCH_LEFT = ["Delivery", "Data"]  # B50, #144: Data under Delivery, which shows the last 5 alerts
 ORDER = ["Watchlist", *LEFT, *RIGHT, START_OVER, *PATCH_RIGHT, *PATCH_LEFT]  # reading order = DOM order = Tab order
 GAP = 1.2 * 16  # the gap between cards (DESIGN.md §4.1)
 

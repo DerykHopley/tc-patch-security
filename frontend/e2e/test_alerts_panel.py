@@ -59,7 +59,7 @@ def test_b04_12_the_panel_shows_a_busy_check_as_one_digest(live_state, open_live
     expect(first).to_contain_text("alerts for your watchlist")
     expect(first).to_contain_text("Digest · ")
     expect(first).to_contain_text(" UTC")
-    expect(first.locator(".channel-results .result")).to_contain_text("desktop: ")  # its result, in words
+    expect(first.locator(".channel-results")).to_have_count(0)  # #144: each channel's result is in Settings' Delivery
 
 
 def test_b04_12_one_alert_links_to_its_cve_like_the_notification(live_state, open_live):  # noqa: F811
@@ -84,20 +84,24 @@ def test_b04_12_the_panel_in_both_themes_on_a_phone_and_by_keyboard(live_state, 
     button(page).focus()
     page.keyboard.press("Enter")
     expect(line(page)).to_contain_text("Done:")
-    result = entries(page).first.locator(".channel-results .result").first
-    expect(result).to_be_visible()
-    colours = result.evaluate("el => { const s = getComputedStyle(el); return [s.color, s.backgroundColor] }")
-    if colours[1] in ("rgba(0, 0, 0, 0)", "transparent"):  # a muted result has no fill: the card's shows through
-        colours[1] = panel(page).evaluate("el => getComputedStyle(el).backgroundColor")
-    assert contrast(*colours) >= 4.5, colours
+    expect(entries(page).first).to_contain_text("Digest · ")
     assert no_sideways_scroll(page)
     SHOTS.mkdir(exist_ok=True)
     panel(page).screenshot(path=SHOTS / f"b04-alerts-{scheme}-{width}.png")
-    settings = panel(page).get_by_role("link", name="Alert settings")
+    # #144: keyboard: the owner's link opens Settings' Delivery card, where each channel's result is listed
+    settings = panel(page).get_by_role("link", name="Alerts and delivery in Settings")
     settings.focus()
-    page.keyboard.press("Enter")  # keyboard: the link opens Settings, where the same log is listed
-    expect(page).to_have_url(re.compile(r"/settings$"))
-    expect(page.get_by_role("list", name="Recent alerts").get_by_role("listitem").first).to_contain_text("Digest · ")
+    page.keyboard.press("Enter")
+    expect(page).to_have_url(re.compile(r"/settings#delivery$"))
+    log = page.get_by_role("list", name="Alerts and delivery")
+    expect(log.get_by_role("listitem").first).to_contain_text("Digest · ")
+    result = log.get_by_role("listitem").first.locator(".channel-results .result").first
+    expect(result).to_contain_text("desktop: ")  # its result, in words
+    colours = result.evaluate("el => { const s = getComputedStyle(el); return [s.color, s.backgroundColor] }")
+    if colours[1] in ("rgba(0, 0, 0, 0)", "transparent"):  # a muted result has no fill: the card's shows through
+        colours[1] = page.locator("section#delivery").evaluate("el => getComputedStyle(el).backgroundColor")
+    assert contrast(*colours) >= 4.5, colours
+    assert no_sideways_scroll(page)
 
 
 # --- B34.5: the first check alerts only what it found; the line counts alerts by what happened ---------------------
