@@ -45,6 +45,10 @@ export const InfoIcon = () => (
   <svg {...base}><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>
 );
 // A drawing pin (filled); the chat header tilts it 35° until the chat is pinned (DESIGN.md §7.1).
+// F147: the chat's Export (a download)
+export const DownloadIcon = () => (
+  <svg {...base}><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg>
+);
 export const PinIcon = () => (
   <svg width={14} height={14} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
     <path d="M5 1.5h6l-1 4.5 2.5 2.5v1.5H8.75V15h-1.5v-5H3.5V8.5L6 6z" /></svg>
