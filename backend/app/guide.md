@@ -52,7 +52,7 @@ Each open CVE gets a priority (urgent, high, normal or low) with its reasons, fr
 Title: Chatting with Patch, and sources
 Where: -
 
-Open the chat with the Patch button, Ask Patch in the sidebar, or Ctrl+K. Patch knows which page you are on and the CVEs page's filters, so "what should I fix first?" means the view you are looking at. Answers cite numbered sources as [1]: click one to see the source. Under an answer, "Show sources" opens its details: the Sources, Tool calls (one card per tool Patch used) and, after a search, the Query plan. The explain level (simple, normal or deep dive) is set on Settings, in Patch's answers, and the chat header can change it for one question. Make larger enlarges the chat, and then Pin docks it beside the page (not on a phone). The conversation is kept until you close the tab.
+Open the chat with the Patch button, Ask Patch in the sidebar, or Ctrl+K. Patch knows which page you are on and the CVEs page's filters, so "what should I fix first?" means the view you are looking at. Answers cite numbered sources as [1]: click one to see the source. Under an answer, "Show sources" opens its details: the Sources, Tool calls (one card per tool Patch used) and, after a search, the Query plan. The explain level (simple, normal or deep dive) is set on Settings, in Patch's answers, and the chat header can change it for one question. Make larger enlarges the chat, and then Pin docks it beside the page (not on a phone). The conversation is kept until you close the tab. To keep a copy, press Export in the chat header (the download icon): it saves the conversation as a Markdown file, with each answer's sources, made in your browser and sent nowhere.
 
 ## proposals
 Title: Changes Patch proposes
