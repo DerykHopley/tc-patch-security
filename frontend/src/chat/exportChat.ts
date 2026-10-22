@@ -26,9 +26,29 @@ export function exportFileName(now: Date): string {
   return `patch-chat-${utcMinute(now).replace(' ', '-').replace(':', '')}.md`
 }
 
+/** Raw HTML escaped outside code (F147.10): an answer can carry words from a web page, and a Markdown viewer would
+ *  render a tag. Fenced and inline code never render HTML, so they stay as written. */
+function escapeHtml(text: string): string {
+  let fenced = false
+  return text
+    .split('\n')
+    .map((line) => {
+      if (/^\s*(```|~~~)/.test(line)) {
+        fenced = !fenced
+        return line
+      }
+      if (fenced) return line
+      return line
+        .split(/(`[^`]*`)/)
+        .map((part) => (part.startsWith('`') ? part : part.replace(/</g, '&lt;')))
+        .join('')
+    })
+    .join('\n')
+}
+
 /** An answer as a block quote: what it holds stays inside its turn. */
 const quote = (text: string) =>
-  text
+  escapeHtml(text)
     .split('\n')
     .map((line) => (line ? `> ${line}` : '>'))
     .join('\n')

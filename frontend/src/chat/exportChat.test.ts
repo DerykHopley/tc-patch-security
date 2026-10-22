@@ -140,6 +140,17 @@ test('F147.8 a heading or an unclosed fence in an answer stays inside its turn',
   assert.ok(!/^#(?! Chat with Patch)/m.test(md), md) // the title is the file's only heading
 })
 
+test('F147.10 raw HTML in an answer is escaped, so no Markdown viewer renders it; code stays as written', () => {
+  const r = reply('A page said <script>alert(1)</script> and <img src=x onerror=alert(2)>.\n\n'
+    + 'Run `curl <host>/api` first.\n\n```html\n<form action="/x">\n```\nDone <b>here</b>.')
+  const md = chatToMarkdown([q(1, 'What did it say?'), a(2, r)], META)
+  assert.ok(md.includes('> A page said &lt;script>alert(1)&lt;/script> and &lt;img src=x onerror=alert(2)>.'), md)
+  assert.ok(md.includes('> Run `curl <host>/api` first.'), md) // inline code: never rendered as HTML
+  assert.ok(md.includes('> ```html\n> <form action="/x">\n> ```'), md) // fenced code: kept as written
+  assert.ok(md.includes('> Done &lt;b>here&lt;/b>.'), md) // after the fence closes, escaped again
+  assert.ok(!/<script|<img|<b>/.test(md.replace(/`[^`]*`/g, '').replace(/```[\s\S]*?```/g, '')), md)
+})
+
 test('F147.9 a question is plain text, as the chat shows it: its marks and line breaks kept, never Markdown', () => {
   const md = chatToMarkdown([q(1, 'Is `eval` *bad*?\n# not a heading\n===\n1. not a list\n- nor this')], META)
   assert.ok(

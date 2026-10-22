@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { Example } from '../api.ts'
-import { PinIcon } from '../components/Icons.tsx'
+import { DownloadIcon, PinIcon } from '../components/Icons.tsx'
 import { Robot, type Mood, type Variant } from '../components/Robot.tsx'
 import '../styles/chat.css'
 import { CardActionsContext, type CardActionsHandle } from './CardActions.tsx'
@@ -93,6 +93,8 @@ export function ChatWindow({
         </button>
         <button
           type="button"
+          className="icon-btn"
+          aria-label="Export chat as Markdown"
           title="Download this conversation as a Markdown file"
           onClick={() => {
             const now = new Date()
@@ -101,7 +103,7 @@ export function ChatWindow({
           }}
           disabled={chat.messages.length === 0}
         >
-          Export
+          <DownloadIcon />
         </button>
         {(expanded || pinned) && (
           <button
