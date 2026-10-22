@@ -114,7 +114,7 @@ def test_f144_6_the_footer_link_opens_the_full_log_by_keyboard(open_as, who, wor
     page.keyboard.press("Enter")
     expect(page).to_have_url(re.compile(rf"/settings#{anchor}$"))
     full = page.get_by_role("list", name=heading)
-    expect(full.get_by_role("listitem")).to_have_count(20)
+    expect(full.get_by_role("listitem")).to_have_count(5)  # the last 5 first; the rest behind "Show all 20" (F144.9)
     page.wait_for_function(f"() => {{ const r = document.getElementById('{anchor}')?.getBoundingClientRect();"
                            " return r && r.top >= 0 && r.top < 120 }")
 
@@ -125,7 +125,14 @@ def test_f144_7_delivery_lists_the_last_twenty_with_test_alerts_and_results(open
     page = open_as(setup=with_log(LOG + [alert(20), alert(21)]))
     delivery = card(page, "Delivery")
     items = delivery.get_by_role("list", name="Alerts and delivery").get_by_role("listitem")
+    expect(items).to_have_count(5)  # the first 5; the rest behind the toggle (F144.9)
+    toggle = delivery.get_by_role("button", name="Show all 20")
+    expect(toggle).to_have_attribute("aria-expanded", "false")
+    toggle.focus()
+    page.keyboard.press("Enter")
     expect(items).to_have_count(20)
+    expect(delivery.get_by_role("button", name="Show the last 5")).to_be_focused()  # focus stays on the toggle
+    expect(delivery.get_by_role("button", name="Show the last 5")).to_have_attribute("aria-expanded", "true")
     expect(items.first).to_contain_text("Test alert · ")
     expect(items.nth(1)).to_contain_text("ntfy: failed (3 tries)")
     expect(items.nth(2).locator(".channel-results .result")).to_have_text(["ntfy: failed (3 tries)",
@@ -139,6 +146,8 @@ def test_f144_7_anyone_elses_alerts_card_lists_their_last_twenty_without_results
     page = open_as("viewer", setup=with_log(THEIRS))
     alerts = card(page, "Alerts")
     items = alerts.get_by_role("list", name="Your alerts").get_by_role("listitem")
+    expect(items).to_have_count(5)
+    alerts.get_by_role("button", name="Show all 20").click()
     expect(items).to_have_count(20)
     expect(items.first).to_contain_text("Test alert · ")  # their previews
     expect(alerts.locator(".channel-results")).to_have_count(0)
@@ -168,8 +177,11 @@ def test_f144_8_settings_full_log_in_both_themes_and_widths(open_as, browser_nam
     page = open_as(who, setup=with_log(LOG if who == "owner" else THEIRS), width=width, scheme=scheme)
     box = card(page, "Delivery" if who == "owner" else "Alerts")
     log = box.locator(".alert-log")
+    expect(log.locator("> li")).to_have_count(5)
+    box.get_by_role("button", name="Show all 20").click()  # all 20, so every result tone is on the page
+    checks = [box.locator(".alerts-show-all")]  # the toggle, now "Show the last 5"
     expect(log.locator("> li")).to_have_count(20)
-    checks = [log.locator("a").first, log.locator(".meta").first]
+    checks += [log.locator("a").first, log.locator(".meta").first]
     if who == "owner":
         checks += [log.locator(".result.error").first, log.locator(".result.muted").first, log.locator(".result.ok").first]
     for el in checks:

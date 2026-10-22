@@ -61,11 +61,19 @@ export function emptyAlerts(mode: 'live' | 'snapshot', owner: boolean): string {
  *  housekeeping, listed in Settings). */
 export const DASHBOARD_SHOWN = 5
 /** #144: Settings has the full log: Delivery for the owner (test alerts and every channel's result), the Alerts card
- *  for anyone else. The API sends the last 20. */
+ *  for anyone else. The API sends the last 20. The first 5 show, the rest behind "Show all" (the owner's choice, so
+ *  Delivery stays short). */
 export const SETTINGS_SHOWN = 20
+export const SETTINGS_FIRST = 5
 
 export const dashboardAlerts = (log: AlertLogEntry[]) => log.filter((e) => e.kind !== 'test').slice(0, DASHBOARD_SHOWN)
-export const settingsAlerts = (log: AlertLogEntry[]) => log.slice(0, SETTINGS_SHOWN)
+export const settingsAlerts = (log: AlertLogEntry[], all = false) => log.slice(0, all ? SETTINGS_SHOWN : SETTINGS_FIRST)
+export const SHOW_FEWER = `Show the last ${SETTINGS_FIRST}`
+/** The toggle that shows the rest, with how many there are: null when nothing would be hidden. */
+export function showAllLabel(log: AlertLogEntry[]): string | null {
+  const n = Math.min(log.length, SETTINGS_SHOWN)
+  return n > SETTINGS_FIRST ? `Show all ${n}` : null
+}
 
 /** The dashboard card's link to the full log (#144): the owner's is Delivery, with the channels' results; anyone
  *  else's is their own Alerts card (they have no channels, B48). */

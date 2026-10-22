@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { AlertLogEntry } from './api.ts'
 import {
-  alertsLink, channelResult, dashboardAlerts, emptyAlerts, entryReason, noChannels, settingsAlerts,
+  alertsLink, channelResult, dashboardAlerts, emptyAlerts, entryReason, noChannels, settingsAlerts, SHOW_FEWER, showAllLabel,
 } from './alertsLog.ts'
 
 const entry = (over: Partial<AlertLogEntry> = {}): AlertLogEntry => ({
@@ -92,10 +92,19 @@ test('F144.1 the dashboard shows the last 5 real alerts, never a test alert', ()
 
 test('F144.2 Settings shows the last 20, test alerts included', () => {
   const log = Array.from({ length: 25 }, (_, i) => (i % 2 ? realAlert(i) : testAlert(i)))
-  const shown = settingsAlerts(log)
+  const shown = settingsAlerts(log, true)
   assert.equal(shown.length, 20)
   assert.equal(shown[0].title, 'Test 0')
   assert.equal(shown[19].title, 'Real 19')
+})
+
+test('F144.9: Settings shows the last 5 first, and "Show all" names how many there are', () => {
+  const log = Array.from({ length: 25 }, (_, i) => entry({ title: `Entry ${i}` }))
+  assert.deepEqual(settingsAlerts(log).map((e) => e.title), ['Entry 0', 'Entry 1', 'Entry 2', 'Entry 3', 'Entry 4'])
+  assert.equal(showAllLabel(log), 'Show all 20')
+  assert.equal(showAllLabel(log.slice(0, 7)), 'Show all 7')
+  assert.equal(showAllLabel(log.slice(0, 5)), null) // nothing hidden: no button
+  assert.equal(SHOW_FEWER, 'Show the last 5')
 })
 
 test('F144.3 the dashboard card links the owner to Delivery and anyone else to their Alerts card', () => {

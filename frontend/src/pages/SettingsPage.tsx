@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useState } from 'react'
 import { roleOf } from '../access.ts'
-import { settingsAlerts } from '../alertsLog.ts'
+import { settingsAlerts, SHOW_FEWER, showAllLabel } from '../alertsLog.ts'
 import { AccessContext } from '../auth/AccessGate.tsx'
 import { dataSources } from '../freshness.ts'
 import { resetDeletes, resetKeeps, START_OVER_BUTTON } from '../startOver.ts'
@@ -79,14 +79,22 @@ function AlertLog({ log, id, title, channels = false }: {
   title: string
   channels?: boolean
 }) {
+  const [all, setAll] = useState(false)
   if (log === null) return null
+  const more = showAllLabel(log)
   return (
     <>
       <h4 id={id}>{title}</h4>
       {log.length === 0 ? (
         <p className="meta">No alerts yet.</p>
       ) : (
-        <AlertList entries={settingsAlerts(log)} labelledBy={id} channels={channels} />
+        <AlertList entries={settingsAlerts(log, all)} labelledBy={id} channels={channels} />
+      )}
+      {/* #144: the first 5; the rest on request, so the card stays short. A toggle, so focus stays on it. */}
+      {more && (
+        <button type="button" className="alerts-show-all" aria-expanded={all} onClick={() => setAll(!all)}>
+          {all ? SHOW_FEWER : more}
+        </button>
       )}
     </>
   )
@@ -458,9 +466,9 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
             </div>
             {/* Requests first, at the top of the right column (owner, 2026-10-19): the card the owner acts on, where
                 an alert's /settings#requests lands. So the right column comes first in the DOM (and on a phone);
-                the CSS puts it on the right. Since #144 Delivery has the full alerts log again (20, with each channel's
-                result), so Data is back on the right: Delivery alone on the left balances Requests, Refresh runs (20
-                runs) and Data (DECISIONS.md, #144). */}
+                the CSS puts it on the right. Since B50 Delivery shows few alerts, not 20 (#144: the last 5, the rest behind
+                "Show all"), so Data sits under it: Delivery and Data on the left balance Requests and Refresh runs (20
+                runs) on the right (DECISIONS.md, B50, #144). */}
             <div className="settings-layout patch-layout">
               <div className="settings-column column-right">
                 <RequestsCard />
@@ -502,18 +510,6 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                   <RefreshRuns reload={`${JSON.stringify(s.reply.settings.alerts)}|${mode ?? ''}`} />
                 </Card>
 
-                <Card title="Data">
-                  <p data-testid="data-sources">
-                    {dataSources(mode ?? 'snapshot')} As of <strong>{asOf ?? '…'}</strong>.
-                  </p>
-                  {owner && <DataSourceFields f={owner} />}
-                  <NotSaved error={srv.error} show={srv.changed(['data_mode', 'nvd_api_key'])} />
-                  <p className="meta" data-testid="check-now-pointer">
-                    In live mode, <strong>Check now</strong> under <a href="#schedule">Refresh runs</a> or on the{' '}
-                    <a href="/" onClick={(e) => followLink(e, openPath)}>dashboard's Data freshness card</a> checks the feeds
-                    for new CVEs. Every check is listed under Refresh runs.
-                  </p>
-                </Card>
               </div>
 
               <div className="settings-column column-left">
@@ -587,6 +583,19 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                   {/* #144: the full log, the last 20 with test alerts (a test send shows at the top) and every
                       channel's result; the dashboard's card has only the last 5 real alerts */}
                   <AlertLog log={log} id="delivery-recent" title="Alerts and delivery" channels />
+                </Card>
+
+                <Card title="Data">
+                  <p data-testid="data-sources">
+                    {dataSources(mode ?? 'snapshot')} As of <strong>{asOf ?? '…'}</strong>.
+                  </p>
+                  {owner && <DataSourceFields f={owner} />}
+                  <NotSaved error={srv.error} show={srv.changed(['data_mode', 'nvd_api_key'])} />
+                  <p className="meta" data-testid="check-now-pointer">
+                    In live mode, <strong>Check now</strong> under <a href="#schedule">Refresh runs</a> or on the{' '}
+                    <a href="/" onClick={(e) => followLink(e, openPath)}>dashboard's Data freshness card</a> checks the feeds
+                    for new CVEs. Every check is listed under Refresh runs.
+                  </p>
                 </Card>
               </div>
             </div>
