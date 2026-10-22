@@ -70,7 +70,10 @@ def test_f147_11_the_header_with_export_in_light_and_dark_on_a_phone_and_desktop
         expect(head.get_by_role("button", name=name)).to_be_visible()
     # One row of buttons: Export sits beside New chat, not wrapped under it
     new, exp = (head.get_by_role("button", name=n).bounding_box() for n in ("New chat", "Export"))
-    assert abs(new["y"] - exp["y"]) < 2 and exp["x"] > new["x"], (new, exp)
+    # Same row: their middles line up. Not their tops: the icon button (about 30px) is taller than the pill (about
+    # 27px), so the tops differ by about 3px (CI's Chromium, 2026-10-22: 3.2px failed a 2px check on the tops)
+    middle = lambda b: b["y"] + b["height"] / 2  # noqa: E731
+    assert abs(middle(new) - middle(exp)) < 4 and exp["x"] > new["x"], (new, exp)
     assert no_sideways_scroll(page)
     settled(window(page))
     found = low_contrast(page, ".chat-head")
