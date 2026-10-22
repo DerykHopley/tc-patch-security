@@ -2,7 +2,7 @@
 
     cd backend && uv run --env-file .env python -m app.rag.build_index
 
-With EMBEDDER=openrouter this is a paid call (text-embedding-3-small, about 1,700 chunks: well under a cent).
+With EMBEDDER=openrouter this is a paid call (gemini-embedding-2, about 1,700 chunks: about $0.09, checked 2026-10-22).
 The app loads the result at start-up and refuses to start if EMBEDDER has changed since.
 """
 import sys

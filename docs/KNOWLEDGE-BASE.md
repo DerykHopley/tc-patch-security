@@ -30,5 +30,5 @@ All public and openly licensed, frozen as a snapshot on 2026-10-13. The counts a
 ## Other data the app uses (not knowledge sources)
 
 - **Your local state:** the watchlist, product versions, CVE statuses and their history, settings, the alert log. One JSON file, `backend/data/state.json` (git-ignored).
-- **Embeddings:** the hash embedder runs locally and is free (the default). Real embeddings come from OpenRouter's API (`text-embedding-3-small`) or a local Ollama model (`mxbai-embed-large`). The index is stored locally in `backend/data/`.
+- **Embeddings:** the hash embedder runs locally and is free (the default). Real embeddings come from OpenRouter's API (`gemini-embedding-2`, the live app's) or a local Ollama model (`mxbai-embed-large`). The index is stored locally in `backend/data/`.
 - **Optional outside services:** OpenRouter or a local model server for the chat; Tavily for web research (only the search query is sent); Clerk for sign-in (Patch keeps only the user id); ntfy, Telegram, email (SMTP) or the desktop for alerts. Model keys live in `backend/.env` only; the alert channels' secrets in `backend/.env` or, saved on Settings, in the owner's state (never sent back to the browser).

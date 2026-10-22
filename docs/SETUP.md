@@ -47,13 +47,13 @@ A real chat model and real embeddings, both through OpenRouter. Set a spending c
    ```bash
    LLM_PROVIDER=openrouter
    OPENROUTER_API_KEY=sk-or-...          # your key
-   EMBEDDER=openrouter                   # openai/text-embedding-3-small
+   EMBEDDER=openrouter                   # google/gemini-embedding-2
    INDEX_PATH=data/index-openrouter      # its own index folder, so the free hash index can stay
    ```
 
    The chat model defaults to `anthropic/claude-haiku-5.5`; change it with `OPENROUTER_MODEL`.
 
-3. Build the search index once. It embeds 1,680 chunks: a paid call, well under a cent.
+3. Build the search index once. It embeds 1,680 chunks: a paid call, about $0.09. An index built with the old default (`text-embedding-3-small`, before 2026-10-22) no longer opens: rebuild it, or set `EMBED_MODEL=openai/text-embedding-3-small`.
 
    ```bash
    uv sync && uv run --env-file .env python -m app.rag.build_index

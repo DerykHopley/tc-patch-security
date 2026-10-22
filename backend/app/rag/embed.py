@@ -77,14 +77,19 @@ class OpenAICompatibleEmbedder:
 
 # Defaults per embedder: (model, threshold). SEARCH_MIN_SCORE overrides the threshold.
 REAL_EMBEDDERS = {
-    "openrouter": ("openai/text-embedding-3-small", 0.35),
+    "openrouter": ("google/gemini-embedding-2", 0.67),  # 2026-10-22: best hit rate and MRR of 6 embedders
     "ollama": ("mxbai-embed-large", 0.58),  # A20: tied best hit rate, widest on/off-topic gap
 }
 # Off-topic thresholds tuned per model (A20, 2026-10-15): about halfway between the highest top-1 cosine of 15
 # off-topic questions and the lowest of 47 security ones. Untuned models get their provider's default above.
 #   text-embedding-3-small: off-topic at most 0.22, security at least 0.46
 #   nomic-embed-text 0.54 / 0.62; qwen3-embedding:0.6b 0.53 / 0.58 (a narrow gap); mxbai-embed-large 0.48 / 0.68
+# Tuned 2026-10-22 the same way (the midpoint), on OpenRouter:
+#   gemini-embedding-2: off-topic at most 0.6146, security at least 0.7309
+#   qwen3-embedding-8b: off-topic at most 0.4609, security at least 0.5932
 MIN_SCORES = {
+    "openrouter/google/gemini-embedding-2": 0.67,
+    "openrouter/qwen/qwen3-embedding-8b": 0.53,
     "openrouter/openai/text-embedding-3-small": 0.35,
     "ollama/nomic-embed-text": 0.58,
     "ollama/qwen3-embedding:0.6b": 0.55,

@@ -16,7 +16,9 @@ from app.rag.embed import Embedder
 from app.rag.index import Filters, Hit, metadata, where
 
 COLLECTION = "chunks"
-BATCH = 200  # chunks per embedding call and per Chroma add
+# Chunks per embedding call and per Chroma add, in the build and the incremental update. Gemini's embedding API takes
+# at most 100 texts a request (HTTP 400 above it, seen 2026-10-22): the smallest limit of the providers we use.
+BATCH = 100
 BUILD_COMMAND = "cd backend && uv run --env-file .env python -m app.rag.build_index"
 
 
@@ -112,6 +114,24 @@ def sync_index(index: ChromaIndex, chunks: list[Chunk]) -> tuple[ChromaIndex, in
         collection.delete(ids=gone)
     collection.modify(metadata={**collection.metadata, "chunks": fingerprint(chunks)})
     return ChromaIndex(collection, chunks, index.embedder, index.min_score), len(changed)
+
+
+def index_state(path: pathlib.Path, embedder_name: str, chunks: list[Chunk]) -> str:
+    """Whether the index at `path` is the one `open_index` would accept for this embedder and these chunks: "current",
+    "missing", "built with <embedder>" or "built from other data". Embeds nothing. scripts/update-deploy.sh asks it
+    whether the image's index must be rebuilt."""
+    path = pathlib.Path(path)
+    if not path.exists():
+        return "missing"
+    client = _client(path)
+    if COLLECTION not in [c.name for c in client.list_collections()]:
+        return "missing"
+    meta = client.get_collection(COLLECTION, embedding_function=None).metadata or {}
+    if meta.get("embedder") != embedder_name:
+        return f"built with {meta.get('embedder')}"
+    if meta.get("chunks") != fingerprint(chunks):
+        return "built from other data"
+    return "current"
 
 
 def open_index(path: pathlib.Path, embedder: Embedder, chunks: list[Chunk],

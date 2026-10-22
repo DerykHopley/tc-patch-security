@@ -125,24 +125,26 @@ fi
 
 # ── 3. The search index ──────────────────────────────────────────────────────────────────────────────────────────────
 step "The search index"
+# The image's index must match what the live app will embed queries with: OpenRouter's default embedder (embed.py,
+# built below with EMBED_MODEL empty), and today's snapshot. Either one changed means a rebuild, or the new version
+# stops at start-up with the index-mismatch error. vector.index_state applies the start-up check's rules.
 if [[ $REBUILD == auto ]]; then
   STATE=$( (cd backend && uv run --quiet python - <<'PY'
+from app.config import Settings
 from app.knowledge import load_knowledge
 from app.rag.chunking import build_chunks
-from app.rag.vector import COLLECTION, _client, fingerprint
-try:
-    c = _client("data/index-image").get_collection(COLLECTION, embedding_function=None)
-except Exception:
-    print("missing"); raise SystemExit
-print("same" if (c.metadata or {}).get("chunks") == fingerprint(build_chunks(load_knowledge())) else "changed")
+from app.rag.embed import make_embedder
+from app.rag.vector import index_state
+deploy = make_embedder(Settings(embedder="openrouter", embed_model="", openrouter_api_key="unused")).name
+print(index_state("data/index-image", deploy, build_chunks(load_knowledge())))
 PY
-) 2>/dev/null || echo missing)
-  [[ "$STATE" == same ]] && REBUILD=no || REBUILD=yes
+) 2>/dev/null || echo "missing (the check failed)")
+  if [[ "$STATE" == current ]]; then REBUILD=no; else REBUILD=yes; info "the index needs rebuilding: $STATE"; fi
 fi
 if [[ $REBUILD == yes ]]; then
   KEY=$(local_ OPENROUTER_API_KEY)
   [[ -n "$KEY" ]] || stop "The index needs rebuilding, and backend/.env has no OPENROUTER_API_KEY."
-  info "rebuilding with OpenRouter's embedder: a few minutes, well under a cent"
+  info "rebuilding with OpenRouter's embedder: about a minute, about \$0.09"
   if [[ $DRY == no ]]; then
     rm -rf backend/data/index-image
     (cd backend && OPENROUTER_API_KEY="$KEY" EMBEDDER=openrouter EMBED_MODEL= INDEX_PATH=data/index-image \
