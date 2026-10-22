@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { retryTool, type PageContext, type RefineFilter, type ToolCallRecord, type Verdict } from '../api.ts'
 import { changeButtons, fixFirstHref } from '../cardActions.ts'
 import { contextWords, STATUS_LABEL as CVE_STATUS_LABEL } from '../cveView.ts'
@@ -16,6 +16,7 @@ import type {
   CweResult,
   DecisionAlreadySo,
   FixFirstResult,
+  GuideResult,
   Proposal,
   ResearchResult,
   SearchResult,
@@ -24,7 +25,7 @@ import type {
   WatchlistResult,
 } from '../toolResults.ts'
 import { utcTime } from '../freshness.ts'
-import { proposalAfter, proposalOf } from '../toolCalls.ts'
+import { inAppHref, proposalAfter, proposalOf } from '../toolCalls.ts'
 import { scheduleLine } from '../refreshRuns.ts'
 import { followLink, openPath } from '../route.ts'
 import { AskButton, ChangeActions, RefineActions } from './CardActions.tsx'
@@ -384,6 +385,33 @@ function UpdatesCard({ r }: { r: UpdatesResult }) {
   )
 }
 
+/** A link to a page of this app (#148): opened in the app, the chat staying open, as a CVE link is (B35). Anything
+ *  but an in-app path shows its text without a link. */
+export function InAppLink({ href, children }: { href: string | null | undefined; children: ReactNode }) {
+  const safe = inAppHref(href)
+  if (!safe) return <span>{children}</span>
+  return (
+    <a href={safe} onClick={(e) => followLink(e, openPath)}>
+      {children}
+    </a>
+  )
+}
+
+// patch_guide's card (#148, DESIGN.md §6.2): which section of the guide, and a link to where it is in the app.
+function GuideCard({ r }: { r: GuideResult }) {
+  return (
+    <div className="result-card guide-card">
+      <p className="result-title">Patch guide: {r.title}</p>
+      <p className="meta">Topic: {r.topic}</p>
+      {r.path && (
+        <p className="meta">
+          <InAppLink href={r.path}>Open {r.path}</InAppLink>
+        </p>
+      )}
+    </div>
+  )
+}
+
 const DOC_WORD: Record<string, string> = {
   owasp_llm: 'OWASP LLM Top 10',
   owasp_web: 'OWASP Top 10',
@@ -437,6 +465,7 @@ function ResultCard({ call, page, applied }: { call: ToolCallRecord; page: PageC
   }
   if (call.name === 'research_web' && call.result) return <ResearchCard r={call.result} />
   if (call.name === 'check_updates' && call.result) return <UpdatesCard r={call.result} />
+  if (call.name === 'patch_guide' && call.result) return <GuideCard r={call.result} />
   if (call.name === 'search_security' && call.result) {
     return <SearchCard r={call.result} query={String(call.args.query ?? '')} applied={applied} page={page} />
   }

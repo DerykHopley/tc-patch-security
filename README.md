@@ -27,7 +27,7 @@ Patch runs on Google Cloud Run. Anyone can make an account; the owner approves e
 ## What it does
 
 - **Chat with cited answers.** Retrieval-augmented generation (RAG) over a security knowledge base. Each question is rewritten into several searches, the model writes search filters that the server checks against fixed lists, and hybrid search (vectors plus our own BM25) merges the results. A citation with no matching source is removed.
-- **Nine tools, each shown as a card.** Search, look up a CVE, explain a weakness, "am I affected?", "what should I fix first?", check for updates and web research. The other two, for your watchlist and your decisions, only propose: you approve the change in a card.
+- **Ten tools, each shown as a card.** Search, look up a CVE, explain a weakness, "am I affected?", "what should I fix first?", check for updates, web research, and how to use Patch itself (its own guide, cited like a source). The other two, for your watchlist and your decisions, only propose: you approve the change in a card.
 - **Am I affected?** Your product version, checked against OSV's affected and fixed versions: affected, not affected or unknown, with the reason.
 - **Priority by rules.** KEV, EPSS, severity, the verdict and an internet-facing switch give each open CVE a priority and a due date. Rules decide; Patch only explains them.
 - **Dashboard, CVEs page, a page per CVE.** Charts, the top 5 to fix, filters in the URL, and a history of every status change.

@@ -280,6 +280,10 @@ _Avoid_: recommendation, Patch's ranking
 How Patch pitches an answer: simple, normal, or deep dive. The facts and sources stay the same at every level.
 _Avoid_: tone, mode, persona
 
+**Patch guide**:
+Patch's own how-to, one short section per topic (`backend/app/guide.md`), written from what the app does. The `patch_guide` tool returns one section as a source, cited as `[n]`, with where it is in the app (#148).
+_Avoid_: help, docs, manual, FAQ
+
 **Model check**:
 The scripted questions asked of one model, each answer scored by exact checks (right tools, filters, key fact, real citations, cites sources, flagged, no exploit code). No LLM judges another.
 _Avoid_: eval, benchmark, LLM-as-judge

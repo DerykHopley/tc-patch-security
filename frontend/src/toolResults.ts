@@ -180,6 +180,15 @@ export interface ProposalFields {
   internet_facing: boolean | null
 }
 
+/** patch_guide: one section of the guide, as numbered source n. */
+export interface GuideResult {
+  n: number
+  topic: string
+  title: string
+  path: string | null
+  text: string
+}
+
 /** prioritise: the top open CVEs in the rules' order, and the view they come from. */
 export interface FixFirstResult {
   filters: Filters
@@ -381,6 +390,7 @@ export interface ToolResults {
   check_affected: AffectedOne | AffectedProduct
   lookup_cve: CveResult
   propose_decision: Proposal | DecisionAlreadySo
+  patch_guide: GuideResult
   prioritise: FixFirstResult
   search_security: SearchResult
   check_updates: UpdatesResult

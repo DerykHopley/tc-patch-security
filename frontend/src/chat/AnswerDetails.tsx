@@ -2,7 +2,7 @@ import { useId, type KeyboardEvent } from 'react'
 import type { ChatReply, DocType, QueryInfo, Source } from '../api.ts'
 import { ExternalLink } from '../components/ExternalLink.tsx'
 import { SeverityBadge } from '../components/SeverityBadge.tsx'
-import { ToolCallCard, WebFacts } from './ToolCallCard.tsx'
+import { InAppLink, ToolCallCard, WebFacts } from './ToolCallCard.tsx'
 
 export type DetailTab = 'sources' | 'tools' | 'query'
 
@@ -14,6 +14,7 @@ const DOC_LABEL: Record<DocType, string> = {
   atlas_case: 'ATLAS case study',
   cve: 'CVE',
   web: 'Web result, unverified',
+  guide: 'Patch guide',
 }
 
 /** The tab an answer's details open on: sources if it has any, else tool calls, else the query plan. */
@@ -31,7 +32,7 @@ function Sources({ sources, prefix }: { sources: Source[]; prefix: string }) {
         <li key={s.chunk_id} id={sourceId(prefix, s.n)} className="source" data-n={s.n}>
           <div className="source-head">
             <span className="source-n">{s.n}</span>
-            <ExternalLink href={s.url}>{s.title}</ExternalLink>
+            {s.doc_type === 'guide' ? <InAppLink href={s.url}>{s.title}</InAppLink> : <ExternalLink href={s.url}>{s.title}</ExternalLink>}
           </div>
           {s.doc_type === 'web' ? (
             <WebFacts site={s.site} date={s.date} flagged={!!s.flags?.includes('injection_phrasing')} />

@@ -318,7 +318,7 @@ html:not(.js) [role="tablist"] { display: none; }
   <header class="top">
     <span class="eyebrow">Sprint 2 · Patch, the LLM-security assistant · as of 2026-10-21 · <code>main</code> at <code>58d1500</code></span>
     <h1>Process map</h1>
-    <p class="lede">How public security data reaches you through Patch: a frozen snapshot or live data from four feeds, a hybrid search index, a chat with nine tools behind a guard, the dashboard and the CVEs page, and alerts on your channels. Spec B added web research, changes you approve, sign-in with the owner's approval and roles, and the deploy: the app has run on Cloud Run since 2026-10-19. Every claim here was checked against the code at that commit (file:line) or a command run that day; anything not checked says <i>unverified</i>.</p>
+    <p class="lede">How public security data reaches you through Patch: a frozen snapshot or live data from four feeds, a hybrid search index, a chat with ten tools behind a guard, the dashboard and the CVEs page, and alerts on your channels. Spec B added web research, changes you approve, sign-in with the owner's approval and roles, and the deploy: the app has run on Cloud Run since 2026-10-19. Every claim here was checked against the code at that commit (file:line) or a command run that day; anything not checked says <i>unverified</i>.</p>
     <div class="legend">
       <span><span class="chip real">Built</span> real code, tested</span>
       <span><span class="chip real">Done</span> a real run or setup, done</span>
@@ -445,16 +445,17 @@ html:not(.js) [role="tablist"] { display: none; }
         <text class="h" x="686" y="66">POST /chat</text>
         <g class="ragtag"><rect x="760" y="55" width="56" height="18" rx="9"/><text x="767" y="68">RAG 5–6</text></g>
         <text class="sm" x="686" y="86">agent loop, ≤ 6 steps,</text>
-        <text class="sm" x="686" y="102">9 tools:</text>
-        <text class="mono" x="686" y="118">search_security</text>
-        <text class="mono" x="686" y="132">lookup_cve</text>
-        <text class="mono" x="686" y="146">explain_weakness</text>
-        <text class="mono" x="686" y="160">check_affected</text>
-        <text class="mono" x="686" y="174">prioritise</text>
-        <text class="mono" x="686" y="188">update_watchlist</text>
-        <text class="mono" x="686" y="202">check_updates</text>
-        <text class="mono" x="686" y="216">research_web</text>
-        <text class="mono" x="686" y="230">propose_decision</text>
+        <text class="sm" x="686" y="102">10 tools:</text>
+        <text class="mono" x="686" y="116">search_security</text>
+        <text class="mono" x="686" y="128">lookup_cve</text>
+        <text class="mono" x="686" y="140">explain_weakness</text>
+        <text class="mono" x="686" y="152">check_affected</text>
+        <text class="mono" x="686" y="164">prioritise</text>
+        <text class="mono" x="686" y="176">update_watchlist</text>
+        <text class="mono" x="686" y="188">check_updates</text>
+        <text class="mono" x="686" y="200">research_web</text>
+        <text class="mono" x="686" y="212">propose_decision</text>
+        <text class="mono" x="686" y="224">patch_guide</text>
 
         <path class="e chat" d="M747,241 L747,255" marker-start="url(#n-chat)" marker-end="url(#n-chat)"/>
         <rect class="box chat" x="674" y="258" width="146" height="76" rx="8"/>
@@ -568,7 +569,7 @@ html:not(.js) [role="tablist"] { display: none; }
         <text class="sm" x="32" y="832">State and live data in Cloud Storage (users/, live/, evals/); keys in Secret Manager; Cloud Scheduler daily, 08:00 Berlin. Live since 2026-10-19, europe-west1.</text>
       </svg>
     </div>
-    <p class="example" style="border:0; padding:0">Checked: the 9 tools are the modules registered at <code>backend/app/tools/registry.py:167</code>; the step limit is <code>app_settings.py:93</code> (6, from 1 to 8 on the Dev page); the sign-in and approval routers are <code>main.py:135-147</code>; the guard is <code>chat_turn.py:20</code>; the MCP server's tools are <code>mcp_server.py:75-79</code>.</p>
+    <p class="example" style="border:0; padding:0">Checked: the 10 tools are the modules registered at <code>backend/app/tools/registry.py:167-168</code>; the step limit is <code>app_settings.py:93</code> (6, from 1 to 8 on the Dev page); the sign-in and approval routers are <code>main.py:135-147</code>; the guard is <code>chat_turn.py:20</code>; the MCP server's tools are <code>mcp_server.py:75-79</code>.</p>
   </section>
 
   <!-- RAG AND LANGCHAIN (now) -->
@@ -584,7 +585,7 @@ html:not(.js) [role="tablist"] { display: none; }
       <li><div class="head"><h3>Embed</h3><span class="chip real">Built</span></div><p>mxbai-embed-large on Ollama or gemini-embedding-2 on OpenRouter (the live app's, since 2026-10-22). The hash embedder stays the no-setup default, for tests and CI.</p><span class="where">rag/embed.py:59-98</span></li>
       <li><div class="head"><h3>Store</h3><span class="chip real">Built</span></div><p>Chroma in-process (no server), filters as metadata. An index from another embedder or other data refuses to open.</p><span class="where">rag/vector.py:1-5</span></li>
       <li><div class="head"><h3>Retrieve</h3><span class="chip real">Built</span></div><p>Query translation, filter check, each query on Chroma and BM25, the off-topic gate, weighted RRF, at most 2 chunks per document, top 5.</p><span class="where">rag/pipeline.py:83-139</span></li>
-      <li><div class="head"><h3>Generate</h3><span class="chip real">Built</span></div><p>Our agent loop with 9 tools; the model through <code>ChatOpenAI</code>; a citation check after each answer. FakeLLM for tests.</p><span class="where">agent.py:126-182 · llm/openai_compat.py</span></li>
+      <li><div class="head"><h3>Generate</h3><span class="chip real">Built</span></div><p>Our agent loop with 10 tools; the model through <code>ChatOpenAI</code>; a citation check after each answer. FakeLLM for tests.</p><span class="where">agent.py:126-182 · llm/openai_compat.py</span></li>
     </ol>
     <div class="tablewrap">
       <table>
