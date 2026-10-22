@@ -16,7 +16,7 @@ Patch tracks the CVEs in the LLM products you use and answers questions about LL
 Title: The dashboard
 Where: /
 
-The dashboard is the first page: a summary of the open CVEs on your watchlist. Its Watchlist card picks which products the tiles, charts and Top 5 count. The four tiles are Open CVEs, Open and critical, Open and exploited in the wild (CISA KEV), and New in the last 30 days; each one opens the CVEs page with that filter. The charts show open CVEs by product and severity, CVEs per month, and open CVEs by OWASP Top 10 (web, 2025) category. Top 5 open CVEs is the head of the CVEs page's list. On the side are Data freshness (with Check now in live mode), Recent alerts and the latest AI incidents from MITRE ATLAS.
+The dashboard is the first page: a summary of the open CVEs on your watchlist. Its Watchlist card picks which products the tiles, charts and Top 5 count. The four tiles are Open CVEs, Open and critical, Open and exploited in the wild (CISA KEV), and New in the last 30 days; each one opens the CVEs page with that filter. The charts show open CVEs by product and severity, CVEs per month, and open CVEs by OWASP Top 10 (web, 2025) category. Top 5 open CVEs is the head of the CVEs page's list. On the side are Recent alerts (your last 5), Data freshness (with Check now in live mode) and the latest AI incidents from MITRE ATLAS.
 
 ## cves
 Title: The CVEs page
@@ -80,9 +80,9 @@ Patch can search the web for what its knowledge base can't have, such as vendor 
 
 ## roles_and_access
 Title: Sign-in, access and roles
-Where: /settings#requests
+Where: /settings
 
-With sign-in off, there is one user and everything is theirs. With sign-in on, anyone can sign up, and a new account asks for access with an optional note; the owner approves or refuses it on Settings, in the Requests card. The owner picks a role when approving, or later. A Viewer, the default, has the dashboard, the CVEs, the chat and their own watchlist. Trusted also sees the Dev page read-only and may use the search playground. A Reviewer may change the Dev settings, but only their own copy. Only the owner runs the model check, sets the alert channels and the schedule, and switches live data.
+With sign-in off, there is one user and everything is theirs. With sign-in on, anyone can sign up, and a new account asks for access with an optional note; the owner approves or refuses it on Settings, in the Requests card (only the owner sees it). The owner picks a role when approving, or later. A Viewer, the default, has the dashboard, the CVEs, the chat and their own watchlist. Trusted also sees the Dev page read-only and may use the search playground. A Reviewer may change the Dev settings, but only their own copy. Only the owner runs the model check, sets the alert channels and the schedule, and switches live data.
 
 ## dev_page
 Title: The Dev page
@@ -100,4 +100,4 @@ Patch offers four read-only tools to other assistants, such as Claude Code or Cl
 Title: Your data and privacy
 Where: /settings#start-over
 
-Patch keeps your watchlist, CVE statuses, decision history and settings, separately for each person. It stores no names or emails: an optional display name on Settings, in Profile, is only for your user menu. Your questions and the tools' results go to the chat model chosen on the Dev page; the sidebar card names it. Web research sends only a short search query. The chat is kept only in this browser tab, and is cleared when you close it or sign out. Start over, the last card of Yours on Settings, deletes your own data.
+Patch keeps your watchlist, CVE statuses, decision history and settings, separately for each person. It stores no names or emails: your account (email and password, or Google or Discord) is held by Clerk, the sign-in service, and an optional display name on Settings, in Profile, is only for your user menu. Your questions and the tools' results go to the chat model chosen on the Dev page; the sidebar card names it. Web research sends only a short search query. The chat is kept only in this browser tab, and is cleared when you close it or sign out. Start over, the last card of Yours on Settings, deletes your own data.
