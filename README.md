@@ -98,6 +98,18 @@ cd frontend && npx tsc -b && npm run lint && npm test  # types, lint, unit tests
 frontend/e2e/run.sh                                    # browser check (Playwright), Firefox and Chromium
 ```
 
+### Patch as an MCP server
+
+Four of Patch's tools, read-only, for Claude Code or Claude Desktop (one of the hard tasks). No key needed. With Claude Code:
+
+```bash
+cd backend && uv sync
+claude mcp add patch -- uv --directory "$PWD" run python -m app.mcp_server   # "$PWD" is backend/'s absolute path
+claude mcp list                                                              # patch: connected
+```
+
+Then start `claude` and ask, for example: "I self-host Langflow 1.2.0. Use the patch tools: is CVE-2025-3248 in CISA's KEV list, and am I affected?" Remove it afterwards with `claude mcp remove patch`. What a good answer shows, and Claude Desktop's config: [docs/SETUP.md](./docs/SETUP.md#try-it-in-5-minutes).
+
 ## Stack
 
 - **Backend:** Python, FastAPI, Pydantic, Chroma (in-process), LangChain only at the model seam ([ADR 0001](./docs/adr/0001-thin-langchain.md)).
