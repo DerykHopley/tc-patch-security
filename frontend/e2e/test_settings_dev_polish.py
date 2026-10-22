@@ -1,6 +1,6 @@
 """Browser check (seam 4) for the Settings and Dev polish from the page review (B50, #95). Check ids: B50.n, the issue's
 items: B50.1 no "Live" chip, the Dev intro by role, one name "Dev", "Model-check report"; B50.2 the phone's save bar
-only with something to say; B50.5 Delivery's last 3 alerts and the link to the dashboard's card; B50.6 Start over and
+only with something to say; B50.5 a link to the dashboard's Recent alerts lands on it; B50.6 Start over and
 the embedding map's labels; B50.8 Pause disabled in snapshot mode; B50.9 Settings, Dev and the dashboard end to end as
 a Viewer and a Reviewer.
 
@@ -138,22 +138,17 @@ def test_b50_2_on_a_desktop_the_save_bar_always_shows(open_as):
     expect(page.locator(".save-bar")).to_contain_text("All changes saved")
 
 
-# --- B50.5: Delivery shows the last 3 and links to the dashboard's Recent alerts ----------------------------------
+# --- B50.5: a link to the dashboard's Recent alerts (/#recent-alerts) lands on the card ----------------------------
+# Until #144 Delivery showed the last 3 and linked here; now Delivery has the full log (test_alerts_split.py F144.7)
+# and the card the last 5 real alerts. The anchor stays, so an older link still lands.
 
 @pytest.mark.parametrize("width", [PHONE, DESKTOP])
-def test_b50_5_delivery_shows_the_last_three_and_links_to_the_dashboard(open_as, api_url, width):
+def test_b50_5_a_link_to_recent_alerts_lands_on_the_card(open_as, api_url, width):
     def twenty(ctx: BrowserContext) -> None:
         ctx.route(f"{api_url}/alerts", lambda route: route.fulfill(json={"alerts": [DIGEST] * 20}))
-    page = open_as(width=width, setup=twenty)
-    delivery = card(page, "Delivery")
-    expect(delivery.get_by_role("list", name="Recent alerts").get_by_role("listitem")).to_have_count(3)
-    link = delivery.get_by_role("link", name="All recent alerts on the dashboard")
-    expect(link).to_have_attribute("href", "/#recent-alerts")
-    link.focus()
-    page.keyboard.press("Enter")
-    expect(page).to_have_url(re.compile(r"/#recent-alerts$"))
+    page = open_as(path="/#recent-alerts", width=width, setup=twenty)
     alerts = page.locator("section#recent-alerts")
-    expect(alerts.locator(".alert-log > li")).to_have_count(20)
+    expect(alerts.locator(".alert-log > li")).to_have_count(5)  # #144: the last 5
     page.wait_for_function("() => { const r = document.getElementById('recent-alerts')?.getBoundingClientRect();"
                            " return r && r.top >= 0 && r.top < 120 }")
 
@@ -194,9 +189,8 @@ def test_b56_recent_alerts_stays_in_view_when_the_charts_draw_late(open_as, api_
     def late(ctx: BrowserContext) -> None:
         ctx.route(f"{api_url}/alerts", lambda route: route.fulfill(json={"alerts": [DIGEST] * 20}))
         ctx.add_init_script(CHARTS_DRAW_LATE)
-    page = open_as(width=DESKTOP, setup=late)
-    card(page, "Delivery").get_by_role("link", name="All recent alerts on the dashboard").click()
-    expect(page.locator("section#recent-alerts .alert-log > li")).to_have_count(20)
+    page = open_as(path="/#recent-alerts", width=DESKTOP, setup=late)
+    expect(page.locator("section#recent-alerts .alert-log > li")).to_have_count(5)  # #144: the last 5
     top = page.evaluate(CARD_TOP_AFTER_THE_CHARTS)
     assert 0 <= top < 120, f"Recent alerts' top at {top:.0f}px once the charts drew"
 
