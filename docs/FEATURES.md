@@ -29,6 +29,10 @@ Each feature with its ticket ids. The short list is in the [README](../README.md
 - **A landing page** (B42, [#80](https://github.com/DerykHopley/tc-patch-security/issues/80)). A visitor who isn't signed in first sees what Patch is, the problem it solves and three screenshots in their theme, then **Sign in** or **Request access**. Inside the app it is the **About** page (`/about`). It has a 20-second launch video, light or dark to match (B47, [#99](https://github.com/DerykHopley/tc-patch-security/issues/99); [how it was built](HOW-IT-WAS-BUILT.md#the-launch-video)). Its screenshots are taken from the app on example data by `scripts/landing-shots.sh` ([how](design/DESIGN.md#516-the-landing-page-b42-80-2026-10-19)).
 - **Link previews** (B61, [#108](https://github.com/DerykHopley/tc-patch-security/issues/108)). A link to `/` or `/about` pasted into a chat app shows a card with Patch's name, a line about it and an image. The server adds the tags only when `APP_URL` is a public https address (*checked* 2026-10-20: the live app's `/` carries them). How the card looks in Telegram and other apps is *unverified*; send the link to @WebpageBot first if Telegram cached an old preview.
 
+## Since spec B
+
+- **How to use Patch** ([#148](https://github.com/DerykHopley/tc-patch-security/issues/148)). Ask "How do I tell Patch which Langflow version I run?" or "How do I use Patch?": the `patch_guide` tool answers from Patch's own guide (`backend/app/guide.md`, 16 short sections), cites the section like a source, and its card links to the page in the app (`/settings#watchlist`). That makes ten chat tools. It isn't offered to other assistants over MCP: it's about the web app.
+
 ## Screenshots
 
 | The chat, pinned beside a CVE's page | Settings: your watchlist |

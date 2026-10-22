@@ -3,6 +3,7 @@ import { roleOf } from '../access.ts'
 import { DELIVERY_SHOWN } from '../alertsLog.ts'
 import { AccessContext } from '../auth/AccessGate.tsx'
 import { dataSources } from '../freshness.ts'
+import { keepInView } from '../keepInView.ts'
 import { resetDeletes, resetKeeps, START_OVER_BUTTON } from '../startOver.ts'
 import {
   alertsLog,
@@ -116,11 +117,21 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
     refreshLog()
   }, [refreshLog])
 
-  // B19: the dashboard's "Schedule and refresh runs" link opens /settings#schedule: bring the schedule into view
+  // A link to a card brings it into view once the page has loaded (B19: the dashboard's /settings#schedule; #148:
+  // Patch's guide, /settings#watchlist), and again when one is followed while Settings is open (the chat stays open
+  // over it). #requests is the Requests card's own: its list loads later (B38).
   const loaded = !!s.draft
+  // A new object per link followed, so the same link twice brings its card back too
+  const [target, setTarget] = useState(() => ({ hash: window.location.hash }))
   useEffect(() => {
-    if (loaded && window.location.hash === '#schedule') document.getElementById('schedule')?.scrollIntoView({ block: 'center' })
-  }, [loaded])
+    const onPop = () => setTarget({ hash: window.location.hash })
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+  useEffect(() => {
+    if (!loaded || !target.hash || target.hash === '#requests') return
+    return keepInView(document.getElementById(target.hash.slice(1)), () => undefined)
+  }, [loaded, target])
 
   if (!s.draft || !s.reply) {
     return (
@@ -213,7 +224,7 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
             <div className="settings-column">
               <ProfileCard p={p} />
               <ConnectedAccountsCard />
-              <Card title="Alerts">
+              <Card title="Alerts" anchor="alerts">
                 <p className="meta">
                   Each live check {isOwner ? 'sends' : 'records'} these alerts once per CVE and reason. A CVE due in 3 days,
                   or overdue (again each week), always alerts while alerts are on.
@@ -334,7 +345,7 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                 <WelcomeSwitch />
               </Card>
 
-              <Card title="Priority and due dates">
+              <Card title="Priority and due dates" anchor="priority">
                 <p className="meta">
                   Fixed rules set each open CVE's priority from CISA KEV, EPSS, severity, the version check and whether the
                   product is internet-facing. Your policy turns the priority into a due date: the publication date (or the

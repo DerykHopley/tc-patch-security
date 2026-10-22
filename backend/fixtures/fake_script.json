@@ -787,6 +787,33 @@
     "status_unchanged": true,
     "state_unchanged": true
    }
+  },
+  {
+   "id": "Q-guide",
+   "question": "How do I tell Patch which Langflow version I run?",
+   "keywords": [
+    "tell patch",
+    "version"
+   ],
+   "tool_calls": [
+    {
+     "name": "patch_guide",
+     "args": {
+      "topic": "watchlist_and_versions"
+     }
+    }
+   ],
+   "answer": "{guide}",
+   "expect": {
+    "tools": [
+     "patch_guide"
+    ],
+    "contains_any": [
+     "Settings"
+    ],
+    "cites": true,
+    "state_unchanged": true
+   }
   }
  ]
 }

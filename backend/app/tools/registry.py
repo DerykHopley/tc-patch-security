@@ -164,4 +164,5 @@ def run_tool(call: ToolCall, deps, ctx: Context, tools: dict[str, ToolSpec] | No
 
 
 # Importing the tool modules registers them.
-from app.tools import affected, cve, decision, prioritise, search, updates, watchlist, weakness, web  # noqa: E402,F401
+from app.tools import (affected, cve, decision, guide, prioritise, search, updates, watchlist, weakness,  # noqa: E402,F401
+                       web)

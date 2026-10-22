@@ -22,6 +22,12 @@ export function httpHref(url: string | null | undefined): string | null {
   }
 }
 
+/** A path in this app a guide section may link to (#148), or null: one leading slash, never `//` or `/\`, which a
+ *  browser reads as another site. The guide is a fixed file, but a link is still checked before it becomes one. */
+export function inAppHref(url: string | null | undefined): string | null {
+  return url && /^\/(?![/\\])/.test(url) ? url : null
+}
+
 /** A proposal's "after" value as the card shows it (B49 C3, #96): a status change reads "Accepted, review 2026-11-17"
  *  or "Not affected, vulnerable code not present", and the free text (reason or note, the compensating control) goes
  *  on lines of its own under it. The backend's one string, "Accepted (No fix yet; review 2026-11-17)", put a sentence

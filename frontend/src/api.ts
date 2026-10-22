@@ -108,6 +108,7 @@ export type DocType =
   | 'atlas_case'
   | 'cve'
   | 'web' // a web result from research_web (B08): unverified
+  | 'guide' // a section of Patch's own guide, from patch_guide (#148): its url is an in-app path, or ''
 
 export interface Turn {
   role: Role
