@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useState } from 'react'
 import { roleOf } from '../access.ts'
-import { DELIVERY_SHOWN } from '../alertsLog.ts'
+import { settingsAlerts } from '../alertsLog.ts'
 import { AccessContext } from '../auth/AccessGate.tsx'
 import { dataSources } from '../freshness.ts'
 import { resetDeletes, resetKeeps, START_OVER_BUTTON } from '../startOver.ts'
@@ -23,6 +23,7 @@ import { RefreshRuns } from '../components/RefreshRuns.tsx'
 import { RequestsCard } from '../components/RequestsCard.tsx'
 import { ProfileCard, useProfileDraft } from '../components/Profile.tsx'
 import { IN_PATCH_NOTE } from '../profile.ts'
+import { keepInView } from '../keepInView.ts'
 import { ownersSchedule as ownersScheduleLine } from '../refreshRuns.ts'
 import { followLink, openPath } from '../route.ts'
 import { SaveBar } from '../components/SaveBar.tsx'
@@ -70,6 +71,27 @@ const DELIVERY_KEYS = ['app_url', 'ntfy_url', 'smtp_port', 'smtp_starttls', 'ntf
   'smtp_user', 'smtp_password', 'alert_email_from', 'alert_email_to', 'telegram_bot_token', 'telegram_chat_id'] as const
 const clampDays = (v: string) => Math.max(1, Math.min(730, Math.round(Number(v)) || 1))
 
+/** #144: the full alerts log, the last 20, under its heading: in Delivery (the owner's, `channels`: each channel's
+ *  result) or on the Alerts card (anyone else's). Nothing until the log is in. */
+function AlertLog({ log, id, title, channels = false }: {
+  log: AlertLogEntry[] | null
+  id: string
+  title: string
+  channels?: boolean
+}) {
+  if (log === null) return null
+  return (
+    <>
+      <h4 id={id}>{title}</h4>
+      {log.length === 0 ? (
+        <p className="meta">No alerts yet.</p>
+      ) : (
+        <AlertList entries={settingsAlerts(log)} labelledBy={id} channels={channels} />
+      )}
+    </>
+  )
+}
+
 /** B20: a failed save, shown in each card whose edits it didn't save. The edits stay; Save changes tries again. */
 function NotSaved({ error, show }: { error: string | null; show: boolean }) {
   if (!error || !show) return null
@@ -96,7 +118,7 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
     s.setServer(r)
     onServerSaved?.()
   })
-  const [log, setLog] = useState<AlertLogEntry[]>([])
+  const [log, setLog] = useState<AlertLogEntry[] | null>(null)
   const [preview, setPreview] = useState<TestAlertReply | null>(null)
   const [sending, setSending] = useState<Channel | 'preview' | null>(null)
   const [alertError, setAlertError] = useState<string | null>(null)
@@ -121,6 +143,14 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
   useEffect(() => {
     if (loaded && window.location.hash === '#schedule') document.getElementById('schedule')?.scrollIntoView({ block: 'center' })
   }, [loaded])
+  // #144: the dashboard's Recent alerts card links to the full log: /settings#delivery (the owner), /settings#alerts
+  // (anyone else). Once the page and the log are in, bring the card into view and keep it there (B38)
+  const logIn = log !== null
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!loaded || !logIn || (hash !== '#delivery' && hash !== '#alerts')) return
+    return keepInView(document.getElementById(hash.slice(1)), () => undefined)
+  }, [loaded, logIn])
 
   if (!s.draft || !s.reply) {
     return (
@@ -213,7 +243,7 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
             <div className="settings-column">
               <ProfileCard p={p} />
               <ConnectedAccountsCard />
-              <Card title="Alerts">
+              <Card title="Alerts" anchor="alerts">
                 <p className="meta">
                   Each live check {isOwner ? 'sends' : 'records'} these alerts once per CVE and reason. A CVE due in 3 days,
                   or overdue (again each week), always alerts while alerts are on.
@@ -310,6 +340,9 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                 </fieldset>
                 <NotSaved error={srv.error} show={srv.changed(['alert_tz'])} />
                 <NotSaved error={s.error} show={s.changed('alerts', { except: ['channels', ...SCHEDULE_KEYS] })} />
+                {/* #144: anyone but the owner: their own alerts, the last 20 (the owner's are in Delivery). No channel
+                    results: they have none (B48) */}
+                {!isOwner && <AlertLog log={log} id="your-alerts" title="Your alerts" />}
               </Card>
             </div>
 
@@ -425,8 +458,9 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
             </div>
             {/* Requests first, at the top of the right column (owner, 2026-10-19): the card the owner acts on, where
                 an alert's /settings#requests lands. So the right column comes first in the DOM (and on a phone);
-                the CSS puts it on the right. Since B50 Delivery shows 3 alerts, not 20, so Data moved under it: Delivery
-                and Data on the left balance Requests and Refresh runs (20 runs) on the right (DECISIONS.md, B50). */}
+                the CSS puts it on the right. Since #144 Delivery has the full alerts log again (20, with each channel's
+                result), so Data is back on the right: Delivery alone on the left balances Requests, Refresh runs (20
+                runs) and Data (DECISIONS.md, #144). */}
             <div className="settings-layout patch-layout">
               <div className="settings-column column-right">
                 <RequestsCard />
@@ -467,10 +501,23 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                   {/* Loads again on a saved schedule, and on a switch of mode (Check now shows in live mode only) */}
                   <RefreshRuns reload={`${JSON.stringify(s.reply.settings.alerts)}|${mode ?? ''}`} />
                 </Card>
+
+                <Card title="Data">
+                  <p data-testid="data-sources">
+                    {dataSources(mode ?? 'snapshot')} As of <strong>{asOf ?? '…'}</strong>.
+                  </p>
+                  {owner && <DataSourceFields f={owner} />}
+                  <NotSaved error={srv.error} show={srv.changed(['data_mode', 'nvd_api_key'])} />
+                  <p className="meta" data-testid="check-now-pointer">
+                    In live mode, <strong>Check now</strong> under <a href="#schedule">Refresh runs</a> or on the{' '}
+                    <a href="/" onClick={(e) => followLink(e, openPath)}>dashboard's Data freshness card</a> checks the feeds
+                    for new CVEs. Every check is listed under Refresh runs.
+                  </p>
+                </Card>
               </div>
 
               <div className="settings-column column-left">
-                <Card title="Delivery">
+                <Card title="Delivery" anchor="delivery">
                   <p className="meta">
                     Pick where your alerts go, and set each channel up below. A secret you save is never shown again; one set
                     in the server's environment wins. Everyone else's alerts show in Patch only.
@@ -508,6 +555,7 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                       email: channels.email.configured }} />
                   )}
                   <NotSaved error={srv.error} show={srv.changed(DELIVERY_KEYS)} />
+                  <NotSaved error={s.error} show={s.changed('alerts', { only: ['channels'] })} />
                   <div className="callout">
                     <strong>Keep the ntfy topic and the Telegram bot token secret.</strong> ntfy's docs say a topic name is
                     "essentially a password", a bot token controls your bot, and your alerts show which products you run. No
@@ -536,30 +584,9 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                     </div>
                   )}
 
-                  {/* B50 (#95): the last 3 (a test send shows at the top); the dashboard's card has the last 20 */}
-                  <h4 id="delivery-recent">Recent alerts</h4>
-                  {log.length === 0 ? (
-                    <p className="meta">No alerts yet.</p>
-                  ) : (
-                    <AlertList entries={log.slice(0, DELIVERY_SHOWN)} labelledBy="delivery-recent" />
-                  )}
-                  <a className="edit-link" href="/#recent-alerts" onClick={(e) => followLink(e, openPath)}>
-                    All recent alerts on the dashboard <span aria-hidden="true">→</span>
-                  </a>
-                  <NotSaved error={s.error} show={s.changed('alerts', { only: ['channels'] })} />
-                </Card>
-
-                <Card title="Data">
-                  <p data-testid="data-sources">
-                    {dataSources(mode ?? 'snapshot')} As of <strong>{asOf ?? '…'}</strong>.
-                  </p>
-                  {owner && <DataSourceFields f={owner} />}
-                  <NotSaved error={srv.error} show={srv.changed(['data_mode', 'nvd_api_key'])} />
-                  <p className="meta" data-testid="check-now-pointer">
-                    In live mode, <strong>Check now</strong> under <a href="#schedule">Refresh runs</a> or on the{' '}
-                    <a href="/" onClick={(e) => followLink(e, openPath)}>dashboard's Data freshness card</a> checks the feeds
-                    for new CVEs. Every check is listed under Refresh runs.
-                  </p>
+                  {/* #144: the full log, the last 20 with test alerts (a test send shows at the top) and every
+                      channel's result; the dashboard's card has only the last 5 real alerts */}
+                  <AlertLog log={log} id="delivery-recent" title="Alerts and delivery" channels />
                 </Card>
               </div>
             </div>
