@@ -50,7 +50,8 @@ The [model-check report](https://derykhopley.github.io/tc-patch-security/) (on G
 - **11 chat models:** 6 on OpenRouter, 5 local through Ollama. Each answered the same 14 questions (54 checks).
 - **Best answers:** `anthropic/claude-haiku-5.5`, 12 of 14 questions, 51 of 54 checks, about 10 s and $0.0015 per question. It's the default model.
 - **Best value:** `openai/gpt-6-luna`, one question behind at about a third of the cost. **Best local:** `qwen3.8:27b`, 11 of 14, free but about 25 s per answer.
-- **Hybrid search beats vector search alone** for every one of the 4 embedders: hit rate at 5 up by 0.26 to 0.33.
+- **Hybrid search helps weak embedders most:** for the first 4 embedders it lifts the hit rate at 5 by 0.26 to 0.33. For the best one, `google/gemini-embedding-2`, it adds nothing: vectors alone reach 0.85, the best of 6. The live app uses it since 2026-10-22.
+- **A bigger model doesn't fix the rest** (2026-10-22, 20 questions, 102 checks): Claude Sonnet 5.5 passed 100, Haiku 5.5 99, at 18 times the cost. Gemini 3.8 Flash passed 98.
 - **Every model** got the rules' top 3, the right "am I affected?" verdict, flagged the injection question and wrote no exploit code.
 - Most remaining failures are shared by nearly every model, so they point at our checks and tools, not the models: issues [#50](https://github.com/DerykHopley/tc-patch-security/issues/50)–[#54](https://github.com/DerykHopley/tc-patch-security/issues/54).
 - All runs cost about $0.40 (*unverified*: summed from the run files, not the bill).
