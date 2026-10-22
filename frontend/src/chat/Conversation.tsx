@@ -16,6 +16,7 @@ import { AnswerDetails, firstTab, sourceId, type DetailTab } from './AnswerDetai
 import { proposalOf } from '../toolCalls.ts'
 import { remarkCveLinks } from '../cveLinks.ts'
 import { followLink, openPath } from '../route.ts'
+import { usageText } from './exportChat.ts'
 import { ProposalCard } from './ProposalCard.tsx'
 import { ToolCallCard } from './ToolCallCard.tsx'
 import type { Message, RefinedResult } from './useChat.ts'
@@ -32,16 +33,12 @@ const linkCitations = (text: string, ns: Set<number>) =>
 // The explain level the answer was pitched at (A19), as the switch names it.
 const levelLabel = (id: ExplainLevel) => EXPLAIN_LEVELS.find((lv) => lv.id === id)?.label ?? id
 
-// Two significant figures: $0.00061, $0.012, $1.2; a free answer shows $0.
-const dollars = (cost: number) => `$${Number(cost.toPrecision(2))}`
-
+// The words come from exportChat.ts, so the exported file says the same (F147).
 function Usage({ reply }: { reply: ChatReply }) {
-  const u = reply.usage
   return (
     <p className="usage">
-      {u.input_tokens.toLocaleString('en')} in · {u.output_tokens.toLocaleString('en')} out ·{' '}
-      {count(u.llm_calls, 'LLM call')} · {count(reply.steps, 'step')} · {dollars(u.cost)}
-      {u.estimated && <span className="chip">estimated</span>}
+      {usageText(reply)}
+      {reply.usage.estimated && <span className="chip">estimated</span>}
     </p>
   )
 }

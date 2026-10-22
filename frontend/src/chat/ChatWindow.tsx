@@ -1,25 +1,40 @@
 import type { CSSProperties } from 'react'
 import type { Example } from '../api.ts'
-import { PinIcon } from '../components/Icons.tsx'
+import { DownloadIcon, PinIcon } from '../components/Icons.tsx'
 import { Robot, type Mood, type Variant } from '../components/Robot.tsx'
 import '../styles/chat.css'
 import { CardActionsContext, type CardActionsHandle } from './CardActions.tsx'
 import { Conversation } from './Conversation.tsx'
+import { chatToMarkdown, exportFileName } from './exportChat.ts'
+import { shownProposal } from './ProposalCard.tsx'
 import { LevelSwitch } from './LevelSwitch.tsx'
 import { useSavedLevel } from './savedLevel.ts'
 import type { ChatState } from './useChat.ts'
 import type { ChatLayout } from './useChatLayout.ts'
 
+/** Saves text as a file: a Blob behind a temporary `<a download>`. Nothing is sent anywhere (F147). */
+function download(name: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  document.body.append(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url)) // after the click has started the download
+}
+
 // The chat window (DESIGN.md §6.2, §6.3): the bubble above Patch's button (opens with a pop), the enlarged bubble,
 // or pinned beside the page. Header: Patch with his mood, the page underneath with the
-// filters and selected CVE Patch is told about (A18), New chat, Pin (enlarged or pinned
+// filters and selected CVE Patch is told about (A18), New chat, Export (F147), Pin (enlarged or pinned
 // only), Make larger (not when pinned), close; under them the explain-level switch (A19). Empty: Patch (idle, in the
 // variant picked on page load) behind a speech bubble, with suggested questions.
 // The same element in every layout, so pinning never loses the conversation's scroll.
 export function ChatWindow({
-  chat, mood, variant, restVariant, pageTitle, words, suggestions, examples, layout, asOf, onClose, showUsage,
+  chat, mood, variant, restVariant, pageTitle, words, suggestions, examples, layout, asOf, onClose, showUsage, model,
 }: {
   chat: ChatState
+  model: string | null // the model in use, named in the Export (F147); null while not known
   showUsage: boolean // B49 C1: tokens and cost under each answer, for the owner and Reviewers only
   asOf: string | null // the data's as-of date (B24: an accepted risk's review date must be after it)
   mood: Mood
@@ -75,6 +90,20 @@ export function ChatWindow({
         </div>
         <button type="button" onClick={chat.newChat} disabled={chat.pending || chat.messages.length === 0}>
           New chat
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Export chat as Markdown"
+          title="Download this conversation as a Markdown file"
+          onClick={() => {
+            const now = new Date()
+            const meta = { now, model, level: savedLevel, showUsage, shown: shownProposal }
+            download(exportFileName(now), chatToMarkdown(chat.messages, meta))
+          }}
+          disabled={chat.messages.length === 0}
+        >
+          <DownloadIcon />
         </button>
         {(expanded || pinned) && (
           <button

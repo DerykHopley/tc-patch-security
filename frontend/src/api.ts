@@ -197,14 +197,9 @@ export interface Example {
   question: string
 }
 
-// How Patch pitches an answer (A19). Same facts and sources at every level; only the wording changes.
-export type ExplainLevel = 'simple' | 'normal' | 'deep_dive'
-
-export const EXPLAIN_LEVELS: { id: ExplainLevel; label: string; what: string }[] = [
-  { id: 'simple', label: 'Simple', what: 'Plain words and everyday comparisons.' },
-  { id: 'normal', label: 'Normal', what: 'Clear and direct, for developers.' },
-  { id: 'deep_dive', label: 'Deep dive', what: 'The technical detail: CWE, attack path, CVSS vector.' },
-]
+// How Patch pitches an answer (A19): in explainLevels.ts, so pure modules can use it without this file's fetches.
+export { EXPLAIN_LEVELS, type ExplainLevel } from './explainLevels.ts'
+import type { ExplainLevel } from './explainLevels.ts'
 
 // explainLevel: this message only; left out, the backend uses the saved level. page: what the user is looking at.
 export const chat = (message: string, history: Turn[], explainLevel?: ExplainLevel, page?: PageContext) =>
