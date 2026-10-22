@@ -688,6 +688,15 @@
   flex: 1 1 8rem;
 }
 
+/* F154: one Show details pill per card, under its .meta line; hidden, a request says only that it has a note */
+.details-toggle {
+  margin-top: 0.1rem;
+}
+
+.request-has-note {
+  color: var(--muted);
+}
+
 .request-status {
   margin-left: auto;
   padding: 0 0.5rem;

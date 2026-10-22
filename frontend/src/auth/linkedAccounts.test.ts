@@ -1,7 +1,7 @@
 // B38 (#81): the Connected accounts card, on a fake Clerk user. `npm test`.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { canUnlink, linkAccount, linkRedirectUrl, linkable, rows, type ClerkAccount, type ClerkUserLike } from './linkedAccounts.ts'
+import { accountDetail, canUnlink, linkAccount, linkRedirectUrl, linkable, rows, type ClerkAccount, type ClerkUserLike } from './linkedAccounts.ts'
 
 const account = (provider: string, over: Partial<ClerkAccount> = {}): ClerkAccount => ({
   id: `eac_${provider}`, provider, emailAddress: `${provider}@example.com`, username: undefined,
@@ -67,4 +67,10 @@ test('B38.33: unlinking is refused for the last way to sign in', () => {
   const failed = account('google', { verification: { status: 'unverified', error: { longMessage: 'x' } } })
   assert.equal(canUnlink(user({ passwordEnabled: false, externalAccounts: [discord, failed] }), discord), false)
   assert.equal(canUnlink(user({ passwordEnabled: false, externalAccounts: [discord, failed] }), failed), true)
+})
+
+test('F154.2: hidden by default, an account shows no email or username, only that its details are hidden', () => {
+  const [discord] = rows(user({ externalAccounts: [account('discord', { username: 'deryk#1' })] }))
+  assert.equal(accountDetail(discord, false), 'Details hidden')
+  assert.equal(accountDetail(discord, true), 'deryk#1')
 })

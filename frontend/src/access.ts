@@ -96,6 +96,14 @@ export function requestLine(r: RequestRow, me: string | null): string {
   return parts.join(' · ')
 }
 
+/** F154 (#154): who a person is on the Requests card. Shown: their name from Clerk (else the user id). Hidden, the
+ * default, so a screen share is safe: their place in the list and the end of their user id, enough to tell rows apart
+ * without naming anyone. The buttons' names and the status line use it too, so a screen reader can't leak a name. */
+export function requestWho(r: RequestRow, index: number, shown: boolean): string {
+  if (shown) return r.name ?? r.user_id
+  return `Request ${index + 1} · id …${r.user_id.slice(-4)}`
+}
+
 // --- Roles (B45, #90): the owner's choice per approved person on the Requests card, and what each role sees
 
 export const ROLE_CHOICES: { value: StoredRole; label: string; hint: string }[] = [

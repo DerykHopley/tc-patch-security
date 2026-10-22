@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  accessScreen, devView, noteLeft, NOTE_MAX, requestActions, requestLine, ROLE_CHOICES, roleDone, roleHint, roleOf,
+  accessScreen, devView, noteLeft, NOTE_MAX, requestActions, requestLine, requestWho, ROLE_CHOICES, roleDone, roleHint, roleOf,
   seesDev, seesUsage, type RequestRow,
 } from './access.ts'
 
@@ -92,4 +92,12 @@ test('B49.2 the usage line under an answer (tokens, cost) is for the people who 
   assert.equal(seesUsage('trusted'), false)
   assert.equal(seesUsage('viewer'), false)
   assert.equal(seesUsage(roleOf(null)), true) // sign-in off: the one local user is the owner
+})
+
+test('F154.1: hidden by default, a person is a neutral label: their place and the end of their user id', () => {
+  const alice = row({ user_id: 'user_2abcXYZ9', name: 'Alice Example', email: 'alice@example.com' })
+  assert.equal(requestWho(alice, 0, false), 'Request 1 · id …XYZ9')
+  assert.equal(requestWho(alice, 2, false), 'Request 3 · id …XYZ9')
+  assert.equal(requestWho(alice, 0, true), 'Alice Example')
+  assert.equal(requestWho({ ...alice, name: null }, 1, true), 'user_2abcXYZ9') // no name from Clerk: the id
 })

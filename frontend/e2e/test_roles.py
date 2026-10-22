@@ -11,7 +11,7 @@ import pytest
 from playwright.sync_api import Browser, BrowserContext, Page, Route, expect
 
 from reduced_motion import scene, still
-from test_access import DESKTOP, OWNER, PHONE, SIZES, FakeAccess, person, requests_card
+from test_access import DESKTOP, OWNER, PHONE, SIZES, FakeAccess, person, requests_card, show_details
 from test_shell import SHOTS, contrast, no_sideways_scroll
 
 REVIEWER_NOTE = ("Your settings apply only to you: your chat and the playground use them, everyone else keeps the "
@@ -90,6 +90,7 @@ def test_b45_40_the_owner_picks_a_role_when_approving_by_keyboard(open_role):
     fake = FakeAccess(OWNER, people())
     page = open_role(fake, path="/settings")
     card = requests_card(page)
+    show_details(page)
     alice = card.locator(".request-row").nth(0)
     select = alice.get_by_role("combobox", name="Role for Alice Example")
     expect(select).to_have_value("viewer")  # Viewer by default
@@ -108,6 +109,7 @@ def test_b45_40_the_owner_changes_a_role_later_with_save_role(open_role):
     fake = FakeAccess(OWNER, people())
     page = open_role(fake, path="/settings")
     card = requests_card(page)
+    show_details(page)
     bob = card.locator(".request-row").nth(1)
     expect(bob.get_by_role("combobox", name="Role for Bob")).to_have_value("trusted")
     expect(bob.get_by_role("button", name="Save role: Bob")).to_have_count(0)  # nothing to save yet
@@ -130,6 +132,7 @@ def test_b45_40_a_refused_person_has_no_role_choice(open_role):
 def test_b45_40_the_card_with_roles_fits_in_light_and_dark(open_role, browser_name, width, scheme):
     page = open_role(FakeAccess(OWNER, people()), width=width, scheme=scheme, path="/settings")
     card = requests_card(page)
+    show_details(page)
     expect(card.get_by_role("combobox")).to_have_count(2)
     card.get_by_role("combobox", name="Role for Bob").select_option("reviewer")
     expect(card.get_by_role("button", name="Save role: Bob")).to_be_visible()

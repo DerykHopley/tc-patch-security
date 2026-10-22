@@ -49,6 +49,11 @@ export function rows(user: ClerkUserLike): { account: ClerkAccount; name: string
   }))
 }
 
+/** F154 (#154): an account's email or username, or, hidden (the default), only that it is hidden. */
+export function accountDetail(row: { detail: string }, shown: boolean): string {
+  return shown ? row.detail : 'Details hidden'
+}
+
 /** The providers not linked yet. */
 export function linkable(user: ClerkUserLike) {
   const linked = new Set(user.externalAccounts.filter(verified).map((a) => a.provider))

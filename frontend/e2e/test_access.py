@@ -196,6 +196,11 @@ def requests_card(page: Page):
     return page.locator("section#requests")
 
 
+def show_details(page: Page) -> None:
+    """F154 (#154): names, emails and notes are hidden on arrival; these checks need them, so show them."""
+    requests_card(page).get_by_role("button", name="Show details").click()
+
+
 def test_b38_43_the_card_is_the_owners_only(open_as):
     page = open_as(FakeAccess({**OWNER, "owner": False}, people()), path="/settings")
     expect(heading(page, "Settings")).to_be_visible()
@@ -212,6 +217,7 @@ def test_b38_43_the_card_lists_people_with_their_note_as_plain_text(open_as):
     card = requests_card(page)
     rows = card.locator(".request-row")
     expect(rows).to_have_count(3)
+    show_details(page)
     alice = rows.nth(0)
     expect(alice).to_contain_text("Alice Example")
     expect(alice).to_contain_text("alice@example.com")
@@ -231,6 +237,7 @@ def test_b38_43_approve_by_keyboard_then_undo_a_refusal(open_as):
     fake = FakeAccess(OWNER, people())
     page = open_as(fake, path="/settings")
     card = requests_card(page)
+    show_details(page)
     card.get_by_role("button", name="Approve: Alice Example").focus()
     page.keyboard.press("Enter")
     expect(card.get_by_role("status")).to_contain_text("Alice Example approved")

@@ -1,11 +1,13 @@
 import { createContext, useContext, useState } from 'react'
 import { Card } from '../components/StatusCard.tsx'
-import { canUnlink, linkable, linkAccount, rows, type ClerkUserLike } from './linkedAccounts.ts'
+import { accountDetail, canUnlink, linkable, linkAccount, rows, type ClerkUserLike } from './linkedAccounts.ts'
 
 // The Connected accounts card on Settings (B38, #81, DESIGN.md §5.7): every signed-in user lists the sign-in methods
 // linked to their account, links another (Google, Discord) and unlinks one, never the last. With sign-in off there's
 // no account, so no card. Clerk's user comes through this context from auth/ClerkApp.tsx, so Settings loads none of
 // Clerk's code itself.
+// F154 (#154): each account's email or username is hidden (not rendered) until Show details; every load starts
+// hidden, so a screen share is safe. The provider's name stays, and Link and Unlink work either way.
 
 export const LinkedAccountsContext = createContext<ClerkUserLike | null>(null)
 
@@ -14,6 +16,7 @@ export function ConnectedAccountsCard() {
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  const [shown, setShown] = useState(false) // F154: never remembered
   if (!user) return null
 
   async function link(strategy: `oauth_${string}`) {
@@ -53,6 +56,11 @@ export function ConnectedAccountsCard() {
         Sign in with any of these and you land in the same account. Linking works even when the other account uses
         another email.
       </p>
+      {listed.length > 0 && (
+        <button type="button" className="details-toggle" aria-pressed={shown} onClick={() => setShown((s) => !s)}>
+          {shown ? 'Hide details' : 'Show details'}
+        </button>
+      )}
       <ul className="linked-list">
         {user.passwordEnabled && (
           <li className="linked-row">
@@ -65,7 +73,7 @@ export function ConnectedAccountsCard() {
           return (
             <li key={r.account.id} className="linked-row">
               <span className="linked-name">{r.name}</span>
-              <span className="linked-detail">{r.detail}</span>
+              <span className="linked-detail">{accountDetail(r, shown)}</span>
               {r.error && <span className="linked-error">Not linked: {r.error}</span>}
               {last ? (
                 <span className="linked-last">Your only way to sign in: link another first.</span>
