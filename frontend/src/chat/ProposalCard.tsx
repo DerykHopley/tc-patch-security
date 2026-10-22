@@ -26,6 +26,9 @@ import '../styles/proposals.css'
 // not go back to "proposed" after you approved it.
 const latest = new Map<string, Proposal>()
 
+/** A proposal as its card shows it now: approved or cancelled since the answer came (the chat's Export, F147). */
+export const shownProposal = (p: Proposal): Proposal => latest.get(p.proposal_id) ?? p
+
 const STATUSES: CveStatus[] = ['fixed', 'not_affected', 'open', 'accepted']
 const utcTime = (iso: string) => `${iso.slice(11, 16)} UTC`
 
@@ -193,7 +196,7 @@ function ProposalSources({ p }: { p: Proposal }) {
  *  expired since, so the card asks the server once for its state. */
 export function ProposalCard({ proposal, restored = false }: { proposal: Proposal; restored?: boolean }) {
   const titleId = useId()
-  const [p, setP] = useState<Proposal>(() => latest.get(proposal.proposal_id) ?? proposal)
+  const [p, setP] = useState<Proposal>(() => shownProposal(proposal))
   const [busy, setBusy] = useState<'approve' | 'cancel' | 'save' | null>(null)
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)

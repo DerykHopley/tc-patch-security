@@ -296,6 +296,7 @@ export default function App({ account }: { account?: Account } = {}) {
           asOf={status?.as_of ?? null}
           onClose={closeChat}
           showUsage={seesUsage(roleOf(access))}
+          model={status?.model ?? null}
         />
       )}
       {/* Hidden while the chat is pinned beside the page (DESIGN.md §6.3). */}
