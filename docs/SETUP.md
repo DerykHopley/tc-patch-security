@@ -280,7 +280,8 @@ The [model-check report](https://derykhopley.github.io/tc-patch-security/) (on G
 - **Best value:** `openai/gpt-6-luna`, one question behind at about a third of the cost.
 - **Best local:** `qwen3.8:27b`, 11 of 14, 50 of 54 checks, free but about 25 s per answer.
 - **4 embedders:** `mxbai-embed-large` (Ollama) is the default for real embeddings: hybrid hit rate at 5 of 0.82 and MRR 0.69, and the widest gap between on-topic and off-topic scores. Off-topic threshold 0.58.
-- **Hybrid search beats vector search alone** for every embedder: hit rate at 5 up by 0.26 to 0.33.
+- **Hybrid search beats vector search alone** for those 4 embedders: hit rate at 5 up by 0.26 to 0.33. Not for the two large ones added on 2026-10-22: `google/gemini-embedding-2` (0.85 with vectors alone, the best; the live app's embedder since that day) and `qwen/qwen3-embedding-8b`.
+- **2026-10-22, three more models** on the current 20 questions (102 checks): Haiku 5.5 99, Sonnet 5.5 100 at 18 times the cost, Gemini 3.8 Flash 98. Details in the report's findings.
 - **Every model** got the rules' top 3 for "what should I fix first?", the right verdict for "am I affected?", flagged the injection question and wrote no exploit code.
 - Most remaining failures are shared by nearly every model, so they point at our checks and tools. They're follow-up issues [#50](https://github.com/DerykHopley/tc-patch-security/issues/50)–[#54](https://github.com/DerykHopley/tc-patch-security/issues/54).
 - Total spend for all runs: about $0.40. *Unverified:* summed from the run files, not checked against the OpenRouter bill.

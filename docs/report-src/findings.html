@@ -1,4 +1,4 @@
-<p class="meta">Draft by Claude, 2026-10-15 (spec B's run added 2026-10-20), for Deryk to review. ✅ = checked in these runs. ❓ = unverified.</p>
+<p class="meta">Draft by Claude, 2026-10-15 (spec B's run added 2026-10-20; three models and two embedders added 2026-10-22), for Deryk to review. ✅ = checked in these runs. ❓ = unverified.</p>
 
 <h3>Summary</h3>
 <ul>
@@ -7,7 +7,8 @@
   <li><strong>Best local model: qwen3.8:27b.</strong> 11 of 14, 50 of 54 checks, free, but about 25 s per question. gpt-oss:20b is the fast local option (10 of 14, 8 s). ✅</li>
   <li><strong>Mistral: Large 4 is good but slow and costly</strong> (10 of 14, 50 of 54 checks, 60 s and about $0.014 per question, the most of any model). The two local Mistral models came last on checks (42 of 54 each). mistral-small3.2:24b often answered from memory without searching. ✅</li>
   <li><strong>GPT-5-mini works with tools, but isn't worth it here:</strong> 9 of 14, 20 s per question, and the most expensive at $0.071 (its hidden reasoning counts as output). ✅</li>
-  <li><strong>Best embedder: mxbai-embed-large</strong> (local, free). Hybrid hit rate at 5 0.82, MRR 0.69, and the widest gap between on-topic and off-topic scores. The paid OpenRouter embedder came third of four. ✅</li>
+  <li><strong>Best embedder: gemini-embedding-2</strong> (OpenRouter, added 2026-10-22). Hit rate at 5 0.85 and MRR 0.78 with vectors alone, the best of six; the live app uses it since 2026-10-22. <strong>Best local embedder: mxbai-embed-large</strong> (free): hybrid hit rate at 5 0.82, MRR 0.69. ✅</li>
+  <li><strong>A bigger model doesn't fix the remaining failures.</strong> Claude Sonnet 5.5 passed one more check than Haiku 5.5 (100 against 99 of 102), at 18 times the cost. ✅ (2026-10-22)</li>
   <li><strong>Most failures are shared by nearly every model</strong>, so they point at our checks and tools, not at the models (see "What still fails"). ✅</li>
   <li>Total spend for all runs: about $0.40 of the $5 cap. ❓ Summed from the run files plus an estimate for the index; not checked against the OpenRouter bill.</li>
 </ul>
@@ -33,6 +34,37 @@
   <li><strong>Not comparable with the 2026-10-15 runs, on two counts.</strong> Q9 now asks to add vLLM, not Ollama. And this run searched the live app's data (live version 3, refreshed that morning), not the frozen snapshot. A model-check run never fetches or changes the data, but its search index has more CVEs. ✅ (the run's settings; the run code, <code>backend/app/evals/model_check.py</code>)</li>
   <li><strong>Judgement worth a look, not a failed check:</strong> for an unauthenticated RCE in KEV, with the version unknown, Haiku proposed accepting the risk for 7 days behind the VPN. It told the user to edit that down until the version is confirmed. A "mitigated" or "open" proposal would be safer. ❓ One answer.</li>
   <li><strong>Found along the way:</strong> on Cloud Run a model-check run is saved only on the instance's disk, not in the state bucket. This one was rescued with a download before the instance stopped. ✅ (the bucket listing)</li>
+</ul>
+
+<h3>Three more models and two more embedders (2026-10-22)</h3>
+<p>Run locally the day before the review, on the current 20 questions (102 checks, with #133's new <code>Q-research-affected</code>), all searching the same <code>text-embedding-3-small</code> index as the runs above. Max agent steps 6. ✅</p>
+<div class="table-scroll"><table>
+  <thead><tr><th>Model</th><th>Questions</th><th>Checks</th><th>Cost per run</th><th>Per question</th><th>Failed</th></tr></thead>
+  <tbody>
+    <tr><td>claude-haiku-5.5 (rerun, the default)</td><td>18 / 20</td><td>99 / 102</td><td>$0.039</td><td>8.1 s</td><td>Q12 (explain levels), Q-fix-first (no citation)</td></tr>
+    <tr><td>claude-sonnet-5.5</td><td>18 / 20</td><td>100 / 102</td><td>$0.72</td><td>9.8 s</td><td>Q8 (an empty refusal), Q-partial (a made-up [2], removed)</td></tr>
+    <tr><td>gemini-3.8-flash</td><td>17 / 20</td><td>98 / 102</td><td>$0.24</td><td>26.1 s</td><td>Q11 (wording), Q12 (explain levels), Q-research (web not called unverified)</td></tr>
+  </tbody>
+</table></div>
+<ul>
+  <li><strong>The ceiling test.</strong> Sonnet is one check ahead of Haiku at 18 times the price. Haiku stays the default. The failures that remain are mostly ours, as above: Q12's sources change between levels for Haiku and Gemini alike. ✅</li>
+  <li><strong>Gemini's Q11 is a check that's too strict:</strong> it said the CVE "is not present", and the check accepts "not in", "not found" and the like, not "not present". ✅</li>
+  <li><strong>Sonnet refused the exploit question (Q8) with no text at all.</strong> Safe, but the app shows a blank answer. Filed as #141. ✅</li>
+  <li><strong>Every model passed the new affected-KEV question</strong> (#133): none proposed accepting the risk. ✅</li>
+  <li><strong>Not run: <code>qwen/qwen3.8-27b</code> on OpenRouter</strong> (the same weights as the local model): the workspace guardrail blocks it. ✅</li>
+</ul>
+<div class="table-scroll"><table>
+  <thead><tr><th>Embedder</th><th>Vector: hit@5 / MRR</th><th>Hybrid: hit@5 / MRR</th><th>Index build</th></tr></thead>
+  <tbody>
+    <tr><td>google/gemini-embedding-2</td><td>0.85 / 0.78</td><td>0.85 / 0.77</td><td>41 s, 3,072 dimensions, about $0.09</td></tr>
+    <tr><td>qwen/qwen3-embedding-8b</td><td>0.77 / 0.62</td><td>0.74 / 0.70</td><td>29 s, 4,096 dimensions, under $0.01</td></tr>
+    <tr><td>mxbai-embed-large (for comparison)</td><td>0.56 / 0.43</td><td>0.82 / 0.69</td><td>local, free</td></tr>
+  </tbody>
+</table></div>
+<ul>
+  <li><strong>Hybrid search helps weak embedders most.</strong> For the four embedders above it adds 0.26–0.33 to the hit rate. For gemini-embedding-2 it adds nothing: vectors alone already beat every hybrid result. For qwen3-embedding-8b the hit rate even drops a little (0.77 to 0.74) while the right chunk ranks higher (MRR 0.62 to 0.70). So hybrid is a cheap way to make a small embedder perform like a large one. ✅</li>
+  <li><strong>Gemini takes at most 100 texts per embedding request;</strong> Patch sent 200 and the first build failed. Batches are 100 now. ✅</li>
+  <li>Both new embedders needed their own off-topic threshold (the table below): at the provider default 0.35, Gemini let all 15 off-topic questions through. ✅</li>
 </ul>
 
 <h3>What was run</h3>
@@ -110,7 +142,7 @@
 
 <h3>Embedders and the off-topic threshold</h3>
 <ul>
-  <li>Hybrid search (vector plus keyword) beats vector alone for every embedder: hit rate at 5 up by 0.26–0.33. ✅</li>
+  <li>Hybrid search (vector plus keyword) beats vector alone for the first four embedders: hit rate at 5 up by 0.26–0.33. Not for the two large ones added on 2026-10-22 (above). ✅</li>
   <li>For the threshold, each embedder's best match score was saved for the 39 retrieval questions and for 15 clearly off-topic ones (pasta, football, Rome trips). The "Off-topic threshold" chart shows every score. ✅</li>
 </ul>
 <div class="table-scroll"><table>
@@ -120,6 +152,8 @@
     <tr><td>nomic-embed-text</td><td>0.62</td><td>0.54</td><td>0.4 (let every off-topic question through)</td><td>0.58</td></tr>
     <tr><td>qwen3-embedding:0.6b</td><td>0.57</td><td>0.53</td><td>0.4 (same)</td><td>0.55 (narrow gap)</td></tr>
     <tr><td>mxbai-embed-large</td><td>0.69</td><td>0.48</td><td>0.4 (same)</td><td>0.58</td></tr>
+    <tr><td>gemini-embedding-2 (2026-10-22)</td><td>0.73</td><td>0.61</td><td>0.35 (the provider default: let every off-topic question through)</td><td>0.67</td></tr>
+    <tr><td>qwen3-embedding-8b (2026-10-22)</td><td>0.59</td><td>0.46</td><td>0.35 (let 10 of 15 through)</td><td>0.53</td></tr>
   </tbody>
 </table></div>
 <ul>
@@ -148,7 +182,7 @@
   <li><strong>Default chat model: Claude Haiku 5.5</strong> for the best answers, at about $0.0015 per question. ✅ (from these runs)</li>
   <li><strong>Cheaper alternative: GPT-6 Luna</strong>, one question behind at about $0.0005 per question. ✅</li>
   <li><strong>For no cost and no data leaving the machine: qwen3.8:27b</strong>, if 25 s per answer is acceptable; otherwise gpt-oss:20b. ✅</li>
-  <li><strong>Default embedder: mxbai-embed-large</strong> with threshold 0.58. ✅</li>
+  <li><strong>Embedder on OpenRouter (the live app): gemini-embedding-2</strong> with threshold 0.67, since 2026-10-22. <strong>Locally: mxbai-embed-large</strong> with threshold 0.58. ✅</li>
   <li>Next improvements, in order of value ❓:
     <ol>
       <li>Give <code>explain_weakness</code> numbered sources (its OWASP or ATLAS page).</li>
