@@ -64,7 +64,7 @@ Patch never changes your data by itself. When you ask it to watch or remove a pr
 Title: Alerts
 Where: /settings#alerts
 
-Alerts come after each refresh of the live data, so in snapshot mode there are none. Choose what alerts you on Settings, in the Alerts card: a CVE on your watchlist added to CISA KEV, a CVE you marked fixed added to KEV, a new CVE at or above your minimum severity (High by default), a new CVE with no severity yet, and an open CVE rescored as critical. Due-soon and overdue reminders are always on while alerts are. More alerts than your digest limit in one check (5 by default) come as one digest. The channels are desktop, email, ntfy and Telegram; the owner sets them up, and only the owner's alerts go to them. Everyone sees their own alerts in Patch, in the dashboard's Recent alerts card, and new CVEs get a "New" chip on the CVEs page.
+Alerts come after each refresh of the live data, so in snapshot mode there are none. Choose what alerts you on Settings, in the Alerts card: a CVE on your watchlist added to CISA KEV, a CVE you marked fixed added to KEV, a new CVE at or above your minimum severity (High by default), a new CVE with no severity yet, and an open CVE rescored as critical. Due-soon and overdue reminders are always on while alerts are. More alerts than your digest limit in one check (5 by default) come as one digest. The channels are desktop, email, ntfy and Telegram; the owner sets them up, and only the owner's alerts go to them. Everyone sees their own alerts in Patch: the last 5 in the dashboard's Recent alerts card, the last 20 on Settings (in Delivery for the owner, in Alerts for anyone else).
 
 ## live_data_and_check_now
 Title: Live data and Check now

@@ -7,7 +7,7 @@
   margin-bottom: 0.6rem;
 }
 
-/* B50: Settings' Delivery card links here (/#recent-alerts): 1rem of room above it, as the Requests card has */
+/* A link to /#recent-alerts (B50; none in Patch since #144, older ones still land): 1rem of room above it */
 .alerts-card {
   scroll-margin-top: 1rem;
 }
@@ -56,4 +56,9 @@
 
 .channel-results .result.muted {
   box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* #144: "Show all 20" under Settings' alert lists: the app's button, a little space above. */
+.alerts-show-all {
+  margin-top: 0.5rem;
 }

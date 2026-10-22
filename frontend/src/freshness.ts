@@ -71,7 +71,7 @@ export function replyLine(reply: CheckReply, owner = true): { tone: Tone; text: 
   const then = alerts.length ? ` ${alerts.join(', ')}.` : '' // B34: your alerts, by what happened
   if (r.status === 'partial') // B20: never "Done" for a run where a feed failed; the banner says which
     return { tone: 'warn', text: (parts.length ? `Done in part: ${parts.join(', ')}.` : 'Done in part: nothing new from the sources that answered.') + then }
-  const tone = reply.alerts_for_you?.failed ? 'warn' : 'ok' // an alert that failed needs a look at Recent alerts
+  const tone = reply.alerts_for_you?.failed ? 'warn' : 'ok' // an alert that failed needs a look at Delivery's alerts list (#144)
   return { tone, text: (parts.length ? `Done: ${parts.join(', ')}.` : 'Done: nothing new since the last check.') + then }
 }
 

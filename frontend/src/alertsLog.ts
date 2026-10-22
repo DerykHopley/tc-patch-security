@@ -53,12 +53,34 @@ export function emptyAlerts(mode: 'live' | 'snapshot', owner: boolean): string {
     return owner ? 'No alerts yet. A check sends them when something on your watchlist needs you.'
       : 'No alerts yet. A check shows them here when something on your watchlist needs you.'
   }
-  return owner ? 'No alerts yet. The snapshot never changes, so only test alerts from Settings appear here.'
-    : 'No alerts yet. The snapshot never changes, so no check finds any.'
+  const none = 'No alerts yet. The snapshot never changes, so no check finds any.'
+  return owner ? `${none} Test alerts show in Settings.` : none // #144: the dashboard lists real alerts only
 }
 
-/** Delivery shows the last few; the dashboard's card has the last 20 (B50, #95: the two lists were the same). */
-export const DELIVERY_SHOWN = 3
+/** #144: the dashboard's card, a glance at what needs you: the last 5 real alerts, no test alerts (delivery
+ *  housekeeping, listed in Settings). */
+export const DASHBOARD_SHOWN = 5
+/** #144: Settings has the full log: Delivery for the owner (test alerts and every channel's result), the Alerts card
+ *  for anyone else. The API sends the last 20. The first 5 show, the rest behind "Show all" (the owner's choice, so
+ *  Delivery stays short). */
+export const SETTINGS_SHOWN = 20
+export const SETTINGS_FIRST = 5
+
+export const dashboardAlerts = (log: AlertLogEntry[]) => log.filter((e) => e.kind !== 'test').slice(0, DASHBOARD_SHOWN)
+export const settingsAlerts = (log: AlertLogEntry[], all = false) => log.slice(0, all ? SETTINGS_SHOWN : SETTINGS_FIRST)
+export const SHOW_FEWER = `Show the last ${SETTINGS_FIRST}`
+/** The toggle that shows the rest, with how many there are: null when nothing would be hidden. */
+export function showAllLabel(log: AlertLogEntry[]): string | null {
+  const n = Math.min(log.length, SETTINGS_SHOWN)
+  return n > SETTINGS_FIRST ? `Show all ${n}` : null
+}
+
+/** The dashboard card's link to the full log (#144): the owner's is Delivery, with the channels' results; anyone
+ *  else's is their own Alerts card (they have no channels, B48). */
+export function alertsLink(owner: boolean): { text: string; href: string } {
+  return owner ? { text: 'Alerts and delivery in Settings', href: '/settings#delivery' }
+    : { text: 'All your alerts in Settings', href: '/settings#alerts' }
+}
 
 /** Why an entry has no channel results: held for quiet hours, another user's (B09: only the owner's alerts go to
  * the channels; B50: "In Patch only", as their Alerts card's note says), or no channel picked. */
