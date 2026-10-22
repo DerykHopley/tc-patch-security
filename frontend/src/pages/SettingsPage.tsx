@@ -146,19 +146,25 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
     refreshLog()
   }, [refreshLog])
 
-  // B19: the dashboard's "Schedule and refresh runs" link opens /settings#schedule: bring the schedule into view
+  // A link to a card brings it into view once the page has loaded (B19: the dashboard's /settings#schedule; #148:
+  // Patch's guide, /settings#watchlist), and again when one is followed while Settings is open (the chat stays open
+  // over it). #requests is the Requests card's own: its list loads later (B38).
   const loaded = !!s.draft
+  // A new object per link followed, so the same link twice brings its card back too
+  const [target, setTarget] = useState(() => ({ hash: window.location.hash }))
   useEffect(() => {
-    if (loaded && window.location.hash === '#schedule') document.getElementById('schedule')?.scrollIntoView({ block: 'center' })
-  }, [loaded])
-  // #144: the dashboard's Recent alerts card links to the full log: /settings#delivery (the owner), /settings#alerts
-  // (anyone else). Once the page and the log are in, bring the card into view and keep it there (B38)
+    const onPop = () => setTarget({ hash: window.location.hash })
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+  // #144: the dashboard's Recent alerts card links to the full log, /settings#delivery (the owner) or
+  // /settings#alerts (anyone else): those wait for the log too, so the card is in view once it has its height (B38)
   const logIn = log !== null
   useEffect(() => {
-    const hash = window.location.hash
-    if (!loaded || !logIn || (hash !== '#delivery' && hash !== '#alerts')) return
+    const { hash } = target
+    if (!loaded || !hash || hash === '#requests' || (!logIn && (hash === '#delivery' || hash === '#alerts'))) return
     return keepInView(document.getElementById(hash.slice(1)), () => undefined)
-  }, [loaded, logIn])
+  }, [loaded, logIn, target])
 
   if (!s.draft || !s.reply) {
     return (
@@ -375,7 +381,7 @@ export function SettingsPage({ asOf, mode, onServerSaved }: {
                 <WelcomeSwitch />
               </Card>
 
-              <Card title="Priority and due dates">
+              <Card title="Priority and due dates" anchor="priority">
                 <p className="meta">
                   Fixed rules set each open CVE's priority from CISA KEV, EPSS, severity, the version check and whether the
                   product is internet-facing. Your policy turns the priority into a due date: the publication date (or the

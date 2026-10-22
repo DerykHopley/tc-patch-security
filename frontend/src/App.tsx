@@ -37,14 +37,15 @@ const PAGES: Record<Page, { title: string; nav: string; Icon: () => JSX.Element 
   notFound: { title: 'Page not found', nav: '', Icon: InfoIcon }, // B49: any other address; no sidebar item
 }
 
-// Questions that fit the page under the chat (1–2, DESIGN.md §6.2). FakeLLM answers each one.
+// Questions that fit the page under the chat (1–2, DESIGN.md §6.2). FakeLLM answers each one. A how-to about Patch
+// itself (#148) where a newcomer starts (the dashboard, About, a wrong address) and on Settings, where it's done.
 const SUGGESTIONS: Record<Page, string[]> = {
-  dashboard: ['What should I fix first?', 'Explain CVE-2025-3248 and how to defend against it.'],
+  dashboard: ['What should I fix first?', 'How do I use Patch?'],
   cves: ['What should I fix first?', 'Explain CVE-2025-3248 and how to defend against it.'],
-  settings: ['How do I protect a RAG app from indirect prompt injection?'],
+  settings: ['How do I tell Patch which Langflow version I run?', 'How do I protect a RAG app from indirect prompt injection?'],
   dev: ['What does an "ignore previous instructions" attack look like?'],
-  about: ['What should I fix first?'],
-  notFound: ['What should I fix first?'],
+  about: ['How do I use Patch?', 'What should I fix first?'],
+  notFound: ['How do I use Patch?', 'What should I fix first?'],
 }
 
 // `account`: the signed-in user, with sign-in on (B10, auth/ClerkApp.tsx): the top bar shows the user menu.

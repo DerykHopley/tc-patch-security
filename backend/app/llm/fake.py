@@ -7,6 +7,7 @@ real tool results in `messages`, so retrieval and tools are tested for real. Eac
 Unscripted questions: a CVE id → lookup_cve, then search_security for how to prevent its OWASP
 category (what the dashboard's "Ask about this" sends). A CWE or ATLAS id → explain_weakness.
 A question about the web, news or advisories, while research_web is offered (B08) → research_web, first.
+A how-to about Patch itself ("How do I use Patch?") → patch_guide, its topic by a keyword (#148).
 Anything else → search_security with the question as is.
 
 A script with `steps` is a workflow (B22): each step's tool calls go out after the previous step's results came back,
@@ -27,6 +28,11 @@ LEVEL_LINE = re.compile(r"^Explain level: (simple|normal|deep dive)\.", re.M)
 SEVERITY_WORD = {"CRITICAL": "critical", "HIGH": "high", "MEDIUM": "medium", "LOW": "low"}
 WEB_QUESTION = re.compile(r"\b(web|online|news|advisor(y|ies)|who'?s talking)\b", re.I)
 SCHEDULE_QUESTION = re.compile(r"\b(last (check|checked)|schedule|when did you (last )?check)\b", re.I)  # B19
+# #148: a how-to about Patch itself ("How do I use Patch?", "Where do I add a product to my watchlist?") → patch_guide
+GUIDE_QUESTION = re.compile(r"\b(how (do|can) i|where (do|can) i)\b.*\b(use patch|in patch|patch's|settings|"
+                            r"watchlist|alerts?|dev page|check now)\b", re.I)
+GUIDE_TOPICS = (("watchlist", "watchlist_and_versions"), ("version", "watchlist_and_versions"), ("alert", "alerts"),
+                ("check now", "live_data_and_check_now"), ("dev page", "dev_page"))
 
 
 def _tokens(text: str) -> int:
@@ -216,6 +222,12 @@ def _updates_only(u: dict) -> str:
     return "\n\n".join(lines)
 
 
+def _guide(g: dict) -> str:
+    """patch_guide's section (#148), cited, and where it is in the app."""
+    where = f"\n\nYou'll find it at {g['path']}." if g["path"] else ""
+    return f"**{g['title']}**\n\n{g['text']} [{g['n']}]{where}"
+
+
 def _level(messages: list[dict]) -> str:
     system = next((m["content"] or "" for m in messages if m["role"] == "system"), "")
     found = LEVEL_LINE.search(system)
@@ -263,6 +275,9 @@ class FakeLLM:
             if m := guard.CVE_RE.search(question):
                 args["cve_id"] = m.group(0).upper()
             return [{"name": "research_web", "args": args}]
+        if "patch_guide" in offered and GUIDE_QUESTION.search(question):
+            low = question.lower()
+            return [{"name": "patch_guide", "args": {"topic": next((t for w, t in GUIDE_TOPICS if w in low), "start")}}]
         if "check_updates" in offered and SCHEDULE_QUESTION.search(question) and not guard.CVE_RE.search(question):
             return [{"name": "check_updates", "args": {}}]  # B19: "when did you last check?", "is the schedule on?"
         if m := guard.CVE_RE.search(question):
@@ -348,9 +363,11 @@ class FakeLLM:
                 fields["web"] = _web(data)
             elif name == "check_updates":  # B06
                 fields["updates"] = _updates(data)
+            elif name == "patch_guide":  # #148
+                fields["guide"] = _guide(data)
 
         if script is None:
-            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness", "web", "updates")
+            parts = [fields[k] for k in ("error", "cve", "affected", "fix_first", "weakness", "web", "updates", "guide")
                      if k in fields]
             if sources:
                 head = "How to prevent this kind of bug:" if "cve" in fields else "From the knowledge base:"

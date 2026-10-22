@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { ToolCallRecord } from './api.ts'
-import { httpHref, proposalAfter, proposalOf } from './toolCalls.ts'
+import { httpHref, inAppHref, proposalAfter, proposalOf } from './toolCalls.ts'
 import type { ProposalFields } from './toolResults.ts'
 
 const call = (name: string, result: unknown) => ({ id: 'c', name, args: {}, result }) as unknown as ToolCallRecord
@@ -60,4 +60,12 @@ test("B49.3 other proposals keep the backend's after value", () => {
   assert.deepEqual(proposalAfter({ action: 'watch', after: 'Watched', fields: NO_FIELDS }), { after: 'Watched', lines: [] })
   const details = 'self-hosted app, version 1.2.0, internet-facing'
   assert.deepEqual(proposalAfter({ action: 'set_details', after: details, fields: NO_FIELDS }), { after: details, lines: [] })
+})
+
+test('F148.10 a guide section links in the app only to a path of this app', () => {
+  for (const ok of ['/settings#watchlist', '/', '/cves', '/settings#start-over']) assert.equal(inAppHref(ok), ok)
+  for (const bad of ['//example.org/a', '/\\example.org', 'https://example.org/', 'javascript:alert(1)', 'settings', '', null,
+    undefined]) {
+    assert.equal(inAppHref(bad), null, String(bad))
+  }
 })
